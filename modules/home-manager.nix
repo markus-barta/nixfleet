@@ -1,14 +1,20 @@
 # NixFleet Agent for Home Manager (macOS/Linux user-level)
 #
+# Provides a launchd agent (macOS) or systemd user service (Linux)
+# that polls the NixFleet dashboard for commands.
+#
 # Usage (via flake):
-#   inputs.nixfleet.url = "github:yourusername/nixfleet";
-#   # In homeManagerConfiguration modules:
+#   inputs.nixfleet.url = "github:your-org/nixfleet";
+#
+#   # In homeManagerConfiguration modules list:
 #   inputs.nixfleet.homeManagerModules.nixfleet-agent
 #
 #   # In home.nix:
 #   services.nixfleet-agent = {
 #     enable = true;
-#     tokenFile = "~/.config/nixfleet/token";
+#     url = "https://fleet.example.com";
+#     tokenFile = "/Users/myuser/.config/nixfleet/token";
+#     configRepo = "/Users/myuser/Code/nixcfg";
 #   };
 {
   config,
@@ -36,37 +42,43 @@ in
 
     url = lib.mkOption {
       type = lib.types.str;
-      default = "https://fleet.barta.cm";
-      description = "NixFleet dashboard URL";
+      description = "URL of the NixFleet dashboard.";
+      example = "https://fleet.example.com";
     };
 
     tokenFile = lib.mkOption {
       type = lib.types.str;
-      default = "~/.config/nixfleet/token";
-      description = "Path to file containing the API token";
+      description = ''
+        Path to a file containing the API token for authentication.
+        The file should contain just the token (no variable prefix).
+        Use an absolute path (~ is not expanded in launchd).
+      '';
+      example = "/Users/myuser/.config/nixfleet/token";
+    };
+
+    configRepo = lib.mkOption {
+      type = lib.types.str;
+      description = "Absolute path to the Nix configuration repository.";
+      example = "/Users/myuser/Code/nixcfg";
     };
 
     interval = lib.mkOption {
-      type = lib.types.int;
-      default = 10;
-      description = "Poll interval in seconds";
+      type = lib.types.ints.between 1 3600;
+      default = 60;
+      description = "Poll interval in seconds (1-3600).";
+      example = 30;
     };
 
-    nixcfgPath = lib.mkOption {
-      type = lib.types.str;
-      default = "~/Code/nixcfg";
-      description = "Path to nixcfg repository";
-    };
-
-    # New fields for dashboard display
     location = lib.mkOption {
       type = lib.types.enum [
         "cloud"
         "home"
         "work"
+        "other"
       ];
-      default = "home";
-      description = "Physical location category (cloud/home/work)";
+      default = "other";
+      description = "Physical location category for dashboard grouping.";
+      example = "home";
     };
 
     deviceType = lib.mkOption {
@@ -75,20 +87,23 @@ in
         "desktop"
         "laptop"
         "gaming"
+        "other"
       ];
       default = "desktop";
-      description = "Device type (server/desktop/laptop/gaming)";
+      description = "Device type for dashboard display.";
+      example = "laptop";
     };
 
     themeColor = lib.mkOption {
-      type = lib.types.str;
+      type = lib.types.strMatching "^#[0-9a-fA-F]{6}$";
       default = "#769ff0";
-      description = "Theme color hex (from theme-palettes.nix)";
+      description = "Theme color hex code for dashboard display.";
+      example = "#ff6b6b";
     };
   };
 
   config = lib.mkIf cfg.enable {
-    # macOS launchd service
+    # macOS launchd agent
     launchd.agents.nixfleet-agent = lib.mkIf pkgs.stdenv.isDarwin {
       enable = true;
       config = {
@@ -98,14 +113,14 @@ in
           "-c"
           ''
             # Add Nix paths so home-manager is available
-            export PATH="$HOME/.nix-profile/bin:/nix/var/nix/profiles/default/bin:$PATH"
+            export PATH="$HOME/.nix-profile/bin:/nix/var/nix/profiles/default/bin:/run/current-system/sw/bin:$PATH"
             export NIXFLEET_URL="${cfg.url}"
-            export NIXFLEET_NIXCFG="${cfg.nixcfgPath}"
+            export NIXFLEET_NIXCFG="${cfg.configRepo}"
             export NIXFLEET_INTERVAL="${toString cfg.interval}"
             export NIXFLEET_LOCATION="${cfg.location}"
             export NIXFLEET_DEVICE_TYPE="${cfg.deviceType}"
             export NIXFLEET_THEME_COLOR="${cfg.themeColor}"
-            export NIXFLEET_TOKEN="$(cat ${cfg.tokenFile})"
+            export NIXFLEET_TOKEN="$(cat '${cfg.tokenFile}')"
             exec ${agentScript}/bin/nixfleet-agent
           ''
         ];
@@ -119,7 +134,8 @@ in
     # Linux systemd user service
     systemd.user.services.nixfleet-agent = lib.mkIf pkgs.stdenv.isLinux {
       Unit = {
-        Description = "NixFleet Agent";
+        Description = "NixFleet Agent - Fleet management daemon";
+        Documentation = "https://github.com/your-org/nixfleet";
         After = [ "network-online.target" ];
       };
       Service = {
@@ -129,7 +145,7 @@ in
         RestartSec = 30;
         Environment = [
           "NIXFLEET_URL=${cfg.url}"
-          "NIXFLEET_NIXCFG=${cfg.nixcfgPath}"
+          "NIXFLEET_NIXCFG=${cfg.configRepo}"
           "NIXFLEET_INTERVAL=${toString cfg.interval}"
           "NIXFLEET_LOCATION=${cfg.location}"
           "NIXFLEET_DEVICE_TYPE=${cfg.deviceType}"

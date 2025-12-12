@@ -1,16 +1,14 @@
-# NixFleet - Docker Compose for csb1 deployment
+# NixFleet - csb1 Deployment (with Traefik)
 #
-# Deploy with: docker compose up -d
+# This is the deployment-specific configuration for csb1.
+# Requires Traefik reverse proxy with csb1_traefik network.
 #
-# Environment variables (set in .env):
-#   NIXFLEET_PASSWORD_HASH  - bcrypt hash of admin password
-#   NIXFLEET_TOTP_SECRET    - Base32-encoded TOTP secret (optional)
-#   NIXFLEET_API_TOKEN      - Token for agent authentication
+# Deploy: docker compose -f docker-compose.csb1.yml up -d
 
 services:
   nixfleet:
     build:
-      context: .
+      context: ..
       args:
         - GIT_HASH=${GIT_HASH:-unknown}
     container_name: nixfleet

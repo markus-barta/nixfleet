@@ -1,17 +1,20 @@
 # NixFleet Agent Module (NixOS)
 #
-# Provides automatic fleet management agent that polls the dashboard
+# Provides a systemd service that polls the NixFleet dashboard
 # for commands and reports host status.
 #
 # Usage (via flake):
-#   inputs.nixfleet.url = "github:yourusername/nixfleet";
-#   # In nixosSystem modules:
+#   inputs.nixfleet.url = "github:your-org/nixfleet";
+#
+#   # In nixosSystem modules list:
 #   inputs.nixfleet.nixosModules.nixfleet-agent
 #
 #   # In configuration.nix:
 #   services.nixfleet-agent = {
 #     enable = true;
+#     url = "https://fleet.example.com";
 #     tokenFile = config.age.secrets.nixfleet-token.path;
+#     configRepo = "/home/admin/Code/nixcfg";
 #   };
 {
   config,
@@ -39,42 +42,53 @@ in
 
     url = lib.mkOption {
       type = lib.types.str;
-      default = "https://fleet.barta.cm";
-      description = "NixFleet dashboard URL";
+      description = "URL of the NixFleet dashboard.";
+      example = "https://fleet.example.com";
     };
 
     tokenFile = lib.mkOption {
       type = lib.types.path;
-      description = "Path to file containing the API token";
+      description = ''
+        Path to a file containing the API token for authentication.
+        The file should contain just the token, optionally with NIXFLEET_TOKEN= prefix.
+        For NixOS, use agenix or sops-nix to manage this secret.
+      '';
+      example = lib.literalExpression "config.age.secrets.nixfleet-token.path";
+    };
+
+    configRepo = lib.mkOption {
+      type = lib.types.str;
+      description = "Absolute path to the Nix configuration repository.";
+      example = "/home/admin/Code/nixcfg";
     };
 
     interval = lib.mkOption {
-      type = lib.types.int;
-      default = 10;
-      description = "Poll interval in seconds";
-    };
-
-    nixcfgPath = lib.mkOption {
-      type = lib.types.str;
-      default = "/home/mba/Code/nixcfg";
-      description = "Path to nixcfg repository";
+      type = lib.types.ints.between 1 3600;
+      default = 60;
+      description = "Poll interval in seconds (1-3600).";
+      example = 30;
     };
 
     user = lib.mkOption {
       type = lib.types.str;
-      default = "mba";
-      description = "User to run the agent as (needs sudo access for nixos-rebuild)";
+      description = ''
+        User to run the agent as. This user needs:
+        - Read access to the config repository
+        - Sudo access to run nixos-rebuild (configured automatically)
+      '';
+      example = "admin";
     };
 
-    # New fields for dashboard display
     location = lib.mkOption {
       type = lib.types.enum [
         "cloud"
         "home"
         "work"
+        "other"
       ];
-      default = "home";
-      description = "Physical location category (cloud/home/work)";
+      default = "other";
+      description = "Physical location category for dashboard grouping.";
+      example = "cloud";
     };
 
     deviceType = lib.mkOption {
@@ -83,19 +97,38 @@ in
         "desktop"
         "laptop"
         "gaming"
+        "other"
       ];
       default = "server";
-      description = "Device type (server/desktop/laptop/gaming)";
+      description = "Device type for dashboard display.";
+      example = "server";
     };
 
     themeColor = lib.mkOption {
-      type = lib.types.str;
+      type = lib.types.strMatching "^#[0-9a-fA-F]{6}$";
       default = "#769ff0";
-      description = "Theme color hex (from theme-palettes.nix)";
+      description = "Theme color hex code for dashboard display.";
+      example = "#ff6b6b";
     };
   };
 
   config = lib.mkIf cfg.enable {
+    # Validate required options
+    assertions = [
+      {
+        assertion = cfg.url != "";
+        message = "services.nixfleet-agent.url must be set";
+      }
+      {
+        assertion = cfg.configRepo != "";
+        message = "services.nixfleet-agent.configRepo must be set";
+      }
+      {
+        assertion = cfg.user != "";
+        message = "services.nixfleet-agent.user must be set";
+      }
+    ];
+
     # Allow agent user to run nixos-rebuild without password
     security.sudo.extraRules = [
       {
@@ -110,22 +143,23 @@ in
     ];
 
     systemd.services.nixfleet-agent = {
-      description = "NixFleet Agent";
+      description = "NixFleet Agent - Fleet management daemon";
+      documentation = [ "https://github.com/your-org/nixfleet" ];
       after = [ "network-online.target" ];
       wants = [ "network-online.target" ];
       wantedBy = [ "multi-user.target" ];
 
       environment = {
         NIXFLEET_URL = cfg.url;
-        NIXFLEET_NIXCFG = cfg.nixcfgPath;
+        NIXFLEET_NIXCFG = cfg.configRepo;
         NIXFLEET_INTERVAL = toString cfg.interval;
         NIXFLEET_LOCATION = cfg.location;
         NIXFLEET_DEVICE_TYPE = cfg.deviceType;
         NIXFLEET_THEME_COLOR = cfg.themeColor;
-        HOME = "/home/${cfg.user}"; # Ensure SSH keys are found
+        HOME = "/home/${cfg.user}";
       };
 
-      path = [ "/run/current-system/sw" ]; # For nixos-rebuild and sudo
+      path = [ "/run/current-system/sw" ];
 
       serviceConfig = {
         Type = "simple";
@@ -136,13 +170,20 @@ in
         # Read token from file
         EnvironmentFile = cfg.tokenFile;
 
-        # Run as regular user (uses sudo for nixos-rebuild)
+        # Run as specified user
         User = cfg.user;
         Group = "users";
 
         # Logging
         StandardOutput = "journal";
         StandardError = "journal";
+
+        # Security hardening
+        NoNewPrivileges = false; # Needs sudo for nixos-rebuild
+        ProtectSystem = "strict";
+        ProtectHome = "read-only";
+        ReadWritePaths = [ cfg.configRepo ];
+        PrivateTmp = true;
       };
     };
   };

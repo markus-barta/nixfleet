@@ -1,0 +1,41 @@
+# NixFleet - Docker Compose
+#
+# Generic deployment configuration.
+# Copy this file and customize for your environment.
+#
+# Required environment variables (create .env file):
+#   NIXFLEET_PASSWORD_HASH  - bcrypt hash of admin password
+#   NIXFLEET_API_TOKEN      - Token for agent authentication
+#
+# Optional:
+#   NIXFLEET_TOTP_SECRET    - Base32-encoded TOTP secret for 2FA
+#   NIXFLEET_REQUIRE_TOTP   - Set to "true" to enforce 2FA
+#   GIT_HASH                - Git commit hash for version tracking
+
+services:
+  nixfleet:
+    build:
+      context: .
+      args:
+        - GIT_HASH=${GIT_HASH:-unknown}
+    container_name: nixfleet
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - NIXFLEET_DATA_DIR=/data
+      - NIXFLEET_PASSWORD_HASH=${NIXFLEET_PASSWORD_HASH}
+      - NIXFLEET_TOTP_SECRET=${NIXFLEET_TOTP_SECRET:-}
+      - NIXFLEET_API_TOKEN=${NIXFLEET_API_TOKEN}
+      - NIXFLEET_REQUIRE_TOTP=${NIXFLEET_REQUIRE_TOTP:-false}
+    volumes:
+      - nixfleet-data:/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+
+volumes:
+  nixfleet-data:
