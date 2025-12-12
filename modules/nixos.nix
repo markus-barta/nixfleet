@@ -4,7 +4,7 @@
 # for commands and reports host status.
 #
 # Usage (via flake):
-#   inputs.nixfleet.url = "github:your-org/nixfleet";
+#   inputs.nixfleet.url = "github:markus-barta/nixfleet";
 #
 #   # In nixosSystem modules list:
 #   inputs.nixfleet.nixosModules.nixfleet-agent
@@ -144,7 +144,7 @@ in
 
     systemd.services.nixfleet-agent = {
       description = "NixFleet Agent - Fleet management daemon";
-      documentation = [ "https://github.com/your-org/nixfleet" ];
+      documentation = [ "https://github.com/markus-barta/nixfleet" ];
       after = [ "network-online.target" ];
       wants = [ "network-online.target" ];
       wantedBy = [ "multi-user.target" ];

@@ -8,11 +8,11 @@
 #
 # Usage: nixfleet-agent.sh
 #
-# Environment:
-#   NIXFLEET_URL      - Dashboard URL (default: https://fleet.barta.cm)
-#   NIXFLEET_TOKEN    - API authentication token (required in production)
-#   NIXFLEET_NIXCFG   - Path to nixcfg repository (default: ~/Code/nixcfg)
-#   NIXFLEET_INTERVAL - Poll interval in seconds (default: 60)
+# Environment (all required unless noted):
+#   NIXFLEET_URL      - Dashboard URL (e.g., https://fleet.example.com)
+#   NIXFLEET_TOKEN    - API authentication token
+#   NIXFLEET_NIXCFG   - Absolute path to config repository
+#   NIXFLEET_INTERVAL - Poll interval in seconds (optional, default: 60)
 #
 # Requirements:
 #   - curl
@@ -26,9 +26,13 @@ set -euo pipefail
 # Configuration
 # ════════════════════════════════════════════════════════════════════════════════
 
-readonly NIXFLEET_URL="${NIXFLEET_URL:-https://fleet.barta.cm}"
-readonly NIXFLEET_TOKEN="${NIXFLEET_TOKEN:-}"
-readonly NIXFLEET_NIXCFG="${NIXFLEET_NIXCFG:-$HOME/Code/nixcfg}"
+# Required: Dashboard URL (no default - must be explicitly configured)
+readonly NIXFLEET_URL="${NIXFLEET_URL:?ERROR: NIXFLEET_URL environment variable must be set}"
+# Required: API token for authentication
+readonly NIXFLEET_TOKEN="${NIXFLEET_TOKEN:?ERROR: NIXFLEET_TOKEN environment variable must be set}"
+# Required: Path to config repository
+readonly NIXFLEET_NIXCFG="${NIXFLEET_NIXCFG:?ERROR: NIXFLEET_NIXCFG environment variable must be set}"
+# Optional: Poll interval (default 60 seconds)
 readonly NIXFLEET_INTERVAL="${NIXFLEET_INTERVAL:-60}"
 
 # Host detection - always get short hostname (strip domain)

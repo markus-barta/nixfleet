@@ -4,7 +4,7 @@
 # that polls the NixFleet dashboard for commands.
 #
 # Usage (via flake):
-#   inputs.nixfleet.url = "github:your-org/nixfleet";
+#   inputs.nixfleet.url = "github:markus-barta/nixfleet";
 #
 #   # In homeManagerConfiguration modules list:
 #   inputs.nixfleet.homeManagerModules.nixfleet-agent
