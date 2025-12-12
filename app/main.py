@@ -382,6 +382,84 @@ def metric_inc(key: str, amount: int = 1):
     except Exception:
         pass
 
+
+# ============================================================================
+# Status History (In-Memory Papertrail)
+# ============================================================================
+
+# Configuration
+STATUS_HISTORY_DAYS = int(os.environ.get("NIXFLEET_STATUS_HISTORY_DAYS", "30"))
+STATUS_HISTORY_MAX_ENTRIES = 1000  # Safety cap per host
+
+# Dual history stores (in-memory, lost on restart)
+# status_history: truncated messages for UI display
+# full_log: complete output for download
+status_history: dict[str, list[dict]] = {}
+full_log: dict[str, list[dict]] = {}
+
+
+def prune_history(host_id: str):
+    """Remove entries older than STATUS_HISTORY_DAYS from both stores."""
+    cutoff = datetime.utcnow() - timedelta(days=STATUS_HISTORY_DAYS)
+    cutoff_iso = cutoff.isoformat() + "Z"
+    
+    if host_id in status_history:
+        status_history[host_id] = [
+            e for e in status_history[host_id]
+            if e.get("timestamp", "") > cutoff_iso
+        ][:STATUS_HISTORY_MAX_ENTRIES]
+    
+    if host_id in full_log:
+        full_log[host_id] = [
+            e for e in full_log[host_id]
+            if e.get("timestamp", "") > cutoff_iso
+        ][:STATUS_HISTORY_MAX_ENTRIES]
+
+
+def append_history(
+    host_id: str,
+    icon: str,
+    message: str,
+    full_output: Optional[str] = None,
+    event_type: Optional[str] = None,
+):
+    """
+    Append to both history stores.
+    
+    - status_history: truncated message (≤100 chars) for UI
+    - full_log: complete output for download
+    """
+    now = datetime.utcnow().isoformat() + "Z"
+    
+    # Status history (truncated for UI)
+    truncated = message[:100] + "..." if len(message) > 100 else message
+    status_history.setdefault(host_id, []).insert(0, {
+        "timestamp": now,
+        "icon": icon,
+        "message": truncated,
+    })
+    
+    # Full log (complete output for download)
+    full_log.setdefault(host_id, []).insert(0, {
+        "timestamp": now,
+        "type": event_type or "unknown",
+        "message": message,
+        "output": full_output,
+    })
+    
+    # Prune old entries
+    prune_history(host_id)
+
+
+def get_status_history(host_id: str, limit: int = 50) -> list[dict]:
+    """Get status history for a host (most recent first)."""
+    return status_history.get(host_id, [])[:limit]
+
+
+def get_full_log(host_id: str) -> list[dict]:
+    """Get full log for a host (most recent first)."""
+    return full_log.get(host_id, [])
+
 # ============================================================================
 # Jinja2 Templates
 # ============================================================================
@@ -1190,6 +1268,8 @@ async def list_hosts(request: Request):
                 host["online"] = datetime.utcnow() - last_seen < timedelta(minutes=5)
             else:
                 host["online"] = False
+            # Include status history for UI
+            host["status_history"] = get_status_history(host["id"], limit=50)
             hosts.append(host)
         return {"hosts": hosts}
 
@@ -1579,6 +1659,24 @@ async def update_status(
     if host_gen and latest_hash:
         outdated = not latest_hash.startswith(host_gen[:7]) and not host_gen.startswith(latest_hash[:7])
     
+    # Add to status history
+    if status.status == "error":
+        history_icon = "✗"
+        history_message = comment or "Command failed"
+        history_type = "command_failed"
+    else:
+        history_icon = "✓"
+        history_message = comment or "Command completed"
+        history_type = "command_completed"
+    
+    append_history(
+        host_id,
+        icon=history_icon,
+        message=history_message,
+        full_output=status.output,
+        event_type=history_type,
+    )
+    
     # Broadcast SSE event
     await broadcast_event("host_update", {
         "host_id": host_id,
@@ -1591,6 +1689,7 @@ async def update_status(
         "pending_command": None,  # Command completed
         "test_running": False,
         "outdated": outdated,
+        "status_history": get_status_history(host_id, limit=10),  # Include recent history
     })
     
     return {"status": "updated"}
@@ -1662,6 +1761,35 @@ async def update_test_progress(
             ))
         conn.commit()
     
+    # Add to status history
+    if progress.running:
+        # Only log progress for first test or every 5th test to avoid noise
+        if progress.current == 1 or progress.current % 5 == 0:
+            append_history(
+                host_id,
+                icon="🧪",
+                message=f"Testing {progress.current}/{progress.total}",
+                event_type="test_progress",
+            )
+    else:
+        # Test completed - log final result
+        if progress.passed == progress.total:
+            history_icon = "✓"
+            history_message = f"Tests: {progress.passed}/{progress.total} passed"
+            history_type = "test_passed"
+        else:
+            history_icon = "✗"
+            history_message = f"Tests: {progress.passed}/{progress.total} passed"
+            history_type = "test_failed"
+        
+        append_history(
+            host_id,
+            icon=history_icon,
+            message=history_message,
+            full_output=progress.result,
+            event_type=history_type,
+        )
+    
     # Broadcast SSE event for live test progress
     # Note: Don't include last_seen - it would update the "Last Seen" column 
     # with test status info instead of the actual time
@@ -1673,6 +1801,7 @@ async def update_test_progress(
         "test_passed_count": progress.passed,
         "test_result": progress.result,
         "online": True,
+        "status_history": get_status_history(host_id, limit=10),  # Include recent history
     })
     
     return {"status": "updated"}
@@ -1768,12 +1897,36 @@ async def queue_command(host_id: str, request_body: CommandRequest, request: Req
     
     await broadcast_event("command_queued", event_data)
     
+    # Add to status history
+    command_labels = {
+        "pull": "Pulling...",
+        "switch": "Switching...",
+        "pull-switch": "Pull & Switch...",
+        "test": "Testing...",
+        "restart": "Restarting agent...",
+        "stop": "Stopped",
+    }
+    command_icons = {
+        "pull": "⏳",
+        "switch": "⏳",
+        "pull-switch": "⏳",
+        "test": "🧪",
+        "restart": "⏳",
+        "stop": "⏹",
+    }
+    append_history(
+        host_id,
+        icon=command_icons.get(request_body.command, "⏳"),
+        message=command_labels.get(request_body.command, f"{request_body.command}..."),
+        event_type=f"command_queued_{request_body.command}",
+    )
+    
     return {"status": "queued", "command": request_body.command}
 
 
 @app.get("/api/hosts/{host_id}/logs")
 async def get_logs(host_id: str, request: Request, limit: int = 20):
-    """Get command logs for a host."""
+    """Get command logs for a host (from DB)."""
     host_id = validate_host_id(host_id)
     require_auth(request)
     
@@ -1785,6 +1938,62 @@ async def get_logs(host_id: str, request: Request, limit: int = 20):
             LIMIT ?
         """, (host_id, min(limit, 100))).fetchall()
         return {"logs": [dict(row) for row in rows]}
+
+
+@app.get("/api/hosts/{host_id}/logs/download")
+async def download_logs(host_id: str, request: Request, format: str = "txt"):
+    """
+    Download full status log for a host (in-memory papertrail).
+    
+    Returns the complete log with full command output (not truncated).
+    Supports format=txt (plain text) or format=json.
+    """
+    host_id = validate_host_id(host_id)
+    require_auth(request)
+    
+    logs = get_full_log(host_id)
+    
+    if not logs:
+        raise HTTPException(status_code=404, detail="No logs available for this host")
+    
+    # Get hostname for filename
+    with get_db() as conn:
+        row = conn.execute("SELECT hostname FROM hosts WHERE id = ?", (host_id,)).fetchone()
+        hostname = row["hostname"] if row else host_id
+    
+    today = datetime.utcnow().strftime("%Y-%m-%d")
+    
+    if format == "json":
+        # Return JSON format
+        content = json.dumps({"host_id": host_id, "hostname": hostname, "logs": logs}, indent=2)
+        filename = f"{hostname}-logs-{today}.json"
+        media_type = "application/json"
+    else:
+        # Return plain text format
+        lines = [f"# Status Log for {hostname}", f"# Downloaded: {datetime.utcnow().isoformat()}Z", ""]
+        for entry in logs:
+            ts = entry.get("timestamp", "")[:19].replace("T", " ")  # Format: YYYY-MM-DD HH:MM:SS
+            msg = entry.get("message", "")
+            output = entry.get("output")
+            
+            lines.append(f"[{ts}] {msg}")
+            if output:
+                # Indent output lines
+                for line in output.split("\n"):
+                    lines.append(f"    {line}")
+                lines.append("")  # Blank line after output
+        
+        content = "\n".join(lines)
+        filename = f"{hostname}-logs-{today}.txt"
+        media_type = "text/plain"
+    
+    return PlainTextResponse(
+        content=content,
+        media_type=media_type,
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+        },
+    )
 
 
 @app.delete("/api/hosts/{host_id}")

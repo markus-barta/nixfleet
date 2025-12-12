@@ -406,24 +406,111 @@ tr:hover td { background: rgba(41, 46, 66, 0.5); }
     color: var(--fg-gutter);
 }
 
-/* Status cell (combined status + comment) */
+/* Status cell - Papertrail (scrollable history) */
 .status-cell {
-    font-size: 0.75rem;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 200px;
+    font-size: 0.65rem;
+    max-width: 220px;
+    min-width: 120px;
+    padding: 0.2rem 0.4rem !important;
+    vertical-align: top;
 }
 
-.status-cell.has-error {
+.status-cell.has-error .status-entry:first-child {
     color: var(--red);
 }
 
+.status-papertrail {
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.25rem;
+}
+
+.status-entries {
+    flex: 1;
+    max-height: 2.4em;  /* ~2 lines collapsed */
+    overflow-y: auto;
+    overflow-x: hidden;
+    transition: max-height 0.3s ease;
+    scrollbar-width: thin;
+    scrollbar-color: var(--fg-gutter) transparent;
+}
+
+.status-entries::-webkit-scrollbar {
+    width: 3px;
+}
+
+.status-entries::-webkit-scrollbar-thumb {
+    background: var(--fg-gutter);
+    border-radius: 2px;
+}
+
+.status-papertrail.expanded .status-entries {
+    max-height: 20em;  /* ~10x expanded */
+}
+
+.status-entry {
+    display: flex;
+    align-items: baseline;
+    gap: 0.3rem;
+    padding: 0.1rem 0;
+    white-space: nowrap;
+    line-height: 1.2;
+}
+
+.status-entry.muted {
+    color: var(--fg-gutter);
+}
+
+.status-ts {
+    color: var(--fg-gutter);
+    font-variant-numeric: tabular-nums;
+    min-width: 3.5em;
+    flex-shrink: 0;
+}
+
+.status-icon {
+    flex-shrink: 0;
+}
+
+.status-msg {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.status-expand-btn {
+    background: none;
+    border: none;
+    color: var(--fg-gutter);
+    font-size: 0.5rem;
+    padding: 0.1rem;
+    cursor: pointer;
+    opacity: 0.5;
+    transition: opacity 0.15s ease, transform 0.2s ease;
+    flex-shrink: 0;
+    line-height: 1;
+}
+
+.status-expand-btn:hover {
+    opacity: 1;
+    color: var(--fg);
+}
+
+.status-papertrail.expanded .status-expand-btn {
+    transform: rotate(180deg);
+}
+
+/* Hide expand button if only 1 entry */
+.status-entries:not(:has(.status-entry:nth-child(2))) + .status-expand-btn {
+    visibility: hidden;
+}
+
+/* Status badges (for inline pending/testing states) */
 .status-badge {
     display: inline-block;
     padding: 0.15rem 0.4rem;
     border-radius: 3px;
-    font-size: 0.65rem;
+    font-size: 0.6rem;
     font-weight: 500;
 }
 
@@ -445,10 +532,6 @@ tr:hover td { background: rgba(41, 46, 66, 0.5); }
 .status-badge.testing {
     background: rgba(139, 233, 253, 0.15);
     color: var(--cyan);
-}
-
-.status-icon {
-    margin-right: 0.3rem;
 }
 
 /* Loc & Type cells */
@@ -1357,16 +1440,35 @@ tr:hover .status .hb-countdown {
                         <span class="muted-dark small">{{ host.test_status or '—' }}</span>
                         {% endif %}
                     </td>
-                    <td class="status-cell {{ 'has-error' if host.status == 'error' else '' }}" data-status="{{ host.status or 'unknown' }}" data-test-running="{{ 'true' if host.test_running else 'false' }}" title="{{ host.comment or '' }}">
-                        {% if host.test_running %}
-                        <span class="status-badge testing">Testing {{ host.test_current }}/{{ host.test_total }}</span>
-                        {% elif host.pending_command %}
-                        <span class="status-badge pending">⏳ {{ host.pending_command }}...</span>
-                        {% elif host.comment %}
-                        <span class="status-icon">{{ '✗' if host.status == 'error' else '✓' }}</span>{{ host.comment }}
-                        {% else %}
-                        <span class="muted">—</span>
-                        {% endif %}
+                    <td class="status-cell {{ 'has-error' if host.status == 'error' else '' }}" data-status="{{ host.status or 'unknown' }}" data-test-running="{{ 'true' if host.test_running else 'false' }}" data-host-id="{{ host.id }}">
+                        <div class="status-papertrail" data-host="{{ host.id }}">
+                            <div class="status-entries">
+                                {% if host.test_running %}
+                                <div class="status-entry">
+                                    <span class="status-ts">now</span>
+                                    <span class="status-icon">🧪</span>
+                                    <span class="status-msg">Testing {{ host.test_current }}/{{ host.test_total }}</span>
+                                </div>
+                                {% elif host.pending_command %}
+                                <div class="status-entry">
+                                    <span class="status-ts">now</span>
+                                    <span class="status-icon">⏳</span>
+                                    <span class="status-msg">{{ host.pending_command }}...</span>
+                                </div>
+                                {% elif host.comment %}
+                                <div class="status-entry">
+                                    <span class="status-ts">now</span>
+                                    <span class="status-icon">{{ '✗' if host.status == 'error' else '✓' }}</span>
+                                    <span class="status-msg">{{ host.comment }}</span>
+                                </div>
+                                {% else %}
+                                <div class="status-entry muted">
+                                    <span class="status-msg">No activity yet</span>
+                                </div>
+                                {% endif %}
+                            </div>
+                            <button class="status-expand-btn" type="button" data-action="toggle-status-expand" data-host="{{ host.id }}" title="Expand/collapse status history">▼</button>
+                        </div>
                     </td>
                     <td>
                         <div class="actions">
@@ -1438,9 +1540,14 @@ tr:hover .status .hb-countdown {
                                         Restart Agent
                                     </button>
                                     <div class="dropdown-divider"></div>
-                                    <button class="dropdown-item disabled" title="Coming soon">
+                                    <button
+                                        class="dropdown-item"
+                                        type="button"
+                                        data-action="download-logs"
+                                        data-host-id="{{ host.id }}"
+                                        title="Download full status log">
                                         <svg><use href="#icon-file"/></svg>
-                                        Download Log
+                                        Download Logs
                                     </button>
                                     <div class="dropdown-divider"></div>
                                     <button
@@ -1621,6 +1728,20 @@ document.addEventListener('click', (e) => {
         return;
     }
 
+    if (action === 'toggle-status-expand') {
+        e.preventDefault();
+        e.stopPropagation();
+        toggleStatusExpand(el.dataset.host);
+        return;
+    }
+
+    if (action === 'download-logs') {
+        e.preventDefault();
+        const hostId = el.dataset.hostId;
+        if (hostId) downloadHostLogs(hostId);
+        return;
+    }
+
     if (action === 'close-remove-modal') {
         e.preventDefault();
         closeRemoveModal();
@@ -1726,17 +1847,30 @@ async function sendCommand(hostId, command) {
     setActionLock(hostId, command);
     applyActionState(row);
     
-    // Show the command in the status column
-    const statusCell = row.querySelector('.status-cell');
-    if (statusCell) {
+    // Show the command in the status column (papertrail format)
+    const statusEntries = row.querySelector('.status-entries');
+    if (statusEntries) {
         const commandLabels = {
             'pull': 'Pulling...',
             'switch': 'Switching...',
+            'pull-switch': 'Pull & Switch...',
             'test': 'Testing...',
             'restart': 'Restarting...'
         };
-        statusCell.innerHTML = `<span class="status-badge pending">⏳ ${commandLabels[command] || command + '...'}</span>`;
-        statusCell.classList.remove('has-error');
+        const commandIcons = {
+            'pull': '⏳',
+            'switch': '⏳',
+            'pull-switch': '⏳',
+            'test': '🧪',
+            'restart': '⏳'
+        };
+        const newEntry = document.createElement('div');
+        newEntry.className = 'status-entry';
+        newEntry.innerHTML = `<span class="status-ts">now</span><span class="status-icon">${commandIcons[command] || '⏳'}</span><span class="status-msg">${commandLabels[command] || command + '...'}</span>`;
+        statusEntries.insertBefore(newEntry, statusEntries.firstChild);
+        
+        const statusCell = row.querySelector('.status-cell');
+        if (statusCell) statusCell.classList.remove('has-error');
     }
     
     try {
@@ -1815,17 +1949,30 @@ async function sendBulkCommand(command) {
                     row.dataset.pendingCommand = command;
                     setActionLock(host.id, command);
                     applyActionState(row);
-                    // Show the command in the comment column
-                    const statusCell = row.querySelector('.status-cell');
-                    if (statusCell) {
+                    // Show the command in the status column (papertrail format)
+                    const statusEntries = row.querySelector('.status-entries');
+                    if (statusEntries) {
                         const commandLabels = {
                             'pull': 'Pulling...',
                             'switch': 'Switching...',
+                            'pull-switch': 'Pull & Switch...',
                             'test': 'Testing...',
                             'restart': 'Restarting...'
                         };
-                        statusCell.innerHTML = `<span class="status-badge pending">⏳ ${commandLabels[command] || command + '...'}</span>`;
-                        statusCell.classList.remove('has-error');
+                        const commandIcons = {
+                            'pull': '⏳',
+                            'switch': '⏳',
+                            'pull-switch': '⏳',
+                            'test': '🧪',
+                            'restart': '⏳'
+                        };
+                        const newEntry = document.createElement('div');
+                        newEntry.className = 'status-entry';
+                        newEntry.innerHTML = `<span class="status-ts">now</span><span class="status-icon">${commandIcons[command] || '⏳'}</span><span class="status-msg">${commandLabels[command] || command + '...'}</span>`;
+                        statusEntries.insertBefore(newEntry, statusEntries.firstChild);
+                        
+                        const statusCell = row.querySelector('.status-cell');
+                        if (statusCell) statusCell.classList.remove('has-error');
                     }
                 }
                 successCount++;
@@ -2189,6 +2336,11 @@ function updateHostRow(data) {
         }
     }
 
+    // Update status history (papertrail) if provided
+    if (data.status_history && Array.isArray(data.status_history)) {
+        renderStatusHistory(data.host_id, data.status_history);
+    }
+
     // Finally, re-apply action enable/disable rules
     applyActionState(row);
 }
@@ -2237,6 +2389,116 @@ applyAllActionStates();
 setInterval(applyAllActionStates, 60_000);
 
 // SSE should keep page updated - no forced reloads needed
+
+// ============================================================================
+// Status Papertrail (expand/collapse)
+// ============================================================================
+
+// Track which host is currently expanded (only one at a time)
+let expandedStatusHost = null;
+
+function toggleStatusExpand(hostId) {
+    const papertrail = document.querySelector(`.status-papertrail[data-host="${hostId}"]`);
+    if (!papertrail) return;
+    
+    // If clicking on already expanded, collapse it
+    if (expandedStatusHost === hostId) {
+        papertrail.classList.remove('expanded');
+        expandedStatusHost = null;
+        return;
+    }
+    
+    // Collapse any currently expanded
+    if (expandedStatusHost) {
+        const prev = document.querySelector(`.status-papertrail[data-host="${expandedStatusHost}"]`);
+        if (prev) prev.classList.remove('expanded');
+    }
+    
+    // Expand this one
+    papertrail.classList.add('expanded');
+    expandedStatusHost = hostId;
+}
+
+// Render status history entries into a papertrail container
+function renderStatusHistory(hostId, history) {
+    const papertrail = document.querySelector(`.status-papertrail[data-host="${hostId}"]`);
+    if (!papertrail) return;
+    
+    const entries = papertrail.querySelector('.status-entries');
+    if (!entries || !history || history.length === 0) return;
+    
+    // Build HTML for entries
+    let html = '';
+    for (const entry of history) {
+        const ts = formatHistoryTimestamp(entry.timestamp);
+        const icon = entry.icon || '•';
+        const msg = escapeHtml(entry.message || '');
+        html += `<div class="status-entry">
+            <span class="status-ts" title="${entry.timestamp}">${ts}</span>
+            <span class="status-icon">${icon}</span>
+            <span class="status-msg">${msg}</span>
+        </div>`;
+    }
+    
+    entries.innerHTML = html || '<div class="status-entry muted"><span class="status-msg">No activity yet</span></div>';
+}
+
+// Format timestamp for history display (HH:MM)
+function formatHistoryTimestamp(isoString) {
+    if (!isoString) return '';
+    try {
+        const d = new Date(isoString);
+        return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+    } catch {
+        return '';
+    }
+}
+
+// Escape HTML for safe rendering
+function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
+
+// Download logs for a host
+async function downloadHostLogs(hostId) {
+    try {
+        const response = await fetch(`/api/hosts/${hostId}/logs/download?format=txt`, {
+            credentials: 'same-origin',
+        });
+        
+        if (!response.ok) {
+            if (response.status === 404) {
+                alert('No logs available for this host yet.');
+                return;
+            }
+            throw new Error(`HTTP ${response.status}`);
+        }
+        
+        // Get filename from Content-Disposition header
+        const disposition = response.headers.get('Content-Disposition');
+        let filename = `${hostId}-logs.txt`;
+        if (disposition) {
+            const match = disposition.match(/filename="([^"]+)"/);
+            if (match) filename = match[1];
+        }
+        
+        // Download the file
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    } catch (err) {
+        console.error('Failed to download logs:', err);
+        alert('Failed to download logs. Please try again.');
+    }
+}
 
 // Dropdown toggle
 function toggleDropdown(e) {
