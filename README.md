@@ -212,6 +212,62 @@ NIXFLEET_PASSWORD_HASH='$2b$12$...' \
 uvicorn main:app --reload
 ```
 
+## Operations
+
+### Deploying Dashboard Updates
+
+The dashboard runs on **csb1** in `~/docker/nixfleet`. Use the `update.sh` script:
+
+```bash
+# SSH to csb1 and run update script
+ssh mba@cs1.barta.cm -p 2222 "cd ~/docker/nixfleet && ./update.sh"
+```
+
+The `update.sh` script:
+1. Pulls latest from git
+2. Extracts version info for embedding
+3. Rebuilds the Docker container
+4. Restarts the service
+
+### Updating Agent on Hosts
+
+After pushing nixfleet changes, update the flake lock in nixcfg and deploy:
+
+```bash
+# 1. Update nixcfg flake lock
+cd ~/Code/nixcfg
+nix flake update nixfleet
+git add flake.lock && git commit -m "chore: Update nixfleet" && git push
+
+# 2. Deploy to NixOS hosts (example: csb0)
+ssh mba@cs0.barta.cm -p 2222 "cd ~/Code/nixcfg && git pull && sudo nixos-rebuild switch --flake .#csb0"
+
+# 3. For macOS hosts, use home-manager
+# (or trigger via dashboard: Pull → Switch)
+```
+
+### SSH Connections
+
+| Host | SSH Command |
+|------|-------------|
+| csb0 | `ssh mba@cs0.barta.cm -p 2222` |
+| csb1 | `ssh mba@cs1.barta.cm -p 2222` |
+
+Fish abbreviations are available for interactive use (e.g., `csb0`, `csb1`).
+
+### Restarting Agents
+
+Use the dashboard UI: **⋮ menu → Restart Agent**
+
+Or manually:
+```bash
+# NixOS
+sudo systemctl restart nixfleet-agent
+
+# macOS
+launchctl kickstart -k gui/$(id -u)/com.nixfleet.agent
+```
+
 ## License
 
 GNU AGPL v3.0 — See [LICENSE](LICENSE) for details.
