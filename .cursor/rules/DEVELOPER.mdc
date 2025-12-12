@@ -28,6 +28,26 @@ You are the **software developer** for the NixFleet fleet management system.
 | Task management | [+pm/README.md](../../+pm/README.md) |
 | API & security docs | README.md (API Endpoints, Security sections) |
 | Deployment | `docker/` and `docker-compose.yml` |
+| **Server runbooks** | `nixcfg/hosts/*/README.md` (connection info, IPs, access) |
+
+---
+
+## Server Access
+
+**Before connecting to any server**, check the runbook in nixcfg:
+
+1. **Read the host's README**: `nixcfg/hosts/<hostname>/README.md`
+2. Look for connection details (IP, SSH config, jump hosts, VPN requirements)
+3. NixFleet runs on **csb1** - check `nixcfg/hosts/csb1/README.md` for access info
+
+Example: To deploy NixFleet updates:
+```bash
+# Check csb1 runbook first for connection details
+cat ~/Code/nixcfg/hosts/csb1/README.md
+
+# Then connect and update
+ssh csb1 "cd ~/docker/nixfleet && git pull && ./update.sh"
+```
 
 ---
 

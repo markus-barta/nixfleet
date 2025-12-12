@@ -119,9 +119,6 @@ header {
     background: rgba(158, 206, 106, 0.08);
     border: 1px solid rgba(158, 206, 106, 0.35);
     border-radius: 8px;
-    /* Enable container queries so notes can collapse to icon-only when space is tight */
-    container-type: inline-size;
-    min-width: 0;
 }
 
 .sot-label {
@@ -188,10 +185,7 @@ header {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-}
-
-@container (max-width: 260px) {
-    .sot-notes-text { display: none; }
+    max-width: 200px;
 }
 
 /* Header stat badges in table headers */
