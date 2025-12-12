@@ -158,23 +158,24 @@ in
           EXPECTED_PATH="${agentScript}/bin/nixfleet-agent"
           
           # Check if agent is running and get its current path
-          CURRENT_PID=$(/bin/launchctl list | grep "$LABEL" | awk '{print $1}')
+          # Use /usr/bin/awk since nix awk may not be in PATH during activation
+          CURRENT_PID=$(/bin/launchctl list | /usr/bin/grep "$LABEL" | /usr/bin/awk '{print $1}')
           
           if [ -n "$CURRENT_PID" ] && [ "$CURRENT_PID" != "-" ]; then
             # Agent is running, check if it's using the correct path
-            CURRENT_PATH=$(/bin/ps -p "$CURRENT_PID" -o args= 2>/dev/null | grep -o '/nix/store/[^/]*/bin/nixfleet-agent' || echo "")
+            CURRENT_PATH=$(/bin/ps -p "$CURRENT_PID" -o args= 2>/dev/null | /usr/bin/grep -o '/nix/store/[^/]*/bin/nixfleet-agent' || echo "")
             
             if [ "$CURRENT_PATH" != "$EXPECTED_PATH" ]; then
               echo "NixFleet agent path changed, reloading..."
-              /bin/launchctl bootout gui/$(id -u)/$LABEL 2>/dev/null || true
+              /bin/launchctl bootout gui/$(/usr/bin/id -u)/$LABEL 2>/dev/null || true
               sleep 1
-              /bin/launchctl bootstrap gui/$(id -u) "$PLIST" 2>/dev/null || /bin/launchctl load "$PLIST" 2>/dev/null || true
+              /bin/launchctl bootstrap gui/$(/usr/bin/id -u) "$PLIST" 2>/dev/null || /bin/launchctl load "$PLIST" 2>/dev/null || true
               echo "NixFleet agent reloaded with new version"
             fi
           else
             # Agent not running, try to start it
             echo "NixFleet agent not running, starting..."
-            /bin/launchctl bootstrap gui/$(id -u) "$PLIST" 2>/dev/null || /bin/launchctl load "$PLIST" 2>/dev/null || true
+            /bin/launchctl bootstrap gui/$(/usr/bin/id -u) "$PLIST" 2>/dev/null || /bin/launchctl load "$PLIST" 2>/dev/null || true
           fi
         fi
       ''
