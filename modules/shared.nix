@@ -31,6 +31,7 @@ let
       type = lib.types.enum [
         "cloud"
         "home"
+        "work"
         "office"
         "mobile"
         "other"
