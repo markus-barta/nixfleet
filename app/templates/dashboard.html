@@ -306,9 +306,18 @@ th, td {
     white-space: nowrap;
 }
 
-/* Location & Type columns centered (columns 3 and 4) */
-th:nth-child(3), td:nth-child(3),
-th:nth-child(4), td:nth-child(4) { text-align: center; }
+/* Column widths for consistent layout */
+th:nth-child(1), td:nth-child(1) { min-width: 100px; }  /* Host */
+th:nth-child(2), td:nth-child(2) { min-width: 60px; }   /* OS */
+th:nth-child(3), td:nth-child(3) { width: 40px; text-align: center; }  /* Loc */
+th:nth-child(4), td:nth-child(4) { width: 40px; text-align: center; }  /* Type */
+th:nth-child(5), td:nth-child(5) { min-width: 70px; }   /* Metrics */
+th:nth-child(6), td:nth-child(6) { min-width: 70px; }   /* Config */
+th:nth-child(7), td:nth-child(7) { min-width: 70px; }   /* Fleet */
+th:nth-child(8), td:nth-child(8) { min-width: 70px; }   /* Last Seen */
+th:nth-child(9), td:nth-child(9) { width: 60px; }       /* Tests */
+th:nth-child(10), td:nth-child(10) { min-width: 120px; } /* Status */
+th:nth-child(11), td:nth-child(11) { min-width: 180px; } /* Actions */
 
 th {
     background: var(--bg-highlight);
