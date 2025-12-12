@@ -21,9 +21,24 @@
         "aarch64-darwin"
       ];
 
+      # Version from git - use short rev or "dev" for dirty trees
+      version =
+        if self ? shortRev then
+          "0.3.0-${self.shortRev}"
+        else if self ? rev then
+          "0.3.0-${builtins.substring 0 7 self.rev}"
+        else
+          "0.3.0-dev";
+
       # Helper to create the agent package
       mkAgentPackage =
         pkgs:
+        let
+          agentScriptSrc = pkgs.substituteAll {
+            src = ./agent/nixfleet-agent.sh;
+            agentVersion = version;
+          };
+        in
         pkgs.writeShellApplication {
           name = "nixfleet-agent";
           runtimeInputs = with pkgs; [
@@ -32,20 +47,32 @@
             git
             hostname
           ];
-          text = builtins.readFile ./agent/nixfleet-agent.sh;
+          text = builtins.readFile agentScriptSrc;
         };
     in
     {
       # ════════════════════════════════════════════════════════════════════════
       # NixOS Module
       # ════════════════════════════════════════════════════════════════════════
-      nixosModules.nixfleet-agent = import ./modules/nixos.nix;
+      nixosModules.nixfleet-agent =
+        { lib, ... }:
+        {
+          imports = [ ./modules/nixos.nix ];
+          # Set the version default from the flake
+          config.services.nixfleet-agent.version = lib.mkDefault version;
+        };
       nixosModules.default = self.nixosModules.nixfleet-agent;
 
       # ════════════════════════════════════════════════════════════════════════
       # Home Manager Module
       # ════════════════════════════════════════════════════════════════════════
-      homeManagerModules.nixfleet-agent = import ./modules/home-manager.nix;
+      homeManagerModules.nixfleet-agent =
+        { lib, ... }:
+        {
+          imports = [ ./modules/home-manager.nix ];
+          # Set the version default from the flake
+          config.services.nixfleet-agent.version = lib.mkDefault version;
+        };
       homeManagerModules.default = self.homeManagerModules.nixfleet-agent;
 
       # ════════════════════════════════════════════════════════════════════════

@@ -25,6 +25,12 @@
 let
   cfg = config.services.nixfleet-agent;
 
+  # Substitute version placeholder in agent script
+  agentScriptSrc = pkgs.substituteAll {
+    src = ../agent/nixfleet-agent.sh;
+    agentVersion = cfg.version;
+  };
+
   agentScript = pkgs.writeShellApplication {
     name = "nixfleet-agent";
     runtimeInputs = with pkgs; [
@@ -33,7 +39,7 @@ let
       git
       hostname
     ];
-    text = builtins.readFile ../agent/nixfleet-agent.sh;
+    text = builtins.readFile agentScriptSrc;
   };
 in
 {
@@ -99,6 +105,15 @@ in
       default = "#769ff0";
       description = "Theme color hex code for dashboard display.";
       example = "#ff6b6b";
+    };
+
+    version = lib.mkOption {
+      type = lib.types.str;
+      default = "0.0.0";
+      description = ''
+        Agent version string. This is automatically set by the flake
+        to the current nixfleet version. You can override it for testing.
+      '';
     };
   };
 

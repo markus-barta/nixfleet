@@ -26,8 +26,9 @@ set -euo pipefail
 # Configuration
 # ════════════════════════════════════════════════════════════════════════════════
 
-# Agent version (updated on each release)
-readonly AGENT_VERSION="1.0.0"
+# Agent version - injected at build time by Nix, or falls back to environment/default
+# shellcheck disable=SC2016
+readonly AGENT_VERSION="${NIXFLEET_AGENT_VERSION:-@agentVersion@}"
 
 # Required: Dashboard URL (no default - must be explicitly configured)
 readonly NIXFLEET_URL="${NIXFLEET_URL:?ERROR: NIXFLEET_URL environment variable must be set}"
@@ -144,6 +145,77 @@ detect_criticality() {
   esac
 }
 
+# ════════════════════════════════════════════════════════════════════════════════
+# OS Version Detection
+# ════════════════════════════════════════════════════════════════════════════════
+
+detect_nixpkgs_version() {
+  # Get the nixpkgs revision the system was built with
+  if [[ -f /etc/NIXOS ]]; then
+    # NixOS: use nixos-version --json
+    if command -v nixos-version &>/dev/null; then
+      nixos-version --json 2>/dev/null | jq -r '.nixpkgsRevision // empty' 2>/dev/null || echo ""
+    else
+      echo ""
+    fi
+  elif [[ "$(uname)" == "Darwin" ]]; then
+    # macOS with nix: try to get nixpkgs from current profile
+    # This is best-effort - may not always work
+    local profile_path
+    profile_path="$(readlink -f ~/.nix-profile 2>/dev/null || echo "")"
+    if [[ -n "$profile_path" && -f "${profile_path}/.nixpkgs-version" ]]; then
+      cat "${profile_path}/.nixpkgs-version" 2>/dev/null || echo ""
+    else
+      echo ""
+    fi
+  else
+    echo ""
+  fi
+}
+
+detect_os_version() {
+  # Get human-readable OS version string
+  if [[ -f /etc/NIXOS ]]; then
+    # NixOS: get full version string (e.g., "24.11.20241210.abc1234")
+    if command -v nixos-version &>/dev/null; then
+      nixos-version 2>/dev/null | head -1 || echo ""
+    else
+      echo ""
+    fi
+  elif [[ "$(uname)" == "Darwin" ]]; then
+    # macOS: get version (e.g., "14.7.1")
+    sw_vers -productVersion 2>/dev/null || echo ""
+  else
+    # Generic Linux: try /etc/os-release
+    if [[ -f /etc/os-release ]]; then
+      # shellcheck source=/dev/null
+      . /etc/os-release
+      echo "${VERSION_ID:-unknown}"
+    else
+      echo ""
+    fi
+  fi
+}
+
+detect_os_name() {
+  # Get OS name for display (e.g., "macOS Sonoma", "NixOS")
+  if [[ -f /etc/NIXOS ]]; then
+    echo "NixOS"
+  elif [[ "$(uname)" == "Darwin" ]]; then
+    # Get macOS marketing name (e.g., "Sonoma")
+    local name
+    name=$(awk '/SOFTWARE LICENSE AGREEMENT FOR macOS/' '/System/Library/CoreServices/Setup Assistant.app/Contents/Resources/en.lproj/OSXSoftwareLicense.rtf' 2>/dev/null | awk -F 'macOS ' '{print $NF}' | awk '{print $1}' || echo "")
+    if [[ -z "$name" ]]; then
+      # Fallback: just say macOS
+      echo "macOS"
+    else
+      echo "macOS $name"
+    fi
+  else
+    echo "Linux"
+  fi
+}
+
 HOST_TYPE="$(detect_host_type)"
 readonly HOST_TYPE
 LOCATION="$(detect_location)"
@@ -154,6 +226,12 @@ THEME_COLOR="${NIXFLEET_THEME_COLOR:-#769ff0}"
 readonly THEME_COLOR
 CRITICALITY="$(detect_criticality)"
 readonly CRITICALITY
+NIXPKGS_VERSION="$(detect_nixpkgs_version)"
+readonly NIXPKGS_VERSION
+OS_VERSION="$(detect_os_version)"
+readonly OS_VERSION
+OS_NAME="$(detect_os_name)"
+readonly OS_NAME
 
 # ════════════════════════════════════════════════════════════════════════════════
 # StaSysMo Metrics (optional)
@@ -393,6 +471,9 @@ register() {
       --arg generation "$gen" \
       --arg config_repo "$NIXFLEET_NIXCFG" \
       --arg agent_version "$AGENT_VERSION" \
+      --arg nixpkgs_version "$NIXPKGS_VERSION" \
+      --arg os_version "$OS_VERSION" \
+      --arg os_name "$OS_NAME" \
       --argjson poll_interval "$NIXFLEET_INTERVAL" \
       --argjson metrics "$metrics_json" \
       '{
@@ -406,6 +487,9 @@ register() {
               config_repo: $config_repo,
               poll_interval: $poll_interval,
               agent_version: $agent_version,
+              nixpkgs_version: (if $nixpkgs_version == "" then null else $nixpkgs_version end),
+              os_version: (if $os_version == "" then null else $os_version end),
+              os_name: (if $os_name == "" then null else $os_name end),
               metrics: $metrics
           }')
   else
@@ -419,6 +503,9 @@ register() {
       --arg generation "$gen" \
       --arg config_repo "$NIXFLEET_NIXCFG" \
       --arg agent_version "$AGENT_VERSION" \
+      --arg nixpkgs_version "$NIXPKGS_VERSION" \
+      --arg os_version "$OS_VERSION" \
+      --arg os_name "$OS_NAME" \
       --argjson poll_interval "$NIXFLEET_INTERVAL" \
       '{
               hostname: $hostname,
@@ -430,7 +517,10 @@ register() {
               current_generation: $generation,
               config_repo: $config_repo,
               poll_interval: $poll_interval,
-              agent_version: $agent_version
+              agent_version: $agent_version,
+              nixpkgs_version: (if $nixpkgs_version == "" then null else $nixpkgs_version end),
+              os_version: (if $os_version == "" then null else $os_version end),
+              os_name: (if $os_name == "" then null else $os_name end)
           }')
   fi
 
@@ -654,8 +744,11 @@ main() {
   log_info "╔══════════════════════════════════════════════════════════════╗"
   log_info "║                    NixFleet Agent Starting                   ║"
   log_info "╚══════════════════════════════════════════════════════════════╝"
+  log_info "Agent:       v$AGENT_VERSION"
   log_info "URL:         $NIXFLEET_URL"
   log_info "Host:        $HOSTNAME ($HOST_TYPE)"
+  log_info "OS:          $OS_NAME $OS_VERSION"
+  [[ -n "$NIXPKGS_VERSION" ]] && log_info "Nixpkgs:     ${NIXPKGS_VERSION:0:12}"
   log_info "Location:    $LOCATION"
   log_info "Device:      $DEVICE_TYPE"
   log_info "Theme:       $THEME_COLOR"

@@ -442,6 +442,10 @@ def init_db():
                 metrics_updated_at TEXT,
                 -- Agent version
                 agent_version TEXT,
+                -- OS version tracking
+                nixpkgs_version TEXT,
+                os_version TEXT,
+                os_name TEXT,
                 -- Agent auth (per-host token, stored as a hash)
                 agent_token_hash TEXT
             )
@@ -454,6 +458,18 @@ def init_db():
             pass  # Column already exists
         try:
             conn.execute("ALTER TABLE hosts ADD COLUMN metrics_updated_at TEXT")
+        except Exception:
+            pass  # Column already exists
+        try:
+            conn.execute("ALTER TABLE hosts ADD COLUMN nixpkgs_version TEXT")
+        except Exception:
+            pass  # Column already exists
+        try:
+            conn.execute("ALTER TABLE hosts ADD COLUMN os_version TEXT")
+        except Exception:
+            pass  # Column already exists
+        try:
+            conn.execute("ALTER TABLE hosts ADD COLUMN os_name TEXT")
         except Exception:
             pass  # Column already exists
         
@@ -795,6 +811,9 @@ class HostRegistration(BaseModel):
     config_repo: Optional[str] = Field(None, max_length=200)
     poll_interval: Optional[int] = Field(None, ge=1, le=3600)
     agent_version: Optional[str] = Field(None, max_length=20)  # Agent version (e.g., "1.0.0")
+    nixpkgs_version: Optional[str] = Field(None, max_length=64)  # Nixpkgs git revision
+    os_version: Optional[str] = Field(None, max_length=50)  # OS version (e.g., "24.11.20241210" or "14.7.1")
+    os_name: Optional[str] = Field(None, max_length=50)  # OS name (e.g., "NixOS", "macOS Sonoma")
     metrics: Optional[dict] = Field(None)  # StaSysMo metrics (cpu, ram, swap, load)
 
     @field_validator("hostname")
@@ -1269,6 +1288,9 @@ async def register_host(
                     config_repo = COALESCE(?, config_repo),
                     poll_interval = COALESCE(?, poll_interval),
                     agent_version = COALESCE(?, agent_version),
+                    nixpkgs_version = COALESCE(?, nixpkgs_version),
+                    os_version = COALESCE(?, os_version),
+                    os_name = COALESCE(?, os_name),
                     metrics = COALESCE(?, metrics),
                     metrics_updated_at = COALESCE(?, metrics_updated_at)
                 WHERE id = ?
@@ -1277,22 +1299,27 @@ async def register_host(
                 registration.device_type, registration.theme_color,
                 registration.current_generation, now,
                 registration.config_repo, registration.poll_interval,
-                registration.agent_version, metrics_json, metrics_updated, host_id,
+                registration.agent_version, registration.nixpkgs_version,
+                registration.os_version, registration.os_name,
+                metrics_json, metrics_updated, host_id,
             ))
         else:
             # New host - do NOT set last_seen (offline until agent actually polls)
             conn.execute("""
                 INSERT INTO hosts (id, hostname, host_type, location, device_type, theme_color,
                     criticality, icon, current_generation, last_seen, status, comment, 
-                    config_repo, poll_interval, agent_version, metrics, metrics_updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, 'ok', ?, ?, ?, ?, ?, ?)
+                    config_repo, poll_interval, agent_version, nixpkgs_version, os_version, os_name,
+                    metrics, metrics_updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, 'ok', ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 host_id, registration.hostname, registration.host_type, registration.location,
                 registration.device_type or "server", registration.theme_color or "#769ff0",
                 registration.criticality or "low", registration.icon,
                 registration.current_generation,
                 registration.comment, registration.config_repo, registration.poll_interval or 30,
-                registration.agent_version, metrics_json, metrics_updated,
+                registration.agent_version, registration.nixpkgs_version,
+                registration.os_version, registration.os_name,
+                metrics_json, metrics_updated,
             ))
 
         # Auto-provision per-host agent token for migration/hardening.
@@ -1316,6 +1343,9 @@ async def register_host(
         "current_generation": registration.current_generation,
         "last_seen": now,
         "agent_version": registration.agent_version,
+        "nixpkgs_version": registration.nixpkgs_version,
+        "os_version": registration.os_version,
+        "os_name": registration.os_name,
         "metrics": registration.metrics,
         "metrics_updated_at": metrics_updated,
     })

@@ -364,6 +364,28 @@ tr:hover td { background: rgba(41, 46, 66, 0.5); }
 .version-cell {
     font-size: 0.7rem;
 }
+.version-parts {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+.version-parts > span:not(:last-child)::after,
+.version-parts > code:not(:last-child)::after {
+    content: '•';
+    margin-left: 0.3rem;
+    color: var(--fg-gutter);
+    font-family: inherit;
+}
+.agent-ver {
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 0.6rem;
+    color: var(--cyan);
+}
+.os-ver {
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 0.6rem;
+    color: var(--purple);
+}
 .git-hash {
     font-family: 'JetBrains Mono', 'Fira Code', monospace;
     font-size: 0.65rem;
@@ -1143,14 +1165,13 @@ tr:hover .status .hb-countdown {
                     data-pending-command="{{ host.pending_command or '' }}"
                     data-test-running="{{ 'true' if host.test_running else 'false' }}">
                     <td>
-                        <div class="host-icons host-color-{{ host.id }}" title="{{ host.host_type }}{% if host.agent_version %} | Agent v{{ host.agent_version }}{% endif %}">
+                        <div class="host-icons host-color-{{ host.id }}" title="{{ host.host_type }}{% if host.os_name %} | {{ host.os_name }} {{ host.os_version }}{% endif %}">
                             {% if host.host_type == 'macos' %}
                             <svg class="os-icon"><use href="#icon-apple"/></svg>
                             {% else %}
                             <svg class="os-icon"><use href="#icon-nixos"/></svg>
                             {% endif %}
                             <span class="hostname">{{ host.hostname }}</span>
-                            {% if host.agent_version %}<span class="agent-version">v{{ host.agent_version }}</span>{% endif %}
                         </div>
                     </td>
                     <td class="loc-cell" title="{{ host.location or 'unknown' }}">
@@ -1205,8 +1226,18 @@ tr:hover .status .hb-countdown {
                         {% endif %}
                     </td>
                     <td class="version-cell">
-                        {% if host.current_generation %}
-                        <code class="git-hash {{ 'outdated' if host.outdated else '' }}" title="{{ host.current_generation }}{% if host.outdated %} (latest: {{ host.latest_hash }}){% endif %}">{{ host.current_generation[:7] }}</code>
+                        {% if host.agent_version or host.os_version or host.current_generation %}
+                        <span class="version-parts">
+                            {% if host.agent_version %}
+                            <span class="agent-ver" title="NixFleet Agent v{{ host.agent_version }}">v{{ host.agent_version }}</span>
+                            {% endif %}
+                            {% if host.os_version %}
+                            <span class="os-ver" title="{{ host.os_name or 'OS' }} {{ host.os_version }}{% if host.nixpkgs_version %} | nixpkgs: {{ host.nixpkgs_version[:12] }}{% endif %}">{{ host.os_version[:5] }}</span>
+                            {% endif %}
+                            {% if host.current_generation %}
+                            <code class="git-hash {{ 'outdated' if host.outdated else '' }}" title="Config: {{ host.current_generation }}{% if host.outdated %} | Latest: {{ host.latest_hash }}{% endif %}">{{ host.current_generation[:7] }}</code>
+                            {% endif %}
+                        </span>
                         {% if host.outdated %}
                         <span class="outdated-badge" title="Behind main branch">↓</span>
                         {% endif %}
@@ -1869,12 +1900,37 @@ function updateHostRow(data) {
         }
     }
     
+    // Update version info if changed
+    if (data.agent_version) {
+        const agentVerEl = row.querySelector('.agent-ver');
+        if (agentVerEl) {
+            agentVerEl.textContent = 'v' + data.agent_version;
+            agentVerEl.title = 'NixFleet Agent v' + data.agent_version;
+        }
+    }
+    
+    if (data.os_version) {
+        const osVerEl = row.querySelector('.os-ver');
+        if (osVerEl) {
+            osVerEl.textContent = data.os_version.substring(0, 5);
+            let title = (data.os_name || 'OS') + ' ' + data.os_version;
+            if (data.nixpkgs_version) {
+                title += ' | nixpkgs: ' + data.nixpkgs_version.substring(0, 12);
+            }
+            osVerEl.title = title;
+        }
+    }
+    
     // Update git hash if changed
     if (data.current_generation) {
         const hashEl = row.querySelector('.git-hash');
         if (hashEl) {
             hashEl.textContent = data.current_generation.substring(0, 7);
-            hashEl.title = data.current_generation;
+            let hashTitle = 'Config: ' + data.current_generation;
+            if (data.outdated && data.latest_hash) {
+                hashTitle += ' | Latest: ' + data.latest_hash;
+            }
+            hashEl.title = hashTitle;
             // Update outdated styling
             if (data.outdated !== undefined) {
                 hashEl.classList.toggle('outdated', data.outdated);
@@ -1884,12 +1940,14 @@ function updateHostRow(data) {
         
         // Update/remove outdated badge
         if (data.outdated !== undefined) {
-            const versionCell = hashEl.closest('td');
-            let badge = versionCell.querySelector('.outdated-badge');
-            if (data.outdated && !badge) {
-                hashEl.insertAdjacentHTML('afterend', '<span class="outdated-badge" title="Behind main branch">↓</span>');
-            } else if (!data.outdated && badge) {
-                badge.remove();
+            const versionCell = row.querySelector('.version-cell');
+            if (versionCell) {
+                let badge = versionCell.querySelector('.outdated-badge');
+                if (data.outdated && !badge) {
+                    versionCell.insertAdjacentHTML('beforeend', '<span class="outdated-badge" title="Behind main branch">↓</span>');
+                } else if (!data.outdated && badge) {
+                    badge.remove();
+                }
             }
         }
     }
