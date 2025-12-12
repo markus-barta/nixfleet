@@ -539,15 +539,48 @@ register() {
 }
 
 # ════════════════════════════════════════════════════════════════════════════════
-# Polling
+# Heartbeat (replaces separate poll + periodic register)
 # ════════════════════════════════════════════════════════════════════════════════
 
-poll_command() {
-  local response
-  response=$(api_call GET "/api/hosts/${HOST_ID}/poll" || echo '{"command": null}')
-
-  # Use jq for robust JSON parsing
-  echo "$response" | jq -r '.command // empty'
+heartbeat() {
+  # Heartbeat sends current state (metrics, generation, etc.) and receives any pending command
+  # This is a single API call that does both registration update and command polling
+  local gen metrics_json payload
+  gen="$(get_generation)"
+  metrics_json="$(collect_metrics)"
+  
+  payload=$(jq -n \
+    --arg hostname "$HOSTNAME" \
+    --arg host_type "$HOST_TYPE" \
+    --arg location "$LOCATION" \
+    --arg device_type "$DEVICE_TYPE" \
+    --arg theme_color "$THEME_COLOR" \
+    --arg criticality "$CRITICALITY" \
+    --arg generation "$gen" \
+    --arg config_repo "$NIXFLEET_NIXCFG" \
+    --arg agent_version "$AGENT_VERSION" \
+    --arg os_version "$OS_VERSION" \
+    --arg os_name "$OS_NAME" \
+    --argjson poll_interval "$NIXFLEET_INTERVAL" \
+    --argjson metrics "$metrics_json" \
+    '{
+        hostname: $hostname,
+        host_type: $host_type,
+        location: $location,
+        device_type: $device_type,
+        theme_color: $theme_color,
+        criticality: $criticality,
+        current_generation: $generation,
+        config_repo: $config_repo,
+        poll_interval: $poll_interval,
+        agent_version: $agent_version,
+        os_version: (if $os_version == "" then null else $os_version end),
+        os_name: (if $os_name == "" then null else $os_name end),
+        metrics: $metrics
+    }')
+  
+  # Call register endpoint which now returns any pending command
+  api_call POST "/api/hosts/${HOST_ID}/register" "$payload"
 }
 
 # ════════════════════════════════════════════════════════════════════════════════
@@ -764,23 +797,17 @@ main() {
   # Cache git hash at startup (avoids repeated git calls)
   refresh_git_hash >/dev/null
 
+  # Initial registration
   register
 
   local failures=0
-  local poll_count=0
-  local REGISTER_INTERVAL=5  # Re-register every N polls to update metrics
 
   while true; do
     local response command sleep_s
     
-    # Re-register periodically to update metrics (every REGISTER_INTERVAL polls)
-    poll_count=$((poll_count + 1))
-    if ((poll_count >= REGISTER_INTERVAL)); then
-      register >/dev/null 2>&1 || true
-      poll_count=0
-    fi
-
-    if response=$(api_call GET "/api/hosts/${HOST_ID}/poll"); then
+    # Heartbeat: register sends metrics AND returns any pending command
+    # This is more efficient than separate poll + periodic register
+    if response=$(heartbeat); then
       command=$(echo "$response" | jq -r '.command // empty')
       failures=0
     else
@@ -790,7 +817,7 @@ main() {
         # Auth failures: back off aggressively to avoid spam/overload
         ((failures < 5)) && failures=5
       fi
-      log_warn "Poll failed (HTTP ${API_HTTP_CODE:-0}); failures=$failures"
+      log_warn "Heartbeat failed (HTTP ${API_HTTP_CODE:-0}); failures=$failures"
     fi
 
     if [[ -n "$command" ]]; then

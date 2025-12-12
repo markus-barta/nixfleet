@@ -1350,7 +1350,26 @@ async def register_host(
         "metrics_updated_at": metrics_updated,
     })
     
-    resp = {"status": "registered", "host_id": host_id}
+    # Check for pending command (so register can serve as heartbeat)
+    pending_command = None
+    with get_db() as conn:
+        row = conn.execute(
+            "SELECT pending_command FROM hosts WHERE id = ?",
+            (host_id,)
+        ).fetchone()
+        
+        if row and row["pending_command"]:
+            pending_command = row["pending_command"]
+            logger.info(f"Sending command to {host_id}: {pending_command}")
+            
+            conn.execute("UPDATE hosts SET pending_command = NULL WHERE id = ?", (host_id,))
+            conn.execute("""
+                INSERT INTO command_log (host_id, command, status, created_at)
+                VALUES (?, ?, 'running', ?)
+            """, (host_id, pending_command, datetime.utcnow().isoformat()))
+            conn.commit()
+    
+    resp = {"status": "registered", "host_id": host_id, "command": pending_command}
     if provisioned_agent_token:
         resp["agent_token"] = provisioned_agent_token
     return resp
