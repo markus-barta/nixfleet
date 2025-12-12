@@ -308,26 +308,26 @@ tr:hover td { background: rgba(41, 46, 66, 0.5); }
     white-space: nowrap;
 }
 
-.host-cell .status-indicator,
 .host-cell .hostname {
     display: inline-block;
     vertical-align: middle;
-}
-
-.host-cell .status-indicator {
-    margin-right: 0.5rem;
+    font-weight: 500;
 }
 
 .status-indicator {
-    display: flex;
+    display: inline-flex;
     align-items: center;
+    justify-content: center;
+    vertical-align: middle;
+    margin-right: 0.5rem;
+    min-width: 12px;
+    min-height: 12px;
 }
 
 .status-indicator .status-dot {
     width: 8px;
     height: 8px;
     border-radius: 50%;
-    flex-shrink: 0;
 }
 
 .status-indicator .status-dot.online {
@@ -337,10 +337,6 @@ tr:hover td { background: rgba(41, 46, 66, 0.5); }
 
 .status-indicator .status-dot.offline {
     background: var(--fg-gutter);
-}
-
-.host-cell .hostname {
-    font-weight: 500;
 }
 
 /* OS cell (icon + version) */
@@ -2074,10 +2070,12 @@ function updateHostRow(data) {
     if (data.agent_version) {
         const fleetCell = row.querySelector('.fleet-cell');
         if (fleetCell && data.agent_version.includes('-')) {
-            const agentHash = data.agent_version.split('-').pop();
-            const targetHash = document.querySelector('.fleet-hash')?.textContent?.trim() || '';
+            const agentHash = data.agent_version.split('-').pop().substring(0, 7);
+            // Get target hash - extract just the hash part
+            const targetHashEl = document.querySelector('.fleet-hash');
+            const targetHash = targetHashEl ? targetHashEl.textContent.replace(/\s/g, '').substring(0, 7) : '';
             const outdated = agentHash && targetHash && agentHash !== targetHash;
-            fleetCell.innerHTML = `<code class="hash-badge ${outdated ? 'outdated' : ''}" title="Agent: ${data.agent_version}${outdated ? ' | Target: ' + targetHash : ''}">${agentHash.substring(0, 7)}</code>${outdated ? '<span class="outdated-arrow" title="Behind target">↓</span>' : ''}`;
+            fleetCell.innerHTML = `<code class="hash-badge ${outdated ? 'outdated' : ''}" title="Agent: ${data.agent_version}${outdated ? ' | Target: ' + targetHash : ''}">${agentHash}</code>${outdated ? '<span class="outdated-arrow" title="Behind target">↓</span>' : ''}`;
         }
         row.dataset.agentHash = data.agent_version.split('-').pop() || '';
     }
@@ -2101,29 +2099,15 @@ function updateHostRow(data) {
     if (data.current_generation) {
         const configCell = row.querySelector('.config-cell');
         if (configCell) {
-            const targetHash = document.querySelector('.nixcfg-hash')?.textContent?.trim() || '';
-            const outdated = data.outdated || (targetHash && data.current_generation !== targetHash);
+            // Get target hash - extract just the hash part (trim whitespace, take first 7 chars)
+            const targetHashEl = document.querySelector('.nixcfg-hash');
+            const targetHash = targetHashEl ? targetHashEl.textContent.replace(/\s/g, '').substring(0, 7) : '';
             const shortHash = data.current_generation.substring(0, 7);
-            configCell.innerHTML = `<code class="hash-badge ${outdated ? 'outdated' : ''}" title="Config: ${data.current_generation}${outdated && targetHash ? ' | Target: ' + targetHash : ''}">${shortHash}</code>${outdated ? '<span class="outdated-arrow" title="Behind target">↓</span>' : ''}`;
+            // Compare 7-char hashes
+            const outdated = data.outdated !== undefined ? data.outdated : (targetHash && shortHash !== targetHash);
+            configCell.innerHTML = `<code class="hash-badge ${outdated ? 'outdated' : ''}" title="Config: ${data.current_generation}${outdated ? ' | Target: ' + targetHash : ''}">${shortHash}</code>${outdated ? '<span class="outdated-arrow" title="Behind target">↓</span>' : ''}`;
         }
         row.dataset.gitHash = data.current_generation;
-        
-        // Update/remove outdated arrow on config cell
-        if (data.outdated !== undefined) {
-            const configCell = row.querySelector('.config-cell');
-            if (configCell) {
-                let arrow = configCell.querySelector('.outdated-arrow');
-                const hashBadge = configCell.querySelector('.hash-badge');
-                if (hashBadge) {
-                    hashBadge.classList.toggle('outdated', data.outdated);
-                }
-                if (data.outdated && !arrow) {
-                    configCell.insertAdjacentHTML('beforeend', '<span class="outdated-arrow" title="Behind target">↓</span>');
-                } else if (!data.outdated && arrow) {
-                    arrow.remove();
-                }
-            }
-        }
     }
     
     // Update status cell - show test/pending/comment (NOT online/offline - that's the dot's job)
@@ -2246,8 +2230,7 @@ connectSSE();
 applyAllActionStates();
 setInterval(applyAllActionStates, 60_000);
 
-// Fallback: reload page every 5 minutes if SSE fails
-setTimeout(() => location.reload(), 300000);
+// SSE should keep page updated - no forced reloads needed
 
 // Dropdown toggle
 function toggleDropdown(e) {
