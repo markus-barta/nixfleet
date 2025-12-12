@@ -1,4 +1,4 @@
-# Heartbeat & Communication Visualizer
+# 2025-12-12 - Heartbeat & communication visualizer
 
 **Created**: 2025-12-12
 **Priority**: Medium
@@ -13,6 +13,17 @@ Visualize real-time communication between each host and the NixFleet backend:
 - **Incoming** (host → dashboard): Heartbeats, status updates
 - **Outgoing** (dashboard → host): Commands with ACK/NACK and timeout
 - **Connection health**: Online → Stale → Offline states
+
+---
+
+## Current State (Audit Notes / Pragmatic Baseline)
+
+- **Incoming “heartbeat”**: effectively happens via `/api/hosts/{id}/poll` and `/api/hosts/{id}/register` updating `last_seen` (and broadcasting `host_update` on register/status/test-progress).
+- **Outgoing “command lifecycle”**: currently only has:
+  - UI queues command (`command_queued` SSE event)
+  - Agent receives via poll (no explicit ACK event today)
+  - Agent reports final result via `/status` (drives `host_update` → UI unlocks)
+- **Important**: reliability of any richer visualization depends on SSE robustness (see `broadcast_event()` safety) and on having explicit “ACK/EXEC” signals if you want intermediate states.
 
 ---
 

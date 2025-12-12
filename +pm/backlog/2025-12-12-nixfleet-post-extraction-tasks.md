@@ -1,4 +1,4 @@
-# NixFleet Post-Extraction Tasks
+# 2025-12-12 - NixFleet post-extraction tasks
 
 ## Status: Open
 
@@ -135,6 +135,9 @@ home-manager switch --flake .#mba@mba-mbp-work
 - [ ] Add rate limiting assertions in module
 - [ ] Add warning if HTTP (not HTTPS) URL configured
 - [ ] Document security model in README
+- [ ] **NixOS module correctness**:
+  - token file format: `EnvironmentFile=` expects `KEY=VALUE`; ensure the module supports a token file that contains *just the token* (common for secret files).
+  - systemd sandboxing: verify `ProtectSystem=strict` + `ReadWritePaths=[cfg.configRepo]` does not break `nixos-rebuild` (it likely needs additional write paths such as `/nix`), and adjust hardening accordingly.
 
 ---
 

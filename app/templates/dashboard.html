@@ -1025,7 +1025,13 @@ tr:hover .status .hb-countdown {
         <tbody>
             {% if hosts %}
                 {% for host in hosts %}
-                <tr data-host-id="{{ host.id }}" data-last-seen="{{ host.last_seen_iso or '' }}" data-poll-interval="{{ host.poll_interval or 30 }}" data-git-hash="{{ host.current_generation or '' }}">
+                <tr data-host-id="{{ host.id }}"
+                    data-online="{{ 'true' if host.online else 'false' }}"
+                    data-last-seen="{{ host.last_seen_iso or '' }}"
+                    data-poll-interval="{{ host.poll_interval or 30 }}"
+                    data-git-hash="{{ host.current_generation or '' }}"
+                    data-pending-command="{{ host.pending_command or '' }}"
+                    data-test-running="{{ 'true' if host.test_running else 'false' }}">
                     <td>
                         <div class="host-icons" style="color: {{ host.theme_color or '#769ff0' }};">
                             {% if host.host_type == 'macos' %}
@@ -1121,21 +1127,21 @@ tr:hover .status .hb-countdown {
                     <td class="comment {{ 'has-error' if host.status == 'error' else '' }}" data-status="{{ host.status or 'unknown' }}" data-test-running="{{ 'true' if host.test_running else 'false' }}" title="{{ host.comment or '' }}">{% if host.test_running %}<span class="test-progress">Test {{ host.test_current }}/{{ host.test_total }} running</span>{% elif host.comment %}<span class="comment-icon">{{ '✗' if host.status == 'error' else '✓' }}</span>{{ host.comment }}{% else %}—{% endif %}</td>
                     <td>
                         <div class="actions">
-                            <button class="btn btn-pull" onclick="sendCommand('{{ host.id }}', 'pull')" {% if not host.online %}disabled{% endif %} title="Git Pull">
+                            <button class="btn btn-pull" onclick="sendCommand('{{ host.id }}', 'pull')" {% if not host.online or host.pending_command or host.test_running %}disabled{% endif %} title="Git Pull">
                                 <svg><use href="#icon-download"/></svg>
                                 Pull
                             </button>
-                            <button class="btn btn-switch" onclick="sendCommand('{{ host.id }}', 'switch')" {% if not host.online %}disabled{% endif %} title="Rebuild Switch">
+                            <button class="btn btn-switch" onclick="sendCommand('{{ host.id }}', 'switch')" {% if not host.online or host.pending_command or host.test_running %}disabled{% endif %} title="Rebuild Switch">
                                 <svg><use href="#icon-refresh"/></svg>
                                 Switch
                             </button>
                             {% if host.test_running %}
-                            <button class="btn btn-stop" onclick="sendCommand('{{ host.id }}', 'stop')" title="Stop Test">
+                            <button class="btn btn-stop" onclick="sendCommand('{{ host.id }}', 'stop')" {% if not host.online %}disabled{% endif %} title="Stop Test">
                                 <svg><use href="#icon-stop"/></svg>
                                 Stop
                             </button>
                             {% else %}
-                            <button class="btn btn-test" onclick="sendCommand('{{ host.id }}', 'test')" {% if not host.online %}disabled{% endif %} title="Run Tests">
+                            <button class="btn btn-test" onclick="sendCommand('{{ host.id }}', 'test')" {% if not host.online or host.pending_command or host.test_running %}disabled{% endif %} title="Run Tests">
                                 <svg><use href="#icon-flask"/></svg>
                                 Test
                             </button>
@@ -1145,6 +1151,11 @@ tr:hover .status .hb-countdown {
                                     <svg><use href="#icon-more"/></svg>
                                 </button>
                                 <div class="dropdown-menu">
+                                    <button class="dropdown-item" onclick="unlockHostActions('{{ host.id }}')">
+                                        <svg><use href="#icon-refresh"/></svg>
+                                        Unlock actions
+                                    </button>
+                                    <div class="dropdown-divider"></div>
                                     <button class="dropdown-item disabled" title="Coming soon">
                                         <svg><use href="#icon-file"/></svg>
                                         Download Log
@@ -1242,6 +1253,48 @@ tr:hover .status .hb-countdown {
 {% block scripts %}
 <script>
 const csrfToken = '{{ csrf_token }}';
+const ACTION_LOCK_MAX_MS = ({{ action_lock_max_seconds|default(86400) }} * 1000);
+
+function lockKey(hostId) {
+    return `nixfleet:actionLock:${hostId}`;
+}
+
+function getActionLock(hostId) {
+    try {
+        const raw = localStorage.getItem(lockKey(hostId));
+        if (!raw) return null;
+        const data = JSON.parse(raw);
+        if (!data || typeof data.until !== 'number') return null;
+        if (Date.now() >= data.until) {
+            localStorage.removeItem(lockKey(hostId));
+            return null;
+        }
+        return data;
+    } catch (_) {
+        return null;
+    }
+}
+
+function setActionLock(hostId, command) {
+    try {
+        const now = Date.now();
+        localStorage.setItem(lockKey(hostId), JSON.stringify({
+            command,
+            lockedAt: now,
+            until: now + ACTION_LOCK_MAX_MS,
+        }));
+    } catch (_) {
+        // ignore (private mode, storage disabled)
+    }
+}
+
+function clearActionLock(hostId) {
+    try {
+        localStorage.removeItem(lockKey(hostId));
+    } catch (_) {
+        // ignore
+    }
+}
 
 // Format timestamps to local browser time (dd.mm.yyyy hh:mm:ss)
 function formatTimestamp(date) {
@@ -1302,12 +1355,13 @@ setInterval(updateHeartbeats, 1000);
 updateHeartbeats();
 
 async function sendCommand(hostId, command) {
-    const btn = event.target.closest('button');
     const row = document.querySelector(`tr[data-host-id="${hostId}"]`);
-    const allButtons = row ? row.querySelectorAll('.actions button:not(.dropdown-item)') : [btn];
-    
-    // Disable all action buttons for this host to prevent spam
-    allButtons.forEach(b => b.disabled = true);
+    if (!row) return;
+
+    // Disable relevant action buttons immediately to prevent spam
+    row.dataset.pendingCommand = command;
+    setActionLock(hostId, command);
+    applyActionState(row);
     
     try {
         const response = await fetch(`/api/hosts/${hostId}/command`, {
@@ -1320,22 +1374,109 @@ async function sendCommand(hostId, command) {
         });
         
         if (response.ok) {
-            // SSE will handle re-enabling when command completes
-            // Fallback: re-enable after 30s if SSE doesn't update
-            setTimeout(() => { 
-                allButtons.forEach(b => b.disabled = false); 
-            }, 30000);
+            // Keep locked until SSE reports completion.
+            // Safety fallback unlock is handled via ACTION_LOCK_MAX_MS + localStorage.
         } else if (response.status === 401) {
             location.href = '/login';
         } else {
             const data = await response.json().catch(() => ({}));
             alert(data.detail || 'Command failed');
-            allButtons.forEach(b => b.disabled = false);
+            clearActionLock(hostId);
+            row.dataset.pendingCommand = '';
+            applyActionState(row);
         }
     } catch (e) {
         alert('Network error');
-        allButtons.forEach(b => b.disabled = false);
+        clearActionLock(hostId);
+        row.dataset.pendingCommand = '';
+        applyActionState(row);
     }
+}
+
+function isServerBusy(row) {
+    const pending = (row.dataset.pendingCommand || '').trim();
+    const testRunning = row.dataset.testRunning === 'true';
+    return testRunning || pending.length > 0;
+}
+
+function applyActionState(row) {
+    const hostId = row.dataset.hostId;
+    const online = row.dataset.online === 'true';
+    const testRunning = row.dataset.testRunning === 'true';
+    const busy = isServerBusy(row) || !!getActionLock(hostId);
+
+    // Keep "More" enabled so Unlock is always accessible.
+    const pullBtn = row.querySelector('.btn-pull');
+    const switchBtn = row.querySelector('.btn-switch');
+    const testBtn = row.querySelector('.btn-test');
+    const stopBtn = row.querySelector('.btn-stop');
+    const unlockItem = row.querySelector('.dropdown-item[onclick^="unlockHostActions"]');
+
+    if (unlockItem) {
+        // Enable if there's a local lock OR server busy; in either case, unlocking is useful.
+        const canUnlock = busy;
+        unlockItem.classList.toggle('disabled', !canUnlock);
+        unlockItem.title = canUnlock ? 'Unlock action buttons for this host (does not cancel the running command)' : '';
+    }
+
+    // Base rule: if offline, everything is disabled (including stop).
+    if (!online) {
+        if (pullBtn) pullBtn.disabled = true;
+        if (switchBtn) switchBtn.disabled = true;
+        if (testBtn) testBtn.disabled = true;
+        if (stopBtn) stopBtn.disabled = true;
+        return;
+    }
+
+    // When busy:
+    // - disable pull/switch/test to prevent spam
+    // - keep stop enabled if tests are running
+    if (busy) {
+        if (pullBtn) pullBtn.disabled = true;
+        if (switchBtn) switchBtn.disabled = true;
+        if (testBtn) testBtn.disabled = true;
+        if (stopBtn) stopBtn.disabled = !testRunning ? true : false;
+        return;
+    }
+
+    // Not busy and online: enable base actions
+    if (pullBtn) pullBtn.disabled = false;
+    if (switchBtn) switchBtn.disabled = false;
+    if (testBtn) testBtn.disabled = false;
+    if (stopBtn) stopBtn.disabled = false;
+}
+
+function applyAllActionStates() {
+    document.querySelectorAll('tr[data-host-id]').forEach(row => {
+        // Expire locks and apply per-row state
+        const hostId = row.dataset.hostId;
+        getActionLock(hostId); // triggers expiry cleanup
+        applyActionState(row);
+    });
+}
+
+function unlockHostActions(hostId) {
+    const row = document.querySelector(`tr[data-host-id="${hostId}"]`);
+    if (!row) return;
+
+    const lock = getActionLock(hostId);
+    const pending = (row.dataset.pendingCommand || '').trim();
+    const testRunning = row.dataset.testRunning === 'true';
+    const msgParts = [];
+    if (pending) msgParts.push(`pending_command="${pending}"`);
+    if (testRunning) msgParts.push('test_running=true');
+    if (lock) msgParts.push(`local_lock_remaining=${Math.ceil((lock.until - Date.now()) / 1000)}s`);
+
+    const ok = confirm(
+        `Unlock action buttons for ${hostId}?\n\n` +
+        (msgParts.length ? `Current state: ${msgParts.join(', ')}\n\n` : '') +
+        `This does NOT cancel the running command on the host.\n` +
+        `Use this only if the UI got stuck and you want to re-enable actions.`
+    );
+    if (!ok) return;
+
+    clearActionLock(hostId);
+    applyActionState(row);
 }
 
 // ============================================================================
@@ -1418,6 +1559,21 @@ function triggerHeartbeatPing(hostId) {
 function updateHostRow(data) {
     const row = document.querySelector(`tr[data-host-id="${data.host_id}"]`);
     if (!row) return;
+
+    // Update online flag if provided
+    if (data.online !== undefined) {
+        row.dataset.online = data.online ? 'true' : 'false';
+    }
+
+    // Update pending/test flags (used for action locking)
+    if (data.pending_command !== undefined) {
+        row.dataset.pendingCommand = data.pending_command || '';
+        if (data.pending_command) setActionLock(data.host_id, data.pending_command);
+    }
+    if (data.test_running !== undefined) {
+        row.dataset.testRunning = data.test_running ? 'true' : 'false';
+        if (data.test_running) setActionLock(data.host_id, 'test');
+    }
     
     // Update last seen timestamp
     if (data.last_seen) {
@@ -1450,10 +1606,9 @@ function updateHostRow(data) {
         }
     }
     
-    // Re-enable action buttons when command completes (no pending_command and not testing)
+    // When command completes (no pending_command and not testing), clear any local lock.
     if (data.pending_command === null && !data.test_running) {
-        const buttons = row.querySelectorAll('.actions button');
-        buttons.forEach(b => b.disabled = false);
+        clearActionLock(data.host_id);
     }
     
     // Update comment error state
@@ -1566,10 +1721,17 @@ function updateHostRow(data) {
             }
         }
     }
+
+    // Finally, re-apply action enable/disable rules
+    applyActionState(row);
 }
 
 // Start SSE connection
 connectSSE();
+
+// Apply action states on first load + periodically expire long locks
+applyAllActionStates();
+setInterval(applyAllActionStates, 60_000);
 
 // Fallback: reload page every 5 minutes if SSE fails
 setTimeout(() => location.reload(), 300000);

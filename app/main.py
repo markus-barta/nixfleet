@@ -62,6 +62,14 @@ REQUIRE_TOTP = os.environ.get("NIXFLEET_REQUIRE_TOTP", "").lower() in ("1", "tru
 SESSION_DURATION = timedelta(hours=24)
 VERSION = "0.1.0"
 
+# UI behavior (dashboard)
+# How long the UI should keep action buttons "locked" if no completion event arrives.
+# This is a safety fallback for stuck/failed commands; completion should normally unlock earlier.
+try:
+    UI_ACTION_LOCK_MAX_SECONDS = int(os.environ.get("NIXFLEET_UI_ACTION_LOCK_MAX_SECONDS", "86400"))
+except ValueError:
+    UI_ACTION_LOCK_MAX_SECONDS = 86400
+
 # Build-time git hash (embedded during docker build, no API calls needed)
 # This is the "source of truth" - hosts are outdated if they don't match this
 def get_build_git_hash() -> Optional[str]:
@@ -1394,7 +1402,8 @@ async def dashboard(request: Request):
         latest_hash=latest_hash[:7] if latest_hash else None,
         # NixFleet build hash for footer
         build_hash=build_hash[:7] if build_hash else None,
-        csrf_token=csrf_token
+        csrf_token=csrf_token,
+        action_lock_max_seconds=UI_ACTION_LOCK_MAX_SECONDS,
     )
 
 
