@@ -107,7 +107,10 @@ in
         HOME = "/home/${cfg.user}";
       };
 
-      path = [ "/run/current-system/sw" ];
+      # CRITICAL: /run/wrappers/bin must come FIRST for setuid sudo wrapper
+      # Without this, the agent finds the unwrapped sudo-rs binary which fails
+      # with "sudo must be owned by uid 0"
+      path = [ "/run/wrappers" "/run/current-system/sw" ];
 
       serviceConfig = {
         Type = "simple";
