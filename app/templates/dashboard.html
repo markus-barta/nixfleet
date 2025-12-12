@@ -1908,7 +1908,12 @@ function updateHostRow(data) {
     // Update pending/test flags (used for action locking)
     if (data.pending_command !== undefined) {
         row.dataset.pendingCommand = data.pending_command || '';
-        if (data.pending_command) setActionLock(data.host_id, data.pending_command);
+        if (data.pending_command) {
+            setActionLock(data.host_id, data.pending_command);
+        } else {
+            // Clear lock when pending_command becomes null/empty
+            clearActionLock(data.host_id);
+        }
     }
     if (data.test_running !== undefined) {
         row.dataset.testRunning = data.test_running ? 'true' : 'false';
@@ -1946,10 +1951,7 @@ function updateHostRow(data) {
         }
     }
     
-    // When command completes (no pending_command and not testing), clear any local lock.
-    if (data.pending_command === null && !data.test_running) {
-        clearActionLock(data.host_id);
-    }
+    // Note: Lock clearing is now handled above when pending_command is set to null/empty
     
     // Update comment error state
     if (data.status !== undefined) {
