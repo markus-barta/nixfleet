@@ -210,11 +210,11 @@ in
         # Run as specified user with sudo
         User = cfg.user;
         Group = "users";
-        NoNewPrivileges = false; # Needs sudo for nixos-rebuild
-        ProtectSystem = "strict";
-        ProtectHome = "read-only";
-        ReadWritePaths = [ cfg.configRepo ];
-        PrivateTmp = true;
+        # Note: We intentionally avoid strict sandboxing here because:
+        # - NoNewPrivileges must be false for sudo/sudo-rs to work
+        # - ProtectSystem=strict can interfere with sudo-rs setuid detection
+        # - The agent needs to run nixos-rebuild which requires elevated privileges
+        NoNewPrivileges = false;
       };
     };
   };
