@@ -2,6 +2,7 @@
 .env
 .env.local
 .env.*.local
+docker/.env
 
 # Python
 __pycache__/

@@ -29,6 +29,10 @@ export GIT_HASH
 
 # Use csb1-specific compose file if it exists, otherwise default
 if [[ -f docker/docker-compose.csb1.yml ]]; then
+    # Copy .env to docker/ directory where docker-compose.csb1.yml expects it
+    if [[ -f .env ]]; then
+        cp .env docker/.env
+    fi
     docker compose -f docker/docker-compose.csb1.yml build --no-cache
     docker compose -f docker/docker-compose.csb1.yml up -d
 else
