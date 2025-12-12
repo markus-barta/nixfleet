@@ -764,9 +764,18 @@ main() {
   register
 
   local failures=0
+  local poll_count=0
+  local REGISTER_INTERVAL=5  # Re-register every N polls to update metrics
 
   while true; do
     local response command sleep_s
+    
+    # Re-register periodically to update metrics (every REGISTER_INTERVAL polls)
+    ((poll_count++))
+    if ((poll_count >= REGISTER_INTERVAL)); then
+      register >/dev/null 2>&1 || true
+      poll_count=0
+    fi
 
     if response=$(api_call GET "/api/hosts/${HOST_ID}/poll"); then
       command=$(echo "$response" | jq -r '.command // empty')

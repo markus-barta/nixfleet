@@ -1629,6 +1629,8 @@ async def update_test_progress(
         conn.commit()
     
     # Broadcast SSE event for live test progress
+    # Note: Don't include last_seen - it would update the "Last Seen" column 
+    # with test status info instead of the actual time
     await broadcast_event("test_progress", {
         "host_id": host_id,
         "test_running": progress.running,
@@ -1637,7 +1639,6 @@ async def update_test_progress(
         "test_passed_count": progress.passed,
         "test_result": progress.result,
         "online": True,
-        "last_seen": datetime.utcnow().isoformat(),
     })
     
     return {"status": "updated"}
