@@ -7,6 +7,7 @@
 ## Overview
 
 Enhance version tracking in the NixFleet dashboard to show:
+
 1. Agent version (injected from flake at build time)
 2. NixOS/nixpkgs version the host is running
 3. Latest available nixpkgs version (for upgrade awareness)
@@ -20,6 +21,7 @@ Enhance version tracking in the NixFleet dashboard to show:
 **Goal**: Automatically inject the nixfleet flake version at build time.
 
 **Implementation approach**:
+
 ```nix
 # In modules/nixos.nix
 let
@@ -35,6 +37,7 @@ agentScript = pkgs.substituteAll {
 Or use `pkgs.writeShellApplication` with version prepended.
 
 **Display**: Show agent version LEFT of git hash in Version column:
+
 ```
 v0.2.1 • 9b18fd8 ↓
 ```
@@ -44,11 +47,13 @@ v0.2.1 • 9b18fd8 ↓
 **Goal**: Track and display the nixpkgs version each host is running.
 
 **Data to capture** (sent during agent registration):
+
 - `nixpkgs_version`: The nixpkgs commit hash the system was built with
 - `nixpkgs_channel`: Channel name if applicable (e.g., "nixos-24.11", "nixos-unstable")
 - `nixos_version`: Full NixOS version string (e.g., "24.11.20241210.abc1234")
 
 **How to detect on host**:
+
 ```bash
 # Get nixpkgs version from system
 nixos-version --json | jq -r '.nixpkgsRevision'
@@ -80,39 +85,73 @@ grep VERSION_ID /etc/os-release
    - Separate "System" section in host details?
 
 **Proposed display** (in new column or tooltip):
+
 ```
 24.11.1234 ↓  (hover: "Latest: 24.11.5678 - 15 days behind")
 ```
 
-## Open Questions
+## Decisions (2025-12-12)
 
-Please clarify:
+### 1. Reference for "latest"
+**Decision**: Both (a) AND (b) with hover details
+- Primary comparison: nixcfg flake.lock (your intended baseline)
+- On hover: Show actual latest channel version for awareness
 
-1. **Reference for "latest"**: Should "latest" be:
-   - (a) The nixpkgs version in YOUR nixcfg flake.lock (so all hosts should match)?
-   - (b) The actual latest nixos-unstable or stable channel?
-   - (c) Something else?
+### 2. Display format
+**Decision**: (c) Combined in Version column with detailed hovers
 
-2. **Display preference**: 
-   - (a) New "NixOS" column next to Version?
-   - (b) Combined in Version column with hover details?
-   - (c) Separate section/row for system info?
+Display format in Version column:
+```
+v0.2.1 • 24.11 • 9b18fd8 ↓
+```
 
-3. **macOS handling**: For macOS hosts (nix-darwin), should we track:
-   - (a) Just the nixpkgs version from the flake?
-   - (b) Also the macOS version (Sonoma 14.x, etc.)?
+Where:
+- `v0.2.1` = Agent version (from nixfleet flake)
+- `24.11` = NixOS/nixpkgs version
+- `9b18fd8` = Config git hash
+- `↓` = Outdated indicator (config or nixpkgs)
+
+**Hover tooltips** (each element has its own tooltip):
+- Agent version hover: "NixFleet Agent v0.2.1 (latest: v0.2.2)"
+- NixOS version hover: "NixOS 24.11.20241210 | Your flake: 24.11.20241215 | Channel latest: 24.11.20241220"
+- Git hash hover: "Config: 9b18fd8 | Latest: abc1234 (3 commits behind)"
+
+### 3. macOS handling
+**Decision**: (a) + (b) - Track both
+- nixpkgs version from the flake
+- macOS version (e.g., "Sonoma 14.7.1")
+
+Display for macOS:
+```
+v0.2.1 • 14.7 • 9b18fd8 ↓
+```
+Hover on "14.7": "macOS Sonoma 14.7.1 | nixpkgs: 24.11.20241210"
 
 ## Implementation Tasks
 
-Once questions are resolved:
-
+### Phase 1: Agent Version from Flake
 - [ ] Modify NixOS module to inject flake version into agent script
-- [ ] Modify Home Manager module similarly
-- [ ] Add nixpkgs version detection to agent registration
-- [ ] Add database columns: `agent_version`, `nixpkgs_version`, `nixpkgs_channel`
-- [ ] Update dashboard to fetch/display latest nixpkgs version
-- [ ] Update UI to show agent version left of git hash
-- [ ] Add "outdated nixpkgs" indicator similar to "outdated config" indicator
+- [ ] Modify Home Manager module similarly  
+- [ ] Remove hardcoded `AGENT_VERSION` from agent script
+- [ ] Update UI: Move agent version left of git hash in Version column
+
+### Phase 2: OS Version Tracking
+- [ ] Add nixpkgs/NixOS version detection to agent (nixos-version --json)
+- [ ] Add macOS version detection for Darwin hosts (sw_vers)
+- [ ] Add database columns: `nixpkgs_version`, `nixpkgs_channel`, `os_version`
+- [ ] Send OS version info during agent registration
+- [ ] Update UI: Add OS version between agent version and git hash
+
+### Phase 3: Latest Version Awareness
+- [ ] Dashboard fetches nixcfg flake.lock info (already have version.json)
+- [ ] Optionally fetch latest channel versions from GitHub API
+- [ ] Add "outdated nixpkgs" indicator (similar to config outdated)
+- [ ] Implement detailed hover tooltips for each version element
+
+### Phase 4: Polish
+- [ ] Ensure tooltips show comparison details
+- [ ] Handle edge cases (missing data, offline hosts)
+- [ ] Test with both NixOS and macOS hosts
 
 ## Related
 
@@ -122,7 +161,7 @@ Once questions are resolved:
 ## Notes
 
 This feature would enable:
+
 - Quick visibility of which hosts need `nix flake update`
 - Tracking infrastructure consistency (all hosts on same nixpkgs?)
 - Planning upgrade windows for major nixpkgs updates
-
