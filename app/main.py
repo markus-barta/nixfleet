@@ -13,6 +13,9 @@ import logging
 import re
 import asyncio
 import json
+import ipaddress
+import base64
+import hashlib
 from datetime import datetime, timedelta
 from pathlib import Path
 from contextlib import contextmanager
@@ -55,12 +58,65 @@ PASSWORD_HASH = os.environ.get("NIXFLEET_PASSWORD_HASH", "")
 TOTP_SECRET = os.environ.get("NIXFLEET_TOTP_SECRET", "")
 API_TOKEN = os.environ.get("NIXFLEET_API_TOKEN", "")
 
+# Agent authentication hardening / migration to per-host credentials
+AGENT_TOKEN_HASH_SECRET = os.environ.get("NIXFLEET_AGENT_TOKEN_HASH_SECRET", "")
+ALLOW_SHARED_AGENT_TOKEN = os.environ.get("NIXFLEET_ALLOW_SHARED_AGENT_TOKEN", "true").lower() in ("1", "true", "yes")
+AUTO_PROVISION_AGENT_TOKENS = os.environ.get("NIXFLEET_AUTO_PROVISION_AGENT_TOKENS", "true").lower() in ("1", "true", "yes")
+
 # Security modes
 DEV_MODE = os.environ.get("NIXFLEET_DEV_MODE", "").lower() in ("1", "true", "yes")
 REQUIRE_TOTP = os.environ.get("NIXFLEET_REQUIRE_TOTP", "").lower() in ("1", "true", "yes")
 
 SESSION_DURATION = timedelta(hours=24)
-VERSION = "0.1.0"
+VERSION = "0.2.1"
+
+# Signed session cookies (defense in depth on top of DB sessions)
+SESSION_COOKIE_NAME = "nixfleet_session"
+_SESSION_SECRETS_RAW = os.environ.get("NIXFLEET_SESSION_SECRETS", "")
+SESSION_SECRETS: list[str] = [s.strip() for s in _SESSION_SECRETS_RAW.split(",") if s.strip()]
+ALLOW_LEGACY_UNSIGNED_SESSION_COOKIE = os.environ.get(
+    "NIXFLEET_ALLOW_LEGACY_UNSIGNED_SESSION_COOKIE",
+    "true" if DEV_MODE else "false",
+).lower() in ("1", "true", "yes")
+
+# Reverse proxy / client IP handling (logging + rate limiting)
+TRUST_PROXY_HEADERS = os.environ.get("NIXFLEET_TRUST_PROXY_HEADERS", "").lower() in ("1", "true", "yes")
+_TRUSTED_PROXY_IPS_RAW = os.environ.get("NIXFLEET_TRUSTED_PROXY_IPS", "")
+TRUSTED_PROXY_IPS: set[str] = set()
+for _ip in [p.strip() for p in _TRUSTED_PROXY_IPS_RAW.split(",") if p.strip()]:
+    try:
+        TRUSTED_PROXY_IPS.add(str(ipaddress.ip_address(_ip)))
+    except ValueError:
+        # Ignore invalid IPs; don't fail startup due to a typo
+        pass
+
+
+def get_client_ip(request: Request) -> str:
+    """
+    Best-effort client IP for logging and rate limiting.
+
+    If behind a trusted reverse proxy, use forwarded headers to avoid collapsing to the proxy IP.
+    """
+    direct_ip = request.client.host if request.client else "unknown"
+
+    if TRUST_PROXY_HEADERS:
+        # If a trusted proxy allowlist is configured, only trust forwarded headers from those proxies.
+        if TRUSTED_PROXY_IPS and direct_ip not in TRUSTED_PROXY_IPS:
+            return direct_ip
+
+        # Prefer X-Forwarded-For (left-most is original client)
+        xff = request.headers.get("x-forwarded-for", "")
+        if xff:
+            first = xff.split(",")[0].strip()
+            if first:
+                return first
+
+        # Fallback: X-Real-IP (common with nginx/traefik)
+        xri = request.headers.get("x-real-ip", "").strip()
+        if xri:
+            return xri
+
+    return direct_ip
 
 # UI behavior (dashboard)
 # How long the UI should keep action buttons "locked" if no completion event arrives.
@@ -120,6 +176,84 @@ def get_build_hash() -> Optional[str]:
     return _BUILD_GIT_HASH
 
 
+# ============================================================================
+# Cookie Signing Helpers
+# ============================================================================
+
+
+def _b64url_encode(data: bytes) -> str:
+    return base64.urlsafe_b64encode(data).decode("ascii").rstrip("=")
+
+
+def _b64url_decode(data: str) -> bytes:
+    pad = "=" * ((4 - (len(data) % 4)) % 4)
+    return base64.urlsafe_b64decode(data + pad)
+
+
+def sign_session_cookie(session_token: str, expires_at: datetime) -> str:
+    """
+    Create a signed cookie value for the session token.
+
+    Format: v1.<payload_b64>.<sig_b64>
+    """
+    if not SESSION_SECRETS:
+        # In DEV_MODE we can operate without signing (legacy), but in production startup enforces secrets.
+        return session_token
+
+    payload = {
+        "v": 1,
+        "t": session_token,
+        "exp": int(expires_at.timestamp()),
+    }
+    payload_json = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
+    payload_b64 = _b64url_encode(payload_json)
+
+    sig = hmac.new(SESSION_SECRETS[0].encode("utf-8"), payload_b64.encode("utf-8"), hashlib.sha256).digest()
+    sig_b64 = _b64url_encode(sig)
+    return f"v1.{payload_b64}.{sig_b64}"
+
+
+def unsign_session_cookie(cookie_value: str) -> Optional[str]:
+    """Verify and decode a signed session cookie. Returns the session token if valid."""
+    if not cookie_value or not cookie_value.startswith("v1."):
+        return None
+    try:
+        _, payload_b64, sig_b64 = cookie_value.split(".", 2)
+    except ValueError:
+        return None
+
+    if not SESSION_SECRETS:
+        return None
+
+    try:
+        sig_bytes = _b64url_decode(sig_b64)
+    except Exception:
+        return None
+
+    verified = False
+    for secret in SESSION_SECRETS:
+        expected = hmac.new(secret.encode("utf-8"), payload_b64.encode("utf-8"), hashlib.sha256).digest()
+        if hmac.compare_digest(sig_bytes, expected):
+            verified = True
+            break
+    if not verified:
+        return None
+
+    try:
+        payload = json.loads(_b64url_decode(payload_b64).decode("utf-8"))
+        if payload.get("v") != 1:
+            return None
+        token = payload.get("t")
+        exp = int(payload.get("exp", 0))
+        if not token or exp <= 0:
+            return None
+        if int(datetime.utcnow().timestamp()) > exp:
+            return None
+        return str(token)
+    except Exception:
+        return None
+
+
 # Cache for nixcfg repo info (source of truth for fleet)
 # Fetched from GitHub Pages static file (no API rate limits)
 _NIXCFG_CACHE: dict = {"hash": None, "message": None, "fetched_at": None}
@@ -173,8 +307,8 @@ def get_latest_hash() -> Optional[str]:
     return hash_val
 
 
-# Rate limiting
-limiter = Limiter(key_func=get_remote_address)
+# Rate limiting (proxy-aware if configured)
+limiter = Limiter(key_func=get_client_ip)
 
 # ============================================================================
 # SSE (Server-Sent Events) Infrastructure
@@ -182,26 +316,27 @@ limiter = Limiter(key_func=get_remote_address)
 
 # Connected SSE clients (each is an asyncio.Queue)
 sse_clients: Set[asyncio.Queue] = set()
+sse_clients_lock = asyncio.Lock()
 
 
 async def broadcast_event(event_type: str, data: dict):
     """Broadcast an event to all connected SSE clients."""
-    if not sse_clients:
-        return
-    
+    async with sse_clients_lock:
+        if not sse_clients:
+            return
+        # Snapshot to avoid iterating a shared set that may be mutated by connect/disconnect
+        queues = list(sse_clients)
+
     event_data = json.dumps({"type": event_type, **data})
     message = f"event: {event_type}\ndata: {event_data}\n\n"
     
-    # Send to all clients, remove disconnected ones
-    disconnected = []
-    for queue in sse_clients:
+    # Send to all clients.
+    # If a client is slow and its queue is full, drop this event (do NOT disconnect).
+    for queue in queues:
         try:
             queue.put_nowait(message)
         except asyncio.QueueFull:
-            disconnected.append(queue)
-    
-    for queue in disconnected:
-        sse_clients.discard(queue)
+            continue
 
 # Host ID validation pattern (alphanumeric + hyphen, like hostnames)
 HOST_ID_PATTERN = re.compile(r"^[a-zA-Z][a-zA-Z0-9\-]{0,62}$")
@@ -274,7 +409,9 @@ def init_db():
                 test_result TEXT,
                 poll_interval INTEGER DEFAULT 30,
                 -- Metrics (JSON)
-                metrics TEXT
+                metrics TEXT,
+                -- Agent auth (per-host token, stored as a hash)
+                agent_token_hash TEXT
             )
         """)
         
@@ -308,6 +445,7 @@ def init_db():
             "ALTER TABLE hosts ADD COLUMN device_type TEXT DEFAULT 'server'",
             "ALTER TABLE hosts ADD COLUMN theme_color TEXT DEFAULT '#769ff0'",
             "ALTER TABLE hosts ADD COLUMN metrics TEXT",
+            "ALTER TABLE hosts ADD COLUMN agent_token_hash TEXT",
         ]
         for migration in migrations:
             try:
@@ -353,11 +491,11 @@ def cleanup_expired_sessions():
 # ============================================================================
 
 
-def create_session() -> tuple[str, str]:
+def create_session() -> tuple[str, str, datetime]:
     """Create a new session token and CSRF token, store in database.
     
     Returns:
-        Tuple of (session_token, csrf_token)
+        Tuple of (session_token, csrf_token, expires_at)
     """
     token = secrets.token_urlsafe(32)
     csrf_token = secrets.token_urlsafe(32)
@@ -371,7 +509,7 @@ def create_session() -> tuple[str, str]:
         conn.commit()
     
     logger.info("New session created")
-    return token, csrf_token
+    return token, csrf_token, expires_at
 
 
 def get_csrf_token(session_token: str) -> Optional[str]:
@@ -392,6 +530,19 @@ def verify_csrf_token(session_token: str, csrf_token: str) -> bool:
     if not stored_csrf:
         return False
     return hmac.compare_digest(csrf_token, stored_csrf)
+
+
+def verify_csrf(request: Request):
+    """
+    Verify CSRF token for session-authenticated API requests.
+
+    Expected to be provided via `X-CSRF-Token` header from the dashboard JS.
+    """
+    session_token = get_session_token(request)
+    csrf_token = request.headers.get("X-CSRF-Token", "")
+    if not verify_csrf_token(session_token, csrf_token):
+        logger.warning("CSRF validation failed")
+        raise HTTPException(status_code=403, detail="Invalid CSRF token")
 
 
 def verify_session(token: str) -> bool:
@@ -466,7 +617,21 @@ def verify_totp(code: str) -> bool:
 
 def get_session_token(request: Request) -> Optional[str]:
     """Extract session token from cookie."""
-    return request.cookies.get("nixfleet_session")
+    raw = request.cookies.get(SESSION_COOKIE_NAME)
+    if not raw:
+        return None
+    if raw.startswith("v1."):
+        token = unsign_session_cookie(raw)
+        if not token:
+            logger.warning("Invalid signed session cookie rejected")
+        return token
+    # Legacy/unsigned cookie support (opt-in, mainly for upgrades)
+    if ALLOW_LEGACY_UNSIGNED_SESSION_COOKIE:
+        return raw
+    logger.warning(
+        "Legacy unsigned session cookie rejected (set NIXFLEET_ALLOW_LEGACY_UNSIGNED_SESSION_COOKIE=true to allow)"
+    )
+    return None
 
 
 def require_auth(request: Request) -> bool:
@@ -486,6 +651,80 @@ def verify_api_token(token: str) -> bool:
     if not token:
         return False
     return hmac.compare_digest(token, API_TOKEN)
+
+
+def hash_agent_token(token: str) -> str:
+    """Hash an agent token for storage in the DB (server-side secret required)."""
+    if not AGENT_TOKEN_HASH_SECRET:
+        raise RuntimeError("NIXFLEET_AGENT_TOKEN_HASH_SECRET is not configured")
+    return hmac.new(
+        AGENT_TOKEN_HASH_SECRET.encode("utf-8"),
+        token.encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+
+
+def verify_agent_token_hash(stored_hash: str, token: str) -> bool:
+    """Verify an agent token against a stored hash."""
+    if not stored_hash or not token:
+        return False
+    try:
+        expected = hash_agent_token(token)
+    except RuntimeError:
+        return False
+    return hmac.compare_digest(stored_hash, expected)
+
+
+def provision_agent_token_for_host(conn: sqlite3.Connection, host_id: str) -> Optional[str]:
+    """
+    Generate and store a per-host agent token (hashed in DB).
+    Returns the raw token (only at provisioning time).
+    """
+    if not AGENT_TOKEN_HASH_SECRET:
+        return None
+
+    token = secrets.token_urlsafe(32)
+    token_hash = hash_agent_token(token)
+    conn.execute("UPDATE hosts SET agent_token_hash = ? WHERE id = ?", (token_hash, host_id))
+    return token
+
+
+def get_bearer_token(credentials: Optional[HTTPAuthorizationCredentials]) -> str:
+    return credentials.credentials if credentials else ""
+
+
+def verify_agent_auth_for_host(host_id: str, credentials: Optional[HTTPAuthorizationCredentials]) -> dict:
+    """
+    Verify agent auth for a specific host.
+
+    Supports:
+    - Per-host tokens (stored hashed in DB)
+    - Shared token (NIXFLEET_API_TOKEN) for migration/compat, if enabled
+
+    Returns a context dict: { "ok": bool, "used_shared": bool }
+    """
+    token = get_bearer_token(credentials)
+    if not token:
+        return {"ok": False, "used_shared": False}
+
+    with get_db() as conn:
+        row = conn.execute("SELECT agent_token_hash FROM hosts WHERE id = ?", (host_id,)).fetchone()
+        stored_hash = row["agent_token_hash"] if row else None
+
+        if stored_hash:
+            if verify_agent_token_hash(stored_hash, token):
+                return {"ok": True, "used_shared": False}
+
+            if ALLOW_SHARED_AGENT_TOKEN and API_TOKEN and hmac.compare_digest(token, API_TOKEN):
+                return {"ok": True, "used_shared": True}
+
+            return {"ok": False, "used_shared": False}
+
+        # No per-host token set yet
+        if ALLOW_SHARED_AGENT_TOKEN and API_TOKEN and hmac.compare_digest(token, API_TOKEN):
+            return {"ok": True, "used_shared": True}
+
+        return {"ok": False, "used_shared": False}
 
 
 # ============================================================================
@@ -577,16 +816,34 @@ security = HTTPBearer(auto_error=False)
 @app.middleware("http")
 async def security_headers_middleware(request: Request, call_next):
     """Add security headers to all responses."""
+    # Per-request nonce for CSP (templates embed it into <style>/<script> tags)
+    request.state.csp_nonce = secrets.token_urlsafe(18)
+
     response = await call_next(request)
     
-    # Security headers (only in production)
+    nonce = getattr(request.state, "csp_nonce", "")
+
+    # Security headers (tight in production; still set CSP in dev to catch regressions)
     if not DEV_MODE:
         response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["X-XSS-Protection"] = "1; mode=block"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-        response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'"
+
+    # No 'unsafe-inline' - templates must use nonce + no inline handlers/styles.
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; "
+        f"script-src 'self' 'nonce-{nonce}'; "
+        f"style-src 'self' 'nonce-{nonce}'; "
+        "img-src 'self' data:; "
+        "connect-src 'self'; "
+        "font-src 'self'; "
+        "object-src 'none'; "
+        "base-uri 'none'; "
+        "frame-ancestors 'none'; "
+        "form-action 'self'"
+    )
     
     return response
 
@@ -612,8 +869,14 @@ async def startup():
     elif not (PASSWORD_HASH.startswith("$2b$") or PASSWORD_HASH.startswith("$2a$")):
         errors.append("NIXFLEET_PASSWORD_HASH must be a bcrypt hash (starts with $2b$ or $2a$)")
     
-    if not API_TOKEN and not DEV_MODE:
-        errors.append("NIXFLEET_API_TOKEN not set (required in production)")
+    if ALLOW_SHARED_AGENT_TOKEN and not API_TOKEN and not DEV_MODE:
+        errors.append("NIXFLEET_API_TOKEN not set (required in production when NIXFLEET_ALLOW_SHARED_AGENT_TOKEN=true)")
+
+    if (AUTO_PROVISION_AGENT_TOKENS or not ALLOW_SHARED_AGENT_TOKEN) and not AGENT_TOKEN_HASH_SECRET and not DEV_MODE:
+        errors.append("NIXFLEET_AGENT_TOKEN_HASH_SECRET not set (required for per-host agent tokens)")
+
+    if not SESSION_SECRETS and not DEV_MODE:
+        errors.append("NIXFLEET_SESSION_SECRETS not set (required in production for signed session cookies)")
     
     if REQUIRE_TOTP and not TOTP_SECRET:
         errors.append("NIXFLEET_REQUIRE_TOTP is set but NIXFLEET_TOTP_SECRET is missing")
@@ -633,8 +896,10 @@ async def startup():
     # Warnings for non-fatal issues
     if DEV_MODE:
         logger.warning("DEV_MODE enabled - security features relaxed for development")
-    if not API_TOKEN:
-        logger.warning("NIXFLEET_API_TOKEN not set - agents cannot connect")
+    if not API_TOKEN and ALLOW_SHARED_AGENT_TOKEN:
+        logger.warning("NIXFLEET_API_TOKEN not set - agents cannot connect (shared token mode)")
+    if API_TOKEN and ALLOW_SHARED_AGENT_TOKEN:
+        logger.warning("Shared agent token mode enabled (NIXFLEET_ALLOW_SHARED_AGENT_TOKEN=true) - consider migrating to per-host tokens")
     if not TOTP_SECRET:
         logger.info("TOTP not configured - 2FA disabled")
 
@@ -684,12 +949,14 @@ async def sse_events(request: Request):
     
     async def event_generator():
         queue: asyncio.Queue = asyncio.Queue(maxsize=100)
-        sse_clients.add(queue)
-        logger.info(f"SSE client connected (total: {len(sse_clients)})")
+        async with sse_clients_lock:
+            sse_clients.add(queue)
+            total = len(sse_clients)
+        logger.info(f"SSE client connected (total: {total})")
         
         try:
             # Send initial connection event
-            yield f"event: connected\ndata: {json.dumps({'clients': len(sse_clients)})}\n\n"
+            yield f"event: connected\ndata: {json.dumps({'clients': total})}\n\n"
             
             # Keep connection alive and send events
             while True:
@@ -708,8 +975,10 @@ async def sse_events(request: Request):
         except asyncio.CancelledError:
             pass
         finally:
-            sse_clients.discard(queue)
-            logger.info(f"SSE client disconnected (remaining: {len(sse_clients)})")
+            async with sse_clients_lock:
+                sse_clients.discard(queue)
+                remaining = len(sse_clients)
+            logger.info(f"SSE client disconnected (remaining: {remaining})")
     
     return StreamingResponse(
         event_generator(),
@@ -738,6 +1007,7 @@ async def login_page(request: Request, error: str = ""):
         "login.html",
         error=error,
         totp_enabled=bool(TOTP_SECRET and TOTP_AVAILABLE),
+        csp_nonce=getattr(request.state, "csp_nonce", ""),
     )
 
 
@@ -745,7 +1015,7 @@ async def login_page(request: Request, error: str = ""):
 @limiter.limit("5/minute")  # Max 5 login attempts per minute per IP
 async def login(request: Request, password: str = Form(...), totp: str = Form("")):
     """Process login with rate limiting."""
-    logger.info(f"Login attempt from {get_remote_address(request)}")
+    logger.info(f"Login attempt from {get_client_ip(request)}")
     
     if not verify_password(password):
         logger.warning("Login failed: invalid password")
@@ -755,11 +1025,11 @@ async def login(request: Request, password: str = Form(...), totp: str = Form(""
         logger.warning("Login failed: invalid TOTP")
         return RedirectResponse(url="/login?error=Invalid+TOTP+code", status_code=302)
 
-    session_token, _ = create_session()  # CSRF token stored in DB, retrieved per-request
+    session_token, _, expires_at = create_session()  # CSRF token stored in DB, retrieved per-request
     response = RedirectResponse(url="/", status_code=302)
     response.set_cookie(
-        key="nixfleet_session",
-        value=session_token,
+        key=SESSION_COOKIE_NAME,
+        value=sign_session_cookie(session_token, expires_at),
         httponly=True,
         secure=not DEV_MODE,  # Disable secure in dev mode for localhost
         samesite="strict" if not DEV_MODE else "lax",
@@ -785,7 +1055,7 @@ async def logout(request: Request, csrf_token: str = Form("")):
         logger.info("User logged out")
 
     response = RedirectResponse(url="/login", status_code=302)
-    response.delete_cookie("nixfleet_session")
+    response.delete_cookie(SESSION_COOKIE_NAME)
     return response
 
 
@@ -835,13 +1105,9 @@ async def add_host_manually(request: Request, host_data: ManualHostCreate):
     require_auth(request)
     verify_csrf(request)
     
-    # Generate host ID from hostname
-    import re
-    hostname = host_data.hostname.strip()
-    if not hostname or not re.match(r'^[a-zA-Z0-9\-_]+$', hostname):
-        raise HTTPException(status_code=400, detail="Invalid hostname: use only letters, numbers, hyphens and underscores")
-    
-    host_id = hostname.lower()
+    # Canonicalize host_id from hostname and validate using the same rules as the rest of the API.
+    hostname = host_data.hostname.strip().lower()
+    host_id = validate_host_id(hostname)
     
     with get_db() as conn:
         # Check if host already exists
@@ -1404,6 +1670,7 @@ async def dashboard(request: Request):
         build_hash=build_hash[:7] if build_hash else None,
         csrf_token=csrf_token,
         action_lock_max_seconds=UI_ACTION_LOCK_MAX_SECONDS,
+        csp_nonce=getattr(request.state, "csp_nonce", ""),
     )
 
 
