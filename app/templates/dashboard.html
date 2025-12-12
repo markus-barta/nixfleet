@@ -1233,6 +1233,17 @@ tr:hover .status .hb-countdown {
                                         <svg><use href="#icon-refresh"/></svg>
                                         Unlock actions
                                     </button>
+                                    <button
+                                        class="dropdown-item"
+                                        type="button"
+                                        data-action="send-command"
+                                        data-host-id="{{ host.id }}"
+                                        data-command="restart"
+                                        {% if not host.online %}disabled{% endif %}
+                                        title="Restart the agent (re-registers with current config)">
+                                        <svg><use href="#icon-refresh"/></svg>
+                                        Restart Agent
+                                    </button>
                                     <div class="dropdown-divider"></div>
                                     <button class="dropdown-item disabled" title="Coming soon">
                                         <svg><use href="#icon-file"/></svg>

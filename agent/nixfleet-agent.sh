@@ -697,6 +697,11 @@ main() {
       test)
         do_test || true
         ;;
+      restart)
+        log_info "Restart command received - exiting for service restart"
+        report_status "ok" "$(get_generation)" "Agent restarting..."
+        exit 0  # Exit cleanly; systemd/launchd will restart us
+        ;;
       *)
         log_warn "Unknown command: $command"
         report_status "error" "$(get_generation)" "Unknown command: $command"
