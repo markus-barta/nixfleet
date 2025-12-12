@@ -18,14 +18,16 @@ cd "$(dirname "$0")"
 echo "📦 Pulling latest..."
 git pull
 
-# Get the current git hash for embedding
+# Get the current git hash and version for embedding
 GIT_HASH=$(git rev-parse HEAD)
-echo "📌 Git hash: ${GIT_HASH:0:7}"
+GIT_VERSION=$(git describe --tags --always 2>/dev/null || echo "dev")
+echo "📌 Version: ${GIT_VERSION} (${GIT_HASH:0:7})"
 
 echo "🔨 Rebuilding container..."
 
-# Export git hash for docker-compose build args
+# Export for docker-compose build args
 export GIT_HASH
+export GIT_VERSION
 
 # Use csb1-specific compose file if it exists, otherwise default
 if [[ -f docker/docker-compose.csb1.yml ]]; then

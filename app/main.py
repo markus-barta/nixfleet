@@ -68,7 +68,19 @@ DEV_MODE = os.environ.get("NIXFLEET_DEV_MODE", "").lower() in ("1", "true", "yes
 REQUIRE_TOTP = os.environ.get("NIXFLEET_REQUIRE_TOTP", "").lower() in ("1", "true", "yes")
 
 SESSION_DURATION = timedelta(hours=24)
-VERSION = "0.2.1"
+
+# Read version from version.json (created at Docker build time)
+def _get_version() -> str:
+    try:
+        version_file = Path(__file__).parent / "version.json"
+        if version_file.exists():
+            data = json.loads(version_file.read_text())
+            return data.get("version", "dev")
+    except Exception:
+        pass
+    return "dev"
+
+VERSION = _get_version()
 
 # Signed session cookies (defense in depth on top of DB sessions)
 SESSION_COOKIE_NAME = "nixfleet_session"
@@ -1148,11 +1160,22 @@ async def add_host_manually(request: Request, host_data: ManualHostCreate):
 
 @app.post("/api/hosts/{host_id}/register")
 @limiter.limit("30/minute")  # Limit registration attempts
-async def register_host(request: Request, host_id: str, registration: HostRegistration, _: bool = Depends(verify_agent_auth)):
+async def register_host(
+    request: Request,
+    host_id: str,
+    registration: HostRegistration,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+):
     """Register or update a host."""
     host_id = validate_host_id(host_id)
+    auth = verify_agent_auth_for_host(host_id, credentials)
+    if not auth["ok"]:
+        logger.warning(f"Agent auth failed for register: host_id={host_id}")
+        raise HTTPException(status_code=401, detail="Invalid API token")
+
     logger.info(f"Host registration: {host_id} ({registration.hostname}, gen={registration.current_generation})")
     
+    provisioned_agent_token: Optional[str] = None
     with get_db() as conn:
         existing = conn.execute("SELECT * FROM hosts WHERE id = ?", (host_id,)).fetchone()
         
@@ -1192,6 +1215,13 @@ async def register_host(request: Request, host_id: str, registration: HostRegist
                 registration.comment, registration.config_repo, registration.poll_interval or 30,
                 metrics_json,
             ))
+
+        # Auto-provision per-host agent token for migration/hardening.
+        if AUTO_PROVISION_AGENT_TOKENS and AGENT_TOKEN_HASH_SECRET:
+            row = conn.execute("SELECT agent_token_hash FROM hosts WHERE id = ?", (host_id,)).fetchone()
+            if row and not row["agent_token_hash"]:
+                provisioned_agent_token = provision_agent_token_for_host(conn, host_id)
+
         conn.commit()
     
     # Broadcast SSE event
@@ -1209,7 +1239,10 @@ async def register_host(request: Request, host_id: str, registration: HostRegist
         "metrics": registration.metrics,
     })
     
-    return {"status": "registered", "host_id": host_id}
+    resp = {"status": "registered", "host_id": host_id}
+    if provisioned_agent_token:
+        resp["agent_token"] = provisioned_agent_token
+    return resp
 
 
 @app.patch("/api/hosts/{host_id}")
@@ -1249,11 +1282,21 @@ async def update_host(host_id: str, update: HostUpdate, request: Request):
 
 @app.get("/api/hosts/{host_id}/poll")
 @limiter.limit("60/minute")  # Allow frequent polling
-async def poll_commands(request: Request, host_id: str, _: bool = Depends(verify_agent_auth)):
+async def poll_commands(
+    request: Request,
+    host_id: str,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+):
     """Agent polls for pending commands. Auto-registers host if not exists."""
     host_id = validate_host_id(host_id)
+    auth = verify_agent_auth_for_host(host_id, credentials)
+    if not auth["ok"]:
+        logger.warning(f"Agent auth failed for poll: host_id={host_id}")
+        raise HTTPException(status_code=401, detail="Invalid API token")
+
     now = datetime.utcnow().isoformat()
     
+    provisioned_agent_token: Optional[str] = None
     with get_db() as conn:
         # Check if host exists
         existing = conn.execute("SELECT id FROM hosts WHERE id = ?", (host_id,)).fetchone()
@@ -1269,6 +1312,13 @@ async def poll_commands(request: Request, host_id: str, _: bool = Depends(verify
                     criticality, last_seen, status, poll_interval)
                 VALUES (?, ?, 'nixos', 'home', 'server', '#769ff0', 'low', ?, 'ok', 30)
             """, (host_id, host_id, now))
+
+        # Auto-provision per-host agent token for migration/hardening.
+        if AUTO_PROVISION_AGENT_TOKENS and AGENT_TOKEN_HASH_SECRET:
+            row = conn.execute("SELECT agent_token_hash FROM hosts WHERE id = ?", (host_id,)).fetchone()
+            if row and not row["agent_token_hash"]:
+                provisioned_agent_token = provision_agent_token_for_host(conn, host_id)
+
         conn.commit()
         
         row = conn.execute(
@@ -1287,16 +1337,32 @@ async def poll_commands(request: Request, host_id: str, _: bool = Depends(verify
             """, (host_id, command, datetime.utcnow().isoformat()))
             conn.commit()
             
-            return {"command": command}
+            resp = {"command": command}
+            if provisioned_agent_token:
+                resp["agent_token"] = provisioned_agent_token
+            return resp
     
-    return {"command": None}
+    resp = {"command": None}
+    if provisioned_agent_token:
+        resp["agent_token"] = provisioned_agent_token
+    return resp
 
 
 @app.post("/api/hosts/{host_id}/status")
 @limiter.limit("30/minute")  # Limit status updates
-async def update_status(request: Request, host_id: str, status: HostStatus, _: bool = Depends(verify_agent_auth)):
+async def update_status(
+    request: Request,
+    host_id: str,
+    status: HostStatus,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+):
     """Agent reports command result."""
     host_id = validate_host_id(host_id)
+    auth = verify_agent_auth_for_host(host_id, credentials)
+    if not auth["ok"]:
+        logger.warning(f"Agent auth failed for status: host_id={host_id}")
+        raise HTTPException(status_code=401, detail="Invalid API token")
+
     logger.info(f"Status update from {host_id}: {status.status}")
     
     # Generate comment from output if not provided
@@ -1367,9 +1433,19 @@ class TestProgress(BaseModel):
 
 @app.post("/api/hosts/{host_id}/test-progress")
 @limiter.limit("60/minute")
-async def update_test_progress(request: Request, host_id: str, progress: TestProgress, _: bool = Depends(verify_agent_auth)):
+async def update_test_progress(
+    request: Request,
+    host_id: str,
+    progress: TestProgress,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+):
     """Agent reports test progress."""
     host_id = validate_host_id(host_id)
+    auth = verify_agent_auth_for_host(host_id, credentials)
+    if not auth["ok"]:
+        logger.warning(f"Agent auth failed for test-progress: host_id={host_id}")
+        raise HTTPException(status_code=401, detail="Invalid API token")
+
     logger.info(f"Test progress from {host_id}: {progress.current}/{progress.total} (passed: {progress.passed})")
     
     with get_db() as conn:

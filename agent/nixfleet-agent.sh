@@ -29,7 +29,7 @@ set -euo pipefail
 # Required: Dashboard URL (no default - must be explicitly configured)
 readonly NIXFLEET_URL="${NIXFLEET_URL:?ERROR: NIXFLEET_URL environment variable must be set}"
 # Required: API token for authentication
-readonly NIXFLEET_TOKEN="${NIXFLEET_TOKEN:?ERROR: NIXFLEET_TOKEN environment variable must be set}"
+NIXFLEET_TOKEN="${NIXFLEET_TOKEN:?ERROR: NIXFLEET_TOKEN environment variable must be set}"
 # Required: Path to config repository
 readonly NIXFLEET_NIXCFG="${NIXFLEET_NIXCFG:?ERROR: NIXFLEET_NIXCFG environment variable must be set}"
 # Optional: Poll interval (default 30 seconds)
@@ -40,6 +40,55 @@ DETECTED_HOSTNAME="$(hostname -s 2>/dev/null || hostname)"
 # Strip any domain suffix if hostname -s didn't work
 readonly HOST_ID="${DETECTED_HOSTNAME%%.*}"
 readonly HOSTNAME="${HOST_ID}" # For backwards compatibility
+
+# Token cache (for per-host token migration)
+detect_token_cache() {
+  if [[ -n "${NIXFLEET_TOKEN_CACHE:-}" ]]; then
+    echo "$NIXFLEET_TOKEN_CACHE"
+    return
+  fi
+
+  if [[ "$(uname)" == "Darwin" ]]; then
+    echo "${HOME}/.local/state/nixfleet-agent/token"
+    return
+  fi
+
+  # Prefer systemd StateDirectory if configured via module
+  if [[ -w "/var/lib" ]]; then
+    echo "/var/lib/nixfleet-agent/token"
+    return
+  fi
+
+  echo "/tmp/nixfleet-agent-token-${HOST_ID}"
+}
+
+TOKEN_CACHE_FILE="$(detect_token_cache)"
+
+load_cached_token() {
+  if [[ -f "$TOKEN_CACHE_FILE" ]]; then
+    local t
+    t="$(cat "$TOKEN_CACHE_FILE" 2>/dev/null || true)"
+    t="${t#"NIXFLEET_TOKEN="}"
+    t="${t//$'\r'/}"
+    if [[ -n "$t" ]]; then
+      echo "$t"
+      return
+    fi
+  fi
+  echo "$NIXFLEET_TOKEN"
+}
+
+save_cached_token() {
+  local token="$1"
+  local dir
+  dir="$(dirname "$TOKEN_CACHE_FILE")"
+  mkdir -p "$dir" 2>/dev/null || true
+  # best-effort permissions
+  umask 077
+  printf "NIXFLEET_TOKEN=%s\n" "$token" >"$TOKEN_CACHE_FILE" 2>/dev/null || true
+}
+
+CURRENT_TOKEN="$(load_cached_token)"
 
 # ════════════════════════════════════════════════════════════════════════════════
 # Host Type Detection
@@ -204,18 +253,54 @@ api_call() {
   local endpoint="$2"
   local data="${3:-}"
 
-  local args=(-sf -X "$method")
+  local args=(-sS -X "$method" --connect-timeout 5 --max-time 30)
+  args+=(--proto '=https' --tlsv1.2)
   args+=(-H "Content-Type: application/json")
 
-  if [[ -n "$NIXFLEET_TOKEN" ]]; then
-    args+=(-H "Authorization: Bearer $NIXFLEET_TOKEN")
+  # Optional TLS hardening
+  if [[ -n "${NIXFLEET_CA_FILE:-}" ]]; then
+    args+=(--cacert "$NIXFLEET_CA_FILE")
+  fi
+  if [[ -n "${NIXFLEET_PINNED_PUBKEY:-}" ]]; then
+    args+=(--pinnedpubkey "$NIXFLEET_PINNED_PUBKEY")
+  fi
+
+  if [[ -n "$CURRENT_TOKEN" ]]; then
+    args+=(-H "Authorization: Bearer $CURRENT_TOKEN")
   fi
 
   if [[ -n "$data" ]]; then
     args+=(-d "$data")
   fi
 
-  curl "${args[@]}" "${NIXFLEET_URL}${endpoint}" 2>/dev/null
+  local out http_code body
+  if ! out=$(curl "${args[@]}" --write-out $'\n%{http_code}' "${NIXFLEET_URL}${endpoint}"); then
+    API_HTTP_CODE=0
+    API_BODY=""
+    return 1
+  fi
+
+  http_code="${out##*$'\n'}"
+  body="${out%$'\n'*}"
+  API_HTTP_CODE="$http_code"
+  API_BODY="$body"
+
+  # Per-host token migration: if server returns agent_token, switch and persist.
+  local new_token
+  new_token="$(echo "$body" | jq -r '.agent_token // empty' 2>/dev/null || true)"
+  if [[ -n "$new_token" && "$new_token" != "$CURRENT_TOKEN" ]]; then
+    log_info "Received per-host agent token from server; switching auth token"
+    CURRENT_TOKEN="$new_token"
+    save_cached_token "$CURRENT_TOKEN"
+  fi
+
+  # Treat 2xx as success
+  if [[ "$API_HTTP_CODE" =~ ^2 ]]; then
+    printf "%s" "$body"
+    return 0
+  fi
+
+  return 2
 }
 
 # ════════════════════════════════════════════════════════════════════════════════
@@ -337,7 +422,11 @@ register() {
   if api_call POST "/api/hosts/${HOST_ID}/register" "$payload" >/dev/null; then
     log_info "Registration successful"
   else
-    log_warn "Registration failed (will retry)"
+    if [[ "${API_HTTP_CODE:-0}" == "401" || "${API_HTTP_CODE:-0}" == "403" ]]; then
+      log_error "Registration failed: auth rejected (HTTP ${API_HTTP_CODE})"
+    else
+      log_warn "Registration failed (HTTP ${API_HTTP_CODE:-0}; will retry)"
+    fi
   fi
 }
 

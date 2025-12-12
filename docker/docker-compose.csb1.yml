@@ -11,6 +11,7 @@ services:
       context: ..
       args:
         - GIT_HASH=${GIT_HASH:-unknown}
+        - GIT_VERSION=${GIT_VERSION:-dev}
     container_name: nixfleet
     restart: unless-stopped
     environment:

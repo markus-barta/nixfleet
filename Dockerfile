@@ -3,8 +3,9 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-# Build argument for git hash (passed at build time)
+# Build arguments for version info (passed at build time)
 ARG GIT_HASH=unknown
+ARG GIT_VERSION=dev
 
 # Install dependencies
 COPY app/requirements.txt .
@@ -14,7 +15,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY app/ .
 
 # Create version.json with build-time info (like pidicon)
-RUN echo "{\"version\": \"0.1.0\", \"gitCommit\": \"${GIT_HASH}\"}" > version.json
+RUN echo "{\"version\": \"${GIT_VERSION}\", \"gitCommit\": \"${GIT_HASH}\"}" > version.json
 
 # Create data directory
 RUN mkdir -p /data

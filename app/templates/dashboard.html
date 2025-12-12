@@ -7,6 +7,21 @@ body {
     padding: 1.5rem 2rem; 
 }
 
+/* CSP helpers (no inline styles) */
+.svg-defs { display: none; }
+.logout-form { display: inline; }
+.modal-wide { max-width: 450px; }
+.mb-1 { margin-bottom: 1rem; }
+.footer-location-link { margin-left: 0.2rem; }
+.muted { color: var(--fg-gutter); }
+.muted-dark { color: var(--fg-dark); }
+.small { font-size: 0.75rem; }
+
+/* Host color classes (per-host palette, generated server-side) */
+{% for host in hosts %}
+.host-color-{{ host.id }} { color: {{ host.theme_color or '#769ff0' }}; }
+{% endfor %}
+
 /* Header */
 header {
     display: flex;
@@ -98,20 +113,38 @@ header {
 .source-of-truth {
     display: flex;
     flex-direction: column;
-    align-items: center;
+    align-items: flex-start;
     gap: 0.25rem;
     padding: 0.5rem 1rem;
     background: rgba(158, 206, 106, 0.08);
     border: 1px solid rgba(158, 206, 106, 0.2);
     border-radius: 8px;
+    /* Enable container queries so notes can collapse to icon-only when space is tight */
+    container-type: inline-size;
+    min-width: 0;
 }
 
 .sot-label {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    width: 100%;
+    align-items: center;
     font-size: 0.6rem;
     text-transform: uppercase;
     letter-spacing: 0.1em;
     color: var(--fg-dark);
-    font-weight: 500;
+    font-weight: 650;
+    padding-bottom: 0.15rem;
+    border-bottom: 1px solid rgba(158, 206, 106, 0.15);
+}
+
+.sot-row {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    width: 100%;
+    min-width: 0;
 }
 
 .sot-hash {
@@ -126,6 +159,7 @@ header {
     background: var(--bg-highlight);
     border-radius: 4px;
     transition: all 0.15s;
+    flex-shrink: 0;
 }
 
 .sot-hash:hover {
@@ -133,14 +167,31 @@ header {
     color: var(--green);
 }
 
-.sot-message {
+.sot-notes {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    min-width: 0;
     font-size: 0.7rem;
     color: var(--fg-dark);
-    max-width: 250px;
-    text-align: center;
+}
+
+.sot-notes svg {
+    width: 12px;
+    height: 12px;
+    opacity: 0.7;
+    flex-shrink: 0;
+}
+
+.sot-notes-text {
+    min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+@container (max-width: 260px) {
+    .sot-notes-text { display: none; }
 }
 
 /* Header stat badges in table headers */
@@ -879,13 +930,18 @@ tr:hover .status .hb-countdown {
     {% if nixcfg_hash %}
     <div class="source-of-truth" title="Source of truth: latest nixcfg commit">
         <span class="sot-label">Target</span>
-        <a href="https://github.com/markus-barta/nixcfg/commit/{{ nixcfg_hash }}" target="_blank" class="sot-hash">
-            <svg style="width:12px;height:12px;"><use href="#icon-github"/></svg>
-            {{ nixcfg_hash }}
-        </a>
-        {% if nixcfg_message %}
-        <span class="sot-message">{{ nixcfg_message[:50] }}{% if nixcfg_message|length > 50 %}…{% endif %}</span>
-        {% endif %}
+        <div class="sot-row">
+            <a href="https://github.com/markus-barta/nixcfg/commit/{{ nixcfg_hash }}" target="_blank" class="sot-hash">
+                <svg width="12" height="12"><use href="#icon-github"/></svg>
+                {{ nixcfg_hash }}
+            </a>
+            {% if nixcfg_message %}
+            <span class="sot-notes" title="{{ nixcfg_message }}">
+                <svg><use href="#icon-file"/></svg>
+                <span class="sot-notes-text">{{ nixcfg_message[:50] }}{% if nixcfg_message|length > 50 %}…{% endif %}</span>
+            </span>
+            {% endif %}
+        </div>
     </div>
     {% endif %}
     <div class="header-actions">
@@ -894,13 +950,13 @@ tr:hover .status .hb-countdown {
             <span class="connection-text">Connecting...</span>
         </span>
         <div class="dropdown header-dropdown">
-            <button class="header-btn" onclick="toggleDropdown(event)">
-                <svg style="width:14px;height:14px;"><use href="#icon-more"/></svg>
+            <button class="header-btn" type="button" data-action="toggle-dropdown">
+                <svg width="14" height="14"><use href="#icon-more"/></svg>
                 Actions
-                <svg class="chevron" style="width:10px;height:10px;"><use href="#icon-chevron"/></svg>
+                <svg class="chevron" width="10" height="10"><use href="#icon-chevron"/></svg>
             </button>
             <div class="dropdown-menu">
-                <button class="dropdown-item" onclick="openAddHostModal()">
+                <button class="dropdown-item" type="button" data-action="open-add-host-modal">
                     <svg><use href="#icon-plus"/></svg>
                     Add Host
                 </button>
@@ -918,13 +974,13 @@ tr:hover .status .hb-countdown {
                     Test All
                 </button>
                 <div class="dropdown-divider"></div>
-                <button class="dropdown-item" onclick="location.reload()">
+                <button class="dropdown-item" type="button" data-action="refresh-page">
                     <svg><use href="#icon-refresh"/></svg>
                     Refresh Page
                 </button>
             </div>
         </div>
-        <form action="/logout" method="post" style="display: inline;">
+        <form action="/logout" method="post" class="logout-form">
             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             <button type="submit" class="logout">Sign Out</button>
         </form>
@@ -933,7 +989,7 @@ tr:hover .status .hb-countdown {
 
 
 <!-- SVG icon definitions -->
-<svg style="display: none;">
+<svg class="svg-defs" aria-hidden="true">
     <symbol id="icon-nixos" viewBox="0 0 24 24">
         <path fill="currentColor" d="M12 2L2.5 7v10L12 22l9.5-5V7L12 2zm0 2.16l6.86 3.62-2.14 1.13-4.72-2.5-4.72 2.5-2.14-1.13L12 4.16zM5.5 8.84l2.14 1.13v5l4.36 2.3 4.36-2.3v-5l2.14-1.13v7.32L12 19.84l-6.5-3.68V8.84z"/>
     </symbol>
@@ -1033,7 +1089,7 @@ tr:hover .status .hb-countdown {
                     data-pending-command="{{ host.pending_command or '' }}"
                     data-test-running="{{ 'true' if host.test_running else 'false' }}">
                     <td>
-                        <div class="host-icons" style="color: {{ host.theme_color or '#769ff0' }};">
+                        <div class="host-icons host-color-{{ host.id }}">
                             {% if host.host_type == 'macos' %}
                             <svg class="os-icon"><use href="#icon-apple"/></svg>
                             {% else %}
@@ -1100,7 +1156,7 @@ tr:hover .status .hb-countdown {
                         <span class="outdated-badge" title="Behind main branch">↓</span>
                         {% endif %}
                         {% else %}
-                        <span style="color: var(--fg-gutter);">—</span>
+                        <span class="muted">—</span>
                         {% endif %}
                     </td>
                     <td class="seen-cell" title="{{ host.last_seen_iso or 'Never' }}">
@@ -1121,37 +1177,65 @@ tr:hover .status .hb-countdown {
                             {{ host.test_passed_count }}/{{ host.test_total_count }}
                         </span>
                         {% else %}
-                        <span style="color: var(--fg-dark); font-size: 0.75rem;">{{ host.test_status or '—' }}</span>
+                        <span class="muted-dark small">{{ host.test_status or '—' }}</span>
                         {% endif %}
                     </td>
                     <td class="comment {{ 'has-error' if host.status == 'error' else '' }}" data-status="{{ host.status or 'unknown' }}" data-test-running="{{ 'true' if host.test_running else 'false' }}" title="{{ host.comment or '' }}">{% if host.test_running %}<span class="test-progress">Test {{ host.test_current }}/{{ host.test_total }} running</span>{% elif host.comment %}<span class="comment-icon">{{ '✗' if host.status == 'error' else '✓' }}</span>{{ host.comment }}{% else %}—{% endif %}</td>
                     <td>
                         <div class="actions">
-                            <button class="btn btn-pull" onclick="sendCommand('{{ host.id }}', 'pull')" {% if not host.online or host.pending_command or host.test_running %}disabled{% endif %} title="Git Pull">
+                            <button
+                                class="btn btn-pull"
+                                type="button"
+                                data-action="send-command"
+                                data-host-id="{{ host.id }}"
+                                data-command="pull"
+                                {% if not host.online or host.pending_command or host.test_running %}disabled{% endif %}
+                                title="Git Pull">
                                 <svg><use href="#icon-download"/></svg>
                                 Pull
                             </button>
-                            <button class="btn btn-switch" onclick="sendCommand('{{ host.id }}', 'switch')" {% if not host.online or host.pending_command or host.test_running %}disabled{% endif %} title="Rebuild Switch">
+                            <button
+                                class="btn btn-switch"
+                                type="button"
+                                data-action="send-command"
+                                data-host-id="{{ host.id }}"
+                                data-command="switch"
+                                {% if not host.online or host.pending_command or host.test_running %}disabled{% endif %}
+                                title="Rebuild Switch">
                                 <svg><use href="#icon-refresh"/></svg>
                                 Switch
                             </button>
                             {% if host.test_running %}
-                            <button class="btn btn-stop" onclick="sendCommand('{{ host.id }}', 'stop')" {% if not host.online %}disabled{% endif %} title="Stop Test">
+                            <button
+                                class="btn btn-stop"
+                                type="button"
+                                data-action="send-command"
+                                data-host-id="{{ host.id }}"
+                                data-command="stop"
+                                {% if not host.online %}disabled{% endif %}
+                                title="Stop Test">
                                 <svg><use href="#icon-stop"/></svg>
                                 Stop
                             </button>
                             {% else %}
-                            <button class="btn btn-test" onclick="sendCommand('{{ host.id }}', 'test')" {% if not host.online or host.pending_command or host.test_running %}disabled{% endif %} title="Run Tests">
+                            <button
+                                class="btn btn-test"
+                                type="button"
+                                data-action="send-command"
+                                data-host-id="{{ host.id }}"
+                                data-command="test"
+                                {% if not host.online or host.pending_command or host.test_running %}disabled{% endif %}
+                                title="Run Tests">
                                 <svg><use href="#icon-flask"/></svg>
                                 Test
                             </button>
                             {% endif %}
                             <div class="dropdown">
-                                <button class="btn btn-more" onclick="toggleDropdown(event)" title="More actions">
+                                <button class="btn btn-more" type="button" data-action="toggle-dropdown" title="More actions">
                                     <svg><use href="#icon-more"/></svg>
                                 </button>
                                 <div class="dropdown-menu">
-                                    <button class="dropdown-item" onclick="unlockHostActions('{{ host.id }}')">
+                                    <button class="dropdown-item" type="button" data-action="unlock-actions" data-host-id="{{ host.id }}">
                                         <svg><use href="#icon-refresh"/></svg>
                                         Unlock actions
                                     </button>
@@ -1161,7 +1245,12 @@ tr:hover .status .hb-countdown {
                                         Download Log
                                     </button>
                                     <div class="dropdown-divider"></div>
-                                    <button class="dropdown-item danger" onclick="confirmRemoveHost('{{ host.id }}', '{{ host.hostname }}')">
+                                    <button
+                                        class="dropdown-item danger"
+                                        type="button"
+                                        data-action="confirm-remove-host"
+                                        data-host-id="{{ host.id }}"
+                                        data-hostname="{{ host.hostname }}">
                                         <svg><use href="#icon-trash"/></svg>
                                         Remove Host
                                     </button>
@@ -1191,22 +1280,22 @@ tr:hover .status .hb-countdown {
             This will delete all command history for this host. The host can re-register if its agent is still running.
         </div>
         <div class="modal-actions">
-            <button class="modal-btn modal-btn-cancel" onclick="closeRemoveModal()">Cancel</button>
-            <button class="modal-btn modal-btn-danger" id="confirmRemoveBtn" onclick="removeHost()">Remove</button>
+            <button class="modal-btn modal-btn-cancel" type="button" data-action="close-remove-modal">Cancel</button>
+            <button class="modal-btn modal-btn-danger" id="confirmRemoveBtn" type="button" data-action="remove-host">Remove</button>
         </div>
     </div>
 </div>
 
 <!-- Add Host Modal -->
 <div class="modal-overlay" id="addHostModal">
-    <div class="modal" style="max-width: 450px;">
+    <div class="modal modal-wide">
         <div class="modal-title">Add Host</div>
         <div class="modal-body">
-            <p style="margin-bottom: 1rem;">Add a host manually before its agent connects. This is useful for tracking offline or planned hosts.</p>
-            <form id="addHostForm" onsubmit="submitAddHost(event)">
+            <p class="mb-1">Add a host manually before its agent connects. This is useful for tracking offline or planned hosts.</p>
+            <form id="addHostForm">
                 <div class="form-group">
                     <label for="addHostName">Hostname *</label>
-                    <input type="text" id="addHostName" name="hostname" required placeholder="e.g., my-server" pattern="[a-zA-Z0-9\-_]+" title="Only letters, numbers, hyphens and underscores">
+                    <input type="text" id="addHostName" name="hostname" required placeholder="e.g., my-server" pattern="[a-zA-Z][a-zA-Z0-9\-]{0,62}" title="Start with a letter; then letters, numbers, or hyphens (max 63 chars)">
                 </div>
                 <div class="form-row">
                     <div class="form-group">
@@ -1243,17 +1332,95 @@ tr:hover .status .hb-countdown {
             </form>
         </div>
         <div class="modal-actions">
-            <button class="modal-btn modal-btn-cancel" onclick="closeAddHostModal()">Cancel</button>
-            <button class="modal-btn modal-btn-primary" id="confirmAddBtn" onclick="submitAddHost(event)">Add Host</button>
+            <button class="modal-btn modal-btn-cancel" type="button" data-action="close-add-host-modal">Cancel</button>
+            <button class="modal-btn modal-btn-primary" id="confirmAddBtn" type="button" data-action="submit-add-host">Add Host</button>
         </div>
     </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
-<script>
+<script nonce="{{ csp_nonce }}">
 const csrfToken = '{{ csrf_token }}';
 const ACTION_LOCK_MAX_MS = ({{ action_lock_max_seconds|default(86400) }} * 1000);
+
+// ============================================================================
+// Event delegation (CSP: no inline handlers)
+// ============================================================================
+
+document.addEventListener('click', (e) => {
+    const el = e.target.closest('[data-action]');
+    if (!el) return;
+
+    const action = el.dataset.action;
+
+    if (action === 'toggle-dropdown') {
+        // Prevent the global "click outside to close" handler from firing on the same click.
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        toggleDropdown(e);
+        return;
+    }
+
+    if (action === 'refresh-page') {
+        e.preventDefault();
+        location.reload();
+        return;
+    }
+
+    if (action === 'open-add-host-modal') {
+        e.preventDefault();
+        openAddHostModal();
+        return;
+    }
+
+    if (action === 'close-add-host-modal') {
+        e.preventDefault();
+        closeAddHostModal();
+        return;
+    }
+
+    if (action === 'submit-add-host') {
+        e.preventDefault();
+        submitAddHost(e);
+        return;
+    }
+
+    if (action === 'send-command') {
+        e.preventDefault();
+        const hostId = el.dataset.hostId;
+        const command = el.dataset.command;
+        if (hostId && command) sendCommand(hostId, command);
+        return;
+    }
+
+    if (action === 'unlock-actions') {
+        e.preventDefault();
+        const hostId = el.dataset.hostId;
+        if (hostId) unlockHostActions(hostId);
+        return;
+    }
+
+    if (action === 'confirm-remove-host') {
+        e.preventDefault();
+        const hostId = el.dataset.hostId;
+        const hostname = el.dataset.hostname || hostId;
+        if (hostId) confirmRemoveHost(hostId, hostname);
+        return;
+    }
+
+    if (action === 'close-remove-modal') {
+        e.preventDefault();
+        closeRemoveModal();
+        return;
+    }
+
+    if (action === 'remove-host') {
+        e.preventDefault();
+        removeHost();
+        return;
+    }
+});
 
 function lockKey(hostId) {
     return `nixfleet:actionLock:${hostId}`;
@@ -1708,13 +1875,13 @@ function updateHostRow(data) {
             
             if (data.test_running && testBtn && !stopBtn) {
                 // Replace Test with Stop
-                testBtn.outerHTML = `<button class="btn btn-stop" onclick="sendCommand('${data.host_id}', 'stop')" title="Stop Test">
+                testBtn.outerHTML = `<button class="btn btn-stop" type="button" data-action="send-command" data-host-id="${data.host_id}" data-command="stop" title="Stop Test">
                     <svg><use href="#icon-stop"/></svg>
                     Stop
                 </button>`;
             } else if (!data.test_running && stopBtn && !testBtn) {
                 // Replace Stop with Test
-                stopBtn.outerHTML = `<button class="btn btn-test" onclick="sendCommand('${data.host_id}', 'test')" title="Run Tests">
+                stopBtn.outerHTML = `<button class="btn btn-test" type="button" data-action="send-command" data-host-id="${data.host_id}" data-command="test" title="Run Tests">
                     <svg><use href="#icon-flask"/></svg>
                     Test
                 </button>`;
@@ -1884,6 +2051,9 @@ async function submitAddHost(e) {
     }
 }
 
+// Enable Enter-to-submit for the Add Host form (CSP: no inline onsubmit handlers)
+document.getElementById('addHostForm')?.addEventListener('submit', submitAddHost);
+
 document.getElementById('addHostModal').addEventListener('click', (e) => {
     if (e.target.classList.contains('modal-overlay')) {
         closeAddHostModal();
@@ -1910,9 +2080,9 @@ document.getElementById('addHostModal').addEventListener('click', (e) => {
     </div>
     <div class="footer-right">
         <span class="made-with">
-            Made with <svg class="heart" style="width:12px;height:12px;"><use href="#icon-heart"/></svg> by <a href="https://x.com/markusbarta" target="_blank" class="footer-link" rel="noopener">@markusbarta</a>, Claude &amp; Cursor in
-            <a href="https://maps.google.com/?q=Graz,Austria" target="_blank" class="footer-link" style="margin-left:0.2rem;">
-                <svg style="width:10px;height:10px;"><use href="#icon-home"/></svg>
+            Made with <svg class="heart" width="12" height="12"><use href="#icon-heart"/></svg> by <a href="https://x.com/markusbarta" target="_blank" class="footer-link" rel="noopener">@markusbarta</a>, Claude &amp; Cursor in
+            <a href="https://maps.google.com/?q=Graz,Austria" target="_blank" class="footer-link footer-location-link">
+                <svg width="10" height="10"><use href="#icon-home"/></svg>
                 Graz
             </a>
         </span>
