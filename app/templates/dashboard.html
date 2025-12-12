@@ -109,17 +109,25 @@ header {
     min-width: 160px;
 }
 
-/* Source of Truth (nixcfg latest commit) */
+/* Target versions (nixcfg + nixfleet) */
 .source-of-truth {
     display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.25rem;
+    align-items: center;
     padding: 0.5rem 1rem;
     background: rgba(158, 206, 106, 0.08);
     border: 1px solid rgba(158, 206, 106, 0.35);
     border-radius: 8px;
-    position: relative;
+}
+
+.sot-targets {
+    display: flex;
+    gap: 1rem;
+}
+
+.sot-target {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
 }
 
 .sot-refresh {
@@ -1071,22 +1079,27 @@ tr:hover .status .hb-countdown {
         <h1><img src="/static/logo.png" alt="NixFleet" class="brand-logo"> NixFleet</h1>
         <p class="subtitle">Fleet management for NixOS and macOS</p>
     </div>
-    {% if nixcfg_hash %}
-    <div class="source-of-truth" title="Source of truth: latest nixcfg commit">
-        <button class="sot-refresh" type="button" data-action="refresh-target" title="Refresh target hash">
-            <svg><use href="#icon-refresh"/></svg>
-        </button>
-        <span class="sot-label">Target</span>
-        <div class="sot-row">
-            <a href="https://github.com/markus-barta/nixcfg/commit/{{ nixcfg_hash }}" target="_blank" class="sot-hash">
-                <svg width="12" height="12"><use href="#icon-github"/></svg>
-                {{ nixcfg_hash }}
-            </a>
-            {% if nixcfg_message %}
-            <span class="sot-notes" title="{{ nixcfg_message }}">
-                <svg><use href="#icon-file"/></svg>
-                <span class="sot-notes-text">{{ nixcfg_message[:50] }}{% if nixcfg_message|length > 50 %}…{% endif %}</span>
-            </span>
+    {% if nixcfg_hash or build_hash %}
+    <div class="source-of-truth" title="Target versions for comparison">
+        <div class="sot-targets">
+            {% if nixcfg_hash %}
+            <div class="sot-target">
+                <button class="sot-refresh" type="button" data-action="refresh-target" title="Refresh config hash">
+                    <svg><use href="#icon-refresh"/></svg>
+                </button>
+                <a href="https://github.com/markus-barta/nixcfg/commit/{{ nixcfg_hash }}" target="_blank" class="sot-hash nixcfg-hash" title="Config target (nixcfg)">
+                    <svg width="12" height="12"><use href="#icon-github"/></svg>
+                    {{ nixcfg_hash }}
+                </a>
+            </div>
+            {% endif %}
+            {% if build_hash %}
+            <div class="sot-target">
+                <a href="https://github.com/markus-barta/nixfleet/commit/{{ build_hash }}" target="_blank" class="sot-hash fleet-hash" title="Fleet target (nixfleet)">
+                    <svg width="12" height="12"><use href="#icon-github"/></svg>
+                    {{ build_hash }}
+                </a>
+            </div>
             {% endif %}
         </div>
     </div>
