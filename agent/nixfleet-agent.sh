@@ -262,7 +262,6 @@ api_call() {
     else
       log_error "Refusing insecure NIXFLEET_URL (not https). Set NIXFLEET_ALLOW_INSECURE_HTTP=true for local dev."
       API_HTTP_CODE=0
-      API_BODY=""
       return 1
     fi
   fi
@@ -294,7 +293,6 @@ api_call() {
   http_code="${out##*$'\n'}"
   body="${out%$'\n'*}"
   API_HTTP_CODE="$http_code"
-  API_BODY="$body"
 
   # Per-host token migration: if server returns agent_token, switch and persist.
   local new_token
