@@ -146,6 +146,40 @@ in
       };
     };
 
+    # Self-healing: Force launchd to reload the agent after home-manager switch
+    # This ensures the agent uses the new nix store path after updates
+    home.activation.reloadNixfleetAgent = lib.mkIf pkgs.stdenv.isDarwin (
+      lib.hm.dag.entryAfter [ "setupLaunchAgents" ] ''
+        LABEL="com.nixfleet.agent"
+        PLIST="$HOME/Library/LaunchAgents/com.nixfleet.agent.plist"
+        
+        if [ -f "$PLIST" ]; then
+          # Get the expected agent path from the new plist
+          EXPECTED_PATH="${agentScript}/bin/nixfleet-agent"
+          
+          # Check if agent is running and get its current path
+          CURRENT_PID=$(/bin/launchctl list | grep "$LABEL" | awk '{print $1}')
+          
+          if [ -n "$CURRENT_PID" ] && [ "$CURRENT_PID" != "-" ]; then
+            # Agent is running, check if it's using the correct path
+            CURRENT_PATH=$(/bin/ps -p "$CURRENT_PID" -o args= 2>/dev/null | grep -o '/nix/store/[^/]*/bin/nixfleet-agent' || echo "")
+            
+            if [ "$CURRENT_PATH" != "$EXPECTED_PATH" ]; then
+              echo "NixFleet agent path changed, reloading..."
+              /bin/launchctl bootout gui/$(id -u)/$LABEL 2>/dev/null || true
+              sleep 1
+              /bin/launchctl bootstrap gui/$(id -u) "$PLIST" 2>/dev/null || /bin/launchctl load "$PLIST" 2>/dev/null || true
+              echo "NixFleet agent reloaded with new version"
+            fi
+          else
+            # Agent not running, try to start it
+            echo "NixFleet agent not running, starting..."
+            /bin/launchctl bootstrap gui/$(id -u) "$PLIST" 2>/dev/null || /bin/launchctl load "$PLIST" 2>/dev/null || true
+          fi
+        fi
+      ''
+    );
+
     # Linux systemd user service
     systemd.user.services.nixfleet-agent = lib.mkIf pkgs.stdenv.isLinux {
       Unit = {

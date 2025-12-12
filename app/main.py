@@ -1482,6 +1482,13 @@ async def poll_commands(
                 resp["agent_token"] = provisioned_agent_token
             return resp
     
+    # Broadcast online heartbeat via SSE (lightweight update for UI)
+    await broadcast_event("host_update", {
+        "host_id": host_id,
+        "online": True,
+        "last_seen": now,
+    })
+    
     resp = {"command": None}
     if provisioned_agent_token:
         resp["agent_token"] = provisioned_agent_token
