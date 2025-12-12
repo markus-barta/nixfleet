@@ -216,4 +216,3 @@ Medium - Quality of life improvement, not blocking
 ## Estimated Effort
 
 2-3 hours implementation + testing
-

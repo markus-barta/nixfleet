@@ -2263,34 +2263,14 @@ function updateHostRow(data) {
         row.dataset.gitHash = data.current_generation;
     }
     
-    // Update status cell - show test/pending/comment (NOT online/offline - that's the dot's job)
-    if (data.test_running !== undefined || data.comment !== undefined || data.pending_command !== undefined) {
+    // Update status cell metadata (error state, data attributes)
+    // NOTE: Content is now managed via renderStatusHistory() for the papertrail
+    if (data.status !== undefined || data.test_running !== undefined) {
         const statusCell = row.querySelector('.status-cell');
         if (statusCell) {
-            if (data.test_running) {
-                const current = data.test_current || 0;
-                const total = data.test_total || 0;
-                statusCell.innerHTML = `<span class="status-badge testing">Testing ${current}/${total}</span>`;
-                statusCell.classList.remove('has-error');
-                statusCell.dataset.testRunning = 'true';
-            } else if (data.pending_command) {
-                const labels = { 'pull': 'Pulling', 'switch': 'Switching', 'test': 'Testing', 'restart': 'Restarting' };
-                statusCell.innerHTML = `<span class="status-badge pending">⏳ ${labels[data.pending_command] || data.pending_command}...</span>`;
-                statusCell.classList.remove('has-error');
-            } else {
-                statusCell.dataset.testRunning = 'false';
-                const isError = data.status === 'error';
-                if (data.comment) {
-                    const icon = isError ? '✗' : '✓';
-                    statusCell.innerHTML = `<span class="status-icon">${icon}</span>${data.comment}`;
-                    statusCell.classList.toggle('has-error', isError);
-                } else {
-                    statusCell.innerHTML = `<span class="muted">—</span>`;
-                    statusCell.classList.remove('has-error');
-                }
-                statusCell.title = data.comment || '';
-                statusCell.dataset.status = data.status || 'unknown';
-            }
+            statusCell.dataset.status = data.status || statusCell.dataset.status || 'unknown';
+            statusCell.dataset.testRunning = data.test_running ? 'true' : 'false';
+            statusCell.classList.toggle('has-error', data.status === 'error');
         }
     }
     
