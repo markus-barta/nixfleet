@@ -24,33 +24,12 @@
 }:
 let
   cfg = config.services.nixfleet-agent;
-
-  # Replace version placeholder in agent script
-  agentScriptSrc = pkgs.replaceVars ../agent/nixfleet-agent.sh {
-    agentVersion = cfg.version;
-  };
-
-  agentScript = pkgs.writeShellApplication {
-    name = "nixfleet-agent";
-    runtimeInputs = with pkgs; [
-      curl
-      jq
-      git
-      hostname
-    ];
-    text = builtins.readFile agentScriptSrc;
-  };
+  shared = import ./shared.nix { inherit lib pkgs; };
+  agentScript = shared.mkAgentScript { inherit cfg; };
 in
 {
-  options.services.nixfleet-agent = {
-    enable = lib.mkEnableOption "NixFleet agent for fleet management";
-
-    url = lib.mkOption {
-      type = lib.types.str;
-      description = "URL of the NixFleet dashboard.";
-      example = "https://fleet.example.com";
-    };
-
+  options.services.nixfleet-agent = shared.mkCommonOptions // {
+    # NixOS-specific options
     tokenFile = lib.mkOption {
       type = lib.types.path;
       description = ''
@@ -61,19 +40,6 @@ in
       example = lib.literalExpression "config.age.secrets.nixfleet-token.path";
     };
 
-    configRepo = lib.mkOption {
-      type = lib.types.str;
-      description = "Absolute path to the Nix configuration repository.";
-      example = "/home/admin/Code/nixcfg";
-    };
-
-    interval = lib.mkOption {
-      type = lib.types.ints.between 1 3600;
-      default = 30;
-      description = "Poll interval in seconds (1-3600).";
-      example = 30;
-    };
-
     user = lib.mkOption {
       type = lib.types.str;
       description = ''
@@ -82,47 +48,6 @@ in
         - Sudo access to run nixos-rebuild (configured automatically)
       '';
       example = "admin";
-    };
-
-    location = lib.mkOption {
-      type = lib.types.enum [
-        "cloud"
-        "home"
-        "work"
-        "other"
-      ];
-      default = "other";
-      description = "Physical location category for dashboard grouping.";
-      example = "cloud";
-    };
-
-    deviceType = lib.mkOption {
-      type = lib.types.enum [
-        "server"
-        "desktop"
-        "laptop"
-        "gaming"
-        "other"
-      ];
-      default = "server";
-      description = "Device type for dashboard display.";
-      example = "server";
-    };
-
-    themeColor = lib.mkOption {
-      type = lib.types.strMatching "^#[0-9a-fA-F]{6}$";
-      default = "#769ff0";
-      description = "Theme color hex code for dashboard display.";
-      example = "#ff6b6b";
-    };
-
-    version = lib.mkOption {
-      type = lib.types.str;
-      default = "0.0.0";
-      description = ''
-        Agent version string. This is automatically set by the flake
-        to the current nixfleet version. You can override it for testing.
-      '';
     };
   };
 
@@ -176,14 +101,8 @@ in
       wants = [ "network-online.target" ];
       wantedBy = [ "multi-user.target" ];
 
-      environment = {
-        NIXFLEET_URL = cfg.url;
-        NIXFLEET_NIXCFG = cfg.configRepo;
-        NIXFLEET_INTERVAL = toString cfg.interval;
-        NIXFLEET_LOCATION = cfg.location;
-        NIXFLEET_DEVICE_TYPE = cfg.deviceType;
-        NIXFLEET_THEME_COLOR = cfg.themeColor;
-        # Persist per-host agent token across restarts (used for migration away from shared token)
+      environment = shared.mkEnvironment { inherit cfg; } // {
+        # NixOS-specific environment
         NIXFLEET_TOKEN_CACHE = "/var/lib/nixfleet-agent/token";
         HOME = "/home/${cfg.user}";
       };

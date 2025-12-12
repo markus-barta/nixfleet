@@ -24,33 +24,12 @@
 }:
 let
   cfg = config.services.nixfleet-agent;
-
-  # Replace version placeholder in agent script
-  agentScriptSrc = pkgs.replaceVars ../agent/nixfleet-agent.sh {
-    agentVersion = cfg.version;
-  };
-
-  agentScript = pkgs.writeShellApplication {
-    name = "nixfleet-agent";
-    runtimeInputs = with pkgs; [
-      curl
-      jq
-      git
-      hostname
-    ];
-    text = builtins.readFile agentScriptSrc;
-  };
+  shared = import ./shared.nix { inherit lib pkgs; };
+  agentScript = shared.mkAgentScript { inherit cfg; };
 in
 {
-  options.services.nixfleet-agent = {
-    enable = lib.mkEnableOption "NixFleet agent for fleet management";
-
-    url = lib.mkOption {
-      type = lib.types.str;
-      description = "URL of the NixFleet dashboard.";
-      example = "https://fleet.example.com";
-    };
-
+  options.services.nixfleet-agent = shared.mkCommonOptions // {
+    # Home Manager-specific options
     tokenFile = lib.mkOption {
       type = lib.types.str;
       description = ''
@@ -59,60 +38,6 @@ in
         Use an absolute path (~ is not expanded in launchd).
       '';
       example = "/Users/myuser/.config/nixfleet/token";
-    };
-
-    configRepo = lib.mkOption {
-      type = lib.types.str;
-      description = "Absolute path to the Nix configuration repository.";
-      example = "/Users/myuser/Code/nixcfg";
-    };
-
-    interval = lib.mkOption {
-      type = lib.types.ints.between 1 3600;
-      default = 30;
-      description = "Poll interval in seconds (1-3600).";
-      example = 30;
-    };
-
-    location = lib.mkOption {
-      type = lib.types.enum [
-        "cloud"
-        "home"
-        "work"
-        "other"
-      ];
-      default = "other";
-      description = "Physical location category for dashboard grouping.";
-      example = "home";
-    };
-
-    deviceType = lib.mkOption {
-      type = lib.types.enum [
-        "server"
-        "desktop"
-        "laptop"
-        "gaming"
-        "other"
-      ];
-      default = "desktop";
-      description = "Device type for dashboard display.";
-      example = "laptop";
-    };
-
-    themeColor = lib.mkOption {
-      type = lib.types.strMatching "^#[0-9a-fA-F]{6}$";
-      default = "#769ff0";
-      description = "Theme color hex code for dashboard display.";
-      example = "#ff6b6b";
-    };
-
-    version = lib.mkOption {
-      type = lib.types.str;
-      default = "0.0.0";
-      description = ''
-        Agent version string. This is automatically set by the flake
-        to the current nixfleet version. You can override it for testing.
-      '';
     };
   };
 
@@ -152,7 +77,7 @@ in
       lib.hm.dag.entryAfter [ "setupLaunchAgents" ] ''
         LABEL="com.nixfleet.agent"
         PLIST="$HOME/Library/LaunchAgents/com.nixfleet.agent.plist"
-        
+
         if [ -f "$PLIST" ]; then
           # Get the expected agent path from the new plist
           EXPECTED_PATH="${agentScript}/bin/nixfleet-agent"
