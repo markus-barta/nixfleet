@@ -386,10 +386,24 @@ tr:hover td { background: rgba(41, 46, 66, 0.5); }
     color: var(--yellow);
 }
 
-.outdated-arrow {
-    margin-left: 0.2rem;
-    color: var(--yellow);
+.hash-badge.current {
+    background: var(--bg-highlight);
+    color: var(--fg);
+}
+
+.update-indicator {
+    display: inline-block;
+    margin-left: 0.25rem;
     font-size: 0.7rem;
+    vertical-align: middle;
+}
+
+.update-indicator.outdated {
+    color: var(--yellow);
+}
+
+.update-indicator.current {
+    color: var(--fg-gutter);
 }
 
 /* Status cell (combined status + comment) */
@@ -456,9 +470,7 @@ tr:hover td { background: rgba(41, 46, 66, 0.5); }
     width: 16px;
     height: 16px;
 }
-.loc-icon.cloud { color: var(--cyan); }
-.loc-icon.home { color: var(--green); }
-.loc-icon.work { color: var(--yellow); }
+/* loc-icon and type-icon inherit color from host-color-* class */
 
 /* Type column */
 .type-cell { text-align: center; }
@@ -466,10 +478,6 @@ tr:hover td { background: rgba(41, 46, 66, 0.5); }
     width: 16px;
     height: 16px;
 }
-.type-icon.server { color: var(--fg-dark); }
-.type-icon.desktop { color: var(--fg); }
-.type-icon.laptop { color: var(--fg-dark); }
-.type-icon.gaming { color: var(--purple); }
 
 /* Metrics column - compact display with icons */
 .metrics-cell {
@@ -1283,7 +1291,7 @@ tr:hover .status .hb-countdown {
                         </span>
                         <span class="hostname host-color-{{ host.id }}">{{ host.hostname }}</span>
                     </td>
-                    <td class="os-cell" title="{{ host.os_name or 'Unknown' }} {{ host.os_version or '' }}{% if host.nixpkgs_version %} | nixpkgs: {{ host.nixpkgs_version }}{% endif %}">
+                    <td class="os-cell host-color-{{ host.id }}" title="{{ host.os_name or 'Unknown' }} {{ host.os_version or '' }}{% if host.nixpkgs_version %} | nixpkgs: {{ host.nixpkgs_version }}{% endif %}">
                         {% if host.host_type == 'macos' %}
                         <svg class="os-icon"><use href="#icon-apple"/></svg>
                         {% else %}
@@ -1291,24 +1299,24 @@ tr:hover .status .hb-countdown {
                         {% endif %}
                         <span class="os-version">{{ host.os_version[:5] if host.os_version else '—' }}</span>
                     </td>
-                    <td class="loc-cell" title="{{ host.location or 'unknown' }}">
+                    <td class="loc-cell host-color-{{ host.id }}" title="{{ host.location or 'unknown' }}">
                         {% if host.location == 'cloud' %}
-                        <svg class="loc-icon cloud"><use href="#icon-cloud"/></svg>
+                        <svg class="loc-icon"><use href="#icon-cloud"/></svg>
                         {% elif host.location == 'work' %}
-                        <svg class="loc-icon work"><use href="#icon-office"/></svg>
+                        <svg class="loc-icon"><use href="#icon-office"/></svg>
                         {% else %}
-                        <svg class="loc-icon home"><use href="#icon-home"/></svg>
+                        <svg class="loc-icon"><use href="#icon-home"/></svg>
                         {% endif %}
                     </td>
-                    <td class="type-cell" title="{{ host.device_type or 'server' }}">
+                    <td class="type-cell host-color-{{ host.id }}" title="{{ host.device_type or 'server' }}">
                         {% if host.device_type == 'gaming' %}
-                        <svg class="type-icon gaming"><use href="#icon-game"/></svg>
+                        <svg class="type-icon"><use href="#icon-game"/></svg>
                         {% elif host.device_type == 'desktop' %}
-                        <svg class="type-icon desktop"><use href="#icon-desktop"/></svg>
+                        <svg class="type-icon"><use href="#icon-desktop"/></svg>
                         {% elif host.device_type == 'laptop' %}
-                        <svg class="type-icon laptop"><use href="#icon-laptop"/></svg>
+                        <svg class="type-icon"><use href="#icon-laptop"/></svg>
                         {% else %}
-                        <svg class="type-icon server"><use href="#icon-server"/></svg>
+                        <svg class="type-icon"><use href="#icon-server"/></svg>
                         {% endif %}
                     </td>
                     <td class="metrics-cell" data-metrics-updated="{{ host.metrics_updated_at or '' }}" title="{% if host.metrics %}CPU: {{ host.metrics.cpu }}% | RAM: {{ host.metrics.ram }}%{% if host.metrics.swap %} | Swap: {{ host.metrics.swap }}%{% endif %} | Load: {{ host.metrics.load }}{% if host.metrics_updated_at %} | Updated: {{ host.metrics_updated_at[:19] }}{% endif %}{% endif %}">
@@ -1321,8 +1329,7 @@ tr:hover .status .hb-countdown {
                     </td>
                     <td class="config-cell">
                         {% if host.current_generation %}
-                        <code class="hash-badge {{ 'outdated' if host.outdated else '' }}" title="Config: {{ host.current_generation }}{% if host.outdated %} | Target: {{ nixcfg_hash }}{% endif %}">{{ host.current_generation[:7] }}</code>
-                        {% if host.outdated %}<span class="outdated-arrow" title="Behind target">↓</span>{% endif %}
+                        <code class="hash-badge {{ 'outdated' if host.outdated else 'current' }}" title="Config: {{ host.current_generation }}{% if host.outdated %} | Target: {{ nixcfg_hash }}{% endif %}">{{ host.current_generation[:7] }}</code><span class="update-indicator {{ 'outdated' if host.outdated else 'current' }}">{% if host.outdated %}↓{% else %}✓{% endif %}</span>
                         {% else %}
                         <span class="muted">—</span>
                         {% endif %}
@@ -1331,8 +1338,7 @@ tr:hover .status .hb-countdown {
                         {% set agent_hash = host.agent_version.split('-')[-1] if host.agent_version and '-' in host.agent_version else '' %}
                         {% set fleet_outdated = agent_hash and build_hash and agent_hash != build_hash %}
                         {% if agent_hash %}
-                        <code class="hash-badge {{ 'outdated' if fleet_outdated else '' }}" title="Agent: {{ host.agent_version }}{% if fleet_outdated %} | Target: {{ build_hash }}{% endif %}">{{ agent_hash[:7] }}</code>
-                        {% if fleet_outdated %}<span class="outdated-arrow" title="Behind target">↓</span>{% endif %}
+                        <code class="hash-badge {{ 'outdated' if fleet_outdated else 'current' }}" title="Agent: {{ host.agent_version }}{% if fleet_outdated %} | Target: {{ build_hash }}{% endif %}">{{ agent_hash[:7] }}</code><span class="update-indicator {{ 'outdated' if fleet_outdated else 'current' }}">{% if fleet_outdated %}↓{% else %}✓{% endif %}</span>
                         {% else %}
                         <span class="muted">—</span>
                         {% endif %}
@@ -2075,7 +2081,7 @@ function updateHostRow(data) {
             const targetHashEl = document.querySelector('.fleet-hash');
             const targetHash = targetHashEl ? targetHashEl.textContent.replace(/\s/g, '').substring(0, 7) : '';
             const outdated = agentHash && targetHash && agentHash !== targetHash;
-            fleetCell.innerHTML = `<code class="hash-badge ${outdated ? 'outdated' : ''}" title="Agent: ${data.agent_version}${outdated ? ' | Target: ' + targetHash : ''}">${agentHash}</code>${outdated ? '<span class="outdated-arrow" title="Behind target">↓</span>' : ''}`;
+            fleetCell.innerHTML = `<code class="hash-badge ${outdated ? 'outdated' : 'current'}" title="Agent: ${data.agent_version}${outdated ? ' | Target: ' + targetHash : ''}">${agentHash}</code><span class="update-indicator ${outdated ? 'outdated' : 'current'}">${outdated ? '↓' : '✓'}</span>`;
         }
         row.dataset.agentHash = data.agent_version.split('-').pop() || '';
     }
@@ -2105,7 +2111,7 @@ function updateHostRow(data) {
             const shortHash = data.current_generation.substring(0, 7);
             // Compare 7-char hashes
             const outdated = data.outdated !== undefined ? data.outdated : (targetHash && shortHash !== targetHash);
-            configCell.innerHTML = `<code class="hash-badge ${outdated ? 'outdated' : ''}" title="Config: ${data.current_generation}${outdated ? ' | Target: ' + targetHash : ''}">${shortHash}</code>${outdated ? '<span class="outdated-arrow" title="Behind target">↓</span>' : ''}`;
+            configCell.innerHTML = `<code class="hash-badge ${outdated ? 'outdated' : 'current'}" title="Config: ${data.current_generation}${outdated ? ' | Target: ' + targetHash : ''}">${shortHash}</code><span class="update-indicator ${outdated ? 'outdated' : 'current'}">${outdated ? '↓' : '✓'}</span>`;
         }
         row.dataset.gitHash = data.current_generation;
     }
