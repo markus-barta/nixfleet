@@ -339,11 +339,10 @@ tr:hover td { background: rgba(41, 46, 66, 0.5); }
     background: var(--fg-gutter);
 }
 
-/* OS cell (icon + version) */
+/* OS cell (icon + version) - color from host-color-* class */
 .os-cell {
     white-space: nowrap;
     font-size: 0.75rem;
-    color: var(--fg-dark);
 }
 
 .os-cell .os-icon,
@@ -966,8 +965,8 @@ tr:hover .status .hb-countdown {
 /* Text Styles */
 .hostname {
     font-weight: 600;
-    color: var(--fg);
     font-size: 0.85rem;
+    /* color inherited from host-color-* class */
 }
 
 /* Old styles removed - .agent-version, .comment, .audit */
