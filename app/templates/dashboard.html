@@ -170,11 +170,10 @@ header {
 }
 
 .sot-label {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: flex-start;
-    width: 100%;
-    align-items: center;
+    font-size: 0.7rem;
+    color: var(--fg-dark);
+    font-weight: 500;
+    margin-right: 0.3rem;
     font-size: 0.6rem;
     text-transform: uppercase;
     letter-spacing: 0.1em;
@@ -1102,6 +1101,7 @@ tr:hover .status .hb-countdown {
                 <button class="sot-refresh" type="button" data-action="refresh-target" title="Refresh config hash">
                     <svg><use href="#icon-refresh"/></svg>
                 </button>
+                <span class="sot-label">Config:</span>
                 <a href="https://github.com/markus-barta/nixcfg/commit/{{ nixcfg_hash }}" target="_blank" class="sot-hash nixcfg-hash" title="Config target (nixcfg)">
                     <svg width="12" height="12"><use href="#icon-github"/></svg>
                     {{ nixcfg_hash }}
@@ -1110,6 +1110,7 @@ tr:hover .status .hb-countdown {
             {% endif %}
             {% if build_hash %}
             <div class="sot-target">
+                <span class="sot-label">Fleet:</span>
                 <a href="https://github.com/markus-barta/nixfleet/commit/{{ build_hash }}" target="_blank" class="sot-hash fleet-hash" title="Fleet target (nixfleet)">
                     <svg width="12" height="12"><use href="#icon-github"/></svg>
                     {{ build_hash }}
@@ -1274,7 +1275,12 @@ tr:hover .status .hb-countdown {
                     <td class="host-cell">
                         <span class="status-indicator" data-host="{{ host.id }}" data-interval="{{ host.poll_interval or 10 }}">
                             {% if host.online %}
-                            <span class="status-dot online"></span>
+                            <span class="status-ripple">
+                                <span class="hb-wave"></span>
+                                <span class="hb-wave"></span>
+                                <span class="hb-wave"></span>
+                                <span class="hb-core"></span>
+                            </span>
                             {% else %}
                             <span class="status-dot offline"></span>
                             {% endif %}
@@ -1354,12 +1360,10 @@ tr:hover .status .hb-countdown {
                         <span class="status-badge testing">Testing {{ host.test_current }}/{{ host.test_total }}</span>
                         {% elif host.pending_command %}
                         <span class="status-badge pending">⏳ {{ host.pending_command }}...</span>
-                        {% elif not host.online %}
-                        <span class="status-badge offline">Offline</span>
                         {% elif host.comment %}
                         <span class="status-icon">{{ '✗' if host.status == 'error' else '✓' }}</span>{{ host.comment }}
                         {% else %}
-                        <span class="status-badge online">Online</span>
+                        <span class="muted">—</span>
                         {% endif %}
                     </td>
                     <td>
@@ -2033,17 +2037,15 @@ function updateHostRow(data) {
         triggerHeartbeatPing(data.host_id);
     }
     
-    // Update status cell
-    const statusCell = row.querySelector('.status');
-    if (statusCell) {
-        const hostId = statusCell.dataset.host;
-        const interval = statusCell.dataset.interval || 10;
-        if (data.test_running) {
-            statusCell.innerHTML = `<span class="status-dot testing"></span><span class="status-text">Testing</span>`;
-        } else if (data.pending_command) {
-            statusCell.innerHTML = `<span class="status-dot pending"></span><span class="status-text">${data.pending_command}</span>`;
-        } else if (data.online !== false) {
-            statusCell.innerHTML = `<span class="status-ripple"><span class="hb-wave"></span><span class="hb-wave"></span><span class="hb-wave"></span><span class="hb-core"></span></span><span class="status-text">Online</span><span class="hb-countdown">--</span>`;
+    // Update status indicator (ripple/dot) in host cell based on online status
+    if (data.online !== undefined) {
+        const statusIndicator = row.querySelector('.status-indicator');
+        if (statusIndicator) {
+            if (data.online) {
+                statusIndicator.innerHTML = `<span class="status-ripple"><span class="hb-wave"></span><span class="hb-wave"></span><span class="hb-wave"></span><span class="hb-core"></span></span>`;
+            } else {
+                statusIndicator.innerHTML = `<span class="status-dot offline"></span>`;
+            }
         }
     }
     
@@ -2124,8 +2126,8 @@ function updateHostRow(data) {
         }
     }
     
-    // Update status cell - show test/pending/offline/comment
-    if (data.test_running !== undefined || data.comment !== undefined || data.pending_command !== undefined || data.online !== undefined) {
+    // Update status cell - show test/pending/comment (NOT online/offline - that's the dot's job)
+    if (data.test_running !== undefined || data.comment !== undefined || data.pending_command !== undefined) {
         const statusCell = row.querySelector('.status-cell');
         if (statusCell) {
             if (data.test_running) {
@@ -2138,9 +2140,6 @@ function updateHostRow(data) {
                 const labels = { 'pull': 'Pulling', 'switch': 'Switching', 'test': 'Testing', 'restart': 'Restarting' };
                 statusCell.innerHTML = `<span class="status-badge pending">⏳ ${labels[data.pending_command] || data.pending_command}...</span>`;
                 statusCell.classList.remove('has-error');
-            } else if (data.online === false) {
-                statusCell.innerHTML = `<span class="status-badge offline">Offline</span>`;
-                statusCell.classList.remove('has-error');
             } else {
                 statusCell.dataset.testRunning = 'false';
                 const isError = data.status === 'error';
@@ -2149,7 +2148,7 @@ function updateHostRow(data) {
                     statusCell.innerHTML = `<span class="status-icon">${icon}</span>${data.comment}`;
                     statusCell.classList.toggle('has-error', isError);
                 } else {
-                    statusCell.innerHTML = `<span class="status-badge online">Online</span>`;
+                    statusCell.innerHTML = `<span class="muted">—</span>`;
                     statusCell.classList.remove('has-error');
                 }
                 statusCell.title = data.comment || '';
