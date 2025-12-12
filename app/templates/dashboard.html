@@ -117,7 +117,7 @@ header {
     gap: 0.25rem;
     padding: 0.5rem 1rem;
     background: rgba(158, 206, 106, 0.08);
-    border: 1px solid rgba(158, 206, 106, 0.2);
+    border: 1px solid rgba(158, 206, 106, 0.35);
     border-radius: 8px;
     /* Enable container queries so notes can collapse to icon-only when space is tight */
     container-type: inline-size;
@@ -2063,12 +2063,7 @@ document.getElementById('addHostModal').addEventListener('click', (e) => {
 
 <footer class="site-footer">
     <div class="footer-left">
-        <span>NixFleet v{{ version }}</span>
-        {% if build_hash %}
-        <a href="https://github.com/markus-barta/nixfleet/commit/{{ build_hash }}" class="build-hash" title="Dashboard build" target="_blank">
-            <code>{{ build_hash }}</code>
-        </a>
-        {% endif %}
+        <span>NixFleet {{ version }}</span>
         <a href="https://github.com/markus-barta/nixfleet" class="footer-link" target="_blank">
             <svg><use href="#icon-github"/></svg>
             Source

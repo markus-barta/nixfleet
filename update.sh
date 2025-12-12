@@ -20,7 +20,9 @@ git pull
 
 # Get the current git hash and version for embedding
 GIT_HASH=$(git rev-parse HEAD)
-GIT_VERSION=$(git describe --tags --always 2>/dev/null || echo "dev")
+# Get clean version: strip git hash suffix (e.g., v0.2.1-3-g1a64262 -> v0.2.1-3)
+GIT_VERSION_RAW=$(git describe --tags --always 2>/dev/null || echo "dev")
+GIT_VERSION=$(echo "$GIT_VERSION_RAW" | sed 's/-g[0-9a-f]*$//')
 echo "📌 Version: ${GIT_VERSION} (${GIT_HASH:0:7})"
 
 echo "🔨 Rebuilding container..."
