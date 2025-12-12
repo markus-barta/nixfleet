@@ -109,7 +109,35 @@ header {
     min-width: 160px;
 }
 
-/* Source of Truth (nixcfg latest commit) */
+/* Targets box (Config + Fleet hashes) */
+.targets-box {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    border: 1px solid rgba(158, 206, 106, 0.35);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.target-item {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.15rem;
+    padding: 0.4rem 0.75rem;
+    background: rgba(158, 206, 106, 0.08);
+    position: relative;
+}
+
+.target-item:first-child {
+    border-right: 1px solid rgba(158, 206, 106, 0.25);
+}
+
+.target-item.fleet {
+    background: rgba(122, 162, 247, 0.08);
+}
+
+/* Legacy class for compatibility */
 .source-of-truth {
     display: flex;
     flex-direction: column;
@@ -204,6 +232,15 @@ header {
     color: var(--green);
 }
 
+.sot-hash.fleet-hash {
+    color: var(--blue);
+}
+
+.sot-hash.fleet-hash:hover {
+    background: rgba(122, 162, 247, 0.2);
+    color: var(--blue);
+}
+
 .sot-notes {
     display: inline-flex;
     align-items: center;
@@ -287,7 +324,130 @@ th {
 tr:last-child td { border-bottom: none; }
 tr:hover td { background: rgba(41, 46, 66, 0.5); }
 
-/* OS & Location Icons */
+/* Host cell (status dot + hostname) */
+.host-cell {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.status-indicator {
+    display: flex;
+    align-items: center;
+}
+
+.status-indicator .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.status-indicator .status-dot.online {
+    background: var(--green);
+    box-shadow: 0 0 4px var(--green);
+}
+
+.status-indicator .status-dot.offline {
+    background: var(--fg-gutter);
+}
+
+.host-cell .hostname {
+    font-weight: 500;
+}
+
+/* OS cell (icon + version) */
+.os-cell {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.75rem;
+    color: var(--fg-dark);
+}
+
+.os-cell .os-icon {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+}
+
+.os-cell .os-version {
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 0.7rem;
+}
+
+/* Config & Fleet cells (hash badges) */
+.config-cell, .fleet-cell {
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 0.7rem;
+}
+
+.hash-badge {
+    display: inline-block;
+    padding: 0.15rem 0.35rem;
+    background: var(--bg-highlight);
+    border-radius: 3px;
+    color: var(--fg);
+    font-size: 0.7rem;
+}
+
+.hash-badge.outdated {
+    background: rgba(224, 175, 104, 0.2);
+    color: var(--yellow);
+}
+
+.outdated-arrow {
+    margin-left: 0.2rem;
+    color: var(--yellow);
+    font-size: 0.7rem;
+}
+
+/* Status cell (combined status + comment) */
+.status-cell {
+    font-size: 0.75rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 150px;
+}
+
+.status-cell.has-error {
+    color: var(--red);
+}
+
+.status-icon {
+    margin-right: 0.25rem;
+}
+
+.status-badge {
+    display: inline-block;
+    padding: 0.1rem 0.4rem;
+    border-radius: 3px;
+    font-size: 0.65rem;
+    font-weight: 500;
+}
+
+.status-badge.online {
+    background: rgba(158, 206, 106, 0.15);
+    color: var(--green);
+}
+
+.status-badge.offline {
+    background: rgba(192, 202, 245, 0.1);
+    color: var(--fg-gutter);
+}
+
+.status-badge.pending {
+    background: rgba(122, 162, 247, 0.15);
+    color: var(--blue);
+}
+
+.status-badge.testing {
+    background: rgba(224, 175, 104, 0.15);
+    color: var(--yellow);
+}
+
+/* Legacy: OS & Location Icons */
 .host-icons {
     display: flex;
     align-items: center;
@@ -992,26 +1152,25 @@ tr:hover .status .hb-countdown {
         <h1><img src="/static/logo.png" alt="NixFleet" class="brand-logo"> NixFleet</h1>
         <p class="subtitle">Fleet management for NixOS and macOS</p>
     </div>
-    {% if nixcfg_hash %}
-    <div class="source-of-truth" title="Source of truth: latest nixcfg commit">
-        <button class="sot-refresh" type="button" data-action="refresh-target" title="Refresh target hash">
-            <svg><use href="#icon-refresh"/></svg>
-        </button>
-        <span class="sot-label">Target</span>
-        <div class="sot-row">
-            <a href="https://github.com/markus-barta/nixcfg/commit/{{ nixcfg_hash }}" target="_blank" class="sot-hash">
+    <div class="targets-box" title="Target versions for comparison">
+        <div class="target-item config">
+            <button class="sot-refresh" type="button" data-action="refresh-target" title="Refresh config hash">
+                <svg><use href="#icon-refresh"/></svg>
+            </button>
+            <span class="sot-label">Config</span>
+            <a href="https://github.com/markus-barta/nixcfg/commit/{{ nixcfg_hash or '' }}" target="_blank" class="sot-hash config-hash" title="{{ nixcfg_message or 'Latest nixcfg commit' }}">
                 <svg width="12" height="12"><use href="#icon-github"/></svg>
-                {{ nixcfg_hash }}
+                {{ nixcfg_hash or '—' }}
             </a>
-            {% if nixcfg_message %}
-            <span class="sot-notes" title="{{ nixcfg_message }}">
-                <svg><use href="#icon-file"/></svg>
-                <span class="sot-notes-text">{{ nixcfg_message[:50] }}{% if nixcfg_message|length > 50 %}…{% endif %}</span>
-            </span>
-            {% endif %}
+        </div>
+        <div class="target-item fleet">
+            <span class="sot-label">Fleet</span>
+            <a href="https://github.com/markus-barta/nixfleet/commit/{{ build_hash or '' }}" target="_blank" class="sot-hash fleet-hash" title="Latest nixfleet build">
+                <svg width="12" height="12"><use href="#icon-github"/></svg>
+                {{ build_hash or '—' }}
+            </a>
         </div>
     </div>
-    {% endif %}
     <div class="header-actions">
         <span class="connection-status connecting" id="connectionStatus">
             <span class="connection-dot"></span>
@@ -1141,16 +1300,16 @@ tr:hover .status .hb-countdown {
     <table>
         <thead>
             <tr>
-                <th>Host <span class="th-stat total">{{ stats.total }}</span></th>
+                <th>Host <span class="th-stat total">{{ stats.total }}</span><span class="th-stat online">{{ stats.online }}</span></th>
+                <th>OS</th>
                 <th>Loc</th>
                 <th>Type</th>
-                <th>Status <span class="th-stat online">{{ stats.online }}</span></th>
                 <th>Metrics</th>
-                <th>Version</th>
+                <th>Config</th>
+                <th>Fleet</th>
                 <th>Last Seen</th>
-                <th>Audited</th>
                 <th>Tests</th>
-                <th>Comment</th>
+                <th>Status</th>
                 <th>Actions</th>
             </tr>
         </thead>
@@ -1162,17 +1321,26 @@ tr:hover .status .hb-countdown {
                     data-last-seen="{{ host.last_seen_iso or '' }}"
                     data-poll-interval="{{ host.poll_interval or 30 }}"
                     data-git-hash="{{ host.current_generation or '' }}"
+                    data-agent-hash="{{ host.agent_version.split('-')[-1] if host.agent_version and '-' in host.agent_version else '' }}"
                     data-pending-command="{{ host.pending_command or '' }}"
                     data-test-running="{{ 'true' if host.test_running else 'false' }}">
-                    <td>
-                        <div class="host-icons host-color-{{ host.id }}" title="{{ host.host_type }}{% if host.os_name %} | {{ host.os_name }} {{ host.os_version }}{% endif %}">
-                            {% if host.host_type == 'macos' %}
-                            <svg class="os-icon"><use href="#icon-apple"/></svg>
+                    <td class="host-cell">
+                        <span class="status-indicator" data-host="{{ host.id }}" data-interval="{{ host.poll_interval or 10 }}">
+                            {% if host.online %}
+                            <span class="status-dot online"></span>
                             {% else %}
-                            <svg class="os-icon"><use href="#icon-nixos"/></svg>
+                            <span class="status-dot offline"></span>
                             {% endif %}
-                            <span class="hostname">{{ host.hostname }}</span>
-                        </div>
+                        </span>
+                        <span class="hostname host-color-{{ host.id }}">{{ host.hostname }}</span>
+                    </td>
+                    <td class="os-cell" title="{{ host.os_name or 'Unknown' }} {{ host.os_version or '' }}{% if host.nixpkgs_version %} | nixpkgs: {{ host.nixpkgs_version }}{% endif %}">
+                        {% if host.host_type == 'macos' %}
+                        <svg class="os-icon"><use href="#icon-apple"/></svg>
+                        {% else %}
+                        <svg class="os-icon"><use href="#icon-nixos"/></svg>
+                        {% endif %}
+                        <span class="os-version">{{ host.os_version[:5] if host.os_version else '—' }}</span>
                     </td>
                     <td class="loc-cell" title="{{ host.location or 'unknown' }}">
                         {% if host.location == 'cloud' %}
@@ -1194,29 +1362,6 @@ tr:hover .status .hb-countdown {
                         <svg class="type-icon server"><use href="#icon-server"/></svg>
                         {% endif %}
                     </td>
-                    <td>
-                        <span class="status" data-host="{{ host.id }}" data-interval="{{ host.poll_interval or 10 }}">
-                            {% if host.test_running %}
-                            <span class="status-dot testing"></span>
-                            <span class="status-text">Testing</span>
-                            {% elif host.pending_command %}
-                            <span class="status-dot pending"></span>
-                            <span class="status-text">{{ host.pending_command }}</span>
-                            {% elif host.online %}
-                            <span class="status-ripple">
-                                <span class="hb-wave"></span>
-                                <span class="hb-wave"></span>
-                                <span class="hb-wave"></span>
-                                <span class="hb-core"></span>
-                            </span>
-                            <span class="status-text">Online</span>
-                            <span class="hb-countdown">--</span>
-                            {% else %}
-                            <span class="status-dot offline"></span>
-                            <span class="status-text offline">Offline</span>
-                            {% endif %}
-                        </span>
-                    </td>
                     <td class="metrics-cell" data-metrics-updated="{{ host.metrics_updated_at or '' }}" title="{% if host.metrics %}CPU: {{ host.metrics.cpu }}% | RAM: {{ host.metrics.ram }}%{% if host.metrics.swap %} | Swap: {{ host.metrics.swap }}%{% endif %} | Load: {{ host.metrics.load }}{% if host.metrics_updated_at %} | Updated: {{ host.metrics_updated_at[:19] }}{% endif %}{% endif %}">
                         {% if host.metrics %}
                         <span class="metric cpu {{ 'high' if host.metrics.cpu >= 80 else '' }}"><svg class="metric-icon"><use href="#icon-cpu"/></svg><span class="metric-val">{{ host.metrics.cpu }}</span></span>
@@ -1225,35 +1370,26 @@ tr:hover .status .hb-countdown {
                         <span class="metrics-na">—</span>
                         {% endif %}
                     </td>
-                    <td class="version-cell">
-                        {% if host.agent_version or host.os_version or host.current_generation %}
-                        <span class="version-parts">
-                            {% if host.agent_version %}
-                            <span class="agent-ver" title="NixFleet Agent v{{ host.agent_version }}">v{{ host.agent_version }}</span>
-                            {% endif %}
-                            {% if host.os_version %}
-                            <span class="os-ver" title="{{ host.os_name or 'OS' }} {{ host.os_version }}{% if host.nixpkgs_version %} | nixpkgs: {{ host.nixpkgs_version[:12] }}{% endif %}">{{ host.os_version[:5] }}</span>
-                            {% endif %}
-                            {% if host.current_generation %}
-                            <code class="git-hash {{ 'outdated' if host.outdated else '' }}" title="Config: {{ host.current_generation }}{% if host.outdated %} | Latest: {{ host.latest_hash }}{% endif %}">{{ host.current_generation[:7] }}</code>
-                            {% endif %}
-                        </span>
-                        {% if host.outdated %}
-                        <span class="outdated-badge" title="Behind main branch">↓</span>
+                    <td class="config-cell">
+                        {% if host.current_generation %}
+                        <code class="hash-badge {{ 'outdated' if host.outdated else '' }}" title="Config: {{ host.current_generation }}{% if host.outdated %} | Target: {{ nixcfg_hash }}{% endif %}">{{ host.current_generation[:7] }}</code>
+                        {% if host.outdated %}<span class="outdated-arrow" title="Behind target">↓</span>{% endif %}
+                        {% else %}
+                        <span class="muted">—</span>
                         {% endif %}
+                    </td>
+                    <td class="fleet-cell">
+                        {% set agent_hash = host.agent_version.split('-')[-1] if host.agent_version and '-' in host.agent_version else '' %}
+                        {% set fleet_outdated = agent_hash and build_hash and agent_hash != build_hash %}
+                        {% if agent_hash %}
+                        <code class="hash-badge {{ 'outdated' if fleet_outdated else '' }}" title="Agent: {{ host.agent_version }}{% if fleet_outdated %} | Target: {{ build_hash }}{% endif %}">{{ agent_hash[:7] }}</code>
+                        {% if fleet_outdated %}<span class="outdated-arrow" title="Behind target">↓</span>{% endif %}
                         {% else %}
                         <span class="muted">—</span>
                         {% endif %}
                     </td>
                     <td class="seen-cell" title="{{ host.last_seen_iso or 'Never' }}">
                         <span class="seen-relative" data-host="{{ host.id }}" data-ts="{{ host.last_seen_iso or '' }}">{{ host.last_seen_relative or 'Never' }}</span>
-                    </td>
-                    <td class="audit {{ 'done' if host.last_audit_relative else 'pending' }}" title="{{ host.last_audit_iso or '' }}">
-                        {% if host.last_audit_relative %}
-                        ✓ {{ host.last_audit_relative }}
-                        {% else %}
-                        —
-                        {% endif %}
                     </td>
                     <td>
                         {% if host.test_running %}
@@ -1266,7 +1402,19 @@ tr:hover .status .hb-countdown {
                         <span class="muted-dark small">{{ host.test_status or '—' }}</span>
                         {% endif %}
                     </td>
-                    <td class="comment {{ 'has-error' if host.status == 'error' else '' }}" data-status="{{ host.status or 'unknown' }}" data-test-running="{{ 'true' if host.test_running else 'false' }}" title="{{ host.comment or '' }}">{% if host.test_running %}<span class="test-progress">Test {{ host.test_current }}/{{ host.test_total }} running</span>{% elif host.comment %}<span class="comment-icon">{{ '✗' if host.status == 'error' else '✓' }}</span>{{ host.comment }}{% else %}—{% endif %}</td>
+                    <td class="status-cell {{ 'has-error' if host.status == 'error' else '' }}" data-status="{{ host.status or 'unknown' }}" data-test-running="{{ 'true' if host.test_running else 'false' }}" title="{{ host.comment or '' }}">
+                        {% if host.test_running %}
+                        <span class="status-badge testing">Testing {{ host.test_current }}/{{ host.test_total }}</span>
+                        {% elif host.pending_command %}
+                        <span class="status-badge pending">⏳ {{ host.pending_command }}...</span>
+                        {% elif not host.online %}
+                        <span class="status-badge offline">Offline</span>
+                        {% elif host.comment %}
+                        <span class="status-icon">{{ '✗' if host.status == 'error' else '✓' }}</span>{{ host.comment }}
+                        {% else %}
+                        <span class="status-badge online">Online</span>
+                        {% endif %}
+                    </td>
                     <td>
                         <div class="actions">
                             <button
@@ -1625,17 +1773,17 @@ async function sendCommand(hostId, command) {
     setActionLock(hostId, command);
     applyActionState(row);
     
-    // Show the command in the comment column
-    const commentCell = row.querySelector('.comment');
-    if (commentCell) {
+    // Show the command in the status column
+    const statusCell = row.querySelector('.status-cell');
+    if (statusCell) {
         const commandLabels = {
-            'pull': 'Pulling...',
-            'switch': 'Switching...',
-            'test': 'Testing...',
-            'restart': 'Restarting...'
+            'pull': 'Pulling',
+            'switch': 'Switching',
+            'test': 'Testing',
+            'restart': 'Restarting'
         };
-        commentCell.innerHTML = `<span class="comment-icon">⏳</span>${commandLabels[command] || command + '...'}`;
-        commentCell.classList.remove('has-error');
+        statusCell.innerHTML = `<span class="status-badge pending">⏳ ${commandLabels[command] || command}...</span>`;
+        statusCell.classList.remove('has-error');
     }
     
     try {
@@ -1714,17 +1862,17 @@ async function sendBulkCommand(command) {
                     row.dataset.pendingCommand = command;
                     setActionLock(host.id, command);
                     applyActionState(row);
-                    // Show the command in the comment column
-                    const commentCell = row.querySelector('.comment');
-                    if (commentCell) {
+                    // Show the command in the status column
+                    const statusCell = row.querySelector('.status-cell');
+                    if (statusCell) {
                         const commandLabels = {
-                            'pull': 'Pulling...',
-                            'switch': 'Switching...',
-                            'test': 'Testing...',
-                            'restart': 'Restarting...'
+                            'pull': 'Pulling',
+                            'switch': 'Switching',
+                            'test': 'Testing',
+                            'restart': 'Restarting'
                         };
-                        commentCell.innerHTML = `<span class="comment-icon">⏳</span>${commandLabels[command] || command + '...'}`;
-                        commentCell.classList.remove('has-error');
+                        statusCell.innerHTML = `<span class="status-badge pending">⏳ ${commandLabels[command] || command}...</span>`;
+                        statusCell.classList.remove('has-error');
                     }
                 }
                 successCount++;
@@ -1938,32 +2086,53 @@ function updateHostRow(data) {
         triggerHeartbeatPing(data.host_id);
     }
     
-    // Update status cell
-    const statusCell = row.querySelector('.status');
-    if (statusCell) {
-        const hostId = statusCell.dataset.host;
-        const interval = statusCell.dataset.interval || 10;
-        if (data.test_running) {
-            statusCell.innerHTML = `<span class="status-dot testing"></span><span class="status-text">Testing</span>`;
-        } else if (data.pending_command) {
-            statusCell.innerHTML = `<span class="status-dot pending"></span><span class="status-text">${data.pending_command}</span>`;
-        } else if (data.online !== false) {
-            statusCell.innerHTML = `<span class="status-ripple"><span class="hb-wave"></span><span class="hb-wave"></span><span class="hb-wave"></span><span class="hb-core"></span></span><span class="status-text">Online</span><span class="hb-countdown">--</span>`;
+    // Update host status indicator (online/offline dot)
+    const statusIndicator = row.querySelector('.status-indicator .status-dot');
+    if (statusIndicator && data.online !== undefined) {
+        statusIndicator.className = `status-dot ${data.online ? 'online' : 'offline'}`;
+    }
+    
+    // Update OS cell
+    if (data.os_version) {
+        const osVerEl = row.querySelector('.os-cell .os-version');
+        if (osVerEl) {
+            osVerEl.textContent = data.os_version.substring(0, 5);
+        }
+        const osCell = row.querySelector('.os-cell');
+        if (osCell) {
+            let title = (data.os_name || 'OS') + ' ' + data.os_version;
+            if (data.nixpkgs_version) {
+                title += ' | nixpkgs: ' + data.nixpkgs_version;
+            }
+            osCell.title = title;
         }
     }
     
-    // Note: Lock clearing is now handled above when pending_command is set to null/empty
+    // Update Config cell (nixcfg hash)
+    if (data.current_generation) {
+        const configCell = row.querySelector('.config-cell');
+        if (configCell) {
+            const hash = data.current_generation.substring(0, 7);
+            const outdated = data.outdated || false;
+            configCell.innerHTML = `<code class="hash-badge ${outdated ? 'outdated' : ''}" title="Config: ${data.current_generation}">${hash}</code>${outdated ? '<span class="outdated-arrow" title="Behind target">↓</span>' : ''}`;
+        }
+        row.dataset.gitHash = data.current_generation;
+    }
     
-    // Update comment error state
-    if (data.status !== undefined) {
-        const commentCell = row.querySelector('.comment');
-        if (commentCell) {
-            commentCell.classList.toggle('has-error', data.status === 'error');
+    // Update Fleet cell (agent hash)
+    if (data.agent_version) {
+        const fleetCell = row.querySelector('.fleet-cell');
+        if (fleetCell && data.agent_version.includes('-')) {
+            const hash = data.agent_version.split('-').pop().substring(0, 7);
+            const targetHash = document.querySelector('.fleet-hash')?.textContent?.trim() || '';
+            const outdated = hash !== targetHash;
+            fleetCell.innerHTML = `<code class="hash-badge ${outdated ? 'outdated' : ''}" title="Agent: ${data.agent_version}">${hash}</code>${outdated ? '<span class="outdated-arrow" title="Behind target">↓</span>' : ''}`;
+            row.dataset.agentHash = hash;
         }
     }
     
-    // Update test progress cell
-    const testCell = row.querySelector('td:nth-child(7)');
+    // Update test progress cell (now column 9)
+    const testCell = row.querySelector('td:nth-child(9)');
     if (testCell && (data.test_running !== undefined || data.test_passed_count !== undefined)) {
         if (data.test_running) {
             testCell.innerHTML = `<span class="test-progress">${data.test_current || 0}/${data.test_total || 0}</span>`;
@@ -1973,82 +2142,30 @@ function updateHostRow(data) {
         }
     }
     
-    // Update version info if changed
-    if (data.agent_version) {
-        const agentVerEl = row.querySelector('.agent-ver');
-        if (agentVerEl) {
-            agentVerEl.textContent = 'v' + data.agent_version;
-            agentVerEl.title = 'NixFleet Agent v' + data.agent_version;
-        }
-    }
-    
-    if (data.os_version) {
-        const osVerEl = row.querySelector('.os-ver');
-        if (osVerEl) {
-            osVerEl.textContent = data.os_version.substring(0, 5);
-            let title = (data.os_name || 'OS') + ' ' + data.os_version;
-            if (data.nixpkgs_version) {
-                title += ' | nixpkgs: ' + data.nixpkgs_version.substring(0, 12);
-            }
-            osVerEl.title = title;
-        }
-    }
-    
-    // Update git hash if changed
-    if (data.current_generation) {
-        const hashEl = row.querySelector('.git-hash');
-        if (hashEl) {
-            hashEl.textContent = data.current_generation.substring(0, 7);
-            let hashTitle = 'Config: ' + data.current_generation;
-            if (data.outdated && data.latest_hash) {
-                hashTitle += ' | Latest: ' + data.latest_hash;
-            }
-            hashEl.title = hashTitle;
-            // Update outdated styling
-            if (data.outdated !== undefined) {
-                hashEl.classList.toggle('outdated', data.outdated);
-            }
-        }
-        row.dataset.gitHash = data.current_generation;
+    // Update combined Status cell (status + comment)
+    const statusCell = row.querySelector('.status-cell');
+    if (statusCell) {
+        const isError = data.status === 'error';
+        statusCell.classList.toggle('has-error', isError);
         
-        // Update/remove outdated badge
-        if (data.outdated !== undefined) {
-            const versionCell = row.querySelector('.version-cell');
-            if (versionCell) {
-                let badge = versionCell.querySelector('.outdated-badge');
-                if (data.outdated && !badge) {
-                    versionCell.insertAdjacentHTML('beforeend', '<span class="outdated-badge" title="Behind main branch">↓</span>');
-                } else if (!data.outdated && badge) {
-                    badge.remove();
-                }
-            }
-        }
-    }
-    
-    // Update comment - show test progress when running, otherwise normal comment
-    if (data.test_running !== undefined || data.comment !== undefined) {
-        const commentCell = row.querySelector('.comment');
-        if (commentCell) {
-            if (data.test_running) {
-                const current = data.test_current || 0;
-                const total = data.test_total || 0;
-                commentCell.innerHTML = `<span class="test-progress">Test ${current}/${total} running</span>`;
-                commentCell.classList.remove('has-error');
-                commentCell.dataset.testRunning = 'true';
+        if (data.test_running) {
+            const current = data.test_current || 0;
+            const total = data.test_total || 0;
+            statusCell.innerHTML = `<span class="status-badge testing">Testing ${current}/${total}</span>`;
+        } else if (data.pending_command) {
+            const labels = { 'pull': 'Pulling', 'switch': 'Switching', 'test': 'Testing', 'restart': 'Restarting' };
+            statusCell.innerHTML = `<span class="status-badge pending">⏳ ${labels[data.pending_command] || data.pending_command}...</span>`;
+        } else if (data.online === false) {
+            statusCell.innerHTML = `<span class="status-badge offline">Offline</span>`;
+        } else if (data.comment !== undefined) {
+            if (data.comment) {
+                const icon = isError ? '✗' : '✓';
+                statusCell.innerHTML = `<span class="status-icon">${icon}</span>${data.comment}`;
             } else {
-                commentCell.dataset.testRunning = 'false';
-                const isError = data.status === 'error';
-                if (data.comment) {
-                    const icon = isError ? '✗' : '✓';
-                    commentCell.innerHTML = `<span class="comment-icon">${icon}</span>${data.comment}`;
-                    commentCell.classList.toggle('has-error', isError);
-                } else {
-                    commentCell.textContent = '—';
-                    commentCell.classList.remove('has-error');
-                }
-                commentCell.title = data.comment || '';
-                commentCell.dataset.status = data.status || 'unknown';
+                statusCell.innerHTML = `<span class="status-badge online">Online</span>`;
             }
+            statusCell.title = data.comment || '';
+        }
         }
     }
     
