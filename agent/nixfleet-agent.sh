@@ -222,22 +222,18 @@ api_call() {
 # Host Information (with caching)
 # ════════════════════════════════════════════════════════════════════════════════
 
-# Cache files for git hash and commit message (avoid calling git every poll)
+# Cache file for git hash (avoid calling git every poll)
 readonly GIT_HASH_CACHE="/tmp/nixfleet-git-hash-${HOST_ID}"
-readonly GIT_MSG_CACHE="/tmp/nixfleet-git-msg-${HOST_ID}"
 
 refresh_git_hash() {
-  # Fetch git hash and commit message, update cache - call after pull/switch
-  local hash msg
+  # Fetch git hash and update cache - call after pull/switch
+  local hash
   if hash=$(git -C "$NIXFLEET_NIXCFG" rev-parse HEAD 2>/dev/null); then
-    # Get first line of commit message (truncate to 80 chars)
-    msg=$(git -C "$NIXFLEET_NIXCFG" log -1 --format=%s 2>/dev/null | head -c 80)
+    :
   else
     hash="unknown"
-    msg=""
   fi
   echo "$hash" >"$GIT_HASH_CACHE"
-  echo "$msg" >"$GIT_MSG_CACHE"
   echo "$hash"
 }
 
@@ -247,16 +243,6 @@ get_git_hash() {
     cat "$GIT_HASH_CACHE"
   else
     refresh_git_hash
-  fi
-}
-
-get_git_message() {
-  # Get cached commit message
-  if [[ -f "$GIT_MSG_CACHE" ]]; then
-    cat "$GIT_MSG_CACHE"
-  else
-    refresh_git_hash >/dev/null
-    cat "$GIT_MSG_CACHE" 2>/dev/null || echo ""
   fi
 }
 

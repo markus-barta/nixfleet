@@ -976,13 +976,25 @@ async def update_host(host_id: str, update: HostUpdate, request: Request):
 @app.get("/api/hosts/{host_id}/poll")
 @limiter.limit("60/minute")  # Allow frequent polling
 async def poll_commands(request: Request, host_id: str, _: bool = Depends(verify_agent_auth)):
-    """Agent polls for pending commands."""
+    """Agent polls for pending commands. Auto-registers host if not exists."""
     host_id = validate_host_id(host_id)
+    now = datetime.utcnow().isoformat()
+    
     with get_db() as conn:
-        conn.execute(
-            "UPDATE hosts SET last_seen = ? WHERE id = ?",
-            (datetime.utcnow().isoformat(), host_id)
-        )
+        # Check if host exists
+        existing = conn.execute("SELECT id FROM hosts WHERE id = ?", (host_id,)).fetchone()
+        
+        if existing:
+            # Update last_seen for existing host
+            conn.execute("UPDATE hosts SET last_seen = ? WHERE id = ?", (now, host_id))
+        else:
+            # Auto-register new host with minimal info (agent will send full info on next register)
+            logger.info(f"Auto-registering new host from poll: {host_id}")
+            conn.execute("""
+                INSERT INTO hosts (id, hostname, host_type, location, device_type, theme_color,
+                    criticality, last_seen, status, poll_interval)
+                VALUES (?, ?, 'nixos', 'home', 'server', '#769ff0', 'low', ?, 'ok', 30)
+            """, (host_id, host_id, now))
         conn.commit()
         
         row = conn.execute(
