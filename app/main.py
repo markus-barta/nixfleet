@@ -1685,9 +1685,29 @@ async def queue_command(host_id: str, request_body: CommandRequest, request: Req
     
     logger.info(f"Queueing command for {host_id}: {request_body.command}")
     
-    now = datetime.utcnow().isoformat()
+    now = datetime.utcnow()
+    now_iso = now.isoformat()
     
     with get_db() as conn:
+        # Check if host exists and is online (seen within last 5 minutes)
+        row = conn.execute(
+            "SELECT last_seen FROM hosts WHERE id = ?",
+            (host_id,)
+        ).fetchone()
+        
+        if not row:
+            raise HTTPException(status_code=404, detail="Host not found")
+        
+        if row["last_seen"]:
+            last_seen = datetime.fromisoformat(row["last_seen"])
+            if (now - last_seen).total_seconds() > 300:  # 5 minutes
+                raise HTTPException(
+                    status_code=409, 
+                    detail=f"Host is offline (last seen {int((now - last_seen).total_seconds() / 60)} minutes ago)"
+                )
+        else:
+            raise HTTPException(status_code=409, detail="Host has never been seen online")
+        
         if request_body.command == "stop":
             # Stop command: clear pending command AND test state immediately (no queue)
             result = conn.execute(
@@ -1710,12 +1730,12 @@ async def queue_command(host_id: str, request_body: CommandRequest, request: Req
                     test_passed_count = 0,
                     test_result = NULL
                 WHERE id = ?""",
-                (now, host_id,)
+                (now_iso, host_id,)
             )
         else:
             result = conn.execute(
                 "UPDATE hosts SET pending_command = ?, command_queued_at = ? WHERE id = ?",
-                (request_body.command, now, host_id)
+                (request_body.command, now_iso, host_id)
             )
         if result.rowcount == 0:
             raise HTTPException(status_code=404, detail="Host not found")
