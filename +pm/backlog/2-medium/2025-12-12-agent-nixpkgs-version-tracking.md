@@ -28,8 +28,7 @@ let
   # Get version from flake (e.g., "v0.2.1-15" or commit hash)
   flakeVersion = inputs.nixfleet.shortRev or inputs.nixfleet.rev or "unknown";
 in
-agentScript = pkgs.substituteAll {
-  src = ../agent/nixfleet-agent.sh;
+agentScriptSrc = pkgs.replaceVars ../agent/nixfleet-agent.sh {
   agentVersion = flakeVersion;
 };
 ```
