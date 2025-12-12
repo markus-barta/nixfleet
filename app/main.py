@@ -133,10 +133,11 @@ def get_client_ip(request: Request) -> str:
 # UI behavior (dashboard)
 # How long the UI should keep action buttons "locked" if no completion event arrives.
 # This is a safety fallback for stuck/failed commands; completion should normally unlock earlier.
+# Default: 10 minutes (enough for most nixos-rebuild switch operations)
 try:
-    UI_ACTION_LOCK_MAX_SECONDS = int(os.environ.get("NIXFLEET_UI_ACTION_LOCK_MAX_SECONDS", "86400"))
+    UI_ACTION_LOCK_MAX_SECONDS = int(os.environ.get("NIXFLEET_UI_ACTION_LOCK_MAX_SECONDS", "600"))
 except ValueError:
-    UI_ACTION_LOCK_MAX_SECONDS = 86400
+    UI_ACTION_LOCK_MAX_SECONDS = 600
 
 # Build-time git hash (embedded during docker build, no API calls needed)
 # This is the "source of truth" - hosts are outdated if they don't match this
