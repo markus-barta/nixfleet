@@ -760,6 +760,14 @@ do_test() {
     [[ -f "$script" ]] && ((total++))
   done
 
+  # Handle case where test directory exists but has no test scripts
+  if [[ $total -eq 0 ]]; then
+    log_info "No test scripts found in $test_dir"
+    report_test_progress 0 0 0 false "no tests"
+    report_status "ok" "$(get_generation)" "No test scripts found" "no tests"
+    return 0
+  fi
+
   local current=0 passed=0 failed=0
   local output=""
   local fail_comment=""
