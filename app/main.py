@@ -269,7 +269,7 @@ def unsign_session_cookie(cookie_value: str) -> Optional[str]:
 # Cache for nixcfg repo info (source of truth for fleet)
 # Fetched from GitHub Pages static file (no API rate limits)
 _NIXCFG_CACHE: dict = {"hash": None, "message": None, "fetched_at": None}
-NIXCFG_CACHE_TTL = 60  # 1 minute (static file is cheap to fetch)
+NIXCFG_CACHE_TTL = 5  # 5 seconds (static file is cheap to fetch)
 NIXCFG_VERSION_URL = os.environ.get(
     "NIXFLEET_NIXCFG_VERSION_URL",
     "https://markus-barta.github.io/nixcfg/version.json"
