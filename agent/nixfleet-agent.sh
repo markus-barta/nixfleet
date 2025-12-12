@@ -286,7 +286,6 @@ api_call() {
   local out http_code body
   if ! out=$(curl "${args[@]}" --write-out $'\n%{http_code}' "${NIXFLEET_URL}${endpoint}"); then
     API_HTTP_CODE=0
-    API_BODY=""
     return 1
   fi
 
