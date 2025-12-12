@@ -34,8 +34,7 @@
       mkAgentPackage =
         pkgs:
         let
-          agentScriptSrc = pkgs.substituteAll {
-            src = ./agent/nixfleet-agent.sh;
+          agentScriptSrc = pkgs.replaceVars ./agent/nixfleet-agent.sh {
             agentVersion = version;
           };
         in

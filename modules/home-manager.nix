@@ -25,9 +25,8 @@
 let
   cfg = config.services.nixfleet-agent;
 
-  # Substitute version placeholder in agent script
-  agentScriptSrc = pkgs.substituteAll {
-    src = ../agent/nixfleet-agent.sh;
+  # Replace version placeholder in agent script
+  agentScriptSrc = pkgs.replaceVars ../agent/nixfleet-agent.sh {
     agentVersion = cfg.version;
   };
 
