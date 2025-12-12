@@ -547,37 +547,71 @@ heartbeat() {
   # This is a single API call that does both registration update and command polling
   local gen metrics_json payload
   gen="$(get_generation)"
-  metrics_json="$(collect_metrics)"
+  metrics_json="$(get_stasysmo_metrics)"
   
-  payload=$(jq -n \
-    --arg hostname "$HOSTNAME" \
-    --arg host_type "$HOST_TYPE" \
-    --arg location "$LOCATION" \
-    --arg device_type "$DEVICE_TYPE" \
-    --arg theme_color "$THEME_COLOR" \
-    --arg criticality "$CRITICALITY" \
-    --arg generation "$gen" \
-    --arg config_repo "$NIXFLEET_NIXCFG" \
-    --arg agent_version "$AGENT_VERSION" \
-    --arg os_version "$OS_VERSION" \
-    --arg os_name "$OS_NAME" \
-    --argjson poll_interval "$NIXFLEET_INTERVAL" \
-    --argjson metrics "$metrics_json" \
-    '{
-        hostname: $hostname,
-        host_type: $host_type,
-        location: $location,
-        device_type: $device_type,
-        theme_color: $theme_color,
-        criticality: $criticality,
-        current_generation: $generation,
-        config_repo: $config_repo,
-        poll_interval: $poll_interval,
-        agent_version: $agent_version,
-        os_version: (if $os_version == "" then null else $os_version end),
-        os_name: (if $os_name == "" then null else $os_name end),
-        metrics: $metrics
-    }')
+  if [[ -n "$metrics_json" ]]; then
+    payload=$(jq -n \
+      --arg hostname "$HOSTNAME" \
+      --arg host_type "$HOST_TYPE" \
+      --arg location "$LOCATION" \
+      --arg device_type "$DEVICE_TYPE" \
+      --arg theme_color "$THEME_COLOR" \
+      --arg criticality "$CRITICALITY" \
+      --arg generation "$gen" \
+      --arg config_repo "$NIXFLEET_NIXCFG" \
+      --arg agent_version "$AGENT_VERSION" \
+      --arg nixpkgs_version "$NIXPKGS_VERSION" \
+      --arg os_version "$OS_VERSION" \
+      --arg os_name "$OS_NAME" \
+      --argjson poll_interval "$NIXFLEET_INTERVAL" \
+      --argjson metrics "$metrics_json" \
+      '{
+          hostname: $hostname,
+          host_type: $host_type,
+          location: $location,
+          device_type: $device_type,
+          theme_color: $theme_color,
+          criticality: $criticality,
+          current_generation: $generation,
+          config_repo: $config_repo,
+          poll_interval: $poll_interval,
+          agent_version: $agent_version,
+          nixpkgs_version: (if $nixpkgs_version == "" then null else $nixpkgs_version end),
+          os_version: (if $os_version == "" then null else $os_version end),
+          os_name: (if $os_name == "" then null else $os_name end),
+          metrics: $metrics
+      }')
+  else
+    payload=$(jq -n \
+      --arg hostname "$HOSTNAME" \
+      --arg host_type "$HOST_TYPE" \
+      --arg location "$LOCATION" \
+      --arg device_type "$DEVICE_TYPE" \
+      --arg theme_color "$THEME_COLOR" \
+      --arg criticality "$CRITICALITY" \
+      --arg generation "$gen" \
+      --arg config_repo "$NIXFLEET_NIXCFG" \
+      --arg agent_version "$AGENT_VERSION" \
+      --arg nixpkgs_version "$NIXPKGS_VERSION" \
+      --arg os_version "$OS_VERSION" \
+      --arg os_name "$OS_NAME" \
+      --argjson poll_interval "$NIXFLEET_INTERVAL" \
+      '{
+          hostname: $hostname,
+          host_type: $host_type,
+          location: $location,
+          device_type: $device_type,
+          theme_color: $theme_color,
+          criticality: $criticality,
+          current_generation: $generation,
+          config_repo: $config_repo,
+          poll_interval: $poll_interval,
+          agent_version: $agent_version,
+          nixpkgs_version: (if $nixpkgs_version == "" then null else $nixpkgs_version end),
+          os_version: (if $os_version == "" then null else $os_version end),
+          os_name: (if $os_name == "" then null else $os_name end)
+      }')
+  fi
   
   # Call register endpoint which now returns any pending command
   api_call POST "/api/hosts/${HOST_ID}/register" "$payload"
