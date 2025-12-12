@@ -1029,15 +1029,15 @@ tr:hover .status .hb-countdown {
                     Add Host
                 </button>
                 <div class="dropdown-divider"></div>
-                <button class="dropdown-item disabled" title="Coming soon">
+                <button class="dropdown-item" type="button" data-action="bulk-command" data-command="pull" title="Pull latest config on all online hosts">
                     <svg><use href="#icon-download"/></svg>
                     Pull All
                 </button>
-                <button class="dropdown-item disabled" title="Coming soon">
+                <button class="dropdown-item" type="button" data-action="bulk-command" data-command="switch" title="Rebuild and switch all online hosts">
                     <svg><use href="#icon-refresh"/></svg>
                     Switch All
                 </button>
-                <button class="dropdown-item disabled" title="Coming soon">
+                <button class="dropdown-item" type="button" data-action="bulk-command" data-command="test" title="Run tests on all online hosts">
                     <svg><use href="#icon-flask"/></svg>
                     Test All
                 </button>
@@ -1465,6 +1465,15 @@ document.addEventListener('click', (e) => {
         return;
     }
 
+    if (action === 'bulk-command') {
+        e.preventDefault();
+        const command = el.dataset.command;
+        sendBulkCommand(command);
+        // Close the dropdown
+        document.querySelectorAll('.dropdown.open').forEach(d => d.classList.remove('open'));
+        return;
+    }
+
     if (action === 'refresh-target') {
         e.preventDefault();
         refreshTarget(el);
@@ -1660,6 +1669,67 @@ async function sendCommand(hostId, command) {
         clearActionLock(hostId);
         row.dataset.pendingCommand = '';
         applyActionState(row);
+    }
+}
+
+async function sendBulkCommand(command) {
+    // Get all online hosts that aren't busy
+    const rows = document.querySelectorAll('tr[data-host-id]');
+    const eligibleHosts = [];
+    
+    rows.forEach(row => {
+        const online = row.dataset.online === 'true';
+        const busy = isServerBusy(row) || !!getActionLock(row.dataset.hostId);
+        if (online && !busy) {
+            eligibleHosts.push({
+                id: row.dataset.hostId,
+                hostname: row.querySelector('.hostname')?.textContent || row.dataset.hostId
+            });
+        }
+    });
+    
+    if (eligibleHosts.length === 0) {
+        alert('No eligible hosts (all offline or busy)');
+        return;
+    }
+    
+    const hostnames = eligibleHosts.map(h => h.hostname).join(', ');
+    const confirmMsg = `${command.toUpperCase()} on ${eligibleHosts.length} host(s)?\n\n${hostnames}`;
+    if (!confirm(confirmMsg)) return;
+    
+    // Send command to all eligible hosts
+    let successCount = 0;
+    let failCount = 0;
+    
+    for (const host of eligibleHosts) {
+        try {
+            const response = await fetch(`/api/hosts/${host.id}/command`, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': csrfToken
+                },
+                body: JSON.stringify({ command })
+            });
+            
+            if (response.ok) {
+                const row = document.querySelector(`tr[data-host-id="${host.id}"]`);
+                if (row) {
+                    row.dataset.pendingCommand = command;
+                    setActionLock(host.id, command);
+                    applyActionState(row);
+                }
+                successCount++;
+            } else {
+                failCount++;
+            }
+        } catch (e) {
+            failCount++;
+        }
+    }
+    
+    if (failCount > 0) {
+        alert(`Command sent to ${successCount} hosts, ${failCount} failed`);
     }
 }
 
