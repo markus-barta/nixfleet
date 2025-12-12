@@ -235,24 +235,25 @@ header {
     max-width: 200px;
 }
 
-/* Header stat badges in table headers */
+/* Header stat counts */
 .th-stat {
-    font-size: 0.65rem;
-    font-weight: 500;
-    padding: 2px 5px;
-    border-radius: 3px;
-    margin-left: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
     vertical-align: middle;
 }
 
-.th-stat.total {
-    background: rgba(122, 162, 247, 0.15);
-    color: var(--blue);
+.th-stat.online {
+    color: var(--green);
+    margin-left: 6px;
 }
 
-.th-stat.online {
-    background: rgba(158, 206, 106, 0.15);
-    color: var(--green);
+.th-stat.separator {
+    color: var(--fg-gutter);
+    margin: 0 2px;
+}
+
+.th-stat.total {
+    color: var(--fg-dark);
 }
 
 /* Table Container */
@@ -1252,7 +1253,7 @@ tr:hover .status .hb-countdown {
     <table>
         <thead>
             <tr>
-                <th>Host <span class="th-stat total">{{ stats.total }}</span><span class="th-stat online">{{ stats.online }}</span></th>
+                <th>Host <span class="th-stat online">{{ stats.online }}</span><span class="th-stat separator">/</span><span class="th-stat total">{{ stats.total }}</span></th>
                 <th>OS</th>
                 <th>Loc</th>
                 <th>Type</th>

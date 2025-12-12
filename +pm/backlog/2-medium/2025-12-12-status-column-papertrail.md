@@ -10,6 +10,11 @@
 
 Transform the status column from a single-line text display into a scrollable, expandable papertrail showing timestamped history of status changes.
 
+**Dual-history approach:**
+
+1. **Status history** — Short, truncated messages for UI display in status column
+2. **Full log** — Complete command output (no truncation) downloadable via ellipsis menu
+
 ## Current State
 
 - Single `comment` field in DB (one line)
@@ -49,26 +54,43 @@ Transform the status column from a single-line text display into a scrollable, e
 
 ### Backend
 
-1. **In-memory history store**
-   - Dict keyed by host_id → list of status entries
-   - Each entry: `{ timestamp: ISO8601, icon: str, message: str }`
+1. **Dual in-memory history stores**
+
+   | Store | Purpose | Message size | Used by |
+   |-------|---------|--------------|---------|
+   | `status_history` | UI display | Truncated (≤100 chars) | Status column |
+   | `full_log` | Download | Complete output | Ellipsis menu → Download Logs |
+
+   - Both keyed by host_id → list of entries
    - NOT persisted to DB (lost on restart)
 
-2. **History retention**
+2. **History entry structure**
+
+   ```python
+   # Status history (for UI)
+   {"timestamp": "2025-12-12T14:32:05Z", "icon": "✓", "message": "Switch complete"}
+   
+   # Full log (for download)
+   {"timestamp": "2025-12-12T14:32:05Z", "type": "switch_complete", "message": "Switch complete", "output": "<full multi-line output>"}
+   ```
+
+3. **History retention**
    - Time-based: configurable via `NIXFLEET_STATUS_HISTORY_DAYS` (default: 30)
    - Prune old entries on each append
+   - Same retention for both stores
 
-3. **Events that create history entries**
+4. **Events that create history entries**
    - ❌ Heartbeats (too noisy)
    - ✅ Command queued ("⏳ Pulling...")
    - ✅ Command started (agent picked it up)
-   - ✅ Command completed ("✓ Switch complete")
-   - ✅ Command failed ("✗ Switch failed: <truncated error>")
+   - ✅ Command completed ("✓ Switch complete") + full output in log
+   - ✅ Command failed ("✗ Switch failed: <truncated>") + full error in log
    - ✅ Test progress ("🧪 Testing 3/8")
-   - ✅ Test result ("✓ Tests: 8/8 passed" or "✗ Tests: 5/8 failed")
+   - ✅ Test result ("✓ Tests: 8/8 passed") + full test output in log
 
-4. **API changes**
-   - `GET /api/hosts` → include `status_history: [...]` (last N entries)
+5. **API changes**
+   - `GET /api/hosts` → include `status_history: [...]` (last N entries, truncated)
+   - `GET /api/hosts/{id}/logs` → return full log for download (JSON or plain text)
    - SSE events → include new history entry when status changes
 
 ### Frontend
@@ -98,9 +120,17 @@ Transform the status column from a single-line text display into a scrollable, e
    - New entries animate in (prepend with slide-down)
    - Auto-scroll to top if already at top
 
+6. **Download Logs (ellipsis menu)**
+   - New menu item: "📥 Download Logs"
+   - Calls `GET /api/hosts/{id}/logs`
+   - Downloads as `{hostname}-logs-{date}.txt` or `.json`
+   - Contains full output (not truncated)
+
 ---
 
 ## Acceptance Criteria
+
+### Status Column UI
 
 - [ ] Status column shows scrollable history instead of single line
 - [ ] Collapsed by default, shows 1-2 lines with scroll indicator
@@ -108,10 +138,24 @@ Transform the status column from a single-line text display into a scrollable, e
 - [ ] Only one row can be expanded at a time
 - [ ] New status entries appear via SSE with animation
 - [ ] Timestamps in HH:MM format, full datetime on hover
+
+### History Content
+
 - [ ] History entries include: command start/complete/fail, test progress/results
 - [ ] History excludes: heartbeats
-- [ ] History retention configurable via env var (default 30 days)
-- [ ] History is in-memory only (acceptable to lose on restart)
+- [ ] Status history has truncated messages (≤100 chars)
+- [ ] Full log has complete output (no truncation)
+
+### Download Logs
+
+- [ ] Ellipsis menu has "Download Logs" option
+- [ ] Downloads full log as text/JSON file
+- [ ] Filename includes hostname and date
+
+### Configuration
+
+- [ ] History retention configurable via `NIXFLEET_STATUS_HISTORY_DAYS` (default 30 days)
+- [ ] Both histories are in-memory only (acceptable to lose on restart)
 
 ---
 
@@ -121,22 +165,56 @@ Transform the status column from a single-line text display into a scrollable, e
 
 | File | Changes |
 |------|---------|
-| `app/main.py` | In-memory history dict, append on status change, include in API responses |
-| `app/templates/dashboard.html` | New status cell structure, CSS for scroll/expand, JS for toggle |
+| `app/main.py` | Dual in-memory dicts, append on status change, new `/logs` endpoint |
+| `app/templates/dashboard.html` | Status cell structure, CSS for scroll/expand, JS for toggle, download menu item |
 
 ### In-memory structure
 
 ```python
 # In main.py
+
+# Status history (for UI - truncated messages)
 status_history: dict[str, list[dict]] = {}
 # Example:
 # {
 #   "hsb1": [
 #     {"timestamp": "2025-12-12T14:32:05Z", "icon": "✓", "message": "Switch complete"},
 #     {"timestamp": "2025-12-12T14:31:42Z", "icon": "⏳", "message": "Switching..."},
-#     ...
 #   ]
 # }
+
+# Full log (for download - complete output)
+full_log: dict[str, list[dict]] = {}
+# Example:
+# {
+#   "hsb1": [
+#     {
+#       "timestamp": "2025-12-12T14:32:05Z",
+#       "type": "switch_complete",
+#       "message": "Switch complete",
+#       "output": "building '/nix/store/...-nixos-system-hsb1-25.05...'\n..."
+#     },
+#   ]
+# }
+
+def append_history(host_id: str, icon: str, message: str, full_output: str = None, event_type: str = None):
+    """Append to both histories. Truncates message for status_history."""
+    now = datetime.utcnow().isoformat() + "Z"
+    
+    # Status history (truncated)
+    truncated = message[:100] + "..." if len(message) > 100 else message
+    status_history.setdefault(host_id, []).insert(0, {
+        "timestamp": now, "icon": icon, "message": truncated
+    })
+    
+    # Full log (complete)
+    full_log.setdefault(host_id, []).insert(0, {
+        "timestamp": now, "type": event_type or "unknown",
+        "message": message, "output": full_output
+    })
+    
+    # Prune old entries (older than HISTORY_DAYS)
+    prune_history(host_id)
 ```
 
 ### CSS approach
@@ -169,7 +247,7 @@ status_history: dict[str, list[dict]] = {}
 ## Out of Scope (Future)
 
 - Persist history to DB (separate task)
-- Filter history by type
+- Filter history by type (e.g., only errors)
 - Search within history
-- Export history
-- Per-host history page with full details
+- Per-host history page with full details (web UI viewer)
+- Log streaming (live tail)
