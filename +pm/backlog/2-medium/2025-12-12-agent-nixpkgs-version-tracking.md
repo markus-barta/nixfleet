@@ -138,33 +138,36 @@ Hover on "14.7": "macOS Sonoma 14.7.1 | nixpkgs: 24.11.20241210"
 
 ## Implementation Tasks
 
-### Phase 1: Agent Version from Flake
+### Phase 1: Agent Version from Flake ✅ COMPLETE (2025-12-12)
 
-- [ ] Modify NixOS module to inject flake version into agent script
-- [ ] Modify Home Manager module similarly  
-- [ ] Remove hardcoded `AGENT_VERSION` from agent script
-- [ ] Update UI: Move agent version left of git hash in Version column
+- [x] Modify NixOS module to inject flake version into agent script
+- [x] Modify Home Manager module similarly  
+- [x] Remove hardcoded `AGENT_VERSION` from agent script (now uses `@agentVersion@` placeholder)
+- [x] Update UI: Agent version now in combined version column
 
-### Phase 2: OS Version Tracking
+### Phase 2: OS Version Tracking ✅ COMPLETE (2025-12-12)
 
-- [ ] Add nixpkgs/NixOS version detection to agent (nixos-version --json)
-- [ ] Add macOS version detection for Darwin hosts (sw_vers)
-- [ ] Add database columns: `nixpkgs_version`, `nixpkgs_channel`, `os_version`
-- [ ] Send OS version info during agent registration
-- [ ] Update UI: Add OS version between agent version and git hash
+- [x] Add nixpkgs/NixOS version detection to agent (nixos-version --json)
+- [x] Add macOS version detection for Darwin hosts (sw_vers)
+- [x] Add database columns: `nixpkgs_version`, `os_version`, `os_name`
+- [x] Send OS version info during agent registration
+- [x] Update UI: Combined version display `v0.3.0 • 26.05 • abc1234`
 
-### Phase 3: Latest Version Awareness
+### Phase 3: Latest Version Awareness (PARTIALLY COMPLETE)
 
-- [ ] Dashboard fetches nixcfg flake.lock info (already have version.json)
-- [ ] Optionally fetch latest channel versions from GitHub API
+- [x] Display nixpkgs version in UI with hover details
+- [ ] Dashboard fetches nixpkgs version from nixcfg flake.lock
+- [ ] Compare host nixpkgs vs target nixpkgs
 - [ ] Add "outdated nixpkgs" indicator (similar to config outdated)
-- [ ] Implement detailed hover tooltips for each version element
+- [ ] Optionally fetch latest channel versions from GitHub API
 
 ### Phase 4: Polish
 
-- [ ] Ensure tooltips show comparison details
+- [x] Basic tooltips for each version element
+- [x] Test with NixOS hosts (csb0 verified working)
+- [ ] Enhanced hover tooltips with comparison details
 - [ ] Handle edge cases (missing data, offline hosts)
-- [ ] Test with both NixOS and macOS hosts
+- [ ] Test with macOS hosts
 
 ## Related
 
