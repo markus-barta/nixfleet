@@ -306,9 +306,17 @@ tr:hover td { background: rgba(41, 46, 66, 0.5); }
 
 /* Host cell (status dot + hostname) */
 .host-cell {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
+    white-space: nowrap;
+}
+
+.host-cell .status-indicator,
+.host-cell .hostname {
+    display: inline-block;
+    vertical-align: middle;
+}
+
+.host-cell .status-indicator {
+    margin-right: 0.5rem;
 }
 
 .status-indicator {
@@ -338,17 +346,24 @@ tr:hover td { background: rgba(41, 46, 66, 0.5); }
 
 /* OS cell (icon + version) */
 .os-cell {
-    display: flex;
-    align-items: center;
-    gap: 0.3rem;
+    white-space: nowrap;
     font-size: 0.75rem;
     color: var(--fg-dark);
+}
+
+.os-cell .os-icon,
+.os-cell .os-version {
+    display: inline-block;
+    vertical-align: middle;
+}
+
+.os-cell .os-icon {
+    margin-right: 0.3rem;
 }
 
 .os-cell .os-icon {
     width: 14px;
     height: 14px;
-    flex-shrink: 0;
 }
 
 .os-cell .os-version {
