@@ -38,13 +38,13 @@ Track command execution state per-host and disable buttons appropriately:
 
 ## Tasks
 
-- [ ] Disable action buttons in initial render when host has `pending_command` or `test_running`
-- [ ] In JS, treat “busy” as: `pending_command != null` OR `test_running == true`
+- [x] Disable action buttons in initial render when host has `pending_command` or `test_running`
+- [x] In JS, treat "busy" as: `pending_command != null` OR `test_running == true`
 - [ ] Replace the 30s fallback timeout with:
   - a long **max lock duration** (default 24h, configurable), and
   - unlock only on server completion (`host_update` / status), unless max duration expires.
-- [ ] Persist per-host locks across reloads (localStorage) so refresh can’t be used to spam.
-- [ ] Add “Unlock actions” in the per-host ellipsis dropdown (confirm dialog; local unlock only).
+- [ ] Persist per-host locks across reloads (localStorage) so refresh can't be used to spam.
+- [x] Add "Unlock actions" in the per-host ellipsis dropdown (confirm dialog; local unlock only).
 - [ ] Add visual feedback (button label changes, optional spinner)
 - [ ] Edge cases:
   - page refresh while command running

@@ -93,49 +93,61 @@ grep VERSION_ID /etc/os-release
 ## Decisions (2025-12-12)
 
 ### 1. Reference for "latest"
+
 **Decision**: Both (a) AND (b) with hover details
+
 - Primary comparison: nixcfg flake.lock (your intended baseline)
 - On hover: Show actual latest channel version for awareness
 
 ### 2. Display format
+
 **Decision**: (c) Combined in Version column with detailed hovers
 
 Display format in Version column:
+
 ```
 v0.2.1 • 24.11 • 9b18fd8 ↓
 ```
 
 Where:
+
 - `v0.2.1` = Agent version (from nixfleet flake)
 - `24.11` = NixOS/nixpkgs version
 - `9b18fd8` = Config git hash
 - `↓` = Outdated indicator (config or nixpkgs)
 
 **Hover tooltips** (each element has its own tooltip):
+
 - Agent version hover: "NixFleet Agent v0.2.1 (latest: v0.2.2)"
 - NixOS version hover: "NixOS 24.11.20241210 | Your flake: 24.11.20241215 | Channel latest: 24.11.20241220"
 - Git hash hover: "Config: 9b18fd8 | Latest: abc1234 (3 commits behind)"
 
 ### 3. macOS handling
+
 **Decision**: (a) + (b) - Track both
+
 - nixpkgs version from the flake
 - macOS version (e.g., "Sonoma 14.7.1")
 
 Display for macOS:
+
 ```
 v0.2.1 • 14.7 • 9b18fd8 ↓
 ```
+
 Hover on "14.7": "macOS Sonoma 14.7.1 | nixpkgs: 24.11.20241210"
 
 ## Implementation Tasks
 
 ### Phase 1: Agent Version from Flake
+
 - [ ] Modify NixOS module to inject flake version into agent script
 - [ ] Modify Home Manager module similarly  
 - [ ] Remove hardcoded `AGENT_VERSION` from agent script
 - [ ] Update UI: Move agent version left of git hash in Version column
 
 ### Phase 2: OS Version Tracking
+
 - [ ] Add nixpkgs/NixOS version detection to agent (nixos-version --json)
 - [ ] Add macOS version detection for Darwin hosts (sw_vers)
 - [ ] Add database columns: `nixpkgs_version`, `nixpkgs_channel`, `os_version`
@@ -143,12 +155,14 @@ Hover on "14.7": "macOS Sonoma 14.7.1 | nixpkgs: 24.11.20241210"
 - [ ] Update UI: Add OS version between agent version and git hash
 
 ### Phase 3: Latest Version Awareness
+
 - [ ] Dashboard fetches nixcfg flake.lock info (already have version.json)
 - [ ] Optionally fetch latest channel versions from GitHub API
 - [ ] Add "outdated nixpkgs" indicator (similar to config outdated)
 - [ ] Implement detailed hover tooltips for each version element
 
 ### Phase 4: Polish
+
 - [ ] Ensure tooltips show comparison details
 - [ ] Handle edge cases (missing data, offline hosts)
 - [ ] Test with both NixOS and macOS hosts
