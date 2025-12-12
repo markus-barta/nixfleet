@@ -27,19 +27,19 @@ Two side-by-side targets for easy comparison:
 
 ### Table Columns (11 total)
 
-| # | Column | Width | Content |
-|---|--------|-------|---------|
-| 1 | **Host** | auto | Status dot (●/○) + hostname in theme color |
-| 2 | **OS** | narrow | OS icon (/) + version (26.05 / 15.2). Hover shows nixpkgs |
-| 3 | **Loc** | icon | Location icon (cloud/home/work) |
-| 4 | **Type** | icon | Device type icon (server/desktop/laptop/gaming) |
-| 5 | **Metrics** | narrow | CPU/RAM percentages |
-| 6 | **Config** | narrow | nixcfg hash (7 chars), ↓ if outdated vs header Config |
-| 7 | **Fleet** | narrow | agent hash (7 chars), ↓ if outdated vs header Fleet |
-| 8 | **Last Seen** | narrow | Relative time (just now, 5 min ago) |
-| 9 | **Tests** | narrow | Test results (6/17 ✓) |
-| 10 | **Status** | auto | Combined: status text + last action comment |
-| 11 | **Actions** | auto | Pull/Switch/Test buttons + dropdown menu |
+| #   | Column        | Width  | Content                                                   |
+| --- | ------------- | ------ | --------------------------------------------------------- |
+| 1   | **Host**      | auto   | Status dot (●/○) + hostname in theme color                |
+| 2   | **OS**        | narrow | OS icon (/) + version (26.05 / 15.2). Hover shows nixpkgs |
+| 3   | **Loc**       | icon   | Location icon (cloud/home/work)                           |
+| 4   | **Type**      | icon   | Device type icon (server/desktop/laptop/gaming)           |
+| 5   | **Metrics**   | narrow | CPU/RAM percentages                                       |
+| 6   | **Config**    | narrow | nixcfg hash (7 chars), ↓ if outdated vs header Config     |
+| 7   | **Fleet**     | narrow | agent hash (7 chars), ↓ if outdated vs header Fleet       |
+| 8   | **Last Seen** | narrow | Relative time (just now, 5 min ago)                       |
+| 9   | **Tests**     | narrow | Test results (6/17 ✓)                                     |
+| 10  | **Status**    | auto   | Combined: status text + last action comment               |
+| 11  | **Actions**   | auto   | Pull/Switch/Test buttons + dropdown menu                  |
 
 ### Example Row
 
@@ -51,12 +51,12 @@ Two side-by-side targets for easy comparison:
 
 The Status column replaces old separate Status + Comment columns:
 
-| Condition | Display |
-|-----------|---------|
-| Testing | `Testing 3/8` (yellow badge) |
-| Pending command | `⏳ Pulling...` (blue badge) |
-| Offline | `Offline` (gray badge) |
-| Online + no comment | `Online` (green badge) |
+| Condition            | Display                                 |
+| -------------------- | --------------------------------------- |
+| Testing              | `Testing 3/8` (yellow badge)            |
+| Pending command      | `⏳ Pulling...` (blue badge)            |
+| Offline              | `Offline` (gray badge)                  |
+| Online + no comment  | `Online` (green badge)                  |
 | Online + has comment | `✓ Pull successful` or `✗ Build failed` |
 
 ### Host Column Details
@@ -102,4 +102,3 @@ The Status column replaces old separate Status + Comment columns:
 ## Rollback Option
 
 If needed, revert to commit `fcaa4e3` (before table redesign).
-
