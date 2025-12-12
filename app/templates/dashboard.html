@@ -94,6 +94,55 @@ header {
     min-width: 160px;
 }
 
+/* Source of Truth (nixcfg latest commit) */
+.source-of-truth {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.5rem 1rem;
+    background: rgba(158, 206, 106, 0.08);
+    border: 1px solid rgba(158, 206, 106, 0.2);
+    border-radius: 8px;
+}
+
+.sot-label {
+    font-size: 0.6rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--fg-dark);
+    font-weight: 500;
+}
+
+.sot-hash {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 0.8rem;
+    color: var(--green);
+    text-decoration: none;
+    padding: 0.15rem 0.4rem;
+    background: var(--bg-highlight);
+    border-radius: 4px;
+    transition: all 0.15s;
+}
+
+.sot-hash:hover {
+    background: rgba(158, 206, 106, 0.2);
+    color: var(--green);
+}
+
+.sot-message {
+    font-size: 0.7rem;
+    color: var(--fg-dark);
+    max-width: 250px;
+    text-align: center;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 /* Header stat badges in table headers */
 .th-stat {
     font-size: 0.65rem;
@@ -739,16 +788,20 @@ tr:hover .status .hb-countdown {
 .footer-link:hover { color: var(--fg); }
 .footer-link svg { width: 14px; height: 14px; }
 
-.latest-hash {
-    color: var(--fg-dark);
+.build-hash {
     font-size: 0.7rem;
+    text-decoration: none;
+    transition: opacity 0.15s;
 }
-.latest-hash code {
+.build-hash:hover {
+    opacity: 0.8;
+}
+.build-hash code {
     font-family: 'JetBrains Mono', 'Fira Code', monospace;
     background: var(--bg-highlight);
     padding: 0.1rem 0.3rem;
     border-radius: 3px;
-    color: var(--green);
+    color: var(--fg-dark);
 }
 
 .made-with {
@@ -823,6 +876,18 @@ tr:hover .status .hb-countdown {
         <h1><img src="/static/logo.png" alt="NixFleet" class="brand-logo"> NixFleet</h1>
         <p class="subtitle">Fleet management for NixOS and macOS</p>
     </div>
+    {% if nixcfg_hash %}
+    <div class="source-of-truth" title="Source of truth: latest nixcfg commit">
+        <span class="sot-label">Target</span>
+        <a href="https://github.com/markus-barta/nixcfg/commit/{{ nixcfg_hash }}" target="_blank" class="sot-hash">
+            <svg style="width:12px;height:12px;"><use href="#icon-github"/></svg>
+            {{ nixcfg_hash }}
+        </a>
+        {% if nixcfg_message %}
+        <span class="sot-message">{{ nixcfg_message[:50] }}{% if nixcfg_message|length > 50 %}…{% endif %}</span>
+        {% endif %}
+    </div>
+    {% endif %}
     <div class="header-actions">
         <span class="connection-status connecting" id="connectionStatus">
             <span class="connection-dot"></span>
@@ -1667,11 +1732,10 @@ document.getElementById('addHostModal').addEventListener('click', (e) => {
 <footer class="site-footer">
     <div class="footer-left">
         <span>NixFleet v{{ version }}</span>
-        {% if latest_hash %}
-        <span class="latest-hash" title="Hosts should be at this version">
-            <svg style="width:10px;height:10px;vertical-align:middle;margin-right:2px;"><use href="#icon-refresh"/></svg>
-            <code>{{ latest_hash }}</code>
-        </span>
+        {% if build_hash %}
+        <a href="https://github.com/markus-barta/nixfleet/commit/{{ build_hash }}" class="build-hash" title="Dashboard build" target="_blank">
+            <code>{{ build_hash }}</code>
+        </a>
         {% endif %}
         <a href="https://github.com/markus-barta/nixfleet" class="footer-link" target="_blank">
             <svg><use href="#icon-github"/></svg>

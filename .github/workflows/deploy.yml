@@ -1,0 +1,62 @@
+name: Deploy to Production
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "deploy" to confirm manual deployment'
+        required: true
+        default: ''
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || github.event.inputs.confirm == 'deploy'
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Get version from tag
+        id: version
+        run: |
+          if [[ "${{ github.ref_type }}" == "tag" ]]; then
+            echo "version=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+          else
+            echo "version=manual-$(date +%Y%m%d-%H%M%S)" >> $GITHUB_OUTPUT
+          fi
+          echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+      
+      - name: Deploy to csb1
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.CSB1_SSH_KEY }}
+          SSH_HOST: cs1.barta.cm
+          SSH_USER: mba
+          SSH_PORT: 2222
+        run: |
+          # Setup SSH
+          mkdir -p ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -p $SSH_PORT $SSH_HOST >> ~/.ssh/known_hosts 2>/dev/null
+          
+          # Deploy
+          echo "🚀 Deploying NixFleet ${{ steps.version.outputs.version }} (${{ steps.version.outputs.sha_short }}) to $SSH_HOST..."
+          ssh -p $SSH_PORT $SSH_USER@$SSH_HOST "cd ~/docker/nixfleet && ./update.sh"
+          
+          echo "✅ Deployment complete!"
+      
+      - name: Verify deployment
+        run: |
+          sleep 10
+          response=$(curl -s https://fleet.barta.cm/health)
+          echo "Health check response: $response"
+          if echo "$response" | grep -q '"status":"healthy"'; then
+            echo "✅ Health check passed!"
+          else
+            echo "❌ Health check failed!"
+            exit 1
+          fi
+

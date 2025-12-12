@@ -102,14 +102,67 @@ def get_build_git_hash() -> Optional[str]:
 _BUILD_GIT_HASH: Optional[str] = None
 
 
-def get_latest_hash() -> Optional[str]:
-    """Get the latest git hash (build-time embedded). Cached."""
+def get_build_hash() -> Optional[str]:
+    """Get NixFleet's own build git hash (embedded at Docker build time). Cached."""
     global _BUILD_GIT_HASH
     if _BUILD_GIT_HASH is None:
         _BUILD_GIT_HASH = get_build_git_hash()
         if _BUILD_GIT_HASH:
-            logger.info(f"Build git hash: {_BUILD_GIT_HASH[:7]}")
+            logger.info(f"NixFleet build hash: {_BUILD_GIT_HASH[:7]}")
     return _BUILD_GIT_HASH
+
+
+# Cache for nixcfg repo info (source of truth for fleet)
+# Fetched from GitHub Pages static file (no API rate limits)
+_NIXCFG_CACHE: dict = {"hash": None, "message": None, "fetched_at": None}
+NIXCFG_CACHE_TTL = 60  # 1 minute (static file is cheap to fetch)
+NIXCFG_VERSION_URL = os.environ.get(
+    "NIXFLEET_NIXCFG_VERSION_URL",
+    "https://markus-barta.github.io/nixcfg/version.json"
+)
+
+
+def get_nixcfg_info() -> tuple[Optional[str], Optional[str]]:
+    """Get latest nixcfg commit hash and message from GitHub Pages. Cached for 1 minute."""
+    import urllib.request
+    import urllib.error
+    
+    now = datetime.utcnow()
+    
+    # Return cached value if still valid
+    if _NIXCFG_CACHE["fetched_at"]:
+        age = (now - _NIXCFG_CACHE["fetched_at"]).total_seconds()
+        if age < NIXCFG_CACHE_TTL:
+            return _NIXCFG_CACHE["hash"], _NIXCFG_CACHE["message"]
+    
+    # Fetch from GitHub Pages static file
+    try:
+        req = urllib.request.Request(NIXCFG_VERSION_URL, headers={"Cache-Control": "no-cache"})
+        with urllib.request.urlopen(req, timeout=5) as response:
+            data = json.loads(response.read().decode())
+            commit_hash = data.get("gitCommit", "") or data.get("hash", "")
+            commit_msg = data.get("message", "") or data.get("commitMessage", "")
+            
+            _NIXCFG_CACHE["hash"] = commit_hash
+            _NIXCFG_CACHE["message"] = commit_msg[:80] if commit_msg else ""
+            _NIXCFG_CACHE["fetched_at"] = now
+            
+            if commit_hash:
+                logger.info(f"Fetched nixcfg version: {commit_hash[:7]} - {commit_msg[:40]}...")
+            return commit_hash, _NIXCFG_CACHE["message"]
+    except (urllib.error.URLError, json.JSONDecodeError, KeyError) as e:
+        logger.debug(f"Could not fetch nixcfg version (may not be set up yet): {e}")
+        # Return stale cache if available
+        if _NIXCFG_CACHE["hash"]:
+            return _NIXCFG_CACHE["hash"], _NIXCFG_CACHE["message"]
+        return None, None
+
+
+# Backwards compatibility alias
+def get_latest_hash() -> Optional[str]:
+    """Get the latest nixcfg hash (source of truth for fleet)."""
+    hash_val, _ = get_nixcfg_info()
+    return hash_val
 
 
 # Rate limiting
@@ -1217,8 +1270,12 @@ async def dashboard(request: Request):
     if not token or not verify_session(token):
         return RedirectResponse(url="/login", status_code=302)
 
-    # Get build-time hash for version comparison (no API calls)
-    latest_hash = get_latest_hash()
+    # Get nixcfg info (source of truth) for header
+    nixcfg_hash, nixcfg_message = get_nixcfg_info()
+    latest_hash = nixcfg_hash  # For host outdated comparison
+    
+    # Get NixFleet build hash for footer
+    build_hash = get_build_hash()
     
     with get_db() as conn:
         rows = conn.execute("""
@@ -1318,7 +1375,13 @@ async def dashboard(request: Request):
         hosts=hosts, 
         stats=stats, 
         version=VERSION,
+        # nixcfg info for header (source of truth)
+        nixcfg_hash=nixcfg_hash[:7] if nixcfg_hash else None,
+        nixcfg_message=nixcfg_message or "",
+        # For host outdated comparison
         latest_hash=latest_hash[:7] if latest_hash else None,
+        # NixFleet build hash for footer
+        build_hash=build_hash[:7] if build_hash else None,
         csrf_token=csrf_token
     )
 
