@@ -120,6 +120,7 @@ in
             export NIXFLEET_LOCATION="${cfg.location}"
             export NIXFLEET_DEVICE_TYPE="${cfg.deviceType}"
             export NIXFLEET_THEME_COLOR="${cfg.themeColor}"
+            export NIXFLEET_TOKEN_CACHE="$HOME/.local/state/nixfleet-agent/token"
             export NIXFLEET_TOKEN="$(cat '${cfg.tokenFile}')"
             exec ${agentScript}/bin/nixfleet-agent
           ''
@@ -150,6 +151,7 @@ in
           "NIXFLEET_LOCATION=${cfg.location}"
           "NIXFLEET_DEVICE_TYPE=${cfg.deviceType}"
           "NIXFLEET_THEME_COLOR=${cfg.themeColor}"
+          "NIXFLEET_TOKEN_CACHE=%h/.local/state/nixfleet-agent/token"
         ];
         EnvironmentFile = cfg.tokenFile;
       };

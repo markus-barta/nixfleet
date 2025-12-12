@@ -156,6 +156,8 @@ in
         NIXFLEET_LOCATION = cfg.location;
         NIXFLEET_DEVICE_TYPE = cfg.deviceType;
         NIXFLEET_THEME_COLOR = cfg.themeColor;
+        # Persist per-host agent token across restarts (used for migration away from shared token)
+        NIXFLEET_TOKEN_CACHE = "/var/lib/nixfleet-agent/token";
         HOME = "/home/${cfg.user}";
       };
 
@@ -184,6 +186,10 @@ in
         ProtectHome = "read-only";
         ReadWritePaths = [ cfg.configRepo ];
         PrivateTmp = true;
+
+        # Token cache state (for per-host token migration)
+        StateDirectory = "nixfleet-agent";
+        StateDirectoryMode = "0700";
       };
     };
   };

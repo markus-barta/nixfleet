@@ -46,3 +46,4 @@ Close remaining security gaps so NixFleet is safe for broader/internal exposure 
 - Basic alerts/metrics exist for auth failures and rate-limit triggers.
 - Rate limiting behaves correctly behind reverse proxies (no “everyone shares one IP” effect).
 - Manual “Add Host” endpoint works and is CSRF-protected (no 500s), and host IDs are consistent across UI + API.
+

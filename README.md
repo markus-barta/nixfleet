@@ -114,12 +114,16 @@ cd nixfleet
 
 # Generate credentials
 python3 -c "import bcrypt; print(bcrypt.hashpw(b'your-password', bcrypt.gensalt()).decode())"
-openssl rand -hex 32  # API token
+openssl rand -hex 32  # NIXFLEET_SESSION_SECRETS entry (repeat for rotation, comma-separate)
+openssl rand -hex 32  # NIXFLEET_AGENT_TOKEN_HASH_SECRET (hashing key for per-host agent tokens)
+openssl rand -hex 32  # NIXFLEET_API_TOKEN (shared bootstrap token; optional once fully migrated)
 
 # Create .env file
 cat > .env << EOF
 NIXFLEET_PASSWORD_HASH=\$2b\$12\$...your-hash...
-NIXFLEET_API_TOKEN=your-api-token-here
+NIXFLEET_SESSION_SECRETS=hexsecret1,hexsecret2
+NIXFLEET_AGENT_TOKEN_HASH_SECRET=hexsecret
+NIXFLEET_API_TOKEN=your-shared-bootstrap-token
 EOF
 
 # Start the container
@@ -167,27 +171,35 @@ Same options as NixOS, except `user` is not needed (runs as current user).
 | `/api/hosts/{id}/poll` | GET | Token | Agent polls for commands |
 | `/api/hosts/{id}/status` | POST | Token | Agent reports status |
 | `/api/hosts/{id}/command` | POST | Session | Queue a command |
+| `/api/hosts/{id}/agent-token` | POST | Session | Rotate per-host agent token (returns once) |
 | `/api/events` | GET | Session | SSE stream for live updates |
+| `/api/metrics` | GET | Session | Authenticated metrics snapshot |
 
 ## Security
 
 - **Password**: bcrypt hashed, validated at startup
 - **TOTP**: Optional 2FA via authenticator apps
-- **Sessions**: HTTP-only, secure, same-site cookies with CSRF tokens
-- **Agent API**: Bearer token authentication (fails closed when unset)
+- **Sessions**: DB-backed sessions + **signed session cookies** (rotation supported) + CSRF
+- **Agent API**: Bearer token auth with **per-host tokens** (hashed in DB) and optional shared bootstrap token
 - **Rate limiting**: Login, registration, and poll endpoints are rate-limited
-- **Security headers**: HSTS, X-Frame-Options, CSP in production
+- **Security headers**: HSTS, X-Frame-Options, **CSP with nonces (no `unsafe-inline`)** in production
 
 ## Environment Variables
 
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `NIXFLEET_PASSWORD_HASH` | Yes | bcrypt hash of admin password |
-| `NIXFLEET_API_TOKEN` | Yes (prod) | Token for agent authentication |
+| `NIXFLEET_SESSION_SECRETS` | Yes (prod) | Comma-separated secrets for signed session cookies (rotation supported) |
+| `NIXFLEET_AGENT_TOKEN_HASH_SECRET` | Yes (when using per-host tokens) | Secret used to hash per-host agent tokens in DB |
+| `NIXFLEET_API_TOKEN` | Yes (prod, if shared token mode) | Shared agent token (recommended as bootstrap/migration aid only) |
+| `NIXFLEET_ALLOW_SHARED_AGENT_TOKEN` | No | Allow shared token auth for agents (default: true) |
+| `NIXFLEET_AUTO_PROVISION_AGENT_TOKENS` | No | Auto-create per-host tokens on first agent contact (default: true) |
 | `NIXFLEET_TOTP_SECRET` | No | Base32-encoded TOTP secret for 2FA |
 | `NIXFLEET_REQUIRE_TOTP` | No | Set to "true" to enforce 2FA |
 | `NIXFLEET_DEV_MODE` | No | Set to "true" for development |
 | `NIXFLEET_DATA_DIR` | No | Database directory (default: `/data`) |
+| `NIXFLEET_TRUST_PROXY_HEADERS` | No | Trust forwarded headers for client IP (rate limiting/logging behind reverse proxies) |
+| `NIXFLEET_TRUSTED_PROXY_IPS` | No | Comma-separated proxy IP allowlist (optional; when empty and trust enabled, trust any proxy) |
 
 ## Development
 

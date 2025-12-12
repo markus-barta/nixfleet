@@ -348,6 +348,7 @@ async def broadcast_event(event_type: str, data: dict):
         try:
             queue.put_nowait(message)
         except asyncio.QueueFull:
+            metric_inc("sse_queue_drops", 1)
             continue
 
 # Host ID validation pattern (alphanumeric + hyphen, like hostnames)
@@ -363,6 +364,22 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S",
 )
 logger = logging.getLogger("nixfleet")
+
+# Simple in-process metrics (best-effort; resets on restart)
+METRICS: dict[str, int] = {
+    "rate_limit_exceeded": 0,
+    "csrf_failures": 0,
+    "agent_auth_failures": 0,
+    "invalid_signed_session_cookie": 0,
+    "sse_queue_drops": 0,
+}
+
+
+def metric_inc(key: str, amount: int = 1):
+    try:
+        METRICS[key] = METRICS.get(key, 0) + amount
+    except Exception:
+        pass
 
 # ============================================================================
 # Jinja2 Templates
@@ -553,6 +570,7 @@ def verify_csrf(request: Request):
     session_token = get_session_token(request)
     csrf_token = request.headers.get("X-CSRF-Token", "")
     if not verify_csrf_token(session_token, csrf_token):
+        metric_inc("csrf_failures", 1)
         logger.warning("CSRF validation failed")
         raise HTTPException(status_code=403, detail="Invalid CSRF token")
 
@@ -635,6 +653,7 @@ def get_session_token(request: Request) -> Optional[str]:
     if raw.startswith("v1."):
         token = unsign_session_cookie(raw)
         if not token:
+            metric_inc("invalid_signed_session_cookie", 1)
             logger.warning("Invalid signed session cookie rejected")
         return token
     # Legacy/unsigned cookie support (opt-in, mainly for upgrades)
@@ -819,10 +838,16 @@ app = FastAPI(
     description="Fleet management for NixOS and macOS hosts",
     version=VERSION,
 )
-app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount("/static", StaticFiles(directory=str(Path(__file__).parent / "static")), name="static")
 app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 security = HTTPBearer(auto_error=False)
+
+
+@app.exception_handler(RateLimitExceeded)
+async def rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded):
+    metric_inc("rate_limit_exceeded", 1)
+    logger.warning(f"Rate limit exceeded: ip={get_client_ip(request)} path={request.url.path}")
+    return await _rate_limit_exceeded_handler(request, exc)
 
 
 @app.middleware("http")
@@ -941,6 +966,17 @@ async def health_check():
     except Exception as e:
         logger.error(f"Health check failed: {e}")
         raise HTTPException(status_code=503, detail="Service unhealthy")
+
+
+@app.get("/api/metrics")
+async def metrics_endpoint(request: Request):
+    """Authenticated metrics snapshot (best-effort, resets on restart)."""
+    require_auth(request)
+    return {
+        "version": VERSION,
+        "build_hash": (get_build_hash() or "")[:7] or None,
+        "metrics": dict(METRICS),
+    }
 
 
 # ============================================================================
@@ -1170,6 +1206,7 @@ async def register_host(
     host_id = validate_host_id(host_id)
     auth = verify_agent_auth_for_host(host_id, credentials)
     if not auth["ok"]:
+        metric_inc("agent_auth_failures", 1)
         logger.warning(f"Agent auth failed for register: host_id={host_id}")
         raise HTTPException(status_code=401, detail="Invalid API token")
 
@@ -1280,6 +1317,34 @@ async def update_host(host_id: str, update: HostUpdate, request: Request):
     return {"status": "updated"}
 
 
+@app.post("/api/hosts/{host_id}/agent-token")
+async def rotate_host_agent_token(host_id: str, request: Request):
+    """
+    Rotate (regenerate) the per-host agent token.
+
+    Requires session auth + CSRF. Returns the raw token once.
+    """
+    host_id = validate_host_id(host_id)
+    require_auth(request)
+    verify_csrf(request)
+
+    if not AGENT_TOKEN_HASH_SECRET:
+        raise HTTPException(status_code=500, detail="Agent token hashing is not configured")
+
+    new_token = secrets.token_urlsafe(32)
+    new_hash = hash_agent_token(new_token)
+
+    with get_db() as conn:
+        existing = conn.execute("SELECT id FROM hosts WHERE id = ?", (host_id,)).fetchone()
+        if not existing:
+            raise HTTPException(status_code=404, detail="Host not found")
+        conn.execute("UPDATE hosts SET agent_token_hash = ? WHERE id = ?", (new_hash, host_id))
+        conn.commit()
+
+    logger.info(f"Rotated agent token for host: {host_id}")
+    return {"status": "ok", "host_id": host_id, "agent_token": new_token}
+
+
 @app.get("/api/hosts/{host_id}/poll")
 @limiter.limit("60/minute")  # Allow frequent polling
 async def poll_commands(
@@ -1291,6 +1356,7 @@ async def poll_commands(
     host_id = validate_host_id(host_id)
     auth = verify_agent_auth_for_host(host_id, credentials)
     if not auth["ok"]:
+        metric_inc("agent_auth_failures", 1)
         logger.warning(f"Agent auth failed for poll: host_id={host_id}")
         raise HTTPException(status_code=401, detail="Invalid API token")
 
@@ -1360,6 +1426,7 @@ async def update_status(
     host_id = validate_host_id(host_id)
     auth = verify_agent_auth_for_host(host_id, credentials)
     if not auth["ok"]:
+        metric_inc("agent_auth_failures", 1)
         logger.warning(f"Agent auth failed for status: host_id={host_id}")
         raise HTTPException(status_code=401, detail="Invalid API token")
 
@@ -1443,6 +1510,7 @@ async def update_test_progress(
     host_id = validate_host_id(host_id)
     auth = verify_agent_auth_for_host(host_id, credentials)
     if not auth["ok"]:
+        metric_inc("agent_auth_failures", 1)
         logger.warning(f"Agent auth failed for test-progress: host_id={host_id}")
         raise HTTPException(status_code=401, detail="Invalid API token")
 

@@ -254,14 +254,25 @@ api_call() {
   local data="${3:-}"
 
   local args=(-sS -X "$method" --connect-timeout 5 --max-time 30)
-  args+=(--proto '=https' --tlsv1.2)
+  if [[ "$NIXFLEET_URL" == https://* ]]; then
+    args+=(--proto '=https' --tlsv1.2)
+  else
+    if [[ "${NIXFLEET_ALLOW_INSECURE_HTTP:-}" =~ ^(1|true|yes)$ ]]; then
+      log_warn "Using insecure HTTP for NIXFLEET_URL (dev only)"
+    else
+      log_error "Refusing insecure NIXFLEET_URL (not https). Set NIXFLEET_ALLOW_INSECURE_HTTP=true for local dev."
+      API_HTTP_CODE=0
+      API_BODY=""
+      return 1
+    fi
+  fi
   args+=(-H "Content-Type: application/json")
 
   # Optional TLS hardening
-  if [[ -n "${NIXFLEET_CA_FILE:-}" ]]; then
+  if [[ "$NIXFLEET_URL" == https://* && -n "${NIXFLEET_CA_FILE:-}" ]]; then
     args+=(--cacert "$NIXFLEET_CA_FILE")
   fi
-  if [[ -n "${NIXFLEET_PINNED_PUBKEY:-}" ]]; then
+  if [[ "$NIXFLEET_URL" == https://* && -n "${NIXFLEET_PINNED_PUBKEY:-}" ]]; then
     args+=(--pinnedpubkey "$NIXFLEET_PINNED_PUBKEY")
   fi
 
@@ -650,9 +661,23 @@ main() {
 
   register
 
+  local failures=0
+
   while true; do
-    local command
-    command=$(poll_command)
+    local response command sleep_s
+
+    if response=$(api_call GET "/api/hosts/${HOST_ID}/poll"); then
+      command=$(echo "$response" | jq -r '.command // empty')
+      failures=0
+    else
+      command=""
+      failures=$((failures + 1))
+      if [[ "${API_HTTP_CODE:-0}" == "401" || "${API_HTTP_CODE:-0}" == "403" ]]; then
+        # Auth failures: back off aggressively to avoid spam/overload
+        ((failures < 5)) && failures=5
+      fi
+      log_warn "Poll failed (HTTP ${API_HTTP_CODE:-0}); failures=$failures"
+    fi
 
     if [[ -n "$command" ]]; then
       log_info "Received command: $command"
@@ -679,7 +704,17 @@ main() {
       esac
     fi
 
-    sleep "$NIXFLEET_INTERVAL"
+    sleep_s="$NIXFLEET_INTERVAL"
+    if ((failures > 0)); then
+      local capped
+      capped=$failures
+      ((capped > 8)) && capped=8
+      sleep_s=$(( NIXFLEET_INTERVAL * (1 << capped) ))
+      ((sleep_s > 300)) && sleep_s=300
+      sleep_s=$(( sleep_s + (RANDOM % 3) ))
+    fi
+
+    sleep "$sleep_s"
   done
 }
 
