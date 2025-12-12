@@ -759,6 +759,66 @@ async def list_hosts(request: Request):
         return {"hosts": hosts}
 
 
+class ManualHostCreate(BaseModel):
+    """Request body for manually adding a host."""
+    hostname: str
+    host_type: str = "nixos"
+    location: str = "home"
+    device_type: str = "server"
+    theme_color: str = "#769ff0"
+
+
+@app.post("/api/hosts")
+async def add_host_manually(request: Request, host_data: ManualHostCreate):
+    """Manually add a host (for offline/planned hosts)."""
+    require_auth(request)
+    verify_csrf(request)
+    
+    # Generate host ID from hostname
+    import re
+    hostname = host_data.hostname.strip()
+    if not hostname or not re.match(r'^[a-zA-Z0-9\-_]+$', hostname):
+        raise HTTPException(status_code=400, detail="Invalid hostname: use only letters, numbers, hyphens and underscores")
+    
+    host_id = hostname.lower()
+    
+    with get_db() as conn:
+        # Check if host already exists
+        existing = conn.execute("SELECT id FROM hosts WHERE id = ?", (host_id,)).fetchone()
+        if existing:
+            raise HTTPException(status_code=409, detail=f"Host '{hostname}' already exists")
+        
+        # Insert new host (offline, no last_seen)
+        conn.execute("""
+            INSERT INTO hosts (id, hostname, host_type, location, device_type, theme_color,
+                criticality, icon, current_generation, last_seen, status, comment,
+                config_repo, poll_interval, metrics)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, 'unknown', ?, ?, ?, ?)
+        """, (
+            host_id, hostname, host_data.host_type, host_data.location,
+            host_data.device_type, host_data.theme_color,
+            "low", None, None,
+            "Manually added, awaiting agent connection", None, 30, None,
+        ))
+        conn.commit()
+    
+    logger.info(f"Host manually added: {host_id} ({hostname})")
+    
+    # Broadcast SSE event
+    await broadcast_event("host_update", {
+        "host_id": host_id,
+        "hostname": hostname,
+        "host_type": host_data.host_type,
+        "location": host_data.location,
+        "device_type": host_data.device_type,
+        "theme_color": host_data.theme_color,
+        "status": "unknown",
+        "online": False,
+    })
+    
+    return {"status": "ok", "host_id": host_id, "message": f"Host '{hostname}' added successfully"}
+
+
 @app.post("/api/hosts/{host_id}/register")
 @limiter.limit("30/minute")  # Limit registration attempts
 async def register_host(request: Request, host_id: str, registration: HostRegistration, _: bool = Depends(verify_agent_auth)):

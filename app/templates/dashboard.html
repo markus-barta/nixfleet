@@ -61,6 +61,39 @@ header {
     background: rgba(247, 118, 142, 0.1);
 }
 
+/* Header Action Button */
+.header-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: var(--fg);
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-family: inherit;
+    transition: all 0.2s ease;
+    background: var(--bg-highlight);
+    cursor: pointer;
+}
+
+.header-btn:hover {
+    border-color: var(--blue);
+    background: rgba(122, 162, 247, 0.1);
+}
+
+.header-btn .chevron {
+    transition: transform 0.2s ease;
+}
+
+.header-dropdown.open .header-btn .chevron {
+    transform: rotate(180deg);
+}
+
+.header-dropdown .dropdown-menu {
+    min-width: 160px;
+}
+
 /* Header stat badges in table headers */
 .th-stat {
     font-size: 0.65rem;
@@ -587,6 +620,59 @@ tr:hover .status .hb-countdown {
     background: rgba(247, 118, 142, 0.25);
 }
 
+.modal-btn-primary {
+    background: rgba(122, 162, 247, 0.15);
+    color: var(--blue);
+    border-color: rgba(122, 162, 247, 0.3);
+}
+.modal-btn-primary:hover {
+    background: rgba(122, 162, 247, 0.25);
+}
+
+/* Form Elements */
+.form-group {
+    margin-bottom: 1rem;
+}
+
+.form-group label {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--fg-dark);
+    margin-bottom: 0.35rem;
+    font-weight: 500;
+}
+
+.form-group input,
+.form-group select {
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--fg);
+    font-family: inherit;
+    font-size: 0.85rem;
+    transition: border-color 0.2s;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+    outline: none;
+    border-color: var(--blue);
+}
+
+.form-group input[type="color"] {
+    padding: 0.25rem;
+    height: 36px;
+    cursor: pointer;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
 /* Text Styles */
 .hostname {
     font-weight: 600;
@@ -742,6 +828,37 @@ tr:hover .status .hb-countdown {
             <span class="connection-dot"></span>
             <span class="connection-text">Connecting...</span>
         </span>
+        <div class="dropdown header-dropdown">
+            <button class="header-btn" onclick="toggleDropdown(event)">
+                <svg style="width:14px;height:14px;"><use href="#icon-more"/></svg>
+                Actions
+                <svg class="chevron" style="width:10px;height:10px;"><use href="#icon-chevron"/></svg>
+            </button>
+            <div class="dropdown-menu">
+                <button class="dropdown-item" onclick="openAddHostModal()">
+                    <svg><use href="#icon-plus"/></svg>
+                    Add Host
+                </button>
+                <div class="dropdown-divider"></div>
+                <button class="dropdown-item disabled" title="Coming soon">
+                    <svg><use href="#icon-download"/></svg>
+                    Pull All
+                </button>
+                <button class="dropdown-item disabled" title="Coming soon">
+                    <svg><use href="#icon-refresh"/></svg>
+                    Switch All
+                </button>
+                <button class="dropdown-item disabled" title="Coming soon">
+                    <svg><use href="#icon-flask"/></svg>
+                    Test All
+                </button>
+                <div class="dropdown-divider"></div>
+                <button class="dropdown-item" onclick="location.reload()">
+                    <svg><use href="#icon-refresh"/></svg>
+                    Refresh Page
+                </button>
+            </div>
+        </div>
         <form action="/logout" method="post" style="display: inline;">
             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             <button type="submit" class="logout">Sign Out</button>
@@ -814,6 +931,12 @@ tr:hover .status .hb-countdown {
     </symbol>
     <symbol id="icon-file" viewBox="0 0 24 24">
         <path fill="currentColor" d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/>
+    </symbol>
+    <symbol id="icon-plus" viewBox="0 0 24 24">
+        <path fill="currentColor" d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+    </symbol>
+    <symbol id="icon-chevron" viewBox="0 0 24 24">
+        <path fill="currentColor" d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/>
     </symbol>
 </svg>
 
@@ -994,6 +1117,58 @@ tr:hover .status .hb-countdown {
         <div class="modal-actions">
             <button class="modal-btn modal-btn-cancel" onclick="closeRemoveModal()">Cancel</button>
             <button class="modal-btn modal-btn-danger" id="confirmRemoveBtn" onclick="removeHost()">Remove</button>
+        </div>
+    </div>
+</div>
+
+<!-- Add Host Modal -->
+<div class="modal-overlay" id="addHostModal">
+    <div class="modal" style="max-width: 450px;">
+        <div class="modal-title">Add Host</div>
+        <div class="modal-body">
+            <p style="margin-bottom: 1rem;">Add a host manually before its agent connects. This is useful for tracking offline or planned hosts.</p>
+            <form id="addHostForm" onsubmit="submitAddHost(event)">
+                <div class="form-group">
+                    <label for="addHostName">Hostname *</label>
+                    <input type="text" id="addHostName" name="hostname" required placeholder="e.g., my-server" pattern="[a-zA-Z0-9\-_]+" title="Only letters, numbers, hyphens and underscores">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="addHostType">OS Type</label>
+                        <select id="addHostType" name="host_type">
+                            <option value="nixos">NixOS</option>
+                            <option value="macos">macOS</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="addHostLocation">Location</label>
+                        <select id="addHostLocation" name="location">
+                            <option value="home">Home</option>
+                            <option value="work">Work</option>
+                            <option value="cloud">Cloud</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="addHostDevice">Device Type</label>
+                        <select id="addHostDevice" name="device_type">
+                            <option value="server">Server</option>
+                            <option value="desktop">Desktop</option>
+                            <option value="laptop">Laptop</option>
+                            <option value="gaming">Gaming</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="addHostColor">Theme Color</label>
+                        <input type="color" id="addHostColor" name="theme_color" value="#769ff0">
+                    </div>
+                </div>
+            </form>
+        </div>
+        <div class="modal-actions">
+            <button class="modal-btn modal-btn-cancel" onclick="closeAddHostModal()">Cancel</button>
+            <button class="modal-btn modal-btn-primary" id="confirmAddBtn" onclick="submitAddHost(event)">Add Host</button>
         </div>
     </div>
 </div>
@@ -1417,6 +1592,76 @@ document.getElementById('removeHostModal').addEventListener('click', (e) => {
         closeRemoveModal();
     }
 });
+
+// Add Host modal
+function openAddHostModal() {
+    document.getElementById('addHostModal').classList.add('open');
+    document.getElementById('addHostName').focus();
+    // Close dropdown
+    document.querySelectorAll('.dropdown.open').forEach(d => d.classList.remove('open'));
+}
+
+function closeAddHostModal() {
+    document.getElementById('addHostModal').classList.remove('open');
+    document.getElementById('addHostForm').reset();
+}
+
+async function submitAddHost(e) {
+    e.preventDefault();
+    
+    const btn = document.getElementById('confirmAddBtn');
+    btn.disabled = true;
+    btn.textContent = 'Adding...';
+    
+    const form = document.getElementById('addHostForm');
+    const data = {
+        hostname: document.getElementById('addHostName').value.trim(),
+        host_type: document.getElementById('addHostType').value,
+        location: document.getElementById('addHostLocation').value,
+        device_type: document.getElementById('addHostDevice').value,
+        theme_color: document.getElementById('addHostColor').value
+    };
+    
+    if (!data.hostname) {
+        alert('Hostname is required');
+        btn.disabled = false;
+        btn.textContent = 'Add Host';
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/hosts', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': csrfToken
+            },
+            body: JSON.stringify(data)
+        });
+        
+        if (response.ok) {
+            closeAddHostModal();
+            location.reload();
+        } else if (response.status === 401) {
+            location.href = '/login';
+        } else {
+            const result = await response.json().catch(() => ({}));
+            alert(result.detail || 'Failed to add host');
+            btn.disabled = false;
+            btn.textContent = 'Add Host';
+        }
+    } catch (e) {
+        alert('Network error');
+        btn.disabled = false;
+        btn.textContent = 'Add Host';
+    }
+}
+
+document.getElementById('addHostModal').addEventListener('click', (e) => {
+    if (e.target.classList.contains('modal-overlay')) {
+        closeAddHostModal();
+    }
+});
 </script>
 
 <footer class="site-footer">
@@ -1428,7 +1673,7 @@ document.getElementById('removeHostModal').addEventListener('click', (e) => {
             <code>{{ latest_hash }}</code>
         </span>
         {% endif %}
-        <a href="https://github.com/markus-barta/nixcfg/tree/main/pkgs/nixfleet" class="footer-link" target="_blank">
+        <a href="https://github.com/markus-barta/nixfleet" class="footer-link" target="_blank">
             <svg><use href="#icon-github"/></svg>
             Source
         </a>
