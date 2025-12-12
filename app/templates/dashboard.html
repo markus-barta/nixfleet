@@ -1439,7 +1439,6 @@ tr:hover .status .hb-countdown {
 {% block scripts %}
 <script nonce="{{ csp_nonce }}">
 const csrfToken = '{{ csrf_token }}';
-const ACTION_LOCK_MAX_MS = ({{ action_lock_max_seconds|default(86400) }} * 1000);
 
 // ============================================================================
 // Event delegation (CSP: no inline handlers)
@@ -1534,45 +1533,29 @@ document.addEventListener('click', (e) => {
     }
 });
 
-function lockKey(hostId) {
-    return `nixfleet:actionLock:${hostId}`;
-}
-
-function getActionLock(hostId) {
-    try {
-        const raw = localStorage.getItem(lockKey(hostId));
-        if (!raw) return null;
-        const data = JSON.parse(raw);
-        if (!data || typeof data.until !== 'number') return null;
-        if (Date.now() >= data.until) {
-            localStorage.removeItem(lockKey(hostId));
-            return null;
-        }
-        return data;
-    } catch (_) {
-        return null;
-    }
-}
+// Action lock functions - now purely uses row.dataset which is synced by SSE
+// These are kept for API compatibility but the real source of truth is the server state
+// delivered via SSE on every heartbeat (every 10-30 seconds).
 
 function setActionLock(hostId, command) {
-    try {
-        const now = Date.now();
-        localStorage.setItem(lockKey(hostId), JSON.stringify({
-            command,
-            lockedAt: now,
-            until: now + ACTION_LOCK_MAX_MS,
-        }));
-    } catch (_) {
-        // ignore (private mode, storage disabled)
-    }
+    // Instant UI feedback: update dataset directly
+    // SSE will override this with server truth on next heartbeat
+    const row = document.querySelector(`tr[data-host-id="${hostId}"]`);
+    if (row) row.dataset.pendingCommand = command;
 }
 
 function clearActionLock(hostId) {
-    try {
-        localStorage.removeItem(lockKey(hostId));
-    } catch (_) {
-        // ignore
-    }
+    // Clear local state - SSE will sync on next heartbeat
+    const row = document.querySelector(`tr[data-host-id="${hostId}"]`);
+    if (row) row.dataset.pendingCommand = '';
+}
+
+function getActionLock(hostId) {
+    // Check dataset instead of localStorage
+    const row = document.querySelector(`tr[data-host-id="${hostId}"]`);
+    if (!row) return null;
+    const pending = (row.dataset.pendingCommand || '').trim();
+    return pending ? { command: pending } : null;
 }
 
 // Format timestamps to local browser time (dd.mm.yyyy hh:mm:ss)
@@ -1666,8 +1649,8 @@ async function sendCommand(hostId, command) {
         });
         
         if (response.ok) {
-            // Keep locked until SSE reports completion.
-            // Safety fallback unlock is handled via ACTION_LOCK_MAX_MS + localStorage.
+            // Keep showing busy until SSE reports completion.
+            // SSE syncs server state on every heartbeat (auto-heals stale UI).
         } else if (response.status === 401) {
             location.href = '/login';
         } else {
@@ -1768,7 +1751,8 @@ function applyActionState(row) {
     const hostId = row.dataset.hostId;
     const online = row.dataset.online === 'true';
     const testRunning = row.dataset.testRunning === 'true';
-    const busy = isServerBusy(row) || !!getActionLock(hostId);
+    // Busy state is derived from server state (synced via SSE on every heartbeat)
+    const busy = isServerBusy(row);
 
     // Keep "More" enabled so Unlock is always accessible.
     const pullBtn = row.querySelector('.btn-pull');
@@ -1778,10 +1762,9 @@ function applyActionState(row) {
     const unlockItem = row.querySelector('.dropdown-item[onclick^="unlockHostActions"]');
 
     if (unlockItem) {
-        // Enable if there's a local lock OR server busy; in either case, unlocking is useful.
-        const canUnlock = busy;
-        unlockItem.classList.toggle('disabled', !canUnlock);
-        unlockItem.title = canUnlock ? 'Unlock action buttons for this host (does not cancel the running command)' : '';
+        // Enable unlock only if busy (allows manual override if UI is stuck)
+        unlockItem.classList.toggle('disabled', !busy);
+        unlockItem.title = busy ? 'Clear local busy state (does not cancel the running command)' : '';
     }
 
     // Base rule: if offline, everything is disabled (including stop).
@@ -1824,23 +1807,23 @@ function unlockHostActions(hostId) {
     const row = document.querySelector(`tr[data-host-id="${hostId}"]`);
     if (!row) return;
 
-    const lock = getActionLock(hostId);
     const pending = (row.dataset.pendingCommand || '').trim();
     const testRunning = row.dataset.testRunning === 'true';
     const msgParts = [];
     if (pending) msgParts.push(`pending_command="${pending}"`);
     if (testRunning) msgParts.push('test_running=true');
-    if (lock) msgParts.push(`local_lock_remaining=${Math.ceil((lock.until - Date.now()) / 1000)}s`);
 
     const ok = confirm(
-        `Unlock action buttons for ${hostId}?\n\n` +
+        `Clear local busy state for ${hostId}?\n\n` +
         (msgParts.length ? `Current state: ${msgParts.join(', ')}\n\n` : '') +
         `This does NOT cancel the running command on the host.\n` +
-        `Use this only if the UI got stuck and you want to re-enable actions.`
+        `The server will re-sync the correct state on the next heartbeat (~10-30 sec).`
     );
     if (!ok) return;
 
-    clearActionLock(hostId);
+    // Clear local state
+    row.dataset.pendingCommand = '';
+    row.dataset.testRunning = 'false';
     applyActionState(row);
 }
 
@@ -1930,19 +1913,12 @@ function updateHostRow(data) {
         row.dataset.online = data.online ? 'true' : 'false';
     }
 
-    // Update pending/test flags (used for action locking)
+    // Update pending/test flags from server (source of truth, synced on every heartbeat)
     if (data.pending_command !== undefined) {
         row.dataset.pendingCommand = data.pending_command || '';
-        if (data.pending_command) {
-            setActionLock(data.host_id, data.pending_command);
-        } else {
-            // Clear lock when pending_command becomes null/empty
-            clearActionLock(data.host_id);
-        }
     }
     if (data.test_running !== undefined) {
         row.dataset.testRunning = data.test_running ? 'true' : 'false';
-        if (data.test_running) setActionLock(data.host_id, 'test');
     }
     
     // Update last seen timestamp

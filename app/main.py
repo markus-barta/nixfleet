@@ -1331,7 +1331,29 @@ async def register_host(
 
         conn.commit()
     
-    # Broadcast SSE event
+    # Check for pending command and test state (include in SSE for UI sync)
+    pending_command = None
+    test_running = False
+    with get_db() as conn:
+        row = conn.execute(
+            "SELECT pending_command, test_running FROM hosts WHERE id = ?",
+            (host_id,)
+        ).fetchone()
+        
+        if row:
+            test_running = bool(row["test_running"])
+            if row["pending_command"]:
+                pending_command = row["pending_command"]
+                logger.info(f"Sending command to {host_id}: {pending_command}")
+                
+                conn.execute("UPDATE hosts SET pending_command = NULL WHERE id = ?", (host_id,))
+                conn.execute("""
+                    INSERT INTO command_log (host_id, command, status, created_at)
+                    VALUES (?, ?, 'running', ?)
+                """, (host_id, pending_command, datetime.utcnow().isoformat()))
+                conn.commit()
+    
+    # Broadcast SSE event with current state (source of truth for UI)
     await broadcast_event("host_update", {
         "host_id": host_id,
         "hostname": registration.hostname,
@@ -1349,26 +1371,9 @@ async def register_host(
         "os_name": registration.os_name,
         "metrics": registration.metrics,
         "metrics_updated_at": metrics_updated,
+        "pending_command": pending_command,  # Current command state for UI sync
+        "test_running": test_running,
     })
-    
-    # Check for pending command (so register can serve as heartbeat)
-    pending_command = None
-    with get_db() as conn:
-        row = conn.execute(
-            "SELECT pending_command FROM hosts WHERE id = ?",
-            (host_id,)
-        ).fetchone()
-        
-        if row and row["pending_command"]:
-            pending_command = row["pending_command"]
-            logger.info(f"Sending command to {host_id}: {pending_command}")
-            
-            conn.execute("UPDATE hosts SET pending_command = NULL WHERE id = ?", (host_id,))
-            conn.execute("""
-                INSERT INTO command_log (host_id, command, status, created_at)
-                VALUES (?, ?, 'running', ?)
-            """, (host_id, pending_command, datetime.utcnow().isoformat()))
-            conn.commit()
     
     resp = {"status": "registered", "host_id": host_id, "command": pending_command}
     if provisioned_agent_token:
@@ -1481,35 +1486,37 @@ async def poll_commands(
 
         conn.commit()
         
+        # Get current state for SSE sync
         row = conn.execute(
-            "SELECT pending_command FROM hosts WHERE id = ?",
+            "SELECT pending_command, test_running FROM hosts WHERE id = ?",
             (host_id,)
         ).fetchone()
         
-        if row and row["pending_command"]:
-            command = row["pending_command"]
-            logger.info(f"Sending command to {host_id}: {command}")
-            
-            conn.execute("UPDATE hosts SET pending_command = NULL WHERE id = ?", (host_id,))
-            conn.execute("""
-                INSERT INTO command_log (host_id, command, status, created_at)
-                VALUES (?, ?, 'running', ?)
-            """, (host_id, command, datetime.utcnow().isoformat()))
-            conn.commit()
-            
-            resp = {"command": command}
-            if provisioned_agent_token:
-                resp["agent_token"] = provisioned_agent_token
-            return resp
+        command = None
+        test_running = False
+        if row:
+            test_running = bool(row["test_running"])
+            if row["pending_command"]:
+                command = row["pending_command"]
+                logger.info(f"Sending command to {host_id}: {command}")
+                
+                conn.execute("UPDATE hosts SET pending_command = NULL WHERE id = ?", (host_id,))
+                conn.execute("""
+                    INSERT INTO command_log (host_id, command, status, created_at)
+                    VALUES (?, ?, 'running', ?)
+                """, (host_id, command, datetime.utcnow().isoformat()))
+                conn.commit()
     
-    # Broadcast online heartbeat via SSE (lightweight update for UI)
+    # Broadcast online heartbeat via SSE with current state (source of truth for UI)
     await broadcast_event("host_update", {
         "host_id": host_id,
         "online": True,
         "last_seen": now,
+        "pending_command": command,  # Current command state for UI sync
+        "test_running": test_running,
     })
     
-    resp = {"command": None}
+    resp = {"command": command}
     if provisioned_agent_token:
         resp["agent_token"] = provisioned_agent_token
     return resp
