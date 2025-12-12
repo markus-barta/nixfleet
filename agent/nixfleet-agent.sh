@@ -771,7 +771,7 @@ main() {
     local response command sleep_s
     
     # Re-register periodically to update metrics (every REGISTER_INTERVAL polls)
-    ((poll_count++))
+    poll_count=$((poll_count + 1))
     if ((poll_count >= REGISTER_INTERVAL)); then
       register >/dev/null 2>&1 || true
       poll_count=0
