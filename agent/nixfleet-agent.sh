@@ -36,6 +36,9 @@ readonly NIXFLEET_URL="${NIXFLEET_URL:?ERROR: NIXFLEET_URL environment variable 
 NIXFLEET_TOKEN="${NIXFLEET_TOKEN:?ERROR: NIXFLEET_TOKEN environment variable must be set}"
 # Required: Path to config repository
 readonly NIXFLEET_NIXCFG="${NIXFLEET_NIXCFG:?ERROR: NIXFLEET_NIXCFG environment variable must be set}"
+# Configure git to trust the config repo directory (required for systemd services)
+# This prevents "dubious ownership" errors when running as a different user
+git config --global --add safe.directory "$NIXFLEET_NIXCFG" 2>/dev/null || true
 # Optional: Poll interval (default 30 seconds)
 readonly NIXFLEET_INTERVAL="${NIXFLEET_INTERVAL:-30}"
 
