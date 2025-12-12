@@ -1642,6 +1642,19 @@ async function sendCommand(hostId, command) {
     setActionLock(hostId, command);
     applyActionState(row);
     
+    // Show the command in the comment column
+    const commentCell = row.querySelector('.comment');
+    if (commentCell) {
+        const commandLabels = {
+            'pull': 'Pulling...',
+            'switch': 'Switching...',
+            'test': 'Testing...',
+            'restart': 'Restarting...'
+        };
+        commentCell.innerHTML = `<span class="comment-icon">⏳</span>${commandLabels[command] || command + '...'}`;
+        commentCell.classList.remove('has-error');
+    }
+    
     try {
         const response = await fetch(`/api/hosts/${hostId}/command`, {
             method: 'POST',
@@ -1718,6 +1731,18 @@ async function sendBulkCommand(command) {
                     row.dataset.pendingCommand = command;
                     setActionLock(host.id, command);
                     applyActionState(row);
+                    // Show the command in the comment column
+                    const commentCell = row.querySelector('.comment');
+                    if (commentCell) {
+                        const commandLabels = {
+                            'pull': 'Pulling...',
+                            'switch': 'Switching...',
+                            'test': 'Testing...',
+                            'restart': 'Restarting...'
+                        };
+                        commentCell.innerHTML = `<span class="comment-icon">⏳</span>${commandLabels[command] || command + '...'}`;
+                        commentCell.classList.remove('has-error');
+                    }
                 }
                 successCount++;
             } else {
