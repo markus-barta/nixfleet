@@ -979,6 +979,28 @@ async def metrics_endpoint(request: Request):
     }
 
 
+@app.post("/api/nixcfg/refresh")
+async def refresh_nixcfg_target(request: Request):
+    """Force refresh the nixcfg target hash (clears cache and refetches)."""
+    require_auth(request)
+    verify_csrf(request)
+    
+    # Clear the cache to force a refetch
+    global _NIXCFG_CACHE
+    _NIXCFG_CACHE["fetched_at"] = None
+    
+    # Fetch fresh data
+    hash_val, message = get_nixcfg_info()
+    
+    logger.info(f"Refreshed nixcfg target: {hash_val[:7] if hash_val else 'None'}")
+    
+    return {
+        "hash": hash_val[:7] if hash_val else None,
+        "full_hash": hash_val,
+        "message": message or "",
+    }
+
+
 # ============================================================================
 # SSE Endpoint
 # ============================================================================

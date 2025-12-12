@@ -119,6 +119,46 @@ header {
     background: rgba(158, 206, 106, 0.08);
     border: 1px solid rgba(158, 206, 106, 0.35);
     border-radius: 8px;
+    position: relative;
+}
+
+.sot-refresh {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 18px;
+    height: 18px;
+    padding: 2px;
+    border: none;
+    background: transparent;
+    color: var(--fg-gutter);
+    cursor: pointer;
+    border-radius: 3px;
+    opacity: 0.4;
+    transition: all 0.15s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.sot-refresh:hover {
+    opacity: 1;
+    color: var(--green);
+    background: rgba(158, 206, 106, 0.15);
+}
+
+.sot-refresh svg {
+    width: 12px;
+    height: 12px;
+}
+
+.sot-refresh.spinning svg {
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
 }
 
 .sot-label {
@@ -923,6 +963,9 @@ tr:hover .status .hb-countdown {
     </div>
     {% if nixcfg_hash %}
     <div class="source-of-truth" title="Source of truth: latest nixcfg commit">
+        <button class="sot-refresh" type="button" data-action="refresh-target" title="Refresh target hash">
+            <svg><use href="#icon-refresh"/></svg>
+        </button>
         <span class="sot-label">Target</span>
         <div class="sot-row">
             <a href="https://github.com/markus-barta/nixcfg/commit/{{ nixcfg_hash }}" target="_blank" class="sot-hash">
@@ -1370,6 +1413,12 @@ document.addEventListener('click', (e) => {
     if (action === 'refresh-page') {
         e.preventDefault();
         location.reload();
+        return;
+    }
+
+    if (action === 'refresh-target') {
+        e.preventDefault();
+        refreshTarget(el);
         return;
     }
 
@@ -1896,6 +1945,42 @@ function updateHostRow(data) {
 
     // Finally, re-apply action enable/disable rules
     applyActionState(row);
+}
+
+async function refreshTarget(btn) {
+    // Add spinning animation
+    btn.classList.add('spinning');
+    btn.disabled = true;
+    
+    try {
+        const response = await fetch('/api/nixcfg/refresh', {
+            method: 'POST',
+            headers: { 'X-CSRF-Token': csrfToken }
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            // Update the hash and message in-place
+            const hashEl = document.querySelector('.sot-hash');
+            const notesEl = document.querySelector('.sot-notes-text');
+            if (hashEl && data.hash) {
+                hashEl.href = `https://github.com/markus-barta/nixcfg/commit/${data.hash}`;
+                hashEl.innerHTML = `<svg width="12" height="12"><use href="#icon-github"/></svg> ${data.hash}`;
+            }
+            if (notesEl && data.message) {
+                const truncated = data.message.length > 50 ? data.message.substring(0, 50) + '…' : data.message;
+                notesEl.textContent = truncated;
+                notesEl.closest('.sot-notes').title = data.message;
+            }
+        } else if (response.status === 401) {
+            location.href = '/login';
+        }
+    } catch (e) {
+        console.error('Failed to refresh target:', e);
+    } finally {
+        btn.classList.remove('spinning');
+        btn.disabled = false;
+    }
 }
 
 // Start SSE connection
