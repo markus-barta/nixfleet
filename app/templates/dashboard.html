@@ -253,7 +253,7 @@ header {
     background: var(--bg-dark);
     border-radius: 8px;
     border: 1px solid var(--border);
-    overflow-x: auto;
+    overflow: visible;
 }
 
 table {
@@ -339,8 +339,10 @@ tr:hover td { background: rgba(41, 46, 66, 0.5); }
 }
 
 .metric-icon {
-    font-size: 0.65rem;
+    width: 10px;
+    height: 10px;
     opacity: 0.7;
+    flex-shrink: 0;
 }
 
 .metric-val::after {
@@ -623,8 +625,8 @@ tr:hover .status .hb-countdown {
     border-radius: 6px;
     min-width: 140px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-    z-index: 100;
-    overflow: hidden;
+    z-index: 9999;
+    overflow: visible;
 }
 
 .dropdown.open .dropdown-menu {
@@ -812,6 +814,13 @@ tr:hover .status .hb-countdown {
     font-weight: 600;
     color: var(--fg);
     font-size: 0.85rem;
+}
+
+.agent-version {
+    font-size: 0.55rem;
+    opacity: 0.5;
+    margin-left: 4px;
+    font-weight: normal;
 }
 
 .comment {
@@ -1096,6 +1105,14 @@ tr:hover .status .hb-countdown {
     <symbol id="icon-chevron" viewBox="0 0 24 24">
         <path fill="currentColor" d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/>
     </symbol>
+    <!-- CPU icon (processor chip) -->
+    <symbol id="icon-cpu" viewBox="0 0 24 24">
+        <path fill="currentColor" d="M6 18h12V6H6v12zm4-8h4v4h-4v-4zM1 9h2V7H1v2zm0 4h2v-2H1v2zm0 4h2v-2H1v2zm0-12h2V3H1v2zm20 8h2v-2h-2v2zm0 4h2v-2h-2v2zM21 5h2V3h-2v2zm0 12h2v-2h-2v2zm0 4h2v-2h-2v2zM9 1v2h2V1H9zm4 0v2h2V1h-2zm0 20v2h2v-2h-2zM9 21v2h2v-2H9zm8 0v2h2v-2h-2zM5 1v2h2V1H5zM5 21v2h2v-2H5zM17 1v2h2V1h-2z"/>
+    </symbol>
+    <!-- RAM icon (memory stick) -->
+    <symbol id="icon-ram" viewBox="0 0 24 24">
+        <path fill="currentColor" d="M2 7v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2zm3 2h2v4H5V9zm4 0h2v4H9V9zm4 0h2v4h-2V9zm4 0h2v4h-2V9z"/>
+    </symbol>
 </svg>
 
 <div class="table-container">
@@ -1126,13 +1143,14 @@ tr:hover .status .hb-countdown {
                     data-pending-command="{{ host.pending_command or '' }}"
                     data-test-running="{{ 'true' if host.test_running else 'false' }}">
                     <td>
-                        <div class="host-icons host-color-{{ host.id }}">
+                        <div class="host-icons host-color-{{ host.id }}" title="{{ host.host_type }}{% if host.agent_version %} | Agent v{{ host.agent_version }}{% endif %}">
                             {% if host.host_type == 'macos' %}
                             <svg class="os-icon"><use href="#icon-apple"/></svg>
                             {% else %}
                             <svg class="os-icon"><use href="#icon-nixos"/></svg>
                             {% endif %}
                             <span class="hostname">{{ host.hostname }}</span>
+                            {% if host.agent_version %}<span class="agent-version">v{{ host.agent_version }}</span>{% endif %}
                         </div>
                     </td>
                     <td class="loc-cell" title="{{ host.location or 'unknown' }}">
@@ -1178,10 +1196,10 @@ tr:hover .status .hb-countdown {
                             {% endif %}
                         </span>
                     </td>
-                    <td class="metrics-cell" title="{% if host.metrics %}CPU: {{ host.metrics.cpu }}% | RAM: {{ host.metrics.ram }}%{% if host.metrics.swap %} | Swap: {{ host.metrics.swap }}%{% endif %} | Load: {{ host.metrics.load }}{% endif %}">
+                    <td class="metrics-cell" data-metrics-updated="{{ host.metrics_updated_at or '' }}" title="{% if host.metrics %}CPU: {{ host.metrics.cpu }}% | RAM: {{ host.metrics.ram }}%{% if host.metrics.swap %} | Swap: {{ host.metrics.swap }}%{% endif %} | Load: {{ host.metrics.load }}{% if host.metrics_updated_at %} | Updated: {{ host.metrics_updated_at[:19] }}{% endif %}{% endif %}">
                         {% if host.metrics %}
-                        <span class="metric cpu {{ 'high' if host.metrics.cpu >= 80 else '' }}"><span class="metric-icon"></span><span class="metric-val">{{ host.metrics.cpu }}</span></span>
-                        <span class="metric ram {{ 'high' if host.metrics.ram >= 80 else '' }}"><span class="metric-icon"></span><span class="metric-val">{{ host.metrics.ram }}</span></span>
+                        <span class="metric cpu {{ 'high' if host.metrics.cpu >= 80 else '' }}"><svg class="metric-icon"><use href="#icon-cpu"/></svg><span class="metric-val">{{ host.metrics.cpu }}</span></span>
+                        <span class="metric ram {{ 'high' if host.metrics.ram >= 80 else '' }}"><svg class="metric-icon"><use href="#icon-ram"/></svg><span class="metric-val">{{ host.metrics.ram }}</span></span>
                         {% else %}
                         <span class="metrics-na">—</span>
                         {% endif %}
@@ -1910,9 +1928,11 @@ function updateHostRow(data) {
             if (data.metrics && data.metrics.cpu !== undefined) {
                 const cpuHigh = data.metrics.cpu >= 80 ? 'high' : '';
                 const ramHigh = data.metrics.ram >= 80 ? 'high' : '';
-                metricsCell.innerHTML = `<span class="metric cpu ${cpuHigh}"><span class="metric-icon"></span><span class="metric-val">${data.metrics.cpu}</span></span><span class="metric ram ${ramHigh}"><span class="metric-icon"></span><span class="metric-val">${data.metrics.ram}</span></span>`;
+                metricsCell.innerHTML = `<span class="metric cpu ${cpuHigh}"><svg class="metric-icon"><use href="#icon-cpu"/></svg><span class="metric-val">${data.metrics.cpu}</span></span><span class="metric ram ${ramHigh}"><svg class="metric-icon"><use href="#icon-ram"/></svg><span class="metric-val">${data.metrics.ram}</span></span>`;
                 const swapInfo = data.metrics.swap ? ` | Swap: ${data.metrics.swap}%` : '';
-                metricsCell.title = `CPU: ${data.metrics.cpu}% | RAM: ${data.metrics.ram}%${swapInfo} | Load: ${data.metrics.load}`;
+                const updatedInfo = data.metrics_updated_at ? ` | Updated: ${data.metrics_updated_at.substring(0, 19)}` : '';
+                metricsCell.title = `CPU: ${data.metrics.cpu}% | RAM: ${data.metrics.ram}%${swapInfo} | Load: ${data.metrics.load}${updatedInfo}`;
+                metricsCell.dataset.metricsUpdated = data.metrics_updated_at || '';
             } else {
                 metricsCell.innerHTML = '<span class="metrics-na">—</span>';
                 metricsCell.title = '';

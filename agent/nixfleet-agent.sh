@@ -26,6 +26,9 @@ set -euo pipefail
 # Configuration
 # ════════════════════════════════════════════════════════════════════════════════
 
+# Agent version (updated on each release)
+readonly AGENT_VERSION="1.0.0"
+
 # Required: Dashboard URL (no default - must be explicitly configured)
 readonly NIXFLEET_URL="${NIXFLEET_URL:?ERROR: NIXFLEET_URL environment variable must be set}"
 # Required: API token for authentication
@@ -389,6 +392,7 @@ register() {
       --arg criticality "$CRITICALITY" \
       --arg generation "$gen" \
       --arg config_repo "$NIXFLEET_NIXCFG" \
+      --arg agent_version "$AGENT_VERSION" \
       --argjson poll_interval "$NIXFLEET_INTERVAL" \
       --argjson metrics "$metrics_json" \
       '{
@@ -401,6 +405,7 @@ register() {
               current_generation: $generation,
               config_repo: $config_repo,
               poll_interval: $poll_interval,
+              agent_version: $agent_version,
               metrics: $metrics
           }')
   else
@@ -413,6 +418,7 @@ register() {
       --arg criticality "$CRITICALITY" \
       --arg generation "$gen" \
       --arg config_repo "$NIXFLEET_NIXCFG" \
+      --arg agent_version "$AGENT_VERSION" \
       --argjson poll_interval "$NIXFLEET_INTERVAL" \
       '{
               hostname: $hostname,
@@ -423,7 +429,8 @@ register() {
               criticality: $criticality,
               current_generation: $generation,
               config_repo: $config_repo,
-              poll_interval: $poll_interval
+              poll_interval: $poll_interval,
+              agent_version: $agent_version
           }')
   fi
 

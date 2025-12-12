@@ -439,10 +439,23 @@ def init_db():
                 poll_interval INTEGER DEFAULT 30,
                 -- Metrics (JSON)
                 metrics TEXT,
+                metrics_updated_at TEXT,
+                -- Agent version
+                agent_version TEXT,
                 -- Agent auth (per-host token, stored as a hash)
                 agent_token_hash TEXT
             )
         """)
+        
+        # Migration: add new columns to existing databases
+        try:
+            conn.execute("ALTER TABLE hosts ADD COLUMN agent_version TEXT")
+        except Exception:
+            pass  # Column already exists
+        try:
+            conn.execute("ALTER TABLE hosts ADD COLUMN metrics_updated_at TEXT")
+        except Exception:
+            pass  # Column already exists
         
         # Command log table
         conn.execute("""
@@ -781,6 +794,7 @@ class HostRegistration(BaseModel):
     test_status: Optional[str] = Field(None, max_length=100)
     config_repo: Optional[str] = Field(None, max_length=200)
     poll_interval: Optional[int] = Field(None, ge=1, le=3600)
+    agent_version: Optional[str] = Field(None, max_length=20)  # Agent version (e.g., "1.0.0")
     metrics: Optional[dict] = Field(None)  # StaSysMo metrics (cpu, ram, swap, load)
 
     @field_validator("hostname")
@@ -1241,6 +1255,9 @@ async def register_host(
         # Serialize metrics to JSON if present
         metrics_json = json.dumps(registration.metrics) if registration.metrics else None
         
+        now = datetime.utcnow().isoformat()
+        metrics_updated = now if metrics_json else None
+        
         if existing:
             # Update existing host - agent is alive, update last_seen
             conn.execute("""
@@ -1251,28 +1268,31 @@ async def register_host(
                     current_generation = ?, last_seen = ?, status = 'ok',
                     config_repo = COALESCE(?, config_repo),
                     poll_interval = COALESCE(?, poll_interval),
-                    metrics = COALESCE(?, metrics)
+                    agent_version = COALESCE(?, agent_version),
+                    metrics = COALESCE(?, metrics),
+                    metrics_updated_at = COALESCE(?, metrics_updated_at)
                 WHERE id = ?
             """, (
                 registration.hostname, registration.host_type, registration.location,
                 registration.device_type, registration.theme_color,
-                registration.current_generation, datetime.utcnow().isoformat(),
-                registration.config_repo, registration.poll_interval, metrics_json, host_id,
+                registration.current_generation, now,
+                registration.config_repo, registration.poll_interval,
+                registration.agent_version, metrics_json, metrics_updated, host_id,
             ))
         else:
             # New host - do NOT set last_seen (offline until agent actually polls)
             conn.execute("""
                 INSERT INTO hosts (id, hostname, host_type, location, device_type, theme_color,
                     criticality, icon, current_generation, last_seen, status, comment, 
-                    config_repo, poll_interval, metrics)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, 'ok', ?, ?, ?, ?)
+                    config_repo, poll_interval, agent_version, metrics, metrics_updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, 'ok', ?, ?, ?, ?, ?, ?)
             """, (
                 host_id, registration.hostname, registration.host_type, registration.location,
                 registration.device_type or "server", registration.theme_color or "#769ff0",
                 registration.criticality or "low", registration.icon,
                 registration.current_generation,
                 registration.comment, registration.config_repo, registration.poll_interval or 30,
-                metrics_json,
+                registration.agent_version, metrics_json, metrics_updated,
             ))
 
         # Auto-provision per-host agent token for migration/hardening.
@@ -1294,8 +1314,10 @@ async def register_host(
         "status": "ok",
         "online": True,
         "current_generation": registration.current_generation,
-        "last_seen": datetime.utcnow().isoformat(),
+        "last_seen": now,
+        "agent_version": registration.agent_version,
         "metrics": registration.metrics,
+        "metrics_updated_at": metrics_updated,
     })
     
     resp = {"status": "registered", "host_id": host_id}
