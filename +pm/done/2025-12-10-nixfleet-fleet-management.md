@@ -1,0 +1,156 @@
+# NixFleet - Fleet Management Dashboard
+
+**Created**: 2025-12-10
+**Completed**: 2025-12-10
+**Priority**: Medium
+**Status**: ✅ Complete
+
+---
+
+## Goal
+
+Run NixFleet as the fleet dashboard for all NixOS and macOS hosts, Docker-deployed on csb1 with agent-based polling so hosts behind NAT stay manageable; Thymis was considered but skipped because it lacks macOS coverage and a Docker-first path.
+
+---
+
+## What is NixFleet?
+
+A simple, custom-built fleet management dashboard that:
+
+- Shows all hosts (NixOS + macOS) in one view
+- Displays OPS-STATUS data: audit status, criticality, test results
+- Allows triggering `git pull`, `switch`, and `test` commands
+- Uses agent-based polling (works through NAT/firewalls)
+- Runs in Docker on csb1
+- Auth: password with optional TOTP
+
+---
+
+## Architecture
+
+```text
+┌──────────────────────────────────────────────────────────┐
+│                    NIXFLEET DASHBOARD                    │
+│                     (Docker on csb1)                     │
+│                     fleet.barta.cm                       │
+└──────────────────────────────────────────────────────────┘
+                              │
+              ┌───────────────┼───────────────┐
+              │               │               │
+              ▼               ▼               ▼
+        ┌──────────┐    ┌──────────┐    ┌──────────┐
+        │   hsb0   │    │   hsb1   │    │  imac0   │
+        │  (agent) │    │  (agent) │    │  (agent) │
+        │          │    │          │    │          │
+        │ NixOS    │    │ NixOS    │    │ macOS    │
+        │ rebuild  │    │ rebuild  │    │ hm switch│
+        └──────────┘    └──────────┘    └──────────┘
+```
+
+---
+
+## Decisions Made
+
+### Domain
+
+- **URL**: `fleet.barta.cm`
+
+### Authentication
+
+- Password hash env (`NIXFLEET_PASSWORD_HASH`), bcrypt recommended; legacy SHA-256 still accepted
+- TOTP optional if `pyotp` + `NIXFLEET_TOTP_SECRET` are present
+- Agent bearer token (`NIXFLEET_API_TOKEN`) is optional today (fail-open if unset) — tighten
+
+### Commands Available
+
+| Command       | Description                               |
+| ------------- | ----------------------------------------- |
+| `pull`        | Run `git pull` in nixcfg                  |
+| `switch`      | Run `nixos-rebuild switch` or `hm switch` |
+| `pull-switch` | Both in sequence                          |
+| `test`        | Run host test suite                       |
+
+### Data Displayed
+
+| Field       | Source                   |
+| ----------- | ------------------------ |
+| Host        | Agent registration       |
+| Type        | NixOS / macOS            |
+| Criticality | Agent-provided           |
+| Status      | Online / Offline / Error |
+| Last Seen   | Agent polling            |
+| Audited     | Manual via PATCH API     |
+| Tests       | Agent test results       |
+| Comment     | Manual via PATCH API     |
+
+---
+
+## Acceptance Criteria
+
+### Phase 1: Dashboard (Code Complete ✅)
+
+- [x] FastAPI dashboard (Tokyo Night theme)
+- [x] Password auth + optional TOTP
+- [x] Agent bearer token support
+- [x] Host registration & status
+- [x] Command queue (pull, switch, test)
+- [x] Dockerfile + compose
+
+### Phase 2: Harden AuthZ/AuthN (TODO)
+
+- [x] Make `NIXFLEET_API_TOKEN` mandatory (fail-closed agent auth)
+- [x] Enforce bcrypt-only hashes; reject SHA-256
+- [x] Require TOTP when configured; block login if missing code/secret
+- [x] Add CSRF for dashboard actions; make logout POST
+- [x] Restrict `/health` or redact sensitive flags
+- [x] Extend rate limits beyond login (agent + queue endpoints)
+- [ ] Sign/validate session cookies in addition to server-side storage (defense in depth)
+
+### Phase 3: Deploy to csb1
+
+- [x] Copy nixfleet to csb1
+- [x] Create .env with credentials (bcrypt hash, mandatory API token, TOTP secret, session secret)
+- [x] Add to Traefik network with HSTS and correct real-ip headers
+- [x] Configure Cloudflare DNS (fleet.barta.cm)
+- [x] Verify dashboard reachable over HTTPS only
+
+### Phase 4: Agent Deployment
+
+- [x] Deploy agent to hsb0 (test)
+- [x] Deploy agent to all NixOS hosts
+- [x] Deploy agent to macOS hosts
+- [x] Create systemd service (NixOS)
+- [x] Create launchd plist (macOS)
+
+---
+
+## Hosts to Manage
+
+| Host          | Type  | Location | Criticality |
+| ------------- | ----- | -------- | ----------- |
+| hsb0          | NixOS | Home     | 🔴 HIGH     |
+| hsb1          | NixOS | Home     | 🟡 MEDIUM   |
+| hsb8          | NixOS | Parents  | 🟡 MEDIUM   |
+| gpc0          | NixOS | Home     | 🟢 LOW      |
+| csb0          | NixOS | Cloud    | 🔴 HIGH     |
+| csb1          | NixOS | Cloud    | 🟡 MEDIUM   |
+| imac0         | macOS | Home     | 🟢 LOW      |
+| mba-imac-work | macOS | Work     | 🟢 LOW      |
+| mba-mbp-work  | macOS | Work     | 🟢 LOW      |
+
+---
+
+## Security TODOs (from current implementation)
+
+- Sign/verify session cookies for defense in depth (currently random DB-backed only).
+- Tighten CSP to remove `'unsafe-inline'` once templates use nonces/hashes.
+- Consider per-host credentials or mTLS to avoid a single shared agent token.
+- Add agent-side TLS hardening (curl CA pinning / minimum TLS / retry with backoff).
+- Consider rate limiting / backoff on agent command execution loops to reduce dashboard load under auth failures.
+
+---
+
+## References
+
+- [README.md](../../README.md) — Full documentation
+

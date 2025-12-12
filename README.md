@@ -1,6 +1,10 @@
 # NixFleet
 
-Simple fleet management dashboard for NixOS and macOS hosts.
+<img src="app/static/logo.png" alt="NixFleet" width="40%">
+
+> Unified fleet management for your NixOS and macOS infrastructure. Deploy, monitor, and control all your hosts from a single dashboard. 🚀
+
+**Part of the [nixcfg](https://github.com/markus-barta/nixcfg) ecosystem** — manage your Nix fleet with confidence.
 
 ## Features
 
@@ -133,7 +137,7 @@ docker compose up -d
 | `tokenFile` | path | **Yes** | Path to API token file |
 | `configRepo` | string | **Yes** | Path to Nix config repo |
 | `user` | string | **Yes** | User to run agent as |
-| `interval` | int | No | Poll interval in seconds (default: 60) |
+| `interval` | int | No | Poll interval in seconds (default: 30) |
 | `location` | enum | No | Location category (default: "other") |
 | `deviceType` | enum | No | Device type (default: "server") |
 | `themeColor` | string | No | Hex color for dashboard (default: "#769ff0") |
@@ -198,4 +202,4 @@ uvicorn main:app --reload
 
 ## License
 
-MIT
+GNU AGPL v3.0 — See [LICENSE](LICENSE) for details.

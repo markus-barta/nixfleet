@@ -837,7 +837,7 @@ tr:hover .status .hb-countdown {
         <tbody>
             {% if hosts %}
                 {% for host in hosts %}
-                <tr data-host-id="{{ host.id }}" data-last-seen="{{ host.last_seen_iso or '' }}" data-poll-interval="{{ host.poll_interval or 60 }}" data-git-hash="{{ host.current_generation or '' }}">
+                <tr data-host-id="{{ host.id }}" data-last-seen="{{ host.last_seen_iso or '' }}" data-poll-interval="{{ host.poll_interval or 30 }}" data-git-hash="{{ host.current_generation or '' }}">
                     <td>
                         <div class="host-icons" style="color: {{ host.theme_color or '#769ff0' }};">
                             {% if host.host_type == 'macos' %}

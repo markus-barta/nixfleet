@@ -1,0 +1,91 @@
+---
+description: Prevent security-critical data from being committed to Git
+globs: "**/*"
+alwaysApply: true
+---
+
+# Git Security Policy
+
+## 🔒 CRITICAL RULE: Never Commit Security-Critical Data
+
+**NEVER** commit, stage, or include in Git operations any of the following:
+
+### ⛔ Absolutely Forbidden
+
+**Passwords & Credentials**:
+- Plain text passwords, API keys, tokens, secrets
+- SSH private keys
+- Database credentials, OAuth tokens, service account keys
+- bcrypt hashes of passwords
+
+**NixFleet-Specific Secrets**:
+- `NIXFLEET_PASSWORD_HASH` values
+- `NIXFLEET_API_TOKEN` values
+- `NIXFLEET_TOTP_SECRET` values
+- Any `.env` files with real credentials
+
+**Personal Identifiable Information (PII)**:
+- Email addresses (except in git config or documentation)
+- Phone numbers, physical addresses
+
+### ✅ What IS Safe to Commit
+
+- **Example configs**: `.env.example` with placeholder values
+- **Documentation**: Setup procedures showing example (not real) credentials
+- **Code**: Application code referencing environment variables
+
+### 🚨 Before Every Commit
+
+Always check:
+
+1. **Review Changes**: `git diff` - scan for any secrets
+2. **Check Staged Files**: `git status` - verify only intended files
+3. **No Plain Text Secrets**: Search for patterns like `password =`, `token =`, `key =`
+4. **No .env files**: Ensure `.env` is in `.gitignore`
+
+**High-Risk Files**: Any file with "secret", "password", "token" in name, `.env` files, configuration files with credentials
+
+### ❌ Examples of What NOT to Commit
+
+```python
+# BAD - Plain text password hash
+PASSWORD_HASH = "$2b$12$..."
+
+# BAD - API token
+API_TOKEN = "your-secret-token-here"
+```
+
+### ✅ Examples of What IS Safe to Commit
+
+```python
+# GOOD - Reference to environment variable
+PASSWORD_HASH = os.environ.get("NIXFLEET_PASSWORD_HASH")
+
+# GOOD - Example with placeholder
+# API_TOKEN = "your-token-here"  # Set via environment variable
+```
+
+### 🚑 If Secrets Are Committed (Emergency Response)
+
+1. **STOP**: Do NOT push to remote
+2. **Remove**: `git reset --soft HEAD~1` (before push)
+3. **Rotate**: Change the exposed credential immediately
+4. **Verify**: Check entire git history: `git log -p`
+5. **If Pushed**: Assume secret is compromised, rotate immediately
+
+### 🔔 AI Assistant Responsibility
+
+Before suggesting any Git operation:
+
+1. **Scan all staged changes** for security issues
+2. **Warn user** if potential secrets detected
+3. **Suggest environment variables** for any credentials
+4. **Block commit** if plain text secrets found
+5. **Recommend review** for sensitive content
+
+If you detect a potential secret during code generation or file editing:
+
+- 🛑 **STOP** and alert the user immediately
+- 🔒 **Suggest** using environment variables instead
+- ❌ **DO NOT** proceed with the operation
+- ✅ **WAIT** for user confirmation after sanitization

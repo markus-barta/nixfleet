@@ -12,7 +12,7 @@
 #   NIXFLEET_URL      - Dashboard URL (e.g., https://fleet.example.com)
 #   NIXFLEET_TOKEN    - API authentication token
 #   NIXFLEET_NIXCFG   - Absolute path to config repository
-#   NIXFLEET_INTERVAL - Poll interval in seconds (optional, default: 60)
+#   NIXFLEET_INTERVAL - Poll interval in seconds (optional, default: 30)
 #
 # Requirements:
 #   - curl
@@ -32,8 +32,8 @@ readonly NIXFLEET_URL="${NIXFLEET_URL:?ERROR: NIXFLEET_URL environment variable 
 readonly NIXFLEET_TOKEN="${NIXFLEET_TOKEN:?ERROR: NIXFLEET_TOKEN environment variable must be set}"
 # Required: Path to config repository
 readonly NIXFLEET_NIXCFG="${NIXFLEET_NIXCFG:?ERROR: NIXFLEET_NIXCFG environment variable must be set}"
-# Optional: Poll interval (default 60 seconds)
-readonly NIXFLEET_INTERVAL="${NIXFLEET_INTERVAL:-60}"
+# Optional: Poll interval (default 30 seconds)
+readonly NIXFLEET_INTERVAL="${NIXFLEET_INTERVAL:-30}"
 
 # Host detection - always get short hostname (strip domain)
 DETECTED_HOSTNAME="$(hostname -s 2>/dev/null || hostname)"

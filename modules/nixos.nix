@@ -64,7 +64,7 @@ in
 
     interval = lib.mkOption {
       type = lib.types.ints.between 1 3600;
-      default = 60;
+      default = 30;
       description = "Poll interval in seconds (1-3600).";
       example = 30;
     };

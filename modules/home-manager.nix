@@ -64,7 +64,7 @@ in
 
     interval = lib.mkOption {
       type = lib.types.ints.between 1 3600;
-      default = 60;
+      default = 30;
       description = "Poll interval in seconds (1-3600).";
       example = 30;
     };
@@ -135,7 +135,7 @@ in
     systemd.user.services.nixfleet-agent = lib.mkIf pkgs.stdenv.isLinux {
       Unit = {
         Description = "NixFleet Agent - Fleet management daemon";
-        Documentation = "https://github.com/your-org/nixfleet";
+        Documentation = "https://github.com/markus-barta/nixfleet";
         After = [ "network-online.target" ];
       };
       Service = {

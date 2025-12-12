@@ -211,7 +211,7 @@ def init_db():
                 test_total INTEGER DEFAULT 0,
                 test_passed_count INTEGER DEFAULT 0,
                 test_result TEXT,
-                poll_interval INTEGER DEFAULT 60,
+                poll_interval INTEGER DEFAULT 30,
                 -- Metrics (JSON)
                 metrics TEXT
             )
@@ -802,7 +802,7 @@ async def register_host(request: Request, host_id: str, registration: HostRegist
                 registration.device_type or "server", registration.theme_color or "#769ff0",
                 registration.criticality or "low", registration.icon,
                 registration.current_generation,
-                registration.comment, registration.config_repo, registration.poll_interval or 60,
+                registration.comment, registration.config_repo, registration.poll_interval or 30,
                 metrics_json,
             ))
         conn.commit()
@@ -1221,7 +1221,7 @@ async def dashboard(request: Request):
             host["test_passed_count"] = host.get("test_passed_count", 0)
             host["test_total_count"] = host.get("test_total", 0)
             host["test_passed"] = (host["test_passed_count"] == host["test_total_count"]) if host["test_total_count"] > 0 else None
-            host["poll_interval"] = host.get("poll_interval", 60)
+            host["poll_interval"] = host.get("poll_interval", 30)
             
             # Parse metrics JSON if present
             metrics_str = host.get("metrics")
