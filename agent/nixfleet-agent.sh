@@ -548,7 +548,12 @@ do_switch() {
   local exit_code=0
 
   if [[ "$HOST_TYPE" == "nixos" ]]; then
-    if output=$(sudo nixos-rebuild switch --flake ".#${HOSTNAME}" 2>&1); then
+    # Use sudo only if not already root
+    local sudo_cmd=""
+    if [[ "$(id -u)" != "0" ]]; then
+      sudo_cmd="sudo"
+    fi
+    if output=$($sudo_cmd nixos-rebuild switch --flake ".#${HOSTNAME}" 2>&1); then
       log_info "Switch successful"
     else
       exit_code=1

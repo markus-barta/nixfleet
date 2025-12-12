@@ -110,6 +110,16 @@ in
       description = "Theme color hex code for dashboard display.";
       example = "#ff6b6b";
     };
+
+    runAsRoot = lib.mkOption {
+      type = lib.types.bool;
+      default = false;
+      description = ''
+        Run the agent as root instead of the configured user.
+        This bypasses sudo entirely and is more reliable on systems
+        with sudo-rs or other sudo configurations.
+      '';
+    };
   };
 
   config = lib.mkIf cfg.enable {
@@ -172,25 +182,31 @@ in
         # Read token from file
         EnvironmentFile = cfg.tokenFile;
 
-        # Run as specified user
-        User = cfg.user;
-        Group = "users";
-
         # Logging
         StandardOutput = "journal";
         StandardError = "journal";
 
-        # Security hardening
+        # Token cache state (for per-host token migration)
+        StateDirectory = "nixfleet-agent";
+        StateDirectoryMode = "0700";
+      } // (if cfg.runAsRoot then {
+        # Run as root (no sudo needed)
+        User = "root";
+        Group = "root";
+        ProtectSystem = "strict";
+        ProtectHome = "read-only";
+        ReadWritePaths = [ cfg.configRepo "/root" ];
+        PrivateTmp = true;
+      } else {
+        # Run as specified user with sudo
+        User = cfg.user;
+        Group = "users";
         NoNewPrivileges = false; # Needs sudo for nixos-rebuild
         ProtectSystem = "strict";
         ProtectHome = "read-only";
         ReadWritePaths = [ cfg.configRepo ];
         PrivateTmp = true;
-
-        # Token cache state (for per-host token migration)
-        StateDirectory = "nixfleet-agent";
-        StateDirectoryMode = "0700";
-      };
+      });
     };
   };
 }
