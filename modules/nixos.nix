@@ -117,16 +117,6 @@ in
       example = "#ff6b6b";
     };
 
-    runAsRoot = lib.mkOption {
-      type = lib.types.bool;
-      default = false;
-      description = ''
-        Run the agent as root instead of the configured user.
-        This bypasses sudo entirely and is more reliable on systems
-        with sudo-rs or other sudo configurations.
-      '';
-    };
-
     version = lib.mkOption {
       type = lib.types.str;
       default = "0.0.0";
@@ -155,7 +145,20 @@ in
     ];
 
     # Allow agent user to run nixos-rebuild without password
+    # Configure both sudo and sudo-rs for compatibility
     security.sudo.extraRules = [
+      {
+        users = [ cfg.user ];
+        commands = [
+          {
+            command = "/run/current-system/sw/bin/nixos-rebuild";
+            options = [ "NOPASSWD" ];
+          }
+        ];
+      }
+    ];
+    # sudo-rs uses a different config namespace
+    security.sudo-rs.extraRules = [
       {
         users = [ cfg.user ];
         commands = [
@@ -204,33 +207,16 @@ in
         # Token cache state (for per-host token migration)
         StateDirectory = "nixfleet-agent";
         StateDirectoryMode = "0700";
-      }
-      // (
-        if cfg.runAsRoot then
-          {
-            # Run as root (no sudo needed)
-            User = "root";
-            Group = "root";
-            ProtectSystem = "strict";
-            ProtectHome = "read-only";
-            ReadWritePaths = [
-              cfg.configRepo
-              "/root"
-            ];
-            PrivateTmp = true;
-          }
-        else
-          {
-            # Run as specified user with sudo
-            User = cfg.user;
-            Group = "users";
-            NoNewPrivileges = false; # Needs sudo for nixos-rebuild
-            ProtectSystem = "strict";
-            ProtectHome = "read-only";
-            ReadWritePaths = [ cfg.configRepo ];
-            PrivateTmp = true;
-          }
-      );
+
+        # Run as specified user with sudo
+        User = cfg.user;
+        Group = "users";
+        NoNewPrivileges = false; # Needs sudo for nixos-rebuild
+        ProtectSystem = "strict";
+        ProtectHome = "read-only";
+        ReadWritePaths = [ cfg.configRepo ];
+        PrivateTmp = true;
+      };
     };
   };
 }
