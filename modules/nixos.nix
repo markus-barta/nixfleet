@@ -49,6 +49,17 @@ in
       '';
       example = "admin";
     };
+
+    sshKeyFile = lib.mkOption {
+      type = lib.types.nullOr lib.types.path;
+      default = null;
+      description = ''
+        Path to SSH private key for cloning private repositories.
+        Only needed when using repoUrl with SSH URLs.
+        Use agenix or sops-nix to manage this secret.
+      '';
+      example = lib.literalExpression "config.age.secrets.nixfleet-deploy-key.path";
+    };
   };
 
   config = lib.mkIf cfg.enable {
@@ -59,14 +70,24 @@ in
         message = "services.nixfleet-agent.url must be set";
       }
       {
-        assertion = cfg.configRepo != "";
-        message = "services.nixfleet-agent.configRepo must be set";
+        assertion = cfg.configRepo != "" || cfg.repoUrl != "";
+        message = "services.nixfleet-agent: either configRepo or repoUrl must be set";
+      }
+      {
+        assertion = !(cfg.configRepo != "" && cfg.repoUrl != "");
+        message = "services.nixfleet-agent: cannot set both configRepo and repoUrl";
       }
       {
         assertion = cfg.user != "";
         message = "services.nixfleet-agent.user must be set";
       }
     ];
+
+    # Warn about deprecated configRepo
+    warnings = lib.optional (cfg.configRepo != "") ''
+      services.nixfleet-agent.configRepo is deprecated. Use repoUrl instead.
+      The agent will manage its own isolated repository clone.
+    '';
 
     # Allow agent user to run nixos-rebuild without password
     # Configure both sudo and sudo-rs for compatibility
@@ -104,7 +125,10 @@ in
       environment = shared.mkEnvironment { inherit cfg; } // {
         # NixOS-specific environment
         NIXFLEET_TOKEN_CACHE = "/var/lib/nixfleet-agent/token";
+        NIXFLEET_REPO_DIR = "/var/lib/nixfleet-agent/repo";
         HOME = "/home/${cfg.user}";
+      } // lib.optionalAttrs (cfg.sshKeyFile != null) {
+        NIXFLEET_SSH_KEY = cfg.sshKeyFile;
       };
 
       # CRITICAL: /run/wrappers/bin must come FIRST for setuid sudo wrapper

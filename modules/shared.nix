@@ -16,8 +16,31 @@ let
 
     configRepo = lib.mkOption {
       type = lib.types.str;
-      description = "Absolute path to the Nix configuration repository.";
+      default = "";
+      description = ''
+        DEPRECATED: Use repoUrl instead.
+        Absolute path to a user-managed Nix configuration repository.
+        If set, the agent uses this existing directory (legacy mode).
+      '';
       example = "/home/user/Code/nixcfg";
+    };
+
+    repoUrl = lib.mkOption {
+      type = lib.types.str;
+      default = "";
+      description = ''
+        Git remote URL for the Nix configuration repository.
+        When set, the agent clones and manages its own isolated copy.
+        This is the recommended approach over configRepo.
+      '';
+      example = "git@github.com:user/nixcfg.git";
+    };
+
+    branch = lib.mkOption {
+      type = lib.types.str;
+      default = "main";
+      description = "Git branch to track when using repoUrl.";
+      example = "main";
     };
 
     interval = lib.mkOption {
@@ -97,7 +120,10 @@ let
     { cfg }:
     {
       NIXFLEET_URL = cfg.url;
+      # Legacy mode: use user-provided path; new mode: agent-managed path
       NIXFLEET_NIXCFG = cfg.configRepo;
+      NIXFLEET_REPO_URL = cfg.repoUrl;
+      NIXFLEET_BRANCH = cfg.branch;
       NIXFLEET_INTERVAL = toString cfg.interval;
       NIXFLEET_LOCATION = cfg.location;
       NIXFLEET_DEVICE_TYPE = cfg.deviceType;

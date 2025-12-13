@@ -39,9 +39,42 @@ in
       '';
       example = "/Users/myuser/.config/nixfleet/token";
     };
+
+    sshKeyFile = lib.mkOption {
+      type = lib.types.nullOr lib.types.str;
+      default = null;
+      description = ''
+        Path to SSH private key for cloning private repositories.
+        Only needed when using repoUrl with SSH URLs.
+        Use an absolute path (~ is not expanded in launchd).
+      '';
+      example = "/Users/myuser/.ssh/nixfleet-deploy-key";
+    };
   };
 
   config = lib.mkIf cfg.enable {
+    # Validate required options
+    assertions = [
+      {
+        assertion = cfg.url != "";
+        message = "services.nixfleet-agent.url must be set";
+      }
+      {
+        assertion = cfg.configRepo != "" || cfg.repoUrl != "";
+        message = "services.nixfleet-agent: either configRepo or repoUrl must be set";
+      }
+      {
+        assertion = !(cfg.configRepo != "" && cfg.repoUrl != "");
+        message = "services.nixfleet-agent: cannot set both configRepo and repoUrl";
+      }
+    ];
+
+    # Warn about deprecated configRepo
+    warnings = lib.optional (cfg.configRepo != "") ''
+      services.nixfleet-agent.configRepo is deprecated. Use repoUrl instead.
+      The agent will manage its own isolated repository clone.
+    '';
+
     # macOS launchd agent
     launchd.agents.nixfleet-agent = lib.mkIf pkgs.stdenv.isDarwin {
       enable = true;
@@ -69,12 +102,16 @@ in
             export PATH="$HOME/.nix-profile/bin:/nix/var/nix/profiles/default/bin:/run/current-system/sw/bin:$PATH"
             export NIXFLEET_URL="${cfg.url}"
             export NIXFLEET_NIXCFG="${cfg.configRepo}"
+            export NIXFLEET_REPO_URL="${cfg.repoUrl}"
+            export NIXFLEET_BRANCH="${cfg.branch}"
+            export NIXFLEET_REPO_DIR="$HOME/.local/state/nixfleet-agent/repo"
             export NIXFLEET_INTERVAL="${toString cfg.interval}"
             export NIXFLEET_LOCATION="${cfg.location}"
             export NIXFLEET_DEVICE_TYPE="${cfg.deviceType}"
             export NIXFLEET_THEME_COLOR="${cfg.themeColor}"
             export NIXFLEET_TOKEN_CACHE="$HOME/.local/state/nixfleet-agent/token"
             export NIXFLEET_TOKEN="$(cat '${cfg.tokenFile}')"
+            ${lib.optionalString (cfg.sshKeyFile != null) ''export NIXFLEET_SSH_KEY="${cfg.sshKeyFile}"''}
             exec ${agentScript}/bin/nixfleet-agent
           ''
         ];
@@ -104,12 +141,15 @@ in
         Environment = [
           "NIXFLEET_URL=${cfg.url}"
           "NIXFLEET_NIXCFG=${cfg.configRepo}"
+          "NIXFLEET_REPO_URL=${cfg.repoUrl}"
+          "NIXFLEET_BRANCH=${cfg.branch}"
+          "NIXFLEET_REPO_DIR=%h/.local/state/nixfleet-agent/repo"
           "NIXFLEET_INTERVAL=${toString cfg.interval}"
           "NIXFLEET_LOCATION=${cfg.location}"
           "NIXFLEET_DEVICE_TYPE=${cfg.deviceType}"
           "NIXFLEET_THEME_COLOR=${cfg.themeColor}"
           "NIXFLEET_TOKEN_CACHE=%h/.local/state/nixfleet-agent/token"
-        ];
+        ] ++ lib.optional (cfg.sshKeyFile != null) "NIXFLEET_SSH_KEY=${cfg.sshKeyFile}";
         EnvironmentFile = cfg.tokenFile;
       };
       Install = {

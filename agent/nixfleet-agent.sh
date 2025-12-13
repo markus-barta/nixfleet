@@ -34,11 +34,39 @@ readonly AGENT_VERSION="${NIXFLEET_AGENT_VERSION:-@agentVersion@}"
 readonly NIXFLEET_URL="${NIXFLEET_URL:?ERROR: NIXFLEET_URL environment variable must be set}"
 # Required: API token for authentication
 NIXFLEET_TOKEN="${NIXFLEET_TOKEN:?ERROR: NIXFLEET_TOKEN environment variable must be set}"
-# Required: Path to config repository
-readonly NIXFLEET_NIXCFG="${NIXFLEET_NIXCFG:?ERROR: NIXFLEET_NIXCFG environment variable must be set}"
+
+# Repository configuration - two modes:
+# 1. Legacy mode: NIXFLEET_NIXCFG points to user-managed repo
+# 2. Isolated mode: NIXFLEET_REPO_URL is set, agent manages its own clone
+readonly NIXFLEET_REPO_URL="${NIXFLEET_REPO_URL:-}"
+readonly NIXFLEET_BRANCH="${NIXFLEET_BRANCH:-main}"
+readonly NIXFLEET_REPO_DIR="${NIXFLEET_REPO_DIR:-}"
+readonly NIXFLEET_SSH_KEY="${NIXFLEET_SSH_KEY:-}"
+readonly NIXFLEET_NIXCFG_LEGACY="${NIXFLEET_NIXCFG:-}"
+
+# Determine which mode we're in and set the effective config path
+if [[ -n "$NIXFLEET_REPO_URL" ]]; then
+  # Isolated mode: agent manages its own repo clone
+  ISOLATED_MODE=true
+  if [[ -z "$NIXFLEET_REPO_DIR" ]]; then
+    echo "ERROR: NIXFLEET_REPO_DIR must be set when using NIXFLEET_REPO_URL" >&2
+    exit 1
+  fi
+  readonly NIXFLEET_NIXCFG="$NIXFLEET_REPO_DIR"
+elif [[ -n "$NIXFLEET_NIXCFG_LEGACY" ]]; then
+  # Legacy mode: user-managed repo
+  ISOLATED_MODE=false
+  readonly NIXFLEET_NIXCFG="$NIXFLEET_NIXCFG_LEGACY"
+else
+  echo "ERROR: Either NIXFLEET_NIXCFG or NIXFLEET_REPO_URL must be set" >&2
+  exit 1
+fi
+readonly ISOLATED_MODE
+
 # Configure git to trust the config repo directory (required for systemd services)
 # This prevents "dubious ownership" errors when running as a different user
 git config --global --add safe.directory "$NIXFLEET_NIXCFG" 2>/dev/null || true
+
 # Optional: Poll interval (default 30 seconds)
 readonly NIXFLEET_INTERVAL="${NIXFLEET_INTERVAL:-30}"
 
@@ -96,6 +124,60 @@ save_cached_token() {
 }
 
 CURRENT_TOKEN="$(load_cached_token)"
+
+# ════════════════════════════════════════════════════════════════════════════════
+# Git Helpers (for isolated mode with SSH key)
+# ════════════════════════════════════════════════════════════════════════════════
+
+# Run git command with SSH key if configured
+git_cmd() {
+  if [[ -n "$NIXFLEET_SSH_KEY" && -f "$NIXFLEET_SSH_KEY" ]]; then
+    GIT_SSH_COMMAND="ssh -i '$NIXFLEET_SSH_KEY' -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new" git "$@"
+  else
+    git "$@"
+  fi
+}
+
+# Ensure repo is cloned and ready (isolated mode only)
+ensure_repo_cloned() {
+  if [[ "$ISOLATED_MODE" != "true" ]]; then
+    return 0
+  fi
+
+  # Create repo directory with secure permissions
+  local repo_parent
+  repo_parent="$(dirname "$NIXFLEET_REPO_DIR")"
+  mkdir -p "$repo_parent" 2>/dev/null || true
+  chmod 700 "$repo_parent" 2>/dev/null || true
+
+  # Check if repo exists and is valid
+  if [[ -d "$NIXFLEET_REPO_DIR/.git" ]]; then
+    # Verify it's the right repo
+    cd "$NIXFLEET_REPO_DIR"
+    local current_remote
+    current_remote=$(git remote get-url origin 2>/dev/null || echo "")
+    if [[ "$current_remote" == "$NIXFLEET_REPO_URL" ]]; then
+      log_info "Repository already cloned at $NIXFLEET_REPO_DIR"
+      return 0
+    else
+      log_warn "Repository URL mismatch, re-cloning..."
+      rm -rf "$NIXFLEET_REPO_DIR"
+    fi
+  fi
+
+  # Clone the repository
+  log_info "Cloning repository from $NIXFLEET_REPO_URL to $NIXFLEET_REPO_DIR"
+  if git_cmd clone --branch "$NIXFLEET_BRANCH" --single-branch "$NIXFLEET_REPO_URL" "$NIXFLEET_REPO_DIR" 2>&1; then
+    log_info "Repository cloned successfully"
+    chmod 700 "$NIXFLEET_REPO_DIR" 2>/dev/null || true
+    # Trust the new directory
+    git config --global --add safe.directory "$NIXFLEET_REPO_DIR" 2>/dev/null || true
+    return 0
+  else
+    log_error "Failed to clone repository"
+    return 1
+  fi
+}
 
 # ════════════════════════════════════════════════════════════════════════════════
 # Host Type Detection
@@ -686,19 +768,37 @@ report_test_progress() {
 # ════════════════════════════════════════════════════════════════════════════════
 
 do_pull() {
-  log_info "Executing: git pull"
   cd "$NIXFLEET_NIXCFG"
 
   local output
-  if output=$(git pull 2>&1); then
-    log_info "Pull successful"
-    refresh_git_hash >/dev/null # Update cached hash after pull
-    report_status "ok" "$(get_generation)" "Pull: $output"
-    return 0
+
+  if [[ "$ISOLATED_MODE" == "true" ]]; then
+    # Isolated mode: fetch and hard reset (no merge conflicts possible)
+    log_info "Executing: git fetch + reset --hard (isolated mode)"
+    if output=$(git_cmd fetch origin "$NIXFLEET_BRANCH" 2>&1); then
+      git reset --hard "origin/$NIXFLEET_BRANCH" 2>&1 || true
+      log_info "Pull (reset) successful"
+      refresh_git_hash >/dev/null
+      report_status "ok" "$(get_generation)" "Pull: Reset to origin/$NIXFLEET_BRANCH"
+      return 0
+    else
+      log_error "Fetch failed"
+      report_status "error" "$(get_generation)" "Pull failed: $output"
+      return 1
+    fi
   else
-    log_error "Pull failed"
-    report_status "error" "$(get_generation)" "Pull failed: $output"
-    return 1
+    # Legacy mode: regular git pull
+    log_info "Executing: git pull"
+    if output=$(git pull 2>&1); then
+      log_info "Pull successful"
+      refresh_git_hash >/dev/null # Update cached hash after pull
+      report_status "ok" "$(get_generation)" "Pull: $output"
+      return 0
+    else
+      log_error "Pull failed"
+      report_status "error" "$(get_generation)" "Pull failed: $output"
+      return 1
+    fi
   fi
 }
 
@@ -1014,7 +1114,15 @@ main() {
   log_info "Device:      $DEVICE_TYPE"
   log_info "Theme:       $THEME_COLOR"
   log_info "Criticality: $CRITICALITY"
-  log_info "nixcfg:      $NIXFLEET_NIXCFG"
+  if [[ "$ISOLATED_MODE" == "true" ]]; then
+    log_info "Mode:        isolated (agent-managed repo)"
+    log_info "Repo URL:    $NIXFLEET_REPO_URL"
+    log_info "Branch:      $NIXFLEET_BRANCH"
+    log_info "Repo Dir:    $NIXFLEET_REPO_DIR"
+  else
+    log_info "Mode:        legacy (user-managed repo)"
+    log_info "nixcfg:      $NIXFLEET_NIXCFG"
+  fi
   log_info "Interval:    ${NIXFLEET_INTERVAL}s"
 
   # Prevent duplicate agent instances
@@ -1023,6 +1131,14 @@ main() {
   fi
 
   check_prerequisites
+
+  # Ensure repo is cloned if in isolated mode
+  if [[ "$ISOLATED_MODE" == "true" ]]; then
+    if ! ensure_repo_cloned; then
+      log_error "Failed to initialize repository, exiting"
+      exit 1
+    fi
+  fi
 
   # Cache git hash at startup (avoids repeated git calls)
   refresh_git_hash >/dev/null
