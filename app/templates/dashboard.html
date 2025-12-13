@@ -326,10 +326,10 @@ th:nth-child(1), td:nth-child(1) { min-width: 100px; } /* Host */
 th:nth-child(2), td:nth-child(2) { min-width: 60px; } /* OS */
 th:nth-child(3), td:nth-child(3) { width: 40px; text-align: center; } /* Loc */
 th:nth-child(4), td:nth-child(4) { width: 40px; text-align: center; } /* Type */
-th:nth-child(5), td:nth-child(5) { min-width: 60px; } /* Metrics */
-th:nth-child(6), td:nth-child(6) { min-width: 60px; } /* Config */
-th:nth-child(7), td:nth-child(7) { min-width: 60px; } /* Fleet */
-th:nth-child(8), td:nth-child(8) { min-width: 70px; } /* Last Seen */
+th:nth-child(5), td:nth-child(5) { min-width: 70px; } /* Last Seen */
+th:nth-child(6), td:nth-child(6) { min-width: 60px; } /* Metrics */
+th:nth-child(7), td:nth-child(7) { min-width: 60px; } /* Config */
+th:nth-child(8), td:nth-child(8) { min-width: 60px; } /* Agent */
 th:nth-child(9), td:nth-child(9) { width: 50px; } /* Tests */
 th:nth-child(10), td:nth-child(10) { min-width: 100px; } /* Status */
 th:nth-child(11), td:nth-child(11) { min-width: 160px; } /* Actions */
@@ -1464,6 +1464,7 @@ th, td { padding: 0.4rem 0.5rem; }
                 <th>OS</th>
                 <th>Loc</th>
                 <th>Type</th>
+                <th>Last Seen</th>
                 <th>Metrics</th>
                 <th><svg class="th-icon">
                         <use href="#icon-file" />
@@ -1471,7 +1472,6 @@ th, td { padding: 0.4rem 0.5rem; }
                 <th><svg class="th-icon">
                         <use href="#icon-rocket" />
                     </svg> Agent</th>
-                <th>Last Seen</th>
                 <th>Tests</th>
                 <th>Status</th>
                 <th>Actions</th>
@@ -1548,6 +1548,10 @@ th, td { padding: 0.4rem 0.5rem; }
                     </svg>
                     {% endif %}
                 </td>
+                <td class="seen-cell" title="{{ host.last_seen_iso or 'Never' }}">
+                    <span class="seen-relative" data-host="{{ host.id }}" data-ts="{{ host.last_seen_iso or '' }}">{{
+                        host.last_seen_relative or 'Never' }}</span>
+                </td>
                 <td class="metrics-cell" data-metrics-updated="{{ host.metrics_updated_at or '' }}"
                     title="{% if host.metrics %}CPU: {{ host.metrics.cpu }}% | RAM: {{ host.metrics.ram }}%{% if host.metrics.swap %} | Swap: {{ host.metrics.swap }}%{% endif %} | Load: {{ host.metrics.load }}{% if host.metrics_updated_at %} | Updated: {{ host.metrics_updated_at[:19] }}{% endif %}{% endif %}">
                     {% if host.metrics %}
@@ -1583,10 +1587,6 @@ th, td { padding: 0.4rem 0.5rem; }
                     {% else %}
                     <span class="muted">—</span>
                     {% endif %}
-                </td>
-                <td class="seen-cell" title="{{ host.last_seen_iso or 'Never' }}">
-                    <span class="seen-relative" data-host="{{ host.id }}" data-ts="{{ host.last_seen_iso or '' }}">{{
-                        host.last_seen_relative or 'Never' }}</span>
                 </td>
                 <td class="test-cell">
                     {% if host.test_running %}
