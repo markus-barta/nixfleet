@@ -49,7 +49,7 @@ Test the git pull command dispatch from dashboard to agent.
 
 **Steps:**
 
-1. Open dashboard: https://fleet.barta.cm
+1. Open dashboard: <https://fleet.barta.cm>
 2. Find a host row with agent online
 3. Click "Pull" button
 4. Observe status column
@@ -68,6 +68,7 @@ Test the git pull command dispatch from dashboard to agent.
 
 1. Trigger pull from dashboard
 2. Check agent logs:
+
    ```bash
    tail -f /tmp/nixfleet-agent.err
    ```
@@ -86,10 +87,12 @@ Test the git pull command dispatch from dashboard to agent.
 
 1. SSH to target host
 2. Check nixcfg directory:
+
    ```bash
    cd ~/Code/nixcfg
    git log --oneline -1
    ```
+
 3. Trigger pull from dashboard
 4. Check git log again
 
@@ -165,4 +168,3 @@ do_pull() {
 - Automated: [T01-command-pull.sh](./T01-command-pull.sh)
 - Agent: [nixfleet-agent.sh](../agent/nixfleet-agent.sh) - `do_pull()` function
 - Dashboard: [main.py](../app/main.py) - `/api/hosts/{host_id}/command` endpoint
-

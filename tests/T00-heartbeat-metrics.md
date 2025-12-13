@@ -33,6 +33,7 @@ Test agent registration, heartbeats, and host information display in the dashboa
 **Steps:**
 
 1. Check dashboard health endpoint:
+
    ```bash
    curl -s https://fleet.barta.cm/health
    ```
@@ -49,6 +50,7 @@ Test agent registration, heartbeats, and host information display in the dashboa
 **Steps:**
 
 1. Register a test host:
+
    ```bash
    curl -X POST https://fleet.barta.cm/api/hosts/test-host/register \
      -H "Authorization: Bearer $NIXFLEET_TOKEN" \
@@ -79,6 +81,7 @@ Test agent registration, heartbeats, and host information display in the dashboa
 **Steps:**
 
 1. Send heartbeat with metrics:
+
    ```bash
    curl -X POST https://fleet.barta.cm/api/hosts/test-host/heartbeat \
      -H "Authorization: Bearer $PER_HOST_TOKEN" \
@@ -112,6 +115,7 @@ Test agent registration, heartbeats, and host information display in the dashboa
 **Steps:**
 
 1. Poll for pending commands:
+
    ```bash
    curl https://fleet.barta.cm/api/hosts/test-host/poll \
      -H "Authorization: Bearer $PER_HOST_TOKEN"
@@ -169,4 +173,3 @@ Test agent registration, heartbeats, and host information display in the dashboa
 - Automated: [T00-heartbeat-metrics.sh](./T00-heartbeat-metrics.sh)
 - Agent: [nixfleet-agent.sh](../agent/nixfleet-agent.sh)
 - Dashboard: [main.py](../app/main.py)
-

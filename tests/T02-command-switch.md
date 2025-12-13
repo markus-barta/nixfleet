@@ -48,7 +48,7 @@ home-manager switch --flake /path/to/nixcfg#hostname
 
 **Steps:**
 
-1. Open dashboard: https://fleet.barta.cm
+1. Open dashboard: <https://fleet.barta.cm>
 2. Find a host row with agent online
 3. Click "Switch" button
 4. Observe status column
@@ -68,9 +68,11 @@ home-manager switch --flake /path/to/nixcfg#hostname
 
 1. SSH to target host
 2. Tail agent log:
+
    ```bash
    tail -f /tmp/nixfleet-agent.err
    ```
+
 3. Trigger switch from dashboard
 
 **Expected Results:**
@@ -87,9 +89,11 @@ home-manager switch --flake /path/to/nixcfg#hostname
 **Steps:**
 
 1. On NixOS host, check current generation:
+
    ```bash
    sudo nix-env --list-generations -p /nix/var/nix/profiles/system | tail -3
    ```
+
 2. Trigger switch from dashboard
 3. Check generations again
 
@@ -105,9 +109,11 @@ home-manager switch --flake /path/to/nixcfg#hostname
 **Steps:**
 
 1. On macOS host, check current generation:
+
    ```bash
    home-manager generations | head -3
    ```
+
 2. Trigger switch from dashboard
 3. Check generations again
 
@@ -123,9 +129,11 @@ home-manager switch --flake /path/to/nixcfg#hostname
 **Steps:**
 
 1. Note agent PID before switch:
+
    ```bash
    pgrep -f nixfleet-agent
    ```
+
 2. Trigger switch from dashboard
 3. Wait for completion
 4. Check agent status
@@ -191,4 +199,3 @@ do_switch() {
 - Agent: [nixfleet-agent.sh](../agent/nixfleet-agent.sh) - `do_switch()` function
 - NixOS Module: [nixos.nix](../modules/nixos.nix)
 - Home Manager Module: [home-manager.nix](../modules/home-manager.nix)
-
