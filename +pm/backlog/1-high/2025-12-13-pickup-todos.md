@@ -2,37 +2,32 @@
 
 ## Priority Tasks
 
-### 1. Update Agent from UI
+### 1. Update Agent from UI ✅
 
-- Backlog item already exists: `2025-12-12-update-agent-from-ui.md`
-- Allow updating nixfleet agent version from dashboard
+- Completed! Moved to `+pm/done/2025-12-12-update-agent-from-ui.md`
+- Update Agent button working in dashboard
 
-### 2. UI Polish Issues
+### 2. UI Polish Issues ✅ (Partial)
 
-#### Font Size Inconsistency
+#### Font Size Inconsistency ✅
 
-- HOST column Text and online/offline hosts "6/8")" have inconsistent font sizes
-- Standardize this across the table headers (do not toouch data cells)
+- Fixed: Header stats now match th font size (0.65rem)
 
-#### Status Column
+#### Status Column ✅
 
-- Scrollable area still cut off at ~55% height
-- Needs proper max-height calculation
+- Fixed: Increased collapsed height from 3em to 4em
 
-#### Row Background for Online Hosts
+#### Row Background for Online Hosts ✅
 
-- Add subtle greenish tint (10%) for online hosts in row background
-- Makes it easier to spot online vs offline at a glance
+- Fixed: Added 5% green tint for online rows, 10% on hover
 
-#### Config/Fleet SOT Icons before text
+#### Config/Fleet SOT Icons ✅
 
-- Add icons for Config and Fleet "Source of Truth" lables
-- Use pretty icons that are easily recognizable
+- Fixed: Added 📄 Config and 🚀 Fleet icons in headers
 
 #### Actions Buttons Padding
 
-- Large unused right padding on action buttons
-- Tighten up the layout only right side of the buttons in this column
+- Skipped: Needs visual inspection to confirm issue
 
 ### 3. Fix All Host Tests
 
