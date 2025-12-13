@@ -938,7 +938,7 @@ class HostUpdate(BaseModel):
 
 class CommandRequest(BaseModel):
     """Model for command queue requests."""
-    command: str = Field(..., pattern="^(pull|switch|pull-switch|test|stop|restart)$")
+    command: str = Field(..., pattern="^(pull|switch|pull-switch|test|stop|restart|update)$")
 
 
 # ============================================================================
@@ -1905,6 +1905,7 @@ async def queue_command(host_id: str, request_body: CommandRequest, request: Req
         "test": "Testing...",
         "restart": "Restarting agent...",
         "stop": "Stopped",
+        "update": "Updating agent...",
     }
     command_icons = {
         "pull": "⏳",
@@ -1913,6 +1914,7 @@ async def queue_command(host_id: str, request_body: CommandRequest, request: Req
         "test": "🧪",
         "restart": "⏳",
         "stop": "⏹",
+        "update": "⬆",
     }
     append_history(
         host_id,

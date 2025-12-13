@@ -741,6 +741,44 @@ do_switch() {
   return $exit_code
 }
 
+do_update() {
+  log_info "Executing: update agent (flake update + switch)"
+  cd "$NIXFLEET_NIXCFG"
+
+  # Update nixfleet input
+  log_info "Updating nixfleet flake input..."
+  local update_output
+  if ! update_output=$(nix flake update nixfleet 2>&1); then
+    log_error "Flake update failed"
+    report_status "error" "$(get_generation)" "$update_output" "update failed"
+    return 1
+  fi
+
+  # Check if flake.lock changed
+  if git diff --quiet flake.lock 2>/dev/null; then
+    log_info "No changes to flake.lock (already up to date)"
+  else
+    # Commit and push the change
+    log_info "Committing flake.lock update..."
+    git add flake.lock
+    git commit -m "chore: Update nixfleet flake input"
+
+    log_info "Pushing to remote..."
+    if ! git push 2>&1; then
+      log_warn "Push failed (may already be updated by another host)"
+      git reset --soft HEAD~1  # Undo commit if push failed
+      git checkout flake.lock  # Restore original
+      git pull --rebase        # Get latest
+    fi
+  fi
+
+  # Refresh git hash after potential changes
+  refresh_git_hash >/dev/null
+
+  # Now rebuild with the updated flake
+  do_switch
+}
+
 do_test() {
   log_info "Executing: test suite"
   cd "$NIXFLEET_NIXCFG"
@@ -879,6 +917,9 @@ main() {
         ;;
       test)
         do_test || true
+        ;;
+      update)
+        do_update || true
         ;;
       restart)
         log_info "Restart command received - exiting for service restart"

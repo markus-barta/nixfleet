@@ -1542,6 +1542,17 @@ tr:hover .status .hb-countdown {
                                         <svg><use href="#icon-refresh"/></svg>
                                         Restart Agent
                                     </button>
+                                    <button
+                                        class="dropdown-item"
+                                        type="button"
+                                        data-action="send-command"
+                                        data-host-id="{{ host.id }}"
+                                        data-command="update"
+                                        {% if not host.online or host.pending_command or host.test_running %}disabled{% endif %}
+                                        title="Update nixfleet flake input and rebuild">
+                                        <svg><use href="#icon-download"/></svg>
+                                        Update Agent
+                                    </button>
                                     <div class="dropdown-divider"></div>
                                     <button
                                         class="dropdown-item"
@@ -1858,14 +1869,16 @@ async function sendCommand(hostId, command) {
             'switch': 'Switching...',
             'pull-switch': 'Pull & Switch...',
             'test': 'Testing...',
-            'restart': 'Restarting...'
+            'restart': 'Restarting...',
+            'update': 'Updating agent...'
         };
         const commandIcons = {
             'pull': '⏳',
             'switch': '⏳',
             'pull-switch': '⏳',
             'test': '🧪',
-            'restart': '⏳'
+            'restart': '⏳',
+            'update': '⬆'
         };
         const newEntry = document.createElement('div');
         newEntry.className = 'status-entry';
@@ -1960,14 +1973,16 @@ async function sendBulkCommand(command) {
                             'switch': 'Switching...',
                             'pull-switch': 'Pull & Switch...',
                             'test': 'Testing...',
-                            'restart': 'Restarting...'
+                            'restart': 'Restarting...',
+                            'update': 'Updating agent...'
                         };
                         const commandIcons = {
                             'pull': '⏳',
                             'switch': '⏳',
                             'pull-switch': '⏳',
                             'test': '🧪',
-                            'restart': '⏳'
+                            'restart': '⏳',
+                            'update': '⬆'
                         };
                         const newEntry = document.createElement('div');
                         newEntry.className = 'status-entry';
