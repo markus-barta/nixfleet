@@ -85,37 +85,36 @@ in
       };
     };
 
-    # Self-healing: Force launchd to reload the agent after home-manager switch
-    # This ensures the agent uses the new nix store path after updates
+    # Force launchd to reload the agent after EVERY home-manager switch
+    # This ensures the agent always restarts with the correct nix store path
+    # The agent may have died during switch, so we always force a reload
     home.activation.reloadNixfleetAgent = lib.mkIf pkgs.stdenv.isDarwin (
       lib.hm.dag.entryAfter [ "setupLaunchAgents" ] ''
         LABEL="com.nixfleet.agent"
         PLIST="$HOME/Library/LaunchAgents/com.nixfleet.agent.plist"
+        UID=$(/usr/bin/id -u)
 
         if [ -f "$PLIST" ]; then
-          # Get the expected agent path from the new plist
-          EXPECTED_PATH="${agentScript}/bin/nixfleet-agent"
+          echo "NixFleet: Reloading agent to ensure correct version..."
           
-          # Check if agent is running and get its current path
-          # Use /usr/bin/awk since nix awk may not be in PATH during activation
-          CURRENT_PID=$(/bin/launchctl list | /usr/bin/grep "$LABEL" | /usr/bin/awk '{print $1}')
+          # Always unload first (agent may be dead or running old version)
+          /bin/launchctl bootout gui/$UID/$LABEL 2>/dev/null || true
           
-          if [ -n "$CURRENT_PID" ] && [ "$CURRENT_PID" != "-" ]; then
-            # Agent is running, check if it's using the correct path
-            CURRENT_PATH=$(/bin/ps -p "$CURRENT_PID" -o args= 2>/dev/null | /usr/bin/grep -o '/nix/store/[^/]*/bin/nixfleet-agent' || echo "")
-            
-            if [ "$CURRENT_PATH" != "$EXPECTED_PATH" ]; then
-              echo "NixFleet agent path changed, reloading..."
-              /bin/launchctl bootout gui/$(/usr/bin/id -u)/$LABEL 2>/dev/null || true
-              sleep 1
-              /bin/launchctl bootstrap gui/$(/usr/bin/id -u) "$PLIST" 2>/dev/null || /bin/launchctl load "$PLIST" 2>/dev/null || true
-              echo "NixFleet agent reloaded with new version"
-            fi
-          else
-            # Agent not running, try to start it
-            echo "NixFleet agent not running, starting..."
-            /bin/launchctl bootstrap gui/$(/usr/bin/id -u) "$PLIST" 2>/dev/null || /bin/launchctl load "$PLIST" 2>/dev/null || true
-          fi
+          # Kill any orphaned processes (agent may have been killed mid-switch)
+          /usr/bin/pkill -9 -f nixfleet-agent 2>/dev/null || true
+          
+          # Remove stale lock files
+          /bin/rm -f /tmp/nixfleet-agent-*.lock 2>/dev/null || true
+          
+          # Brief pause to ensure cleanup
+          sleep 1
+          
+          # Load the fresh agent
+          /bin/launchctl bootstrap gui/$UID "$PLIST" 2>/dev/null || \
+            /bin/launchctl load "$PLIST" 2>/dev/null || \
+            echo "Warning: Failed to load NixFleet agent"
+          
+          echo "NixFleet: Agent reload complete"
         fi
       ''
     );
