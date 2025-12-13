@@ -3,8 +3,8 @@
 {% block title %}NixFleet Dashboard{% endblock %}
 
 {% block extra_styles %}
-body { 
-    padding: 1.5rem 2rem; 
+body {
+padding: 1.5rem 2rem;
 }
 
 /* CSP helpers (no inline styles) */
@@ -24,306 +24,306 @@ body {
 
 /* Header */
 header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1.5rem;
-    padding-bottom: 1rem;
-    border-bottom: 1px solid var(--border);
+display: flex;
+justify-content: space-between;
+align-items: center;
+margin-bottom: 1.5rem;
+padding-bottom: 1rem;
+border-bottom: 1px solid var(--border);
 }
 
-.brand h1 { 
-    color: var(--blue); 
-    font-size: 1.5rem; 
-    font-weight: 600;
-    letter-spacing: -0.02em;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
+.brand h1 {
+color: var(--blue);
+font-size: 1.5rem;
+font-weight: 600;
+letter-spacing: -0.02em;
+display: flex;
+align-items: center;
+gap: 0.5rem;
 }
 
 .brand-logo {
-    height: 50px;
-    width: 50px;
+height: 50px;
+width: 50px;
 }
 
-.brand .subtitle { 
-    color: var(--fg-dark); 
-    font-size: 0.8rem; 
-    margin-top: 0.25rem;
+.brand .subtitle {
+color: var(--fg-dark);
+font-size: 0.8rem;
+margin-top: 0.25rem;
 }
 
 .header-actions {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
+display: flex;
+align-items: center;
+gap: 1rem;
 }
 
 .logout {
-    color: var(--fg-dark);
-    padding: 0.5rem 1rem;
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    font-size: 0.85rem;
-    transition: all 0.2s ease;
-    background: none;
-    cursor: pointer;
+color: var(--fg-dark);
+padding: 0.5rem 1rem;
+border: 1px solid var(--border);
+border-radius: 6px;
+font-size: 0.85rem;
+transition: all 0.2s ease;
+background: none;
+cursor: pointer;
 }
 
-.logout:hover { 
-    border-color: var(--red); 
-    color: var(--red); 
-    background: rgba(247, 118, 142, 0.1);
+.logout:hover {
+border-color: var(--red);
+color: var(--red);
+background: rgba(247, 118, 142, 0.1);
 }
 
 /* Header Action Button */
 .header-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    color: var(--fg);
-    padding: 0.5rem 0.75rem;
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    font-size: 0.85rem;
-    font-family: inherit;
-    transition: all 0.2s ease;
-    background: var(--bg-highlight);
-    cursor: pointer;
+display: inline-flex;
+align-items: center;
+gap: 0.4rem;
+color: var(--fg);
+padding: 0.5rem 0.75rem;
+border: 1px solid var(--border);
+border-radius: 6px;
+font-size: 0.85rem;
+font-family: inherit;
+transition: all 0.2s ease;
+background: var(--bg-highlight);
+cursor: pointer;
 }
 
 .header-btn:hover {
-    border-color: var(--blue);
-    background: rgba(122, 162, 247, 0.1);
+border-color: var(--blue);
+background: rgba(122, 162, 247, 0.1);
 }
 
 .header-btn .chevron {
-    transition: transform 0.2s ease;
+transition: transform 0.2s ease;
 }
 
 .header-dropdown.open .header-btn .chevron {
-    transform: rotate(180deg);
+transform: rotate(180deg);
 }
 
 .header-dropdown .dropdown-menu {
-    min-width: 160px;
+min-width: 160px;
 }
 
 /* Target versions (nixcfg + nixfleet) */
 .source-of-truth {
-    display: flex;
-    align-items: center;
-    padding: 0.5rem 1rem;
-    background: rgba(158, 206, 106, 0.08);
-    border: 1px solid rgba(158, 206, 106, 0.35);
-    border-radius: 8px;
+display: flex;
+align-items: center;
+padding: 0.5rem 1rem;
+background: rgba(158, 206, 106, 0.08);
+border: 1px solid rgba(158, 206, 106, 0.35);
+border-radius: 8px;
 }
 
 .sot-targets {
-    display: flex;
-    gap: 1rem;
+display: flex;
+gap: 1rem;
 }
 
 .sot-target {
-    display: flex;
-    align-items: center;
-    gap: 0.3rem;
+display: flex;
+align-items: center;
+gap: 0.3rem;
 }
 
 .sot-refresh {
-    position: absolute;
-    top: 4px;
-    right: 4px;
-    width: 18px;
-    height: 18px;
-    padding: 2px;
-    border: none;
-    background: transparent;
-    color: var(--fg-gutter);
-    cursor: pointer;
-    border-radius: 3px;
-    opacity: 0.4;
-    transition: all 0.15s ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+position: absolute;
+top: 4px;
+right: 4px;
+width: 18px;
+height: 18px;
+padding: 2px;
+border: none;
+background: transparent;
+color: var(--fg-gutter);
+cursor: pointer;
+border-radius: 3px;
+opacity: 0.4;
+transition: all 0.15s ease;
+display: flex;
+align-items: center;
+justify-content: center;
 }
 
 .sot-refresh:hover {
-    opacity: 1;
-    color: var(--green);
-    background: rgba(158, 206, 106, 0.15);
+opacity: 1;
+color: var(--green);
+background: rgba(158, 206, 106, 0.15);
 }
 
 .sot-refresh svg {
-    width: 12px;
-    height: 12px;
+width: 12px;
+height: 12px;
 }
 
 .sot-refresh.spinning svg {
-    animation: spin 0.8s linear infinite;
+animation: spin 0.8s linear infinite;
 }
 
 @keyframes spin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
+from { transform: rotate(0deg); }
+to { transform: rotate(360deg); }
 }
 
 .sot-label {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.25rem;
-    font-size: 0.6rem;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    color: var(--fg-dark);
-    font-weight: 650;
-    margin-right: 0.3rem;
+display: inline-flex;
+align-items: center;
+gap: 0.25rem;
+font-size: 0.6rem;
+text-transform: uppercase;
+letter-spacing: 0.1em;
+color: var(--fg-dark);
+font-weight: 650;
+margin-right: 0.3rem;
 }
 
 .sot-label svg {
-    width: 12px;
-    height: 12px;
-    opacity: 0.8;
+width: 12px;
+height: 12px;
+opacity: 0.8;
 }
 
 .sot-header {
-    font-size: 0.55rem;
-    text-transform: uppercase;
-    letter-spacing: 0.15em;
-    color: var(--fg-gutter);
-    font-weight: 600;
-    margin-right: 0.75rem;
-    border-right: 1px solid var(--border);
-    padding-right: 0.75rem;
+font-size: 0.55rem;
+text-transform: uppercase;
+letter-spacing: 0.15em;
+color: var(--fg-gutter);
+font-weight: 600;
+margin-right: 0.75rem;
+border-right: 1px solid var(--border);
+padding-right: 0.75rem;
 }
 
 .sot-row {
-    display: flex;
-    align-items: center;
-    gap: 0.45rem;
-    width: 100%;
-    min-width: 0;
+display: flex;
+align-items: center;
+gap: 0.45rem;
+width: 100%;
+min-width: 0;
 }
 
 .sot-hash {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.3rem;
-    font-family: 'JetBrains Mono', 'Fira Code', monospace;
-    font-size: 0.8rem;
-    color: var(--green);
-    text-decoration: none !important;
-    padding: 0.15rem 0.4rem;
-    background: var(--bg-highlight);
-    border-radius: 4px;
-    border-bottom: none !important;
-    transition: all 0.15s;
-    flex-shrink: 0;
+display: inline-flex;
+align-items: center;
+gap: 0.3rem;
+font-family: 'JetBrains Mono', 'Fira Code', monospace;
+font-size: 0.8rem;
+color: var(--green);
+text-decoration: none !important;
+padding: 0.15rem 0.4rem;
+background: var(--bg-highlight);
+border-radius: 4px;
+border-bottom: none !important;
+transition: all 0.15s;
+flex-shrink: 0;
 }
 
 .sot-hash:hover {
-    background: rgba(158, 206, 106, 0.2);
-    color: var(--green);
+background: rgba(158, 206, 106, 0.2);
+color: var(--green);
 }
 
 .sot-notes {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.25rem;
-    min-width: 0;
-    font-size: 0.7rem;
-    color: var(--fg-dark);
+display: inline-flex;
+align-items: center;
+gap: 0.25rem;
+min-width: 0;
+font-size: 0.7rem;
+color: var(--fg-dark);
 }
 
 .sot-notes svg {
-    width: 12px;
-    height: 12px;
-    opacity: 0.7;
-    flex-shrink: 0;
+width: 12px;
+height: 12px;
+opacity: 0.7;
+flex-shrink: 0;
 }
 
 .sot-notes-text {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    max-width: 200px;
+min-width: 0;
+overflow: hidden;
+text-overflow: ellipsis;
+white-space: nowrap;
+max-width: 200px;
 }
 
 /* Header stat counts */
 .th-stat {
-    font-size: 0.65rem; /* Match th font size */
-    font-weight: 600;
-    vertical-align: middle;
+font-size: 0.65rem; /* Match th font size */
+font-weight: 600;
+vertical-align: middle;
 }
 
 .th-stat.online {
-    color: var(--green);
-    margin-left: 6px;
+color: var(--green);
+margin-left: 6px;
 }
 
 .th-stat.separator {
-    color: var(--fg-gutter);
-    margin: 0 2px;
+color: var(--fg-gutter);
+margin: 0 2px;
 }
 
 .th-stat.total {
-    color: var(--fg-dark);
+color: var(--fg-dark);
 }
 
 /* Header icons */
 .th-icon {
-    width: 10px;
-    height: 10px;
-    margin-right: 0.2rem;
-    opacity: 0.7;
-    vertical-align: middle;
+width: 10px;
+height: 10px;
+margin-right: 0.2rem;
+opacity: 0.7;
+vertical-align: middle;
 }
 
 /* Table Container */
 .table-container {
-    background: var(--bg-dark);
-    border-radius: 8px;
-    border: 1px solid var(--border);
-    overflow: visible;
+background: var(--bg-dark);
+border-radius: 8px;
+border: 1px solid var(--border);
+overflow: visible;
 }
 
 table {
-    width: 100%;
-    border-collapse: collapse;
+width: 100%;
+border-collapse: collapse;
 }
 
 th, td {
-    padding: 0.6rem 0.8rem;
-    text-align: left;
-    border-bottom: 1px solid var(--border);
-    vertical-align: middle;
-    white-space: nowrap;
+padding: 0.6rem 0.8rem;
+text-align: left;
+border-bottom: 1px solid var(--border);
+vertical-align: middle;
+white-space: nowrap;
 }
 
 /* Column widths and alignment */
-th:nth-child(1), td:nth-child(1) { min-width: 100px; }   /* Host */
-th:nth-child(2), td:nth-child(2) { min-width: 60px; }    /* OS */
-th:nth-child(3), td:nth-child(3) { width: 40px; text-align: center; }  /* Loc */
-th:nth-child(4), td:nth-child(4) { width: 40px; text-align: center; }  /* Type */
-th:nth-child(5), td:nth-child(5) { min-width: 60px; }    /* Metrics */
-th:nth-child(6), td:nth-child(6) { min-width: 60px; }    /* Config */
-th:nth-child(7), td:nth-child(7) { min-width: 60px; }    /* Fleet */
-th:nth-child(8), td:nth-child(8) { min-width: 70px; }    /* Last Seen */
-th:nth-child(9), td:nth-child(9) { width: 50px; }        /* Tests */
+th:nth-child(1), td:nth-child(1) { min-width: 100px; } /* Host */
+th:nth-child(2), td:nth-child(2) { min-width: 60px; } /* OS */
+th:nth-child(3), td:nth-child(3) { width: 40px; text-align: center; } /* Loc */
+th:nth-child(4), td:nth-child(4) { width: 40px; text-align: center; } /* Type */
+th:nth-child(5), td:nth-child(5) { min-width: 60px; } /* Metrics */
+th:nth-child(6), td:nth-child(6) { min-width: 60px; } /* Config */
+th:nth-child(7), td:nth-child(7) { min-width: 60px; } /* Fleet */
+th:nth-child(8), td:nth-child(8) { min-width: 70px; } /* Last Seen */
+th:nth-child(9), td:nth-child(9) { width: 50px; } /* Tests */
 th:nth-child(10), td:nth-child(10) { min-width: 100px; } /* Status */
 th:nth-child(11), td:nth-child(11) { min-width: 160px; } /* Actions */
 
 th {
-    background: var(--bg-highlight);
-    color: var(--fg-dark);
-    font-weight: 500;
-    text-transform: uppercase;
-    font-size: 0.65rem;
-    letter-spacing: 0.05em;
-    position: sticky;
-    top: 0;
+background: var(--bg-highlight);
+color: var(--fg-dark);
+font-weight: 500;
+text-transform: uppercase;
+font-size: 0.65rem;
+letter-spacing: 0.05em;
+position: sticky;
+top: 0;
 }
 
 tr:last-child td { border-bottom: none; }
@@ -331,254 +331,254 @@ tr:hover td { background: rgba(41, 46, 66, 0.5); }
 
 /* Subtle green tint for online hosts */
 tr[data-online="true"] td {
-    background: rgba(158, 206, 106, 0.05);
+background: rgba(158, 206, 106, 0.05);
 }
 tr[data-online="true"]:hover td {
-    background: rgba(158, 206, 106, 0.1);
+background: rgba(158, 206, 106, 0.1);
 }
 
 /* Host cell (status dot + hostname) */
 .host-cell {
-    white-space: nowrap;
+white-space: nowrap;
 }
 
 .host-cell .hostname {
-    display: inline-block;
-    vertical-align: middle;
-    font-weight: 500;
+display: inline-block;
+vertical-align: middle;
+font-weight: 500;
 }
 
 .status-indicator {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    vertical-align: middle;
-    margin-right: 0.5rem;
-    min-width: 12px;
-    min-height: 12px;
+display: inline-flex;
+align-items: center;
+justify-content: center;
+vertical-align: middle;
+margin-right: 0.5rem;
+min-width: 12px;
+min-height: 12px;
 }
 
 .status-indicator .status-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
+width: 8px;
+height: 8px;
+border-radius: 50%;
 }
 
 .status-indicator .status-dot.online {
-    background: var(--green);
-    box-shadow: 0 0 4px var(--green);
+background: var(--green);
+box-shadow: 0 0 4px var(--green);
 }
 
 .status-indicator .status-dot.offline {
-    background: var(--fg-gutter);
+background: var(--fg-gutter);
 }
 
 /* OS cell (icon + version) - color from host-color-* class */
 .os-cell {
-    white-space: nowrap;
-    font-size: 0.75rem;
+white-space: nowrap;
+font-size: 0.75rem;
 }
 
 .os-cell .os-icon,
 .os-cell .os-version {
-    display: inline-block;
-    vertical-align: middle;
+display: inline-block;
+vertical-align: middle;
 }
 
 .os-cell .os-icon {
-    margin-right: 0.3rem;
+margin-right: 0.3rem;
 }
 
 .os-cell .os-icon {
-    width: 14px;
-    height: 14px;
+width: 14px;
+height: 14px;
 }
 
 .os-cell .os-version {
-    font-family: 'JetBrains Mono', 'Fira Code', monospace;
-    font-size: 0.7rem;
+font-family: 'JetBrains Mono', 'Fira Code', monospace;
+font-size: 0.7rem;
 }
 
 /* Config & Fleet cells (hash badges) */
 .config-cell, .fleet-cell {
-    font-family: 'JetBrains Mono', 'Fira Code', monospace;
-    font-size: 0.7rem;
+font-family: 'JetBrains Mono', 'Fira Code', monospace;
+font-size: 0.7rem;
 }
 
 .hash-badge {
-    display: inline-block;
-    padding: 0.15rem 0.35rem;
-    background: var(--bg-highlight);
-    border-radius: 3px;
-    color: var(--fg);
-    font-size: 0.7rem;
+display: inline-block;
+padding: 0.15rem 0.35rem;
+background: var(--bg-highlight);
+border-radius: 3px;
+color: var(--fg);
+font-size: 0.7rem;
 }
 
 .hash-badge.outdated {
-    background: rgba(224, 175, 104, 0.2);
-    color: var(--yellow);
+background: rgba(224, 175, 104, 0.2);
+color: var(--yellow);
 }
 
 .hash-badge.current {
-    background: var(--bg-highlight);
-    color: var(--fg);
+background: var(--bg-highlight);
+color: var(--fg);
 }
 
 .update-indicator {
-    display: inline-block;
-    margin-left: 0.25rem;
-    font-size: 0.7rem;
-    vertical-align: middle;
+display: inline-block;
+margin-left: 0.25rem;
+font-size: 0.7rem;
+vertical-align: middle;
 }
 
 .update-indicator.outdated {
-    color: var(--yellow);
+color: var(--yellow);
 }
 
 .update-indicator.current {
-    color: var(--fg-gutter);
+color: var(--fg-gutter);
 }
 
 /* Status cell - Papertrail (scrollable history) */
 .status-cell {
-    font-size: 0.45rem;  /* Tiny font for papertrail */
-    max-width: 180px;
-    min-width: 100px;
-    padding: 0.15rem 0.3rem !important;
-    vertical-align: top;
+font-size: 0.45rem; /* Tiny font for papertrail */
+max-width: 180px;
+min-width: 100px;
+padding: 0.15rem 0.3rem !important;
+vertical-align: top;
 }
 
 .status-cell.has-error .status-entry:first-child {
-    color: var(--red);
+color: var(--red);
 }
 
 .status-papertrail {
-    position: relative;
-    display: flex;
-    align-items: flex-start;
-    gap: 0.2rem;
-    height: 100%;
+position: relative;
+display: flex;
+align-items: flex-start;
+gap: 0.2rem;
+height: 100%;
 }
 
 .status-entries {
-    flex: 1;
-    max-height: 5.5em;  /* ~5 lines collapsed - matches typical row height */
-    overflow-y: auto;
-    overflow-x: hidden;
-    transition: max-height 0.2s ease;
-    scrollbar-width: thin;
-    scrollbar-color: var(--fg-gutter) transparent;
+flex: 1;
+max-height: 5.5em; /* ~5 lines collapsed - matches typical row height */
+overflow-y: auto;
+overflow-x: hidden;
+transition: max-height 0.2s ease;
+scrollbar-width: thin;
+scrollbar-color: var(--fg-gutter) transparent;
 }
 
 .status-entries::-webkit-scrollbar {
-    width: 3px;
+width: 3px;
 }
 
 .status-entries::-webkit-scrollbar-thumb {
-    background: var(--fg-gutter);
-    border-radius: 2px;
+background: var(--fg-gutter);
+border-radius: 2px;
 }
 
 .status-papertrail.expanded .status-entries {
-    max-height: 20em;  /* Expanded: show more history */
+max-height: 20em; /* Expanded: show more history */
 }
 
 .status-entry {
-    display: flex;
-    align-items: baseline;
-    gap: 0.2rem;
-    padding: 0.05rem 0;
-    white-space: nowrap;
-    line-height: 1.1;
+display: flex;
+align-items: baseline;
+gap: 0.2rem;
+padding: 0.05rem 0;
+white-space: nowrap;
+line-height: 1.1;
 }
 
 .status-entry.muted {
-    color: var(--fg-gutter);
+color: var(--fg-gutter);
 }
 
 .status-ts {
-    color: var(--fg-gutter);
-    font-variant-numeric: tabular-nums;
-    min-width: 3.5em;
-    flex-shrink: 0;
+color: var(--fg-gutter);
+font-variant-numeric: tabular-nums;
+min-width: 3.5em;
+flex-shrink: 0;
 }
 
 .status-icon {
-    flex-shrink: 0;
+flex-shrink: 0;
 }
 
 .status-msg {
-    overflow: hidden;
-    text-overflow: ellipsis;
+overflow: hidden;
+text-overflow: ellipsis;
 }
 
 .status-expand-btn {
-    background: none;
-    border: none;
-    color: var(--fg-gutter);
-    font-size: 0.4rem;
-    padding: 0.05rem;
-    cursor: pointer;
-    opacity: 0.4;
-    transition: opacity 0.15s ease, transform 0.2s ease;
-    flex-shrink: 0;
-    line-height: 1;
-    align-self: flex-start;
-    margin-top: 0.1rem;
+background: none;
+border: none;
+color: var(--fg-gutter);
+font-size: 0.4rem;
+padding: 0.05rem;
+cursor: pointer;
+opacity: 0.4;
+transition: opacity 0.15s ease, transform 0.2s ease;
+flex-shrink: 0;
+line-height: 1;
+align-self: flex-start;
+margin-top: 0.1rem;
 }
 
 .status-expand-btn:hover {
-    opacity: 1;
-    color: var(--fg);
+opacity: 1;
+color: var(--fg);
 }
 
 .status-papertrail.expanded .status-expand-btn {
-    transform: rotate(180deg);
+transform: rotate(180deg);
 }
 
 /* Hide expand button if only 1 entry */
 .status-entries:not(:has(.status-entry:nth-child(2))) + .status-expand-btn {
-    visibility: hidden;
+visibility: hidden;
 }
 
 /* Status badges (for inline pending/testing states) */
 .status-badge {
-    display: inline-block;
-    padding: 0.15rem 0.4rem;
-    border-radius: 3px;
-    font-size: 0.6rem;
-    font-weight: 500;
+display: inline-block;
+padding: 0.15rem 0.4rem;
+border-radius: 3px;
+font-size: 0.6rem;
+font-weight: 500;
 }
 
 .status-badge.online {
-    background: rgba(80, 250, 123, 0.15);
-    color: var(--green);
+background: rgba(80, 250, 123, 0.15);
+color: var(--green);
 }
 
 .status-badge.offline {
-    background: rgba(98, 114, 164, 0.2);
-    color: var(--fg-gutter);
+background: rgba(98, 114, 164, 0.2);
+color: var(--fg-gutter);
 }
 
 .status-badge.pending {
-    background: rgba(255, 184, 108, 0.15);
-    color: var(--orange);
+background: rgba(255, 184, 108, 0.15);
+color: var(--orange);
 }
 
 .status-badge.testing {
-    background: rgba(139, 233, 253, 0.15);
-    color: var(--cyan);
+background: rgba(139, 233, 253, 0.15);
+color: var(--cyan);
 }
 
 /* Loc & Type cells */
 .loc-cell, .type-cell {
-    text-align: center;
+text-align: center;
 }
 
 .loc-icon, .type-icon {
-    width: 16px;
-    height: 16px;
-    flex-shrink: 0;
+width: 16px;
+height: 16px;
+flex-shrink: 0;
 }
 
 /* OS icon inherits color from parent (themed) */
@@ -586,44 +586,44 @@ tr[data-online="true"]:hover td {
 /* Location column */
 .loc-cell { text-align: center; }
 .loc-icon {
-    width: 16px;
-    height: 16px;
+width: 16px;
+height: 16px;
 }
 /* loc-icon and type-icon inherit color from host-color-* class */
 
 /* Type column */
 .type-cell { text-align: center; }
 .type-icon {
-    width: 16px;
-    height: 16px;
+width: 16px;
+height: 16px;
 }
 
 /* Metrics column - compact display with icons */
 .metrics-cell {
-    font-size: 0.7rem;
-    font-variant-numeric: tabular-nums;
-    white-space: nowrap;
-    color: var(--fg-dark);
+font-size: 0.7rem;
+font-variant-numeric: tabular-nums;
+white-space: nowrap;
+color: var(--fg-dark);
 }
 
 .metric {
-    display: inline-flex;
-    align-items: center;
-    gap: 2px;
-    color: var(--fg-dark);
+display: inline-flex;
+align-items: center;
+gap: 2px;
+color: var(--fg-dark);
 }
 
 .metric-icon {
-    width: 10px;
-    height: 10px;
-    opacity: 0.7;
-    flex-shrink: 0;
+width: 10px;
+height: 10px;
+opacity: 0.7;
+flex-shrink: 0;
 }
 
 .metric-val::after {
-    content: '%';
-    font-size: 0.5rem;
-    opacity: 0.6;
+content: '%';
+font-size: 0.5rem;
+opacity: 0.6;
 }
 
 .metric.ram { margin-left: 6px; }
@@ -631,234 +631,234 @@ tr[data-online="true"]:hover td {
 .metric.high .metric-icon { opacity: 1; }
 
 .metrics-na {
-    color: var(--fg-gutter);
-    font-size: 0.7rem;
+color: var(--fg-gutter);
+font-size: 0.7rem;
 }
 
 /* Muted text */
 .muted {
-    color: var(--fg-gutter);
-    margin-left: 0.3rem;
-    color: var(--fg-gutter);
-    font-family: inherit;
+color: var(--fg-gutter);
+margin-left: 0.3rem;
+color: var(--fg-gutter);
+font-family: inherit;
 }
 /* Old version styles removed - using .config-cell and .fleet-cell now */
-    color: var(--fg-dark);
+color: var(--fg-dark);
 }
 .git-hash.outdated {
-    background: rgba(224, 175, 104, 0.2);
-    color: var(--yellow);
+background: rgba(224, 175, 104, 0.2);
+color: var(--yellow);
 }
 .outdated-badge {
-    display: inline-block;
-    margin-left: 0.2rem;
-    color: var(--yellow);
-    font-size: 0.7rem;
-    vertical-align: middle;
+display: inline-block;
+margin-left: 0.2rem;
+color: var(--yellow);
+font-size: 0.7rem;
+vertical-align: middle;
 }
 
 /* Status Indicators */
-.status { 
-    display: inline-flex; 
-    align-items: center; 
-    gap: 0.4rem;
-    font-size: 0.8rem;
+.status {
+display: inline-flex;
+align-items: center;
+gap: 0.4rem;
+font-size: 0.8rem;
 }
 
 .status-text {
-    /* Text label next to status indicator */
+/* Text label next to status indicator */
 }
 
 .status-text.offline {
-    color: var(--fg-gutter);
+color: var(--fg-gutter);
 }
 
-.status-dot { 
-    width: 6px; 
-    height: 6px; 
-    border-radius: 50%;
-    flex-shrink: 0;
+.status-dot {
+width: 6px;
+height: 6px;
+border-radius: 50%;
+flex-shrink: 0;
 }
 
 .status-dot.offline { background: var(--fg-gutter); }
-.status-dot.error { 
-    background: var(--red);
-    box-shadow: 0 0 6px rgba(247, 118, 142, 0.5);
+.status-dot.error {
+background: var(--red);
+box-shadow: 0 0 6px rgba(247, 118, 142, 0.5);
 }
-.status-dot.pending { 
-    background: var(--yellow); 
-    animation: pulse 1.5s ease-in-out infinite;
+.status-dot.pending {
+background: var(--yellow);
+animation: pulse 1.5s ease-in-out infinite;
 }
 .status-dot.testing {
-    background: var(--purple);
-    animation: pulse 1s ease-in-out infinite;
+background: var(--purple);
+animation: pulse 1s ease-in-out infinite;
 }
 
 /* Status ripple for online hosts */
 .status-ripple {
-    width: 12px;
-    height: 12px;
-    position: relative;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--green);
-    flex-shrink: 0;
+width: 12px;
+height: 12px;
+position: relative;
+display: flex;
+align-items: center;
+justify-content: center;
+color: var(--green);
+flex-shrink: 0;
 }
 
 .status-ripple .hb-core {
-    width: 4px;
-    height: 4px;
-    background: currentColor;
-    border-radius: 50%;
-    position: relative;
-    z-index: 2;
-    box-shadow: 0 0 4px currentColor;
+width: 4px;
+height: 4px;
+background: currentColor;
+border-radius: 50%;
+position: relative;
+z-index: 2;
+box-shadow: 0 0 4px currentColor;
 }
 
 .status-ripple .hb-wave {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 4px;
-    height: 4px;
-    margin: -2px 0 0 -2px;
-    border-radius: 50%;
-    border: 1px solid currentColor;
-    opacity: 0;
-    animation: ripple-wave 2s ease-out infinite;
+position: absolute;
+top: 50%;
+left: 50%;
+width: 4px;
+height: 4px;
+margin: -2px 0 0 -2px;
+border-radius: 50%;
+border: 1px solid currentColor;
+opacity: 0;
+animation: ripple-wave 2s ease-out infinite;
 }
 
 .status-ripple .hb-wave:nth-child(2) {
-    animation-delay: 0.5s;
+animation-delay: 0.5s;
 }
 
 .status-ripple .hb-wave:nth-child(3) {
-    animation-delay: 1s;
+animation-delay: 1s;
 }
 
 /* Ping burst on heartbeat arrival */
 .status-ripple.ping .hb-wave {
-    animation: ripple-ping 0.6s ease-out;
-    animation-iteration-count: 1;
+animation: ripple-ping 0.6s ease-out;
+animation-iteration-count: 1;
 }
 
 /* Countdown next to status (visible on hover) */
 .status .hb-countdown {
-    font-variant-numeric: tabular-nums;
-    font-size: 0.65rem;
-    min-width: 18px;
-    color: var(--green);
-    opacity: 0.1;
-    transition: opacity 0.15s ease;
+font-variant-numeric: tabular-nums;
+font-size: 0.65rem;
+min-width: 18px;
+color: var(--green);
+opacity: 0.1;
+transition: opacity 0.15s ease;
 }
 
 tr:hover .status .hb-countdown {
-    opacity: 1;
+opacity: 1;
 }
 
-@keyframes pulse { 
-    0%, 100% { opacity: 1; } 
-    50% { opacity: 0.4; } 
+@keyframes pulse {
+0%, 100% { opacity: 1; }
+50% { opacity: 0.4; }
 }
 
 /* Last seen - compact, full date on hover */
 .seen-cell {
-    font-size: 0.7rem;
-    color: var(--fg-dark);
-    white-space: nowrap;
-    cursor: help;
+font-size: 0.7rem;
+color: var(--fg-dark);
+white-space: nowrap;
+cursor: help;
 }
 
 .seen-relative {
-    color: var(--fg-dark);
+color: var(--fg-dark);
 }
 
 /* Ripple wave animation (shared by status-ripple) */
 @keyframes ripple-wave {
-    0% {
-        width: 4px;
-        height: 4px;
-        margin: -2px 0 0 -2px;
-        opacity: 0.6;
-    }
-    100% {
-        width: 20px;
-        height: 20px;
-        margin: -10px 0 0 -10px;
-        opacity: 0;
-    }
+0% {
+width: 4px;
+height: 4px;
+margin: -2px 0 0 -2px;
+opacity: 0.6;
+}
+100% {
+width: 20px;
+height: 20px;
+margin: -10px 0 0 -10px;
+opacity: 0;
+}
 }
 
 @keyframes ripple-ping {
-    0% {
-        width: 4px;
-        height: 4px;
-        margin: -2px 0 0 -2px;
-        opacity: 1;
-        border-width: 2px;
-    }
-    100% {
-        width: 24px;
-        height: 24px;
-        margin: -12px 0 0 -12px;
-        opacity: 0;
-        border-width: 1px;
-    }
+0% {
+width: 4px;
+height: 4px;
+margin: -2px 0 0 -2px;
+opacity: 1;
+border-width: 2px;
+}
+100% {
+width: 24px;
+height: 24px;
+margin: -12px 0 0 -12px;
+opacity: 0;
+border-width: 1px;
+}
 }
 
 /* Action Buttons */
-.actions { 
-    display: flex; 
-    gap: 0.3rem; 
+.actions {
+display: flex;
+gap: 0.3rem;
 }
 
 .btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.25rem;
-    padding: 0.25rem 0.5rem;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    font-family: inherit;
-    font-size: 0.65rem;
-    font-weight: 500;
-    transition: all 0.15s ease;
-    white-space: nowrap;
+display: inline-flex;
+align-items: center;
+gap: 0.25rem;
+padding: 0.25rem 0.5rem;
+border: none;
+border-radius: 4px;
+cursor: pointer;
+font-family: inherit;
+font-size: 0.65rem;
+font-weight: 500;
+transition: all 0.15s ease;
+white-space: nowrap;
 }
 
 .btn svg {
-    width: 11px;
-    height: 11px;
-    flex-shrink: 0;
+width: 11px;
+height: 11px;
+flex-shrink: 0;
 }
 
-.btn-pull { 
-    background: rgba(125, 207, 255, 0.1); 
-    color: var(--cyan);
-    border: 1px solid rgba(125, 207, 255, 0.2);
+.btn-pull {
+background: rgba(125, 207, 255, 0.1);
+color: var(--cyan);
+border: 1px solid rgba(125, 207, 255, 0.2);
 }
 .btn-pull:hover { background: rgba(125, 207, 255, 0.2); }
 
-.btn-switch { 
-    background: rgba(158, 206, 106, 0.1); 
-    color: var(--green);
-    border: 1px solid rgba(158, 206, 106, 0.2);
+.btn-switch {
+background: rgba(158, 206, 106, 0.1);
+color: var(--green);
+border: 1px solid rgba(158, 206, 106, 0.2);
 }
 .btn-switch:hover { background: rgba(158, 206, 106, 0.2); }
 
-.btn-test { 
-    background: rgba(187, 154, 247, 0.1); 
-    color: var(--purple);
-    border: 1px solid rgba(187, 154, 247, 0.2);
+.btn-test {
+background: rgba(187, 154, 247, 0.1);
+color: var(--purple);
+border: 1px solid rgba(187, 154, 247, 0.2);
 }
 .btn-test:hover { background: rgba(187, 154, 247, 0.2); }
 
 .btn-stop {
-    background: rgba(247, 118, 142, 0.1);
-    color: var(--red);
-    border: 1px solid rgba(247, 118, 142, 0.2);
+background: rgba(247, 118, 142, 0.1);
+color: var(--red);
+border: 1px solid rgba(247, 118, 142, 0.2);
 }
 .btn-stop:hover { background: rgba(247, 118, 142, 0.2); }
 
@@ -866,227 +866,227 @@ tr:hover .status .hb-countdown {
 
 /* Ellipsis/More Button & Dropdown */
 .btn-more {
-    background: rgba(169, 177, 214, 0.1);
-    color: var(--fg-dark);
-    border: 1px solid rgba(169, 177, 214, 0.2);
-    width: 24px;
-    height: 26px;
-    padding: 4px;
-    margin-left: 4px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
+background: rgba(169, 177, 214, 0.1);
+color: var(--fg-dark);
+border: 1px solid rgba(169, 177, 214, 0.2);
+width: 24px;
+height: 26px;
+padding: 4px;
+margin-left: 4px;
+display: inline-flex;
+align-items: center;
+justify-content: center;
 }
-.btn-more:hover { 
-    background: rgba(169, 177, 214, 0.2); 
-    color: var(--fg);
+.btn-more:hover {
+background: rgba(169, 177, 214, 0.2);
+color: var(--fg);
 }
 
 .dropdown {
-    position: relative;
-    display: inline-block;
+position: relative;
+display: inline-block;
 }
 
 .dropdown-menu {
-    display: none;
-    position: absolute;
-    right: 0;
-    top: 100%;
-    margin-top: 4px;
-    background: var(--bg-dark);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    min-width: 140px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-    z-index: 9999;
-    overflow: visible;
+display: none;
+position: absolute;
+right: 0;
+top: 100%;
+margin-top: 4px;
+background: var(--bg-dark);
+border: 1px solid var(--border);
+border-radius: 6px;
+min-width: 140px;
+box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+z-index: 9999;
+overflow: visible;
 }
 
 .dropdown.open .dropdown-menu {
-    display: block;
+display: block;
 }
 
 .dropdown-item {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.5rem 0.75rem;
-    font-size: 0.75rem;
-    color: var(--fg);
-    cursor: pointer;
-    transition: background 0.15s;
-    border: none;
-    background: none;
-    width: 100%;
-    text-align: left;
+display: flex;
+align-items: center;
+gap: 0.5rem;
+padding: 0.5rem 0.75rem;
+font-size: 0.75rem;
+color: var(--fg);
+cursor: pointer;
+transition: background 0.15s;
+border: none;
+background: none;
+width: 100%;
+text-align: left;
 }
 
 .dropdown-item:hover {
-    background: var(--bg-highlight);
+background: var(--bg-highlight);
 }
 
 .dropdown-item svg {
-    width: 12px;
-    height: 12px;
-    flex-shrink: 0;
+width: 12px;
+height: 12px;
+flex-shrink: 0;
 }
 
 .dropdown-item.disabled {
-    color: var(--fg-gutter);
-    cursor: not-allowed;
-    pointer-events: none;
+color: var(--fg-gutter);
+cursor: not-allowed;
+pointer-events: none;
 }
 
 .dropdown-divider {
-    height: 1px;
-    background: var(--border);
-    margin: 0.25rem 0;
+height: 1px;
+background: var(--border);
+margin: 0.25rem 0;
 }
 
 .dropdown-item.danger {
-    color: var(--red);
+color: var(--red);
 }
 .dropdown-item.danger:hover {
-    background: rgba(247, 118, 142, 0.1);
+background: rgba(247, 118, 142, 0.1);
 }
 
 /* Confirmation Modal */
 .modal-overlay {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.6);
-    z-index: 1000;
-    align-items: center;
-    justify-content: center;
+display: none;
+position: fixed;
+inset: 0;
+background: rgba(0, 0, 0, 0.6);
+z-index: 1000;
+align-items: center;
+justify-content: center;
 }
 
 .modal-overlay.open {
-    display: flex;
+display: flex;
 }
 
 .modal {
-    background: var(--bg-dark);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 1.5rem;
-    max-width: 400px;
-    width: 90%;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+background: var(--bg-dark);
+border: 1px solid var(--border);
+border-radius: 8px;
+padding: 1.5rem;
+max-width: 400px;
+width: 90%;
+box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
 }
 
 .modal-title {
-    font-size: 1rem;
-    font-weight: 600;
-    color: var(--fg);
-    margin-bottom: 0.75rem;
+font-size: 1rem;
+font-weight: 600;
+color: var(--fg);
+margin-bottom: 0.75rem;
 }
 
 .modal-body {
-    font-size: 0.85rem;
-    color: var(--fg-dark);
-    margin-bottom: 1.25rem;
-    line-height: 1.5;
+font-size: 0.85rem;
+color: var(--fg-dark);
+margin-bottom: 1.25rem;
+line-height: 1.5;
 }
 
 .modal-body code {
-    background: var(--bg-highlight);
-    padding: 0.1rem 0.4rem;
-    border-radius: 3px;
-    color: var(--fg);
+background: var(--bg-highlight);
+padding: 0.1rem 0.4rem;
+border-radius: 3px;
+color: var(--fg);
 }
 
 .modal-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 0.5rem;
+display: flex;
+justify-content: flex-end;
+gap: 0.5rem;
 }
 
 .modal-btn {
-    padding: 0.5rem 1rem;
-    border-radius: 4px;
-    font-size: 0.8rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.15s;
-    border: 1px solid var(--border);
+padding: 0.5rem 1rem;
+border-radius: 4px;
+font-size: 0.8rem;
+font-weight: 500;
+cursor: pointer;
+transition: all 0.15s;
+border: 1px solid var(--border);
 }
 
 .modal-btn-cancel {
-    background: var(--bg-highlight);
-    color: var(--fg);
+background: var(--bg-highlight);
+color: var(--fg);
 }
 .modal-btn-cancel:hover {
-    background: var(--bg);
+background: var(--bg);
 }
 
 .modal-btn-danger {
-    background: rgba(247, 118, 142, 0.15);
-    color: var(--red);
-    border-color: rgba(247, 118, 142, 0.3);
+background: rgba(247, 118, 142, 0.15);
+color: var(--red);
+border-color: rgba(247, 118, 142, 0.3);
 }
 .modal-btn-danger:hover {
-    background: rgba(247, 118, 142, 0.25);
+background: rgba(247, 118, 142, 0.25);
 }
 
 .modal-btn-primary {
-    background: rgba(122, 162, 247, 0.15);
-    color: var(--blue);
-    border-color: rgba(122, 162, 247, 0.3);
+background: rgba(122, 162, 247, 0.15);
+color: var(--blue);
+border-color: rgba(122, 162, 247, 0.3);
 }
 .modal-btn-primary:hover {
-    background: rgba(122, 162, 247, 0.25);
+background: rgba(122, 162, 247, 0.25);
 }
 
 /* Form Elements */
 .form-group {
-    margin-bottom: 1rem;
+margin-bottom: 1rem;
 }
 
 .form-group label {
-    display: block;
-    font-size: 0.75rem;
-    color: var(--fg-dark);
-    margin-bottom: 0.35rem;
-    font-weight: 500;
+display: block;
+font-size: 0.75rem;
+color: var(--fg-dark);
+margin-bottom: 0.35rem;
+font-weight: 500;
 }
 
 .form-group input,
 .form-group select {
-    width: 100%;
-    padding: 0.5rem 0.75rem;
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    color: var(--fg);
-    font-family: inherit;
-    font-size: 0.85rem;
-    transition: border-color 0.2s;
+width: 100%;
+padding: 0.5rem 0.75rem;
+background: var(--bg);
+border: 1px solid var(--border);
+border-radius: 4px;
+color: var(--fg);
+font-family: inherit;
+font-size: 0.85rem;
+transition: border-color 0.2s;
 }
 
 .form-group input:focus,
 .form-group select:focus {
-    outline: none;
-    border-color: var(--blue);
+outline: none;
+border-color: var(--blue);
 }
 
 .form-group input[type="color"] {
-    padding: 0.25rem;
-    height: 36px;
-    cursor: pointer;
+padding: 0.25rem;
+height: 36px;
+cursor: pointer;
 }
 
 .form-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1rem;
+display: grid;
+grid-template-columns: 1fr 1fr;
+gap: 1rem;
 }
 
 /* Text Styles */
 .hostname {
-    font-weight: 600;
-    font-size: 0.85rem;
-    /* color inherited from host-color-* class */
+font-weight: 600;
+font-size: 0.85rem;
+/* color inherited from host-color-* class */
 }
 
 /* Old styles removed - .agent-version, .comment, .audit */
@@ -1101,112 +1101,112 @@ tr:hover .status .hb-countdown {
 
 /* Footer */
 .site-footer {
-    margin-top: 2rem;
-    padding: 1rem 0;
-    border-top: 1px solid var(--border);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: 0.7rem;
-    color: var(--fg-gutter);
+margin-top: 2rem;
+padding: 1rem 0;
+border-top: 1px solid var(--border);
+display: flex;
+justify-content: space-between;
+align-items: center;
+font-size: 0.7rem;
+color: var(--fg-gutter);
 }
 
 .footer-left, .footer-right {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
+display: flex;
+align-items: center;
+gap: 1rem;
 }
 
 .footer-link {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.3rem;
-    color: var(--fg-dark);
-    text-decoration: none;
-    transition: color 0.15s;
+display: inline-flex;
+align-items: center;
+gap: 0.3rem;
+color: var(--fg-dark);
+text-decoration: none;
+transition: color 0.15s;
 }
 .footer-link:hover { color: var(--fg); }
 .footer-link svg { width: 14px; height: 14px; }
 
 .build-hash {
-    font-size: 0.7rem;
-    text-decoration: none;
-    transition: opacity 0.15s;
+font-size: 0.7rem;
+text-decoration: none;
+transition: opacity 0.15s;
 }
 .build-hash:hover {
-    opacity: 0.8;
+opacity: 0.8;
 }
 .build-hash code {
-    font-family: 'JetBrains Mono', 'Fira Code', monospace;
-    background: var(--bg-highlight);
-    padding: 0.1rem 0.3rem;
-    border-radius: 3px;
-    color: var(--fg-dark);
+font-family: 'JetBrains Mono', 'Fira Code', monospace;
+background: var(--bg-highlight);
+padding: 0.1rem 0.3rem;
+border-radius: 3px;
+color: var(--fg-dark);
 }
 
 .made-with {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.25rem;
+display: inline-flex;
+align-items: center;
+gap: 0.25rem;
 }
 
 .made-with .heart {
-    color: var(--red);
-    animation: heartbeat 1.5s ease-in-out infinite;
+color: var(--red);
+animation: heartbeat 1.5s ease-in-out infinite;
 }
 
 @keyframes heartbeat {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.15); }
+0%, 100% { transform: scale(1); }
+50% { transform: scale(1.15); }
 }
 
 /* SSE Connection Indicator */
 .connection-status {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    font-size: 0.75rem;
-    padding: 0.3rem 0.6rem;
-    border-radius: 4px;
-    transition: all 0.3s ease;
+display: inline-flex;
+align-items: center;
+gap: 0.4rem;
+font-size: 0.75rem;
+padding: 0.3rem 0.6rem;
+border-radius: 4px;
+transition: all 0.3s ease;
 }
 
 .connection-status.connected {
-    color: var(--green);
-    background: rgba(158, 206, 106, 0.1);
+color: var(--green);
+background: rgba(158, 206, 106, 0.1);
 }
 
 .connection-status.disconnected {
-    color: var(--red);
-    background: rgba(247, 118, 142, 0.1);
+color: var(--red);
+background: rgba(247, 118, 142, 0.1);
 }
 
 .connection-status.connecting {
-    color: var(--yellow);
-    background: rgba(224, 175, 104, 0.1);
+color: var(--yellow);
+background: rgba(224, 175, 104, 0.1);
 }
 
 .connection-dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: currentColor;
+width: 6px;
+height: 6px;
+border-radius: 50%;
+background: currentColor;
 }
 
 .connection-status.connected .connection-dot {
-    box-shadow: 0 0 6px rgba(158, 206, 106, 0.5);
+box-shadow: 0 0 6px rgba(158, 206, 106, 0.5);
 }
 
 .connection-status.connecting .connection-dot {
-    animation: pulse 1s ease-in-out infinite;
+animation: pulse 1s ease-in-out infinite;
 }
 
 @media (max-width: 1200px) { .status-cell { max-width: 100px; } }
 @media (max-width: 900px) {
-    body { padding: 1rem; }
-    th, td { padding: 0.4rem 0.5rem; }
-    .stats { max-width: 100%; }
-    .site-footer { flex-direction: column; gap: 0.5rem; }
+body { padding: 1rem; }
+th, td { padding: 0.4rem 0.5rem; }
+.stats { max-width: 100%; }
+.site-footer { flex-direction: column; gap: 0.5rem; }
 }
 {% endblock %}
 
@@ -1214,7 +1214,7 @@ tr:hover .status .hb-countdown {
 <header>
     <div class="brand">
         <h1><img src="/static/logo.png" alt="NixFleet" class="brand-logo"> NixFleet</h1>
-        <p class="subtitle">Fleet management for NixOS and macOS</p>
+        <p class="subtitle">Simple, unified fleet management for NixOS and macOS</p>
     </div>
     {% if nixcfg_hash or build_hash %}
     <div class="source-of-truth" title="Target versions for comparison">
@@ -1223,20 +1223,32 @@ tr:hover .status .hb-countdown {
             {% if nixcfg_hash %}
             <div class="sot-target">
                 <button class="sot-refresh" type="button" data-action="refresh-target" title="Refresh config hash">
-                    <svg><use href="#icon-refresh"/></svg>
+                    <svg>
+                        <use href="#icon-refresh" />
+                    </svg>
                 </button>
-                <span class="sot-label"><svg><use href="#icon-file"/></svg> Config</span>
-                <a href="https://github.com/markus-barta/nixcfg/commit/{{ nixcfg_hash }}" target="_blank" class="sot-hash nixcfg-hash" title="Config target (nixcfg)">
-                    <svg width="12" height="12"><use href="#icon-github"/></svg>
+                <span class="sot-label"><svg>
+                        <use href="#icon-file" />
+                    </svg> Config</span>
+                <a href="https://github.com/markus-barta/nixcfg/commit/{{ nixcfg_hash }}" target="_blank"
+                    class="sot-hash nixcfg-hash" title="Config target (nixcfg)">
+                    <svg width="12" height="12">
+                        <use href="#icon-github" />
+                    </svg>
                     {{ nixcfg_hash }}
                 </a>
             </div>
             {% endif %}
             {% if build_hash %}
             <div class="sot-target">
-                <span class="sot-label"><svg><use href="#icon-rocket"/></svg> Agent</span>
-                <a href="https://github.com/markus-barta/nixfleet/commit/{{ build_hash }}" target="_blank" class="sot-hash fleet-hash" title="Fleet target (nixfleet)">
-                    <svg width="12" height="12"><use href="#icon-github"/></svg>
+                <span class="sot-label"><svg>
+                        <use href="#icon-rocket" />
+                    </svg> Agent</span>
+                <a href="https://github.com/markus-barta/nixfleet/commit/{{ build_hash }}" target="_blank"
+                    class="sot-hash fleet-hash" title="Fleet target (nixfleet)">
+                    <svg width="12" height="12">
+                        <use href="#icon-github" />
+                    </svg>
                     {{ build_hash }}
                 </a>
             </div>
@@ -1251,31 +1263,48 @@ tr:hover .status .hb-countdown {
         </span>
         <div class="dropdown header-dropdown">
             <button class="header-btn" type="button" data-action="toggle-dropdown">
-                <svg width="14" height="14"><use href="#icon-more"/></svg>
+                <svg width="14" height="14">
+                    <use href="#icon-more" />
+                </svg>
                 Actions
-                <svg class="chevron" width="10" height="10"><use href="#icon-chevron"/></svg>
+                <svg class="chevron" width="10" height="10">
+                    <use href="#icon-chevron" />
+                </svg>
             </button>
             <div class="dropdown-menu">
                 <button class="dropdown-item" type="button" data-action="open-add-host-modal">
-                    <svg><use href="#icon-plus"/></svg>
+                    <svg>
+                        <use href="#icon-plus" />
+                    </svg>
                     Add Host
                 </button>
                 <div class="dropdown-divider"></div>
-                <button class="dropdown-item" type="button" data-action="bulk-command" data-command="pull" title="Pull latest config on all online hosts">
-                    <svg><use href="#icon-download"/></svg>
+                <button class="dropdown-item" type="button" data-action="bulk-command" data-command="pull"
+                    title="Pull latest config on all online hosts">
+                    <svg>
+                        <use href="#icon-download" />
+                    </svg>
                     Pull All
                 </button>
-                <button class="dropdown-item" type="button" data-action="bulk-command" data-command="switch" title="Rebuild and switch all online hosts">
-                    <svg><use href="#icon-refresh"/></svg>
+                <button class="dropdown-item" type="button" data-action="bulk-command" data-command="switch"
+                    title="Rebuild and switch all online hosts">
+                    <svg>
+                        <use href="#icon-refresh" />
+                    </svg>
                     Switch All
                 </button>
-                <button class="dropdown-item" type="button" data-action="bulk-command" data-command="test" title="Run tests on all online hosts">
-                    <svg><use href="#icon-flask"/></svg>
+                <button class="dropdown-item" type="button" data-action="bulk-command" data-command="test"
+                    title="Run tests on all online hosts">
+                    <svg>
+                        <use href="#icon-flask" />
+                    </svg>
                     Test All
                 </button>
                 <div class="dropdown-divider"></div>
                 <button class="dropdown-item" type="button" data-action="refresh-page">
-                    <svg><use href="#icon-refresh"/></svg>
+                    <svg>
+                        <use href="#icon-refresh" />
+                    </svg>
                     Refresh Page
                 </button>
             </div>
@@ -1291,85 +1320,103 @@ tr:hover .status .hb-countdown {
 <!-- SVG icon definitions -->
 <svg class="svg-defs" aria-hidden="true">
     <symbol id="icon-nixos" viewBox="0 0 24 24">
-        <path fill="currentColor" d="M12 2L2.5 7v10L12 22l9.5-5V7L12 2zm0 2.16l6.86 3.62-2.14 1.13-4.72-2.5-4.72 2.5-2.14-1.13L12 4.16zM5.5 8.84l2.14 1.13v5l4.36 2.3 4.36-2.3v-5l2.14-1.13v7.32L12 19.84l-6.5-3.68V8.84z"/>
+        <path fill="currentColor"
+            d="M12 2L2.5 7v10L12 22l9.5-5V7L12 2zm0 2.16l6.86 3.62-2.14 1.13-4.72-2.5-4.72 2.5-2.14-1.13L12 4.16zM5.5 8.84l2.14 1.13v5l4.36 2.3 4.36-2.3v-5l2.14-1.13v7.32L12 19.84l-6.5-3.68V8.84z" />
     </symbol>
     <symbol id="icon-apple" viewBox="0 0 24 24">
-        <path fill="currentColor" d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
+        <path fill="currentColor"
+            d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z" />
     </symbol>
     <symbol id="icon-cloud" viewBox="0 0 24 24">
-        <path fill="currentColor" d="M19.35 10.04A7.49 7.49 0 0 0 12 4C9.11 4 6.6 5.64 5.35 8.04A5.994 5.994 0 0 0 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96z"/>
+        <path fill="currentColor"
+            d="M19.35 10.04A7.49 7.49 0 0 0 12 4C9.11 4 6.6 5.64 5.35 8.04A5.994 5.994 0 0 0 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96z" />
     </symbol>
     <symbol id="icon-home" viewBox="0 0 24 24">
-        <path fill="currentColor" d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
+        <path fill="currentColor" d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" />
     </symbol>
     <symbol id="icon-office" viewBox="0 0 24 24">
-        <path fill="currentColor" d="M12 7V3H2v18h20V7H12zM6 19H4v-2h2v2zm0-4H4v-2h2v2zm0-4H4V9h2v2zm0-4H4V5h2v2zm4 12H8v-2h2v2zm0-4H8v-2h2v2zm0-4H8V9h2v2zm0-4H8V5h2v2zm10 12h-8v-2h2v-2h-2v-2h2v-2h-2V9h8v10zm-2-8h-2v2h2v-2zm0 4h-2v2h2v-2z"/>
+        <path fill="currentColor"
+            d="M12 7V3H2v18h20V7H12zM6 19H4v-2h2v2zm0-4H4v-2h2v2zm0-4H4V9h2v2zm0-4H4V5h2v2zm4 12H8v-2h2v2zm0-4H8v-2h2v2zm0-4H8V9h2v2zm0-4H8V5h2v2zm10 12h-8v-2h2v-2h-2v-2h2v-2h-2V9h8v10zm-2-8h-2v2h2v-2zm0 4h-2v2h2v-2z" />
     </symbol>
     <symbol id="icon-game" viewBox="0 0 24 24">
-        <path fill="currentColor" d="M21 6H3c-1.1 0-2 .9-2 2v8c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-10 7H8v3H6v-3H3v-2h3V8h2v3h3v2zm4.5 2c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm4-3c-.83 0-1.5-.67-1.5-1.5S18.67 9 19.5 9s1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/>
+        <path fill="currentColor"
+            d="M21 6H3c-1.1 0-2 .9-2 2v8c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-10 7H8v3H6v-3H3v-2h3V8h2v3h3v2zm4.5 2c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm4-3c-.83 0-1.5-.67-1.5-1.5S18.67 9 19.5 9s1.5.67 1.5 1.5-.67 1.5-1.5 1.5z" />
     </symbol>
     <symbol id="icon-mobile" viewBox="0 0 24 24">
-        <path fill="currentColor" d="M17 1.01L7 1c-1.1 0-2 .9-2 2v18c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V3c0-1.1-.9-1.99-2-1.99zM17 19H7V5h10v14z"/>
+        <path fill="currentColor"
+            d="M17 1.01L7 1c-1.1 0-2 .9-2 2v18c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V3c0-1.1-.9-1.99-2-1.99zM17 19H7V5h10v14z" />
     </symbol>
     <symbol id="icon-desktop" viewBox="0 0 24 24">
-        <path fill="currentColor" d="M21 2H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h7v2H8v2h8v-2h-2v-2h7c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H3V4h18v12z"/>
+        <path fill="currentColor"
+            d="M21 2H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h7v2H8v2h8v-2h-2v-2h7c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H3V4h18v12z" />
     </symbol>
     <symbol id="icon-laptop" viewBox="0 0 24 24">
-        <path fill="currentColor" d="M20 18c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2H0v2h24v-2h-4zM4 6h16v10H4V6z"/>
+        <path fill="currentColor"
+            d="M20 18c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2H0v2h24v-2h-4zM4 6h16v10H4V6z" />
     </symbol>
     <symbol id="icon-server" viewBox="0 0 24 24">
-        <path fill="currentColor" d="M2 2h20v6H2V2zm2 2v2h16V4H4zm-2 8h20v6H2v-6zm2 2v2h16v-2H4zm-2 8h20v2H2v-2z"/>
+        <path fill="currentColor" d="M2 2h20v6H2V2zm2 2v2h16V4H4zm-2 8h20v6H2v-6zm2 2v2h16v-2H4zm-2 8h20v2H2v-2z" />
     </symbol>
     <symbol id="icon-download" viewBox="0 0 24 24">
-        <path fill="currentColor" d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
+        <path fill="currentColor" d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z" />
     </symbol>
     <symbol id="icon-refresh" viewBox="0 0 24 24">
-        <path fill="currentColor" d="M17.65 6.35A7.958 7.958 0 0 0 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0 1 12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
+        <path fill="currentColor"
+            d="M17.65 6.35A7.958 7.958 0 0 0 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0 1 12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z" />
     </symbol>
     <symbol id="icon-check" viewBox="0 0 24 24">
-        <path fill="currentColor" d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+        <path fill="currentColor" d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
     </symbol>
     <symbol id="icon-flask" viewBox="0 0 24 24">
-        <path fill="currentColor" d="M6 22a3 3 0 0 1-3-3c0-.6.18-1.16.5-1.63L9 7.81V6a1 1 0 0 1-1-1V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v1a1 1 0 0 1-1 1v1.81l5.5 9.56c.32.47.5 1.03.5 1.63a3 3 0 0 1-3 3H6zm1.77-6h8.46l-3.23-5.6V6h-2v4.4L7.77 16z"/>
+        <path fill="currentColor"
+            d="M6 22a3 3 0 0 1-3-3c0-.6.18-1.16.5-1.63L9 7.81V6a1 1 0 0 1-1-1V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v1a1 1 0 0 1-1 1v1.81l5.5 9.56c.32.47.5 1.03.5 1.63a3 3 0 0 1-3 3H6zm1.77-6h8.46l-3.23-5.6V6h-2v4.4L7.77 16z" />
     </symbol>
     <symbol id="icon-stop" viewBox="0 0 24 24">
-        <path fill="currentColor" d="M6 6h12v12H6z"/>
+        <path fill="currentColor" d="M6 6h12v12H6z" />
     </symbol>
     <symbol id="icon-github" viewBox="0 0 24 24">
-        <path fill="currentColor" d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33.85 0 1.71.11 2.5.33 1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2z"/>
+        <path fill="currentColor"
+            d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33.85 0 1.71.11 2.5.33 1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2z" />
     </symbol>
     <symbol id="icon-heart" viewBox="0 0 24 24">
-        <path fill="currentColor" d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+        <path fill="currentColor"
+            d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
     </symbol>
     <symbol id="icon-license" viewBox="0 0 24 24">
-        <path fill="currentColor" d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/>
+        <path fill="currentColor"
+            d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z" />
     </symbol>
     <symbol id="icon-more" viewBox="0 0 24 24">
-        <path fill="currentColor" d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
+        <path fill="currentColor"
+            d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z" />
     </symbol>
     <symbol id="icon-trash" viewBox="0 0 24 24">
-        <path fill="currentColor" d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+        <path fill="currentColor" d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" />
     </symbol>
     <symbol id="icon-file" viewBox="0 0 24 24">
-        <path fill="currentColor" d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/>
+        <path fill="currentColor"
+            d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z" />
     </symbol>
     <symbol id="icon-plus" viewBox="0 0 24 24">
-        <path fill="currentColor" d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+        <path fill="currentColor" d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
     </symbol>
     <symbol id="icon-chevron" viewBox="0 0 24 24">
-        <path fill="currentColor" d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/>
+        <path fill="currentColor" d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
     </symbol>
     <!-- Rocket icon (fleet/deploy) -->
     <symbol id="icon-rocket" viewBox="0 0 24 24">
-        <path fill="currentColor" d="M12 2.5c-3.17 0-6.26 1.16-8.64 3.32l1.42 1.42C6.61 5.47 9.21 4.5 12 4.5s5.39.97 7.22 2.74l1.42-1.42A11.94 11.94 0 0 0 12 2.5zM4.93 8.93l1.42 1.42C7.57 9.12 9.67 8.5 12 8.5s4.43.62 5.65 1.85l1.42-1.42C17.41 7.27 14.82 6.5 12 6.5s-5.41.77-7.07 2.43zM12 10.5c-1.65 0-3.14.49-4.24 1.34l1.42 1.42c.73-.53 1.74-.76 2.82-.76s2.09.23 2.82.76l1.42-1.42c-1.1-.85-2.59-1.34-4.24-1.34zM12 14l-4 8 2-3h4l2 3-4-8z"/>
+        <path fill="currentColor"
+            d="M12 2.5c-3.17 0-6.26 1.16-8.64 3.32l1.42 1.42C6.61 5.47 9.21 4.5 12 4.5s5.39.97 7.22 2.74l1.42-1.42A11.94 11.94 0 0 0 12 2.5zM4.93 8.93l1.42 1.42C7.57 9.12 9.67 8.5 12 8.5s4.43.62 5.65 1.85l1.42-1.42C17.41 7.27 14.82 6.5 12 6.5s-5.41.77-7.07 2.43zM12 10.5c-1.65 0-3.14.49-4.24 1.34l1.42 1.42c.73-.53 1.74-.76 2.82-.76s2.09.23 2.82.76l1.42-1.42c-1.1-.85-2.59-1.34-4.24-1.34zM12 14l-4 8 2-3h4l2 3-4-8z" />
     </symbol>
     <!-- CPU icon (processor chip) -->
     <symbol id="icon-cpu" viewBox="0 0 24 24">
-        <path fill="currentColor" d="M6 18h12V6H6v12zm4-8h4v4h-4v-4zM1 9h2V7H1v2zm0 4h2v-2H1v2zm0 4h2v-2H1v2zm0-12h2V3H1v2zm20 8h2v-2h-2v2zm0 4h2v-2h-2v2zM21 5h2V3h-2v2zm0 12h2v-2h-2v2zm0 4h2v-2h-2v2zM9 1v2h2V1H9zm4 0v2h2V1h-2zm0 20v2h2v-2h-2zM9 21v2h2v-2H9zm8 0v2h2v-2h-2zM5 1v2h2V1H5zM5 21v2h2v-2H5zM17 1v2h2V1h-2z"/>
+        <path fill="currentColor"
+            d="M6 18h12V6H6v12zm4-8h4v4h-4v-4zM1 9h2V7H1v2zm0 4h2v-2H1v2zm0 4h2v-2H1v2zm0-12h2V3H1v2zm20 8h2v-2h-2v2zm0 4h2v-2h-2v2zM21 5h2V3h-2v2zm0 12h2v-2h-2v2zm0 4h2v-2h-2v2zM9 1v2h2V1H9zm4 0v2h2V1h-2zm0 20v2h2v-2h-2zM9 21v2h2v-2H9zm8 0v2h2v-2h-2zM5 1v2h2V1H5zM5 21v2h2v-2H5zM17 1v2h2V1h-2z" />
     </symbol>
     <!-- RAM icon (memory stick) -->
     <symbol id="icon-ram" viewBox="0 0 24 24">
-        <path fill="currentColor" d="M2 7v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2zm3 2h2v4H5V9zm4 0h2v4H9V9zm4 0h2v4h-2V9zm4 0h2v4h-2V9z"/>
+        <path fill="currentColor"
+            d="M2 7v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2zm3 2h2v4H5V9zm4 0h2v4H9V9zm4 0h2v4h-2V9zm4 0h2v4h-2V9z" />
     </symbol>
 </svg>
 
@@ -1377,13 +1424,18 @@ tr:hover .status .hb-countdown {
     <table>
         <thead>
             <tr>
-                <th>Host <span class="th-stat online">{{ stats.online }}</span><span class="th-stat separator">/</span><span class="th-stat total">{{ stats.total }}</span></th>
+                <th>Host <span class="th-stat online">{{ stats.online }}</span><span
+                        class="th-stat separator">/</span><span class="th-stat total">{{ stats.total }}</span></th>
                 <th>OS</th>
                 <th>Loc</th>
                 <th>Type</th>
                 <th>Metrics</th>
-                <th><svg class="th-icon"><use href="#icon-file"/></svg> Config</th>
-                <th><svg class="th-icon"><use href="#icon-rocket"/></svg> Agent</th>
+                <th><svg class="th-icon">
+                        <use href="#icon-file" />
+                    </svg> Config</th>
+                <th><svg class="th-icon">
+                        <use href="#icon-rocket" />
+                    </svg> Agent</th>
                 <th>Last Seen</th>
                 <th>Tests</th>
                 <th>Status</th>
@@ -1392,231 +1444,250 @@ tr:hover .status .hb-countdown {
         </thead>
         <tbody>
             {% if hosts %}
-                {% for host in hosts %}
-                <tr data-host-id="{{ host.id }}"
-                    data-online="{{ 'true' if host.online else 'false' }}"
-                    data-last-seen="{{ host.last_seen_iso or '' }}"
-                    data-poll-interval="{{ host.poll_interval or 30 }}"
-                    data-git-hash="{{ host.current_generation or '' }}"
-                    data-pending-command="{{ host.pending_command or '' }}"
-                    data-test-running="{{ 'true' if host.test_running else 'false' }}">
-                    <td class="host-cell">
-                        <span class="status-indicator" data-host="{{ host.id }}" data-interval="{{ host.poll_interval or 10 }}">
-                            {% if host.online %}
-                            <span class="status-ripple">
-                                <span class="hb-wave"></span>
-                                <span class="hb-wave"></span>
-                                <span class="hb-wave"></span>
-                                <span class="hb-core"></span>
-                            </span>
-                            {% else %}
-                            <span class="status-dot offline"></span>
-                            {% endif %}
-                        </span>
-                        <span class="hostname host-color-{{ host.id }}">{{ host.hostname }}</span>
-                    </td>
-                    <td class="os-cell host-color-{{ host.id }}" title="{{ host.os_name or 'Unknown' }} {{ host.os_version or '' }}{% if host.nixpkgs_version %} | nixpkgs: {{ host.nixpkgs_version }}{% endif %}">
-                        {% if host.host_type == 'macos' %}
-                        <svg class="os-icon"><use href="#icon-apple"/></svg>
-                        {% else %}
-                        <svg class="os-icon"><use href="#icon-nixos"/></svg>
-                        {% endif %}
-                        <span class="os-version">{{ host.os_version[:5] if host.os_version else '—' }}</span>
-                    </td>
-                    <td class="loc-cell host-color-{{ host.id }}" title="{{ host.location or 'unknown' }}">
-                        {% if host.location == 'cloud' %}
-                        <svg class="loc-icon"><use href="#icon-cloud"/></svg>
-                        {% elif host.location == 'work' %}
-                        <svg class="loc-icon"><use href="#icon-office"/></svg>
-                        {% else %}
-                        <svg class="loc-icon"><use href="#icon-home"/></svg>
-                        {% endif %}
-                    </td>
-                    <td class="type-cell host-color-{{ host.id }}" title="{{ host.device_type or 'server' }}">
-                        {% if host.device_type == 'gaming' %}
-                        <svg class="type-icon"><use href="#icon-game"/></svg>
-                        {% elif host.device_type == 'desktop' %}
-                        <svg class="type-icon"><use href="#icon-desktop"/></svg>
-                        {% elif host.device_type == 'laptop' %}
-                        <svg class="type-icon"><use href="#icon-laptop"/></svg>
-                        {% else %}
-                        <svg class="type-icon"><use href="#icon-server"/></svg>
-                        {% endif %}
-                    </td>
-                    <td class="metrics-cell" data-metrics-updated="{{ host.metrics_updated_at or '' }}" title="{% if host.metrics %}CPU: {{ host.metrics.cpu }}% | RAM: {{ host.metrics.ram }}%{% if host.metrics.swap %} | Swap: {{ host.metrics.swap }}%{% endif %} | Load: {{ host.metrics.load }}{% if host.metrics_updated_at %} | Updated: {{ host.metrics_updated_at[:19] }}{% endif %}{% endif %}">
-                        {% if host.metrics %}
-                        <span class="metric cpu {{ 'high' if host.metrics.cpu >= 80 else '' }}"><svg class="metric-icon"><use href="#icon-cpu"/></svg><span class="metric-val">{{ host.metrics.cpu }}</span></span>
-                        <span class="metric ram {{ 'high' if host.metrics.ram >= 80 else '' }}"><svg class="metric-icon"><use href="#icon-ram"/></svg><span class="metric-val">{{ host.metrics.ram }}</span></span>
-                        {% else %}
-                        <span class="metrics-na">—</span>
-                        {% endif %}
-                    </td>
-                    <td class="config-cell">
-                        {% if host.current_generation %}
-                        <code class="hash-badge {{ 'outdated' if host.outdated else 'current' }}" title="Config: {{ host.current_generation }}{% if host.outdated %} | Target: {{ nixcfg_hash }}{% endif %}">{{ host.current_generation[:7] }}</code><span class="update-indicator {{ 'outdated' if host.outdated else 'current' }}">{% if host.outdated %}↓{% else %}✓{% endif %}</span>
-                        {% else %}
-                        <span class="muted">—</span>
-                        {% endif %}
-                    </td>
-                    <td class="fleet-cell">
-                        {% set agent_hash = host.agent_version.split('-')[-1] if host.agent_version and '-' in host.agent_version else '' %}
-                        {% set fleet_outdated = agent_hash and build_hash and agent_hash != build_hash %}
-                        {% if agent_hash %}
-                        <code class="hash-badge {{ 'outdated' if fleet_outdated else 'current' }}" title="Agent: {{ host.agent_version }}{% if fleet_outdated %} | Target: {{ build_hash }}{% endif %}">{{ agent_hash[:7] }}</code><span class="update-indicator {{ 'outdated' if fleet_outdated else 'current' }}">{% if fleet_outdated %}↓{% else %}✓{% endif %}</span>
-                        {% else %}
-                        <span class="muted">—</span>
-                        {% endif %}
-                    </td>
-                    <td class="seen-cell" title="{{ host.last_seen_iso or 'Never' }}">
-                        <span class="seen-relative" data-host="{{ host.id }}" data-ts="{{ host.last_seen_iso or '' }}">{{ host.last_seen_relative or 'Never' }}</span>
-                    </td>
-                    <td class="test-cell">
-                        {% if host.test_running %}
-                        <span class="test-progress">{{ host.test_current }}/{{ host.test_total }}</span>
-                        {% elif host.test_total_count is not none and host.test_total_count > 0 %}
-                        <span class="test-result {{ 'pass' if host.test_passed else 'fail' }}">
-                            {{ host.test_passed_count }}/{{ host.test_total_count }}
+            {% for host in hosts %}
+            <tr data-host-id="{{ host.id }}" data-online="{{ 'true' if host.online else 'false' }}"
+                data-last-seen="{{ host.last_seen_iso or '' }}" data-poll-interval="{{ host.poll_interval or 30 }}"
+                data-git-hash="{{ host.current_generation or '' }}"
+                data-pending-command="{{ host.pending_command or '' }}"
+                data-test-running="{{ 'true' if host.test_running else 'false' }}">
+                <td class="host-cell">
+                    <span class="status-indicator" data-host="{{ host.id }}"
+                        data-interval="{{ host.poll_interval or 10 }}">
+                        {% if host.online %}
+                        <span class="status-ripple">
+                            <span class="hb-wave"></span>
+                            <span class="hb-wave"></span>
+                            <span class="hb-wave"></span>
+                            <span class="hb-core"></span>
                         </span>
                         {% else %}
-                        <span class="muted-dark small">—</span>
+                        <span class="status-dot offline"></span>
                         {% endif %}
-                    </td>
-                    <td class="status-cell {{ 'has-error' if host.status == 'error' else '' }}" data-status="{{ host.status or 'unknown' }}" data-test-running="{{ 'true' if host.test_running else 'false' }}" data-host-id="{{ host.id }}">
-                        <div class="status-papertrail" data-host="{{ host.id }}">
-                            <div class="status-entries">
-                                {% if host.test_running %}
-                                <div class="status-entry">
-                                    <span class="status-ts">{{ host.last_seen | time_short }}</span>
-                                    <span class="status-icon">✦</span>
-                                    <span class="status-msg">Testing {{ host.test_current }}/{{ host.test_total }}</span>
-                                </div>
-                                {% elif host.pending_command %}
-                                <div class="status-entry">
-                                    <span class="status-ts">{{ host.command_queued_at | time_short }}</span>
-                                    <span class="status-icon">⧖</span>
-                                    <span class="status-msg">{{ host.pending_command }}...</span>
-                                </div>
-                                {% elif host.comment %}
-                                <div class="status-entry">
-                                    <span class="status-ts">{{ host.last_seen | time_short }}</span>
-                                    <span class="status-icon">{{ '✗' if host.status == 'error' else '✓' }}</span>
-                                    <span class="status-msg">{{ host.comment }}</span>
-                                </div>
-                                {% else %}
-                                <div class="status-entry muted">
-                                    <span class="status-msg">No activity yet</span>
-                                </div>
-                                {% endif %}
-                            </div>
-                            <button class="status-expand-btn" type="button" data-action="toggle-status-expand" data-host="{{ host.id }}" title="Expand/collapse status history">▼</button>
-                        </div>
-                    </td>
-                    <td>
-                        <div class="actions">
-                            <button
-                                class="btn btn-pull"
-                                type="button"
-                                data-action="send-command"
-                                data-host-id="{{ host.id }}"
-                                data-command="pull"
-                                {% if not host.online or host.pending_command or host.test_running %}disabled{% endif %}
-                                title="Git Pull">
-                                <svg><use href="#icon-download"/></svg>
-                                Pull
-                            </button>
-                            <button
-                                class="btn btn-switch"
-                                type="button"
-                                data-action="send-command"
-                                data-host-id="{{ host.id }}"
-                                data-command="switch"
-                                {% if not host.online or host.pending_command or host.test_running %}disabled{% endif %}
-                                title="Rebuild Switch">
-                                <svg><use href="#icon-refresh"/></svg>
-                                Switch
-                            </button>
+                    </span>
+                    <span class="hostname host-color-{{ host.id }}">{{ host.hostname }}</span>
+                </td>
+                <td class="os-cell host-color-{{ host.id }}"
+                    title="{{ host.os_name or 'Unknown' }} {{ host.os_version or '' }}{% if host.nixpkgs_version %} | nixpkgs: {{ host.nixpkgs_version }}{% endif %}">
+                    {% if host.host_type == 'macos' %}
+                    <svg class="os-icon">
+                        <use href="#icon-apple" />
+                    </svg>
+                    {% else %}
+                    <svg class="os-icon">
+                        <use href="#icon-nixos" />
+                    </svg>
+                    {% endif %}
+                    <span class="os-version">{{ host.os_version[:5] if host.os_version else '—' }}</span>
+                </td>
+                <td class="loc-cell host-color-{{ host.id }}" title="{{ host.location or 'unknown' }}">
+                    {% if host.location == 'cloud' %}
+                    <svg class="loc-icon">
+                        <use href="#icon-cloud" />
+                    </svg>
+                    {% elif host.location == 'work' %}
+                    <svg class="loc-icon">
+                        <use href="#icon-office" />
+                    </svg>
+                    {% else %}
+                    <svg class="loc-icon">
+                        <use href="#icon-home" />
+                    </svg>
+                    {% endif %}
+                </td>
+                <td class="type-cell host-color-{{ host.id }}" title="{{ host.device_type or 'server' }}">
+                    {% if host.device_type == 'gaming' %}
+                    <svg class="type-icon">
+                        <use href="#icon-game" />
+                    </svg>
+                    {% elif host.device_type == 'desktop' %}
+                    <svg class="type-icon">
+                        <use href="#icon-desktop" />
+                    </svg>
+                    {% elif host.device_type == 'laptop' %}
+                    <svg class="type-icon">
+                        <use href="#icon-laptop" />
+                    </svg>
+                    {% else %}
+                    <svg class="type-icon">
+                        <use href="#icon-server" />
+                    </svg>
+                    {% endif %}
+                </td>
+                <td class="metrics-cell" data-metrics-updated="{{ host.metrics_updated_at or '' }}"
+                    title="{% if host.metrics %}CPU: {{ host.metrics.cpu }}% | RAM: {{ host.metrics.ram }}%{% if host.metrics.swap %} | Swap: {{ host.metrics.swap }}%{% endif %} | Load: {{ host.metrics.load }}{% if host.metrics_updated_at %} | Updated: {{ host.metrics_updated_at[:19] }}{% endif %}{% endif %}">
+                    {% if host.metrics %}
+                    <span class="metric cpu {{ 'high' if host.metrics.cpu >= 80 else '' }}"><svg class="metric-icon">
+                            <use href="#icon-cpu" />
+                        </svg><span class="metric-val">{{ host.metrics.cpu }}</span></span>
+                    <span class="metric ram {{ 'high' if host.metrics.ram >= 80 else '' }}"><svg class="metric-icon">
+                            <use href="#icon-ram" />
+                        </svg><span class="metric-val">{{ host.metrics.ram }}</span></span>
+                    {% else %}
+                    <span class="metrics-na">—</span>
+                    {% endif %}
+                </td>
+                <td class="config-cell">
+                    {% if host.current_generation %}
+                    <code class="hash-badge {{ 'outdated' if host.outdated else 'current' }}"
+                        title="Config: {{ host.current_generation }}{% if host.outdated %} | Target: {{ nixcfg_hash }}{% endif %}">{{ host.current_generation[:7] }}</code><span
+                        class="update-indicator {{ 'outdated' if host.outdated else 'current' }}">{% if host.outdated
+                        %}↓{% else %}✓{% endif %}</span>
+                    {% else %}
+                    <span class="muted">—</span>
+                    {% endif %}
+                </td>
+                <td class="fleet-cell">
+                    {% set agent_hash = host.agent_version.split('-')[-1] if host.agent_version and '-' in
+                    host.agent_version else '' %}
+                    {% set fleet_outdated = agent_hash and build_hash and agent_hash != build_hash %}
+                    {% if agent_hash %}
+                    <code class="hash-badge {{ 'outdated' if fleet_outdated else 'current' }}"
+                        title="Agent: {{ host.agent_version }}{% if fleet_outdated %} | Target: {{ build_hash }}{% endif %}">{{ agent_hash[:7] }}</code><span
+                        class="update-indicator {{ 'outdated' if fleet_outdated else 'current' }}">{% if fleet_outdated
+                        %}↓{% else %}✓{% endif %}</span>
+                    {% else %}
+                    <span class="muted">—</span>
+                    {% endif %}
+                </td>
+                <td class="seen-cell" title="{{ host.last_seen_iso or 'Never' }}">
+                    <span class="seen-relative" data-host="{{ host.id }}" data-ts="{{ host.last_seen_iso or '' }}">{{
+                        host.last_seen_relative or 'Never' }}</span>
+                </td>
+                <td class="test-cell">
+                    {% if host.test_running %}
+                    <span class="test-progress">{{ host.test_current }}/{{ host.test_total }}</span>
+                    {% elif host.test_total_count is not none and host.test_total_count > 0 %}
+                    <span class="test-result {{ 'pass' if host.test_passed else 'fail' }}">
+                        {{ host.test_passed_count }}/{{ host.test_total_count }}
+                    </span>
+                    {% else %}
+                    <span class="muted-dark small">—</span>
+                    {% endif %}
+                </td>
+                <td class="status-cell {{ 'has-error' if host.status == 'error' else '' }}"
+                    data-status="{{ host.status or 'unknown' }}"
+                    data-test-running="{{ 'true' if host.test_running else 'false' }}" data-host-id="{{ host.id }}">
+                    <div class="status-papertrail" data-host="{{ host.id }}">
+                        <div class="status-entries">
                             {% if host.test_running %}
-                            <button
-                                class="btn btn-stop"
-                                type="button"
-                                data-action="send-command"
-                                data-host-id="{{ host.id }}"
-                                data-command="stop"
-                                {% if not host.online %}disabled{% endif %}
-                                title="Stop Test">
-                                <svg><use href="#icon-stop"/></svg>
-                                Stop
-                            </button>
+                            <div class="status-entry">
+                                <span class="status-ts">{{ host.last_seen | time_short }}</span>
+                                <span class="status-icon">✦</span>
+                                <span class="status-msg">Testing {{ host.test_current }}/{{ host.test_total }}</span>
+                            </div>
+                            {% elif host.pending_command %}
+                            <div class="status-entry">
+                                <span class="status-ts">{{ host.command_queued_at | time_short }}</span>
+                                <span class="status-icon">⧖</span>
+                                <span class="status-msg">{{ host.pending_command }}...</span>
+                            </div>
+                            {% elif host.comment %}
+                            <div class="status-entry">
+                                <span class="status-ts">{{ host.last_seen | time_short }}</span>
+                                <span class="status-icon">{{ '✗' if host.status == 'error' else '✓' }}</span>
+                                <span class="status-msg">{{ host.comment }}</span>
+                            </div>
                             {% else %}
-                            <button
-                                class="btn btn-test"
-                                type="button"
-                                data-action="send-command"
-                                data-host-id="{{ host.id }}"
-                                data-command="test"
-                                {% if not host.online or host.pending_command or host.test_running %}disabled{% endif %}
-                                title="Run Tests">
-                                <svg><use href="#icon-flask"/></svg>
-                                Test
-                            </button>
+                            <div class="status-entry muted">
+                                <span class="status-msg">No activity yet</span>
+                            </div>
                             {% endif %}
-                            <div class="dropdown">
-                                <button class="btn btn-more" type="button" data-action="toggle-dropdown" title="More actions">
-                                    <svg><use href="#icon-more"/></svg>
+                        </div>
+                        <button class="status-expand-btn" type="button" data-action="toggle-status-expand"
+                            data-host="{{ host.id }}" title="Expand/collapse status history">▼</button>
+                    </div>
+                </td>
+                <td>
+                    <div class="actions">
+                        <button class="btn btn-pull" type="button" data-action="send-command"
+                            data-host-id="{{ host.id }}" data-command="pull" {% if not host.online or
+                            host.pending_command or host.test_running %}disabled{% endif %} title="Git Pull">
+                            <svg>
+                                <use href="#icon-download" />
+                            </svg>
+                            Pull
+                        </button>
+                        <button class="btn btn-switch" type="button" data-action="send-command"
+                            data-host-id="{{ host.id }}" data-command="switch" {% if not host.online or
+                            host.pending_command or host.test_running %}disabled{% endif %} title="Rebuild Switch">
+                            <svg>
+                                <use href="#icon-refresh" />
+                            </svg>
+                            Switch
+                        </button>
+                        {% if host.test_running %}
+                        <button class="btn btn-stop" type="button" data-action="send-command"
+                            data-host-id="{{ host.id }}" data-command="stop" {% if not host.online %}disabled{% endif %}
+                            title="Stop Test">
+                            <svg>
+                                <use href="#icon-stop" />
+                            </svg>
+                            Stop
+                        </button>
+                        {% else %}
+                        <button class="btn btn-test" type="button" data-action="send-command"
+                            data-host-id="{{ host.id }}" data-command="test" {% if not host.online or
+                            host.pending_command or host.test_running %}disabled{% endif %} title="Run Tests">
+                            <svg>
+                                <use href="#icon-flask" />
+                            </svg>
+                            Test
+                        </button>
+                        {% endif %}
+                        <div class="dropdown">
+                            <button class="btn btn-more" type="button" data-action="toggle-dropdown"
+                                title="More actions">
+                                <svg>
+                                    <use href="#icon-more" />
+                                </svg>
+                            </button>
+                            <div class="dropdown-menu">
+                                <button class="dropdown-item" type="button" data-action="unlock-actions"
+                                    data-host-id="{{ host.id }}">
+                                    <svg>
+                                        <use href="#icon-refresh" />
+                                    </svg>
+                                    Unlock actions
                                 </button>
-                                <div class="dropdown-menu">
-                                    <button class="dropdown-item" type="button" data-action="unlock-actions" data-host-id="{{ host.id }}">
-                                        <svg><use href="#icon-refresh"/></svg>
-                                        Unlock actions
-                                    </button>
-                                    <button
-                                        class="dropdown-item"
-                                        type="button"
-                                        data-action="send-command"
-                                        data-host-id="{{ host.id }}"
-                                        data-command="restart"
-                                        {% if not host.online %}disabled{% endif %}
-                                        title="Restart the agent (re-registers with current config)">
-                                        <svg><use href="#icon-refresh"/></svg>
-                                        Restart Agent
-                                    </button>
-                                    <button
-                                        class="dropdown-item"
-                                        type="button"
-                                        data-action="send-command"
-                                        data-host-id="{{ host.id }}"
-                                        data-command="update"
-                                        {% if not host.online or host.pending_command or host.test_running %}disabled{% endif %}
-                                        title="Update nixfleet flake input and rebuild">
-                                        <svg><use href="#icon-download"/></svg>
-                                        Update Agent
-                                    </button>
-                                    <div class="dropdown-divider"></div>
-                                    <button
-                                        class="dropdown-item"
-                                        type="button"
-                                        data-action="download-logs"
-                                        data-host-id="{{ host.id }}"
-                                        title="Download full status log">
-                                        <svg><use href="#icon-file"/></svg>
-                                        Download Logs
-                                    </button>
-                                    <div class="dropdown-divider"></div>
-                                    <button
-                                        class="dropdown-item danger"
-                                        type="button"
-                                        data-action="confirm-remove-host"
-                                        data-host-id="{{ host.id }}"
-                                        data-hostname="{{ host.hostname }}">
-                                        <svg><use href="#icon-trash"/></svg>
-                                        Remove Host
-                                    </button>
-                                </div>
+                                <button class="dropdown-item" type="button" data-action="send-command"
+                                    data-host-id="{{ host.id }}" data-command="restart" {% if not host.online
+                                    %}disabled{% endif %} title="Restart the agent (re-registers with current config)">
+                                    <svg>
+                                        <use href="#icon-refresh" />
+                                    </svg>
+                                    Restart Agent
+                                </button>
+                                <button class="dropdown-item" type="button" data-action="send-command"
+                                    data-host-id="{{ host.id }}" data-command="update" {% if not host.online or
+                                    host.pending_command or host.test_running %}disabled{% endif %}
+                                    title="Update nixfleet flake input and rebuild">
+                                    <svg>
+                                        <use href="#icon-download" />
+                                    </svg>
+                                    Update Agent
+                                </button>
+                                <div class="dropdown-divider"></div>
+                                <button class="dropdown-item" type="button" data-action="download-logs"
+                                    data-host-id="{{ host.id }}" title="Download full status log">
+                                    <svg>
+                                        <use href="#icon-file" />
+                                    </svg>
+                                    Download Logs
+                                </button>
+                                <div class="dropdown-divider"></div>
+                                <button class="dropdown-item danger" type="button" data-action="confirm-remove-host"
+                                    data-host-id="{{ host.id }}" data-hostname="{{ host.hostname }}">
+                                    <svg>
+                                        <use href="#icon-trash" />
+                                    </svg>
+                                    Remove Host
+                                </button>
                             </div>
                         </div>
-                    </td>
-                </tr>
-                {% endfor %}
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
             {% else %}
             <tr>
                 <td colspan="9" class="empty">
@@ -1638,7 +1709,8 @@ tr:hover .status .hb-countdown {
         </div>
         <div class="modal-actions">
             <button class="modal-btn modal-btn-cancel" type="button" data-action="close-remove-modal">Cancel</button>
-            <button class="modal-btn modal-btn-danger" id="confirmRemoveBtn" type="button" data-action="remove-host">Remove</button>
+            <button class="modal-btn modal-btn-danger" id="confirmRemoveBtn" type="button"
+                data-action="remove-host">Remove</button>
         </div>
     </div>
 </div>
@@ -1648,11 +1720,14 @@ tr:hover .status .hb-countdown {
     <div class="modal modal-wide">
         <div class="modal-title">Add Host</div>
         <div class="modal-body">
-            <p class="mb-1">Add a host manually before its agent connects. This is useful for tracking offline or planned hosts.</p>
+            <p class="mb-1">Add a host manually before its agent connects. This is useful for tracking offline or
+                planned hosts.</p>
             <form id="addHostForm">
                 <div class="form-group">
                     <label for="addHostName">Hostname *</label>
-                    <input type="text" id="addHostName" name="hostname" required placeholder="e.g., my-server" pattern="[a-zA-Z][a-zA-Z0-9\-]{0,62}" title="Start with a letter; then letters, numbers, or hyphens (max 63 chars)">
+                    <input type="text" id="addHostName" name="hostname" required placeholder="e.g., my-server"
+                        pattern="[a-zA-Z][a-zA-Z0-9\-]{0,62}"
+                        title="Start with a letter; then letters, numbers, or hyphens (max 63 chars)">
                 </div>
                 <div class="form-row">
                     <div class="form-group">
@@ -1690,7 +1765,8 @@ tr:hover .status .hb-countdown {
         </div>
         <div class="modal-actions">
             <button class="modal-btn modal-btn-cancel" type="button" data-action="close-add-host-modal">Cancel</button>
-            <button class="modal-btn modal-btn-primary" id="confirmAddBtn" type="button" data-action="submit-add-host">Add Host</button>
+            <button class="modal-btn modal-btn-primary" id="confirmAddBtn" type="button"
+                data-action="submit-add-host">Add Host</button>
         </div>
     </div>
 </div>
@@ -1698,1032 +1774,1041 @@ tr:hover .status .hb-countdown {
 
 {% block scripts %}
 <script nonce="{{ csp_nonce }}">
-const csrfToken = '{{ csrf_token }}';
+    const csrfToken = '{{ csrf_token }}';
 
-// ============================================================================
-// Event delegation (CSP: no inline handlers)
-// ============================================================================
+    // ============================================================================
+    // Event delegation (CSP: no inline handlers)
+    // ============================================================================
 
-document.addEventListener('click', (e) => {
-    const el = e.target.closest('[data-action]');
-    if (!el) return;
+    document.addEventListener('click', (e) => {
+        const el = e.target.closest('[data-action]');
+        if (!el) return;
 
-    const action = el.dataset.action;
+        const action = el.dataset.action;
 
-    if (action === 'toggle-dropdown') {
-        // Prevent the global "click outside to close" handler from firing on the same click.
-        e.preventDefault();
-        e.stopImmediatePropagation();
-        toggleDropdown(e);
-        return;
-    }
-
-    if (action === 'refresh-page') {
-        e.preventDefault();
-        location.reload();
-        return;
-    }
-
-    if (action === 'bulk-command') {
-        e.preventDefault();
-        const command = el.dataset.command;
-        sendBulkCommand(command);
-        // Close the dropdown
-        document.querySelectorAll('.dropdown.open').forEach(d => d.classList.remove('open'));
-        return;
-    }
-
-    if (action === 'refresh-target') {
-        e.preventDefault();
-        refreshTarget(el);
-        return;
-    }
-
-    if (action === 'open-add-host-modal') {
-        e.preventDefault();
-        openAddHostModal();
-        return;
-    }
-
-    if (action === 'close-add-host-modal') {
-        e.preventDefault();
-        closeAddHostModal();
-        return;
-    }
-
-    if (action === 'submit-add-host') {
-        e.preventDefault();
-        submitAddHost(e);
-        return;
-    }
-
-    if (action === 'send-command') {
-        e.preventDefault();
-        const hostId = el.dataset.hostId;
-        const command = el.dataset.command;
-        if (hostId && command) sendCommand(hostId, command);
-        return;
-    }
-
-    if (action === 'unlock-actions') {
-        e.preventDefault();
-        const hostId = el.dataset.hostId;
-        if (hostId) unlockHostActions(hostId);
-        return;
-    }
-
-    if (action === 'confirm-remove-host') {
-        e.preventDefault();
-        const hostId = el.dataset.hostId;
-        const hostname = el.dataset.hostname || hostId;
-        if (hostId) confirmRemoveHost(hostId, hostname);
-        return;
-    }
-
-    if (action === 'toggle-status-expand') {
-        e.preventDefault();
-        e.stopPropagation();
-        toggleStatusExpand(el.dataset.host);
-        return;
-    }
-
-    if (action === 'download-logs') {
-        e.preventDefault();
-        const hostId = el.dataset.hostId;
-        if (hostId) downloadHostLogs(hostId);
-        return;
-    }
-
-    if (action === 'close-remove-modal') {
-        e.preventDefault();
-        closeRemoveModal();
-        return;
-    }
-
-    if (action === 'remove-host') {
-        e.preventDefault();
-        removeHost();
-        return;
-    }
-});
-
-// Action lock functions - now purely uses row.dataset which is synced by SSE
-// These are kept for API compatibility but the real source of truth is the server state
-// delivered via SSE on every heartbeat (every 10-30 seconds).
-
-function setActionLock(hostId, command) {
-    // Instant UI feedback: update dataset directly
-    // SSE will override this with server truth on next heartbeat
-    const row = document.querySelector(`tr[data-host-id="${hostId}"]`);
-    if (row) row.dataset.pendingCommand = command;
-}
-
-function clearActionLock(hostId) {
-    // Clear local state - SSE will sync on next heartbeat
-    const row = document.querySelector(`tr[data-host-id="${hostId}"]`);
-    if (row) row.dataset.pendingCommand = '';
-}
-
-function getActionLock(hostId) {
-    // Check dataset instead of localStorage
-    const row = document.querySelector(`tr[data-host-id="${hostId}"]`);
-    if (!row) return null;
-    const pending = (row.dataset.pendingCommand || '').trim();
-    return pending ? { command: pending } : null;
-}
-
-// Format timestamps to local browser time (dd.mm.yyyy hh:mm:ss)
-function formatTimestamp(date) {
-    const d = date.getDate().toString().padStart(2, '0');
-    const m = (date.getMonth() + 1).toString().padStart(2, '0');
-    const y = date.getFullYear();
-    const h = date.getHours().toString().padStart(2, '0');
-    const min = date.getMinutes().toString().padStart(2, '0');
-    const s = date.getSeconds().toString().padStart(2, '0');
-    return `${d}.${m}.${y} ${h}:${min}:${s}`;
-}
-
-function formatRelativeTime(seconds) {
-    if (seconds < 60) return 'just now';
-    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
-    if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
-    return `${Math.floor(seconds / 86400)}d ago`;
-}
-
-// Format time as HH:MM:SS for status log entries
-function formatTimeShort(date) {
-    const h = date.getHours().toString().padStart(2, '0');
-    const min = date.getMinutes().toString().padStart(2, '0');
-    const sec = date.getSeconds().toString().padStart(2, '0');
-    return `${h}:${min}:${sec}`;
-}
-
-// Get current time as HH:MM:SS
-function getCurrentTimeShort() {
-    return formatTimeShort(new Date());
-}
-
-// Parse UTC timestamp (may or may not have Z suffix)
-function parseUTC(ts) {
-    if (!ts) return null;
-    return new Date(ts.endsWith('Z') ? ts : ts + 'Z');
-}
-
-// No longer need to format timestamps inline - they're shown on hover via title attribute
-
-function updateHeartbeats() {
-    const now = Date.now();
-    
-    document.querySelectorAll('tr[data-host-id]').forEach(row => {
-        const lastSeenStr = row.dataset.lastSeen;
-        if (!lastSeenStr) return;
-        
-        const lastSeen = parseUTC(lastSeenStr).getTime();
-        const elapsed = (now - lastSeen) / 1000;
-        const hostId = row.dataset.hostId;
-        
-        // Update relative time in Last Seen column
-        const relEl = row.querySelector(`.seen-relative[data-host="${hostId}"]`);
-        if (relEl) {
-            relEl.textContent = formatRelativeTime(elapsed);
+        if (action === 'toggle-dropdown') {
+            // Prevent the global "click outside to close" handler from firing on the same click.
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            toggleDropdown(e);
+            return;
         }
-        
-        // Update countdown in Status column
-        const status = row.querySelector(`.status[data-host="${hostId}"]`);
-        if (!status) return;
-        
-        const pollInterval = parseInt(status.dataset.interval) || 10;
-        const remaining = Math.max(0, pollInterval - (elapsed % pollInterval));
-        
-        const countdown = status.querySelector('.hb-countdown');
-        if (countdown) countdown.textContent = Math.ceil(remaining) + 's';
+
+        if (action === 'refresh-page') {
+            e.preventDefault();
+            location.reload();
+            return;
+        }
+
+        if (action === 'bulk-command') {
+            e.preventDefault();
+            const command = el.dataset.command;
+            sendBulkCommand(command);
+            // Close the dropdown
+            document.querySelectorAll('.dropdown.open').forEach(d => d.classList.remove('open'));
+            return;
+        }
+
+        if (action === 'refresh-target') {
+            e.preventDefault();
+            refreshTarget(el);
+            return;
+        }
+
+        if (action === 'open-add-host-modal') {
+            e.preventDefault();
+            openAddHostModal();
+            return;
+        }
+
+        if (action === 'close-add-host-modal') {
+            e.preventDefault();
+            closeAddHostModal();
+            return;
+        }
+
+        if (action === 'submit-add-host') {
+            e.preventDefault();
+            submitAddHost(e);
+            return;
+        }
+
+        if (action === 'send-command') {
+            e.preventDefault();
+            const hostId = el.dataset.hostId;
+            const command = el.dataset.command;
+            if (hostId && command) sendCommand(hostId, command);
+            return;
+        }
+
+        if (action === 'unlock-actions') {
+            e.preventDefault();
+            const hostId = el.dataset.hostId;
+            if (hostId) unlockHostActions(hostId);
+            return;
+        }
+
+        if (action === 'confirm-remove-host') {
+            e.preventDefault();
+            const hostId = el.dataset.hostId;
+            const hostname = el.dataset.hostname || hostId;
+            if (hostId) confirmRemoveHost(hostId, hostname);
+            return;
+        }
+
+        if (action === 'toggle-status-expand') {
+            e.preventDefault();
+            e.stopPropagation();
+            toggleStatusExpand(el.dataset.host);
+            return;
+        }
+
+        if (action === 'download-logs') {
+            e.preventDefault();
+            const hostId = el.dataset.hostId;
+            if (hostId) downloadHostLogs(hostId);
+            return;
+        }
+
+        if (action === 'close-remove-modal') {
+            e.preventDefault();
+            closeRemoveModal();
+            return;
+        }
+
+        if (action === 'remove-host') {
+            e.preventDefault();
+            removeHost();
+            return;
+        }
     });
-}
 
-setInterval(updateHeartbeats, 1000);
-updateHeartbeats();
+    // Action lock functions - now purely uses row.dataset which is synced by SSE
+    // These are kept for API compatibility but the real source of truth is the server state
+    // delivered via SSE on every heartbeat (every 10-30 seconds).
 
-async function sendCommand(hostId, command) {
-    const row = document.querySelector(`tr[data-host-id="${hostId}"]`);
-    if (!row) return;
-
-    // Disable relevant action buttons immediately to prevent spam
-    row.dataset.pendingCommand = command;
-    setActionLock(hostId, command);
-    applyActionState(row);
-    
-    // Show the command in the status column (papertrail format)
-    const statusEntries = row.querySelector('.status-entries');
-    if (statusEntries) {
-        const commandLabels = {
-            'pull': 'Pulling...',
-            'switch': 'Switching...',
-            'pull-switch': 'Pull & Switch...',
-            'test': 'Testing...',
-            'restart': 'Restarting...',
-            'update': 'Updating agent...'
-        };
-        const commandIcons = {
-            'pull': '⧖',
-            'switch': '⧖',
-            'pull-switch': '⧖',
-            'test': '✦',
-            'restart': '⧖',
-            'update': '↑'
-        };
-        const newEntry = document.createElement('div');
-        newEntry.className = 'status-entry';
-        newEntry.innerHTML = `<span class="status-ts">${getCurrentTimeShort()}</span><span class="status-icon">${commandIcons[command] || '⧖'}</span><span class="status-msg">${commandLabels[command] || command + '...'}</span>`;
-        statusEntries.insertBefore(newEntry, statusEntries.firstChild);
-        
-        const statusCell = row.querySelector('.status-cell');
-        if (statusCell) statusCell.classList.remove('has-error');
+    function setActionLock(hostId, command) {
+        // Instant UI feedback: update dataset directly
+        // SSE will override this with server truth on next heartbeat
+        const row = document.querySelector(`tr[data-host-id="${hostId}"]`);
+        if (row) row.dataset.pendingCommand = command;
     }
-    
-    try {
-        const response = await fetch(`/api/hosts/${hostId}/command`, {
-            method: 'POST',
-            headers: { 
-                'Content-Type': 'application/json',
-                'X-CSRF-Token': csrfToken
-            },
-            body: JSON.stringify({ command })
+
+    function clearActionLock(hostId) {
+        // Clear local state - SSE will sync on next heartbeat
+        const row = document.querySelector(`tr[data-host-id="${hostId}"]`);
+        if (row) row.dataset.pendingCommand = '';
+    }
+
+    function getActionLock(hostId) {
+        // Check dataset instead of localStorage
+        const row = document.querySelector(`tr[data-host-id="${hostId}"]`);
+        if (!row) return null;
+        const pending = (row.dataset.pendingCommand || '').trim();
+        return pending ? { command: pending } : null;
+    }
+
+    // Format timestamps to local browser time (dd.mm.yyyy hh:mm:ss)
+    function formatTimestamp(date) {
+        const d = date.getDate().toString().padStart(2, '0');
+        const m = (date.getMonth() + 1).toString().padStart(2, '0');
+        const y = date.getFullYear();
+        const h = date.getHours().toString().padStart(2, '0');
+        const min = date.getMinutes().toString().padStart(2, '0');
+        const s = date.getSeconds().toString().padStart(2, '0');
+        return `${d}.${m}.${y} ${h}:${min}:${s}`;
+    }
+
+    function formatRelativeTime(seconds) {
+        if (seconds < 60) return 'just now';
+        if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+        if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+        return `${Math.floor(seconds / 86400)}d ago`;
+    }
+
+    // Format time as HH:MM:SS for status log entries
+    function formatTimeShort(date) {
+        const h = date.getHours().toString().padStart(2, '0');
+        const min = date.getMinutes().toString().padStart(2, '0');
+        const sec = date.getSeconds().toString().padStart(2, '0');
+        return `${h}:${min}:${sec}`;
+    }
+
+    // Get current time as HH:MM:SS
+    function getCurrentTimeShort() {
+        return formatTimeShort(new Date());
+    }
+
+    // Parse UTC timestamp (may or may not have Z suffix)
+    function parseUTC(ts) {
+        if (!ts) return null;
+        return new Date(ts.endsWith('Z') ? ts : ts + 'Z');
+    }
+
+    // No longer need to format timestamps inline - they're shown on hover via title attribute
+
+    function updateHeartbeats() {
+        const now = Date.now();
+
+        document.querySelectorAll('tr[data-host-id]').forEach(row => {
+            const lastSeenStr = row.dataset.lastSeen;
+            if (!lastSeenStr) return;
+
+            const lastSeen = parseUTC(lastSeenStr).getTime();
+            const elapsed = (now - lastSeen) / 1000;
+            const hostId = row.dataset.hostId;
+
+            // Update relative time in Last Seen column
+            const relEl = row.querySelector(`.seen-relative[data-host="${hostId}"]`);
+            if (relEl) {
+                relEl.textContent = formatRelativeTime(elapsed);
+            }
+
+            // Update countdown in Status column
+            const status = row.querySelector(`.status[data-host="${hostId}"]`);
+            if (!status) return;
+
+            const pollInterval = parseInt(status.dataset.interval) || 10;
+            const remaining = Math.max(0, pollInterval - (elapsed % pollInterval));
+
+            const countdown = status.querySelector('.hb-countdown');
+            if (countdown) countdown.textContent = Math.ceil(remaining) + 's';
         });
-        
-        if (response.ok) {
-            // Keep showing busy until SSE reports completion.
-            // SSE syncs server state on every heartbeat (auto-heals stale UI).
-        } else if (response.status === 401) {
-            location.href = '/login';
-        } else {
-            const data = await response.json().catch(() => ({}));
-            alert(data.detail || 'Command failed');
-            clearActionLock(hostId);
-            row.dataset.pendingCommand = '';
-            applyActionState(row);
-        }
-    } catch (e) {
-        alert('Network error');
-        clearActionLock(hostId);
-        row.dataset.pendingCommand = '';
-        applyActionState(row);
     }
-}
 
-async function sendBulkCommand(command) {
-    // Get all online hosts that aren't busy
-    const rows = document.querySelectorAll('tr[data-host-id]');
-    const eligibleHosts = [];
-    
-    rows.forEach(row => {
-        const online = row.dataset.online === 'true';
-        const busy = isServerBusy(row) || !!getActionLock(row.dataset.hostId);
-        if (online && !busy) {
-            eligibleHosts.push({
-                id: row.dataset.hostId,
-                hostname: row.querySelector('.hostname')?.textContent || row.dataset.hostId
-            });
+    setInterval(updateHeartbeats, 1000);
+    updateHeartbeats();
+
+    async function sendCommand(hostId, command) {
+        const row = document.querySelector(`tr[data-host-id="${hostId}"]`);
+        if (!row) return;
+
+        // Disable relevant action buttons immediately to prevent spam
+        row.dataset.pendingCommand = command;
+        setActionLock(hostId, command);
+        applyActionState(row);
+
+        // Show the command in the status column (papertrail format)
+        const statusEntries = row.querySelector('.status-entries');
+        if (statusEntries) {
+            const commandLabels = {
+                'pull': 'Pulling...',
+                'switch': 'Switching...',
+                'pull-switch': 'Pull & Switch...',
+                'test': 'Testing...',
+                'restart': 'Restarting...',
+                'update': 'Updating agent...'
+            };
+            const commandIcons = {
+                'pull': '⧖',
+                'switch': '⧖',
+                'pull-switch': '⧖',
+                'test': '✦',
+                'restart': '⧖',
+                'update': '↑'
+            };
+            const newEntry = document.createElement('div');
+            newEntry.className = 'status-entry';
+            newEntry.innerHTML = `<span class="status-ts">${getCurrentTimeShort()}</span><span class="status-icon">${commandIcons[command] || '⧖'}</span><span class="status-msg">${commandLabels[command] || command + '...'}</span>`;
+            statusEntries.insertBefore(newEntry, statusEntries.firstChild);
+
+            const statusCell = row.querySelector('.status-cell');
+            if (statusCell) statusCell.classList.remove('has-error');
         }
-    });
-    
-    if (eligibleHosts.length === 0) {
-        alert('No eligible hosts (all offline or busy)');
-        return;
-    }
-    
-    const hostnames = eligibleHosts.map(h => h.hostname).join(', ');
-    const confirmMsg = `${command.toUpperCase()} on ${eligibleHosts.length} host(s)?\n\n${hostnames}`;
-    if (!confirm(confirmMsg)) return;
-    
-    // Send command to all eligible hosts
-    let successCount = 0;
-    let failCount = 0;
-    
-    for (const host of eligibleHosts) {
+
         try {
-            const response = await fetch(`/api/hosts/${host.id}/command`, {
+            const response = await fetch(`/api/hosts/${hostId}/command`, {
                 method: 'POST',
-                headers: { 
+                headers: {
                     'Content-Type': 'application/json',
                     'X-CSRF-Token': csrfToken
                 },
                 body: JSON.stringify({ command })
             });
-            
+
             if (response.ok) {
-                const row = document.querySelector(`tr[data-host-id="${host.id}"]`);
-                if (row) {
-                    row.dataset.pendingCommand = command;
-                    setActionLock(host.id, command);
-                    applyActionState(row);
-                    // Show the command in the status column (papertrail format)
-                    const statusEntries = row.querySelector('.status-entries');
-                    if (statusEntries) {
-                        const commandLabels = {
-                            'pull': 'Pulling...',
-                            'switch': 'Switching...',
-                            'pull-switch': 'Pull & Switch...',
-                            'test': 'Testing...',
-                            'restart': 'Restarting...',
-                            'update': 'Updating agent...'
-                        };
-                        const commandIcons = {
-                            'pull': '⧖',
-                            'switch': '⧖',
-                            'pull-switch': '⧖',
-                            'test': '✦',
-                            'restart': '⧖',
-                            'update': '↑'
-                        };
-                        const newEntry = document.createElement('div');
-                        newEntry.className = 'status-entry';
-                        newEntry.innerHTML = `<span class="status-ts">${getCurrentTimeShort()}</span><span class="status-icon">${commandIcons[command] || '⧖'}</span><span class="status-msg">${commandLabels[command] || command + '...'}</span>`;
-                        statusEntries.insertBefore(newEntry, statusEntries.firstChild);
-                        
-                        const statusCell = row.querySelector('.status-cell');
-                        if (statusCell) statusCell.classList.remove('has-error');
-                    }
-                }
-                successCount++;
+                // Keep showing busy until SSE reports completion.
+                // SSE syncs server state on every heartbeat (auto-heals stale UI).
+            } else if (response.status === 401) {
+                location.href = '/login';
             } else {
-                failCount++;
+                const data = await response.json().catch(() => ({}));
+                alert(data.detail || 'Command failed');
+                clearActionLock(hostId);
+                row.dataset.pendingCommand = '';
+                applyActionState(row);
             }
         } catch (e) {
-            failCount++;
+            alert('Network error');
+            clearActionLock(hostId);
+            row.dataset.pendingCommand = '';
+            applyActionState(row);
         }
     }
-    
-    if (failCount > 0) {
-        alert(`Command sent to ${successCount} hosts, ${failCount} failed`);
+
+    async function sendBulkCommand(command) {
+        // Get all online hosts that aren't busy
+        const rows = document.querySelectorAll('tr[data-host-id]');
+        const eligibleHosts = [];
+
+        rows.forEach(row => {
+            const online = row.dataset.online === 'true';
+            const busy = isServerBusy(row) || !!getActionLock(row.dataset.hostId);
+            if (online && !busy) {
+                eligibleHosts.push({
+                    id: row.dataset.hostId,
+                    hostname: row.querySelector('.hostname')?.textContent || row.dataset.hostId
+                });
+            }
+        });
+
+        if (eligibleHosts.length === 0) {
+            alert('No eligible hosts (all offline or busy)');
+            return;
+        }
+
+        const hostnames = eligibleHosts.map(h => h.hostname).join(', ');
+        const confirmMsg = `${command.toUpperCase()} on ${eligibleHosts.length} host(s)?\n\n${hostnames}`;
+        if (!confirm(confirmMsg)) return;
+
+        // Send command to all eligible hosts
+        let successCount = 0;
+        let failCount = 0;
+
+        for (const host of eligibleHosts) {
+            try {
+                const response = await fetch(`/api/hosts/${host.id}/command`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': csrfToken
+                    },
+                    body: JSON.stringify({ command })
+                });
+
+                if (response.ok) {
+                    const row = document.querySelector(`tr[data-host-id="${host.id}"]`);
+                    if (row) {
+                        row.dataset.pendingCommand = command;
+                        setActionLock(host.id, command);
+                        applyActionState(row);
+                        // Show the command in the status column (papertrail format)
+                        const statusEntries = row.querySelector('.status-entries');
+                        if (statusEntries) {
+                            const commandLabels = {
+                                'pull': 'Pulling...',
+                                'switch': 'Switching...',
+                                'pull-switch': 'Pull & Switch...',
+                                'test': 'Testing...',
+                                'restart': 'Restarting...',
+                                'update': 'Updating agent...'
+                            };
+                            const commandIcons = {
+                                'pull': '⧖',
+                                'switch': '⧖',
+                                'pull-switch': '⧖',
+                                'test': '✦',
+                                'restart': '⧖',
+                                'update': '↑'
+                            };
+                            const newEntry = document.createElement('div');
+                            newEntry.className = 'status-entry';
+                            newEntry.innerHTML = `<span class="status-ts">${getCurrentTimeShort()}</span><span class="status-icon">${commandIcons[command] || '⧖'}</span><span class="status-msg">${commandLabels[command] || command + '...'}</span>`;
+                            statusEntries.insertBefore(newEntry, statusEntries.firstChild);
+
+                            const statusCell = row.querySelector('.status-cell');
+                            if (statusCell) statusCell.classList.remove('has-error');
+                        }
+                    }
+                    successCount++;
+                } else {
+                    failCount++;
+                }
+            } catch (e) {
+                failCount++;
+            }
+        }
+
+        if (failCount > 0) {
+            alert(`Command sent to ${successCount} hosts, ${failCount} failed`);
+        }
     }
-}
 
-function isServerBusy(row) {
-    const pending = (row.dataset.pendingCommand || '').trim();
-    const testRunning = row.dataset.testRunning === 'true';
-    return testRunning || pending.length > 0;
-}
-
-function applyActionState(row) {
-    const hostId = row.dataset.hostId;
-    const online = row.dataset.online === 'true';
-    const testRunning = row.dataset.testRunning === 'true';
-    // Busy state is derived from server state (synced via SSE on every heartbeat)
-    const busy = isServerBusy(row);
-
-    // Keep "More" enabled so Unlock is always accessible.
-    const pullBtn = row.querySelector('.btn-pull');
-    const switchBtn = row.querySelector('.btn-switch');
-    const testBtn = row.querySelector('.btn-test');
-    const stopBtn = row.querySelector('.btn-stop');
-    const unlockItem = row.querySelector('.dropdown-item[onclick^="unlockHostActions"]');
-
-    if (unlockItem) {
-        // Enable unlock only if busy (allows manual override if UI is stuck)
-        unlockItem.classList.toggle('disabled', !busy);
-        unlockItem.title = busy ? 'Clear local busy state (does not cancel the running command)' : '';
+    function isServerBusy(row) {
+        const pending = (row.dataset.pendingCommand || '').trim();
+        const testRunning = row.dataset.testRunning === 'true';
+        return testRunning || pending.length > 0;
     }
 
-    // Base rule: if offline, everything is disabled (including stop).
-    if (!online) {
-        if (pullBtn) pullBtn.disabled = true;
-        if (switchBtn) switchBtn.disabled = true;
-        if (testBtn) testBtn.disabled = true;
-        if (stopBtn) stopBtn.disabled = true;
-        return;
-    }
-
-    // When busy:
-    // - disable pull/switch/test to prevent spam
-    // - keep stop enabled if tests are running
-    if (busy) {
-        if (pullBtn) pullBtn.disabled = true;
-        if (switchBtn) switchBtn.disabled = true;
-        if (testBtn) testBtn.disabled = true;
-        if (stopBtn) stopBtn.disabled = !testRunning ? true : false;
-        return;
-    }
-
-    // Not busy and online: enable base actions
-    if (pullBtn) pullBtn.disabled = false;
-    if (switchBtn) switchBtn.disabled = false;
-    if (testBtn) testBtn.disabled = false;
-    if (stopBtn) stopBtn.disabled = false;
-}
-
-function applyAllActionStates() {
-    document.querySelectorAll('tr[data-host-id]').forEach(row => {
-        // Expire locks and apply per-row state
+    function applyActionState(row) {
         const hostId = row.dataset.hostId;
-        getActionLock(hostId); // triggers expiry cleanup
+        const online = row.dataset.online === 'true';
+        const testRunning = row.dataset.testRunning === 'true';
+        // Busy state is derived from server state (synced via SSE on every heartbeat)
+        const busy = isServerBusy(row);
+
+        // Keep "More" enabled so Unlock is always accessible.
+        const pullBtn = row.querySelector('.btn-pull');
+        const switchBtn = row.querySelector('.btn-switch');
+        const testBtn = row.querySelector('.btn-test');
+        const stopBtn = row.querySelector('.btn-stop');
+        const unlockItem = row.querySelector('.dropdown-item[onclick^="unlockHostActions"]');
+
+        if (unlockItem) {
+            // Enable unlock only if busy (allows manual override if UI is stuck)
+            unlockItem.classList.toggle('disabled', !busy);
+            unlockItem.title = busy ? 'Clear local busy state (does not cancel the running command)' : '';
+        }
+
+        // Base rule: if offline, everything is disabled (including stop).
+        if (!online) {
+            if (pullBtn) pullBtn.disabled = true;
+            if (switchBtn) switchBtn.disabled = true;
+            if (testBtn) testBtn.disabled = true;
+            if (stopBtn) stopBtn.disabled = true;
+            return;
+        }
+
+        // When busy:
+        // - disable pull/switch/test to prevent spam
+        // - keep stop enabled if tests are running
+        if (busy) {
+            if (pullBtn) pullBtn.disabled = true;
+            if (switchBtn) switchBtn.disabled = true;
+            if (testBtn) testBtn.disabled = true;
+            if (stopBtn) stopBtn.disabled = !testRunning ? true : false;
+            return;
+        }
+
+        // Not busy and online: enable base actions
+        if (pullBtn) pullBtn.disabled = false;
+        if (switchBtn) switchBtn.disabled = false;
+        if (testBtn) testBtn.disabled = false;
+        if (stopBtn) stopBtn.disabled = false;
+    }
+
+    function applyAllActionStates() {
+        document.querySelectorAll('tr[data-host-id]').forEach(row => {
+            // Expire locks and apply per-row state
+            const hostId = row.dataset.hostId;
+            getActionLock(hostId); // triggers expiry cleanup
+            applyActionState(row);
+        });
+    }
+
+    function unlockHostActions(hostId) {
+        const row = document.querySelector(`tr[data-host-id="${hostId}"]`);
+        if (!row) return;
+
+        const pending = (row.dataset.pendingCommand || '').trim();
+        const testRunning = row.dataset.testRunning === 'true';
+        const msgParts = [];
+        if (pending) msgParts.push(`pending_command="${pending}"`);
+        if (testRunning) msgParts.push('test_running=true');
+
+        const ok = confirm(
+            `Clear local busy state for ${hostId}?\n\n` +
+            (msgParts.length ? `Current state: ${msgParts.join(', ')}\n\n` : '') +
+            `This does NOT cancel the running command on the host.\n` +
+            `The server will re-sync the correct state on the next heartbeat (~10-30 sec).`
+        );
+        if (!ok) return;
+
+        // Clear local state
+        row.dataset.pendingCommand = '';
+        row.dataset.testRunning = 'false';
         applyActionState(row);
-    });
-}
-
-function unlockHostActions(hostId) {
-    const row = document.querySelector(`tr[data-host-id="${hostId}"]`);
-    if (!row) return;
-
-    const pending = (row.dataset.pendingCommand || '').trim();
-    const testRunning = row.dataset.testRunning === 'true';
-    const msgParts = [];
-    if (pending) msgParts.push(`pending_command="${pending}"`);
-    if (testRunning) msgParts.push('test_running=true');
-
-    const ok = confirm(
-        `Clear local busy state for ${hostId}?\n\n` +
-        (msgParts.length ? `Current state: ${msgParts.join(', ')}\n\n` : '') +
-        `This does NOT cancel the running command on the host.\n` +
-        `The server will re-sync the correct state on the next heartbeat (~10-30 sec).`
-    );
-    if (!ok) return;
-
-    // Clear local state
-    row.dataset.pendingCommand = '';
-    row.dataset.testRunning = 'false';
-    applyActionState(row);
-}
-
-// ============================================================================
-// SSE (Server-Sent Events) for Real-Time Updates
-// ============================================================================
-
-let eventSource = null;
-let reconnectAttempts = 0;
-const MAX_RECONNECT_DELAY = 30000;
-
-function updateConnectionStatus(status) {
-    const el = document.getElementById('connectionStatus');
-    el.className = 'connection-status ' + status;
-    const text = el.querySelector('.connection-text');
-    if (status === 'connected') text.textContent = 'Live';
-    else if (status === 'connecting') text.textContent = 'Connecting...';
-    else text.textContent = 'Disconnected';
-}
-
-function connectSSE() {
-    if (eventSource) {
-        eventSource.close();
-    }
-    
-    updateConnectionStatus('connecting');
-    eventSource = new EventSource('/api/events');
-    
-    eventSource.onopen = () => {
-        console.log('SSE connected');
-        updateConnectionStatus('connected');
-        reconnectAttempts = 0;
-    };
-    
-    eventSource.onerror = (e) => {
-        console.error('SSE error:', e);
-        updateConnectionStatus('disconnected');
-        eventSource.close();
-        
-        // Exponential backoff reconnect
-        const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), MAX_RECONNECT_DELAY);
-        reconnectAttempts++;
-        console.log(`SSE reconnecting in ${delay}ms...`);
-        setTimeout(connectSSE, delay);
-    };
-    
-    eventSource.addEventListener('connected', (e) => {
-        console.log('SSE connected event:', e.data);
-    });
-    
-    eventSource.addEventListener('host_update', (e) => {
-        const data = JSON.parse(e.data);
-        console.log('Host update:', data);
-        updateHostRow(data);
-    });
-    
-    eventSource.addEventListener('test_progress', (e) => {
-        const data = JSON.parse(e.data);
-        console.log('Test progress:', data);
-        updateHostRow(data);
-    });
-    
-    eventSource.addEventListener('command_queued', (e) => {
-        const data = JSON.parse(e.data);
-        console.log('Command queued:', data);
-        updateHostRow(data);
-    });
-}
-
-function triggerHeartbeatPing(hostId) {
-    const ripple = document.querySelector(`.status[data-host="${hostId}"] .status-ripple`);
-    if (!ripple) return;
-    
-    // Add ping class to trigger burst animation
-    ripple.classList.add('ping');
-    
-    // Remove after animation completes
-    setTimeout(() => ripple.classList.remove('ping'), 600);
-}
-
-function updateHostRow(data) {
-    const row = document.querySelector(`tr[data-host-id="${data.host_id}"]`);
-    if (!row) return;
-
-    // Update online flag if provided
-    if (data.online !== undefined) {
-        row.dataset.online = data.online ? 'true' : 'false';
     }
 
-    // Update pending/test flags from server (source of truth, synced on every heartbeat)
-    if (data.pending_command !== undefined) {
-        row.dataset.pendingCommand = data.pending_command || '';
+    // ============================================================================
+    // SSE (Server-Sent Events) for Real-Time Updates
+    // ============================================================================
+
+    let eventSource = null;
+    let reconnectAttempts = 0;
+    const MAX_RECONNECT_DELAY = 30000;
+
+    function updateConnectionStatus(status) {
+        const el = document.getElementById('connectionStatus');
+        el.className = 'connection-status ' + status;
+        const text = el.querySelector('.connection-text');
+        if (status === 'connected') text.textContent = 'Live';
+        else if (status === 'connecting') text.textContent = 'Connecting...';
+        else text.textContent = 'Disconnected';
     }
-    if (data.test_running !== undefined) {
-        row.dataset.testRunning = data.test_running ? 'true' : 'false';
-    }
-    
-    // Update last seen timestamp
-    if (data.last_seen) {
-        row.dataset.lastSeen = data.last_seen;
-        const seenCell = row.querySelector('.seen-cell');
-        if (seenCell) {
-            seenCell.title = formatTimestamp(parseUTC(data.last_seen));
+
+    function connectSSE() {
+        if (eventSource) {
+            eventSource.close();
         }
-        const seenRelative = row.querySelector(`.seen-relative[data-host="${data.host_id}"]`);
-        if (seenRelative) {
-            seenRelative.dataset.ts = data.last_seen;
-            seenRelative.textContent = 'just now';
-        }
-        
-        // Trigger heartbeat ping animation
-        triggerHeartbeatPing(data.host_id);
+
+        updateConnectionStatus('connecting');
+        eventSource = new EventSource('/api/events');
+
+        eventSource.onopen = () => {
+            console.log('SSE connected');
+            updateConnectionStatus('connected');
+            reconnectAttempts = 0;
+        };
+
+        eventSource.onerror = (e) => {
+            console.error('SSE error:', e);
+            updateConnectionStatus('disconnected');
+            eventSource.close();
+
+            // Exponential backoff reconnect
+            const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), MAX_RECONNECT_DELAY);
+            reconnectAttempts++;
+            console.log(`SSE reconnecting in ${delay}ms...`);
+            setTimeout(connectSSE, delay);
+        };
+
+        eventSource.addEventListener('connected', (e) => {
+            console.log('SSE connected event:', e.data);
+        });
+
+        eventSource.addEventListener('host_update', (e) => {
+            const data = JSON.parse(e.data);
+            console.log('Host update:', data);
+            updateHostRow(data);
+        });
+
+        eventSource.addEventListener('test_progress', (e) => {
+            const data = JSON.parse(e.data);
+            console.log('Test progress:', data);
+            updateHostRow(data);
+        });
+
+        eventSource.addEventListener('command_queued', (e) => {
+            const data = JSON.parse(e.data);
+            console.log('Command queued:', data);
+            updateHostRow(data);
+        });
     }
-    
-    // Update status indicator (ripple/dot) in host cell based on online status
-    if (data.online !== undefined) {
-        const statusIndicator = row.querySelector('.status-indicator');
-        if (statusIndicator) {
-            if (data.online) {
-                statusIndicator.innerHTML = `<span class="status-ripple"><span class="hb-wave"></span><span class="hb-wave"></span><span class="hb-wave"></span><span class="hb-core"></span></span>`;
-            } else {
-                statusIndicator.innerHTML = `<span class="status-dot offline"></span>`;
+
+    function triggerHeartbeatPing(hostId) {
+        const ripple = document.querySelector(`.status[data-host="${hostId}"] .status-ripple`);
+        if (!ripple) return;
+
+        // Add ping class to trigger burst animation
+        ripple.classList.add('ping');
+
+        // Remove after animation completes
+        setTimeout(() => ripple.classList.remove('ping'), 600);
+    }
+
+    function updateHostRow(data) {
+        const row = document.querySelector(`tr[data-host-id="${data.host_id}"]`);
+        if (!row) return;
+
+        // Update online flag if provided
+        if (data.online !== undefined) {
+            row.dataset.online = data.online ? 'true' : 'false';
+        }
+
+        // Update pending/test flags from server (source of truth, synced on every heartbeat)
+        if (data.pending_command !== undefined) {
+            row.dataset.pendingCommand = data.pending_command || '';
+        }
+        if (data.test_running !== undefined) {
+            row.dataset.testRunning = data.test_running ? 'true' : 'false';
+        }
+
+        // Update last seen timestamp
+        if (data.last_seen) {
+            row.dataset.lastSeen = data.last_seen;
+            const seenCell = row.querySelector('.seen-cell');
+            if (seenCell) {
+                seenCell.title = formatTimestamp(parseUTC(data.last_seen));
+            }
+            const seenRelative = row.querySelector(`.seen-relative[data-host="${data.host_id}"]`);
+            if (seenRelative) {
+                seenRelative.dataset.ts = data.last_seen;
+                seenRelative.textContent = 'just now';
+            }
+
+            // Trigger heartbeat ping animation
+            triggerHeartbeatPing(data.host_id);
+        }
+
+        // Update status indicator (ripple/dot) in host cell based on online status
+        if (data.online !== undefined) {
+            const statusIndicator = row.querySelector('.status-indicator');
+            if (statusIndicator) {
+                if (data.online) {
+                    statusIndicator.innerHTML = `<span class="status-ripple"><span class="hb-wave"></span><span class="hb-wave"></span><span class="hb-wave"></span><span class="hb-core"></span></span>`;
+                } else {
+                    statusIndicator.innerHTML = `<span class="status-dot offline"></span>`;
+                }
             }
         }
-    }
-    
-    // Note: Lock clearing is now handled above when pending_command is set to null/empty
-    
-    // Update comment error state
-    if (data.status !== undefined) {
-        const statusCell = row.querySelector('.status-cell');
-        if (statusCell) {
-            statusCell.classList.toggle('has-error', data.status === 'error');
-        }
-    }
-    
-    // Update test progress cell (column 9 = Tests)
-    const testCell = row.querySelector('td:nth-child(9)');
-    if (testCell && (data.test_running !== undefined || data.test_passed_count !== undefined)) {
-        if (data.test_running) {
-            testCell.innerHTML = `<span class="test-progress">${data.test_current || 0}/${data.test_total || 0}</span>`;
-        } else if (data.test_passed_count !== undefined && data.test_total !== undefined && data.test_total > 0) {
-            const passed = data.test_passed_count === data.test_total;
-            testCell.innerHTML = `<span class="test-result ${passed ? 'pass' : 'fail'}">${data.test_passed_count}/${data.test_total}</span>`;
-        }
-    }
-    
-    // Update fleet cell if agent_version changed
-    if (data.agent_version) {
-        const fleetCell = row.querySelector('.fleet-cell');
-        if (fleetCell && data.agent_version.includes('-')) {
-            const agentHash = data.agent_version.split('-').pop().substring(0, 7);
-            // Get target hash - extract just the hash part
-            const targetHashEl = document.querySelector('.fleet-hash');
-            const targetHash = targetHashEl ? targetHashEl.textContent.replace(/\s/g, '').substring(0, 7) : '';
-            const outdated = agentHash && targetHash && agentHash !== targetHash;
-            fleetCell.innerHTML = `<code class="hash-badge ${outdated ? 'outdated' : 'current'}" title="Agent: ${data.agent_version}${outdated ? ' | Target: ' + targetHash : ''}">${agentHash}</code><span class="update-indicator ${outdated ? 'outdated' : 'current'}">${outdated ? '↓' : '✓'}</span>`;
-        }
-        row.dataset.agentHash = data.agent_version.split('-').pop() || '';
-    }
-    
-    if (data.os_version) {
-        const osVersionEl = row.querySelector('.os-cell .os-version');
-        if (osVersionEl) {
-            osVersionEl.textContent = data.os_version.substring(0, 5);
-        }
-        const osCell = row.querySelector('.os-cell');
-        if (osCell) {
-            let title = (data.os_name || 'Unknown') + ' ' + data.os_version;
-            if (data.nixpkgs_version) {
-                title += ' | nixpkgs: ' + data.nixpkgs_version;
-            }
-            osCell.title = title;
-        }
-    }
-    
-    // Update config hash if changed
-    if (data.current_generation) {
-        const configCell = row.querySelector('.config-cell');
-        if (configCell) {
-            // Get target hash - extract just the hash part (trim whitespace, take first 7 chars)
-            const targetHashEl = document.querySelector('.nixcfg-hash');
-            const targetHash = targetHashEl ? targetHashEl.textContent.replace(/\s/g, '').substring(0, 7) : '';
-            const shortHash = data.current_generation.substring(0, 7);
-            // Compare 7-char hashes
-            const outdated = data.outdated !== undefined ? data.outdated : (targetHash && shortHash !== targetHash);
-            configCell.innerHTML = `<code class="hash-badge ${outdated ? 'outdated' : 'current'}" title="Config: ${data.current_generation}${outdated ? ' | Target: ' + targetHash : ''}">${shortHash}</code><span class="update-indicator ${outdated ? 'outdated' : 'current'}">${outdated ? '↓' : '✓'}</span>`;
-        }
-        row.dataset.gitHash = data.current_generation;
-    }
-    
-    // Update status cell metadata (error state, data attributes)
-    // NOTE: Content is now managed via renderStatusHistory() for the papertrail
-    if (data.status !== undefined || data.test_running !== undefined) {
-        const statusCell = row.querySelector('.status-cell');
-        if (statusCell) {
-            statusCell.dataset.status = data.status || statusCell.dataset.status || 'unknown';
-            statusCell.dataset.testRunning = data.test_running ? 'true' : 'false';
-            statusCell.classList.toggle('has-error', data.status === 'error');
-        }
-    }
-    
-    // Update metrics if provided
-    if (data.metrics !== undefined) {
-        const metricsCell = row.querySelector('.metrics-cell');
-        if (metricsCell) {
-            if (data.metrics && data.metrics.cpu !== undefined) {
-                const cpuHigh = data.metrics.cpu >= 80 ? 'high' : '';
-                const ramHigh = data.metrics.ram >= 80 ? 'high' : '';
-                metricsCell.innerHTML = `<span class="metric cpu ${cpuHigh}"><svg class="metric-icon"><use href="#icon-cpu"/></svg><span class="metric-val">${data.metrics.cpu}</span></span><span class="metric ram ${ramHigh}"><svg class="metric-icon"><use href="#icon-ram"/></svg><span class="metric-val">${data.metrics.ram}</span></span>`;
-                const swapInfo = data.metrics.swap ? ` | Swap: ${data.metrics.swap}%` : '';
-                const updatedInfo = data.metrics_updated_at ? ` | Updated: ${data.metrics_updated_at.substring(0, 19)}` : '';
-                metricsCell.title = `CPU: ${data.metrics.cpu}% | RAM: ${data.metrics.ram}%${swapInfo} | Load: ${data.metrics.load}${updatedInfo}`;
-                metricsCell.dataset.metricsUpdated = data.metrics_updated_at || '';
-            } else {
-                metricsCell.innerHTML = '<span class="metrics-na">—</span>';
-                metricsCell.title = '';
+
+        // Note: Lock clearing is now handled above when pending_command is set to null/empty
+
+        // Update comment error state
+        if (data.status !== undefined) {
+            const statusCell = row.querySelector('.status-cell');
+            if (statusCell) {
+                statusCell.classList.toggle('has-error', data.status === 'error');
             }
         }
-    }
-    
-    // Update action buttons (test vs stop)
-    if (data.test_running !== undefined) {
-        const actionsDiv = row.querySelector('.actions');
-        if (actionsDiv) {
-            const testBtn = actionsDiv.querySelector('.btn-test');
-            const stopBtn = actionsDiv.querySelector('.btn-stop');
-            
-            if (data.test_running && testBtn && !stopBtn) {
-                // Replace Test with Stop
-                testBtn.outerHTML = `<button class="btn btn-stop" type="button" data-action="send-command" data-host-id="${data.host_id}" data-command="stop" title="Stop Test">
+
+        // Update test progress cell (column 9 = Tests)
+        const testCell = row.querySelector('td:nth-child(9)');
+        if (testCell && (data.test_running !== undefined || data.test_passed_count !== undefined)) {
+            if (data.test_running) {
+                testCell.innerHTML = `<span class="test-progress">${data.test_current || 0}/${data.test_total || 0}</span>`;
+            } else if (data.test_passed_count !== undefined && data.test_total !== undefined && data.test_total > 0) {
+                const passed = data.test_passed_count === data.test_total;
+                testCell.innerHTML = `<span class="test-result ${passed ? 'pass' : 'fail'}">${data.test_passed_count}/${data.test_total}</span>`;
+            }
+        }
+
+        // Update fleet cell if agent_version changed
+        if (data.agent_version) {
+            const fleetCell = row.querySelector('.fleet-cell');
+            if (fleetCell && data.agent_version.includes('-')) {
+                const agentHash = data.agent_version.split('-').pop().substring(0, 7);
+                // Get target hash - extract just the hash part
+                const targetHashEl = document.querySelector('.fleet-hash');
+                const targetHash = targetHashEl ? targetHashEl.textContent.replace(/\s/g, '').substring(0, 7) : '';
+                const outdated = agentHash && targetHash && agentHash !== targetHash;
+                fleetCell.innerHTML = `<code class="hash-badge ${outdated ? 'outdated' : 'current'}" title="Agent: ${data.agent_version}${outdated ? ' | Target: ' + targetHash : ''}">${agentHash}</code><span class="update-indicator ${outdated ? 'outdated' : 'current'}">${outdated ? '↓' : '✓'}</span>`;
+            }
+            row.dataset.agentHash = data.agent_version.split('-').pop() || '';
+        }
+
+        if (data.os_version) {
+            const osVersionEl = row.querySelector('.os-cell .os-version');
+            if (osVersionEl) {
+                osVersionEl.textContent = data.os_version.substring(0, 5);
+            }
+            const osCell = row.querySelector('.os-cell');
+            if (osCell) {
+                let title = (data.os_name || 'Unknown') + ' ' + data.os_version;
+                if (data.nixpkgs_version) {
+                    title += ' | nixpkgs: ' + data.nixpkgs_version;
+                }
+                osCell.title = title;
+            }
+        }
+
+        // Update config hash if changed
+        if (data.current_generation) {
+            const configCell = row.querySelector('.config-cell');
+            if (configCell) {
+                // Get target hash - extract just the hash part (trim whitespace, take first 7 chars)
+                const targetHashEl = document.querySelector('.nixcfg-hash');
+                const targetHash = targetHashEl ? targetHashEl.textContent.replace(/\s/g, '').substring(0, 7) : '';
+                const shortHash = data.current_generation.substring(0, 7);
+                // Compare 7-char hashes
+                const outdated = data.outdated !== undefined ? data.outdated : (targetHash && shortHash !== targetHash);
+                configCell.innerHTML = `<code class="hash-badge ${outdated ? 'outdated' : 'current'}" title="Config: ${data.current_generation}${outdated ? ' | Target: ' + targetHash : ''}">${shortHash}</code><span class="update-indicator ${outdated ? 'outdated' : 'current'}">${outdated ? '↓' : '✓'}</span>`;
+            }
+            row.dataset.gitHash = data.current_generation;
+        }
+
+        // Update status cell metadata (error state, data attributes)
+        // NOTE: Content is now managed via renderStatusHistory() for the papertrail
+        if (data.status !== undefined || data.test_running !== undefined) {
+            const statusCell = row.querySelector('.status-cell');
+            if (statusCell) {
+                statusCell.dataset.status = data.status || statusCell.dataset.status || 'unknown';
+                statusCell.dataset.testRunning = data.test_running ? 'true' : 'false';
+                statusCell.classList.toggle('has-error', data.status === 'error');
+            }
+        }
+
+        // Update metrics if provided
+        if (data.metrics !== undefined) {
+            const metricsCell = row.querySelector('.metrics-cell');
+            if (metricsCell) {
+                if (data.metrics && data.metrics.cpu !== undefined) {
+                    const cpuHigh = data.metrics.cpu >= 80 ? 'high' : '';
+                    const ramHigh = data.metrics.ram >= 80 ? 'high' : '';
+                    metricsCell.innerHTML = `<span class="metric cpu ${cpuHigh}"><svg class="metric-icon"><use href="#icon-cpu"/></svg><span class="metric-val">${data.metrics.cpu}</span></span><span class="metric ram ${ramHigh}"><svg class="metric-icon"><use href="#icon-ram"/></svg><span class="metric-val">${data.metrics.ram}</span></span>`;
+                    const swapInfo = data.metrics.swap ? ` | Swap: ${data.metrics.swap}%` : '';
+                    const updatedInfo = data.metrics_updated_at ? ` | Updated: ${data.metrics_updated_at.substring(0, 19)}` : '';
+                    metricsCell.title = `CPU: ${data.metrics.cpu}% | RAM: ${data.metrics.ram}%${swapInfo} | Load: ${data.metrics.load}${updatedInfo}`;
+                    metricsCell.dataset.metricsUpdated = data.metrics_updated_at || '';
+                } else {
+                    metricsCell.innerHTML = '<span class="metrics-na">—</span>';
+                    metricsCell.title = '';
+                }
+            }
+        }
+
+        // Update action buttons (test vs stop)
+        if (data.test_running !== undefined) {
+            const actionsDiv = row.querySelector('.actions');
+            if (actionsDiv) {
+                const testBtn = actionsDiv.querySelector('.btn-test');
+                const stopBtn = actionsDiv.querySelector('.btn-stop');
+
+                if (data.test_running && testBtn && !stopBtn) {
+                    // Replace Test with Stop
+                    testBtn.outerHTML = `<button class="btn btn-stop" type="button" data-action="send-command" data-host-id="${data.host_id}" data-command="stop" title="Stop Test">
                     <svg><use href="#icon-stop"/></svg>
                     Stop
                 </button>`;
-            } else if (!data.test_running && stopBtn && !testBtn) {
-                // Replace Stop with Test
-                stopBtn.outerHTML = `<button class="btn btn-test" type="button" data-action="send-command" data-host-id="${data.host_id}" data-command="test" title="Run Tests">
+                } else if (!data.test_running && stopBtn && !testBtn) {
+                    // Replace Stop with Test
+                    stopBtn.outerHTML = `<button class="btn btn-test" type="button" data-action="send-command" data-host-id="${data.host_id}" data-command="test" title="Run Tests">
                     <svg><use href="#icon-flask"/></svg>
                     Test
                 </button>`;
+                }
             }
+        }
+
+        // Update status history (papertrail) if provided
+        if (data.status_history && Array.isArray(data.status_history)) {
+            renderStatusHistory(data.host_id, data.status_history);
+        }
+
+        // Finally, re-apply action enable/disable rules
+        applyActionState(row);
+    }
+
+    async function refreshTarget(btn) {
+        // Add spinning animation
+        btn.classList.add('spinning');
+        btn.disabled = true;
+
+        try {
+            const response = await fetch('/api/nixcfg/refresh', {
+                method: 'POST',
+                headers: { 'X-CSRF-Token': csrfToken }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                // Update the hash and message in-place
+                const hashEl = document.querySelector('.sot-hash');
+                const notesEl = document.querySelector('.sot-notes-text');
+                if (hashEl && data.hash) {
+                    hashEl.href = `https://github.com/markus-barta/nixcfg/commit/${data.hash}`;
+                    hashEl.innerHTML = `<svg width="12" height="12"><use href="#icon-github"/></svg> ${data.hash}`;
+                }
+                if (notesEl && data.message) {
+                    const truncated = data.message.length > 50 ? data.message.substring(0, 50) + '…' : data.message;
+                    notesEl.textContent = truncated;
+                    notesEl.closest('.sot-notes').title = data.message;
+                }
+            } else if (response.status === 401) {
+                location.href = '/login';
+            }
+        } catch (e) {
+            console.error('Failed to refresh target:', e);
+        } finally {
+            btn.classList.remove('spinning');
+            btn.disabled = false;
         }
     }
 
-    // Update status history (papertrail) if provided
-    if (data.status_history && Array.isArray(data.status_history)) {
-        renderStatusHistory(data.host_id, data.status_history);
-    }
+    // Start SSE connection
+    connectSSE();
 
-    // Finally, re-apply action enable/disable rules
-    applyActionState(row);
-}
+    // Apply action states on first load + periodically expire long locks
+    applyAllActionStates();
+    setInterval(applyAllActionStates, 60_000);
 
-async function refreshTarget(btn) {
-    // Add spinning animation
-    btn.classList.add('spinning');
-    btn.disabled = true;
-    
-    try {
-        const response = await fetch('/api/nixcfg/refresh', {
-            method: 'POST',
-            headers: { 'X-CSRF-Token': csrfToken }
-        });
-        
-        if (response.ok) {
-            const data = await response.json();
-            // Update the hash and message in-place
-            const hashEl = document.querySelector('.sot-hash');
-            const notesEl = document.querySelector('.sot-notes-text');
-            if (hashEl && data.hash) {
-                hashEl.href = `https://github.com/markus-barta/nixcfg/commit/${data.hash}`;
-                hashEl.innerHTML = `<svg width="12" height="12"><use href="#icon-github"/></svg> ${data.hash}`;
-            }
-            if (notesEl && data.message) {
-                const truncated = data.message.length > 50 ? data.message.substring(0, 50) + '…' : data.message;
-                notesEl.textContent = truncated;
-                notesEl.closest('.sot-notes').title = data.message;
-            }
-        } else if (response.status === 401) {
-            location.href = '/login';
+    // SSE should keep page updated - no forced reloads needed
+
+    // ============================================================================
+    // Status Papertrail (expand/collapse)
+    // ============================================================================
+
+    // Track which host is currently expanded (only one at a time)
+    let expandedStatusHost = null;
+
+    function toggleStatusExpand(hostId) {
+        const papertrail = document.querySelector(`.status-papertrail[data-host="${hostId}"]`);
+        if (!papertrail) return;
+
+        // If clicking on already expanded, collapse it
+        if (expandedStatusHost === hostId) {
+            papertrail.classList.remove('expanded');
+            expandedStatusHost = null;
+            return;
         }
-    } catch (e) {
-        console.error('Failed to refresh target:', e);
-    } finally {
-        btn.classList.remove('spinning');
-        btn.disabled = false;
+
+        // Collapse any currently expanded
+        if (expandedStatusHost) {
+            const prev = document.querySelector(`.status-papertrail[data-host="${expandedStatusHost}"]`);
+            if (prev) prev.classList.remove('expanded');
+        }
+
+        // Expand this one
+        papertrail.classList.add('expanded');
+        expandedStatusHost = hostId;
     }
-}
 
-// Start SSE connection
-connectSSE();
+    // Render status history entries into a papertrail container
+    function renderStatusHistory(hostId, history) {
+        const papertrail = document.querySelector(`.status-papertrail[data-host="${hostId}"]`);
+        if (!papertrail) return;
 
-// Apply action states on first load + periodically expire long locks
-applyAllActionStates();
-setInterval(applyAllActionStates, 60_000);
+        const entries = papertrail.querySelector('.status-entries');
+        if (!entries || !history || history.length === 0) return;
 
-// SSE should keep page updated - no forced reloads needed
-
-// ============================================================================
-// Status Papertrail (expand/collapse)
-// ============================================================================
-
-// Track which host is currently expanded (only one at a time)
-let expandedStatusHost = null;
-
-function toggleStatusExpand(hostId) {
-    const papertrail = document.querySelector(`.status-papertrail[data-host="${hostId}"]`);
-    if (!papertrail) return;
-    
-    // If clicking on already expanded, collapse it
-    if (expandedStatusHost === hostId) {
-        papertrail.classList.remove('expanded');
-        expandedStatusHost = null;
-        return;
-    }
-    
-    // Collapse any currently expanded
-    if (expandedStatusHost) {
-        const prev = document.querySelector(`.status-papertrail[data-host="${expandedStatusHost}"]`);
-        if (prev) prev.classList.remove('expanded');
-    }
-    
-    // Expand this one
-    papertrail.classList.add('expanded');
-    expandedStatusHost = hostId;
-}
-
-// Render status history entries into a papertrail container
-function renderStatusHistory(hostId, history) {
-    const papertrail = document.querySelector(`.status-papertrail[data-host="${hostId}"]`);
-    if (!papertrail) return;
-    
-    const entries = papertrail.querySelector('.status-entries');
-    if (!entries || !history || history.length === 0) return;
-    
-    // Build HTML for entries
-    let html = '';
-    for (const entry of history) {
-        const ts = formatHistoryTimestamp(entry.timestamp);
-        const icon = entry.icon || '•';
-        const msg = escapeHtml(entry.message || '');
-        html += `<div class="status-entry">
+        // Build HTML for entries
+        let html = '';
+        for (const entry of history) {
+            const ts = formatHistoryTimestamp(entry.timestamp);
+            const icon = entry.icon || '•';
+            const msg = escapeHtml(entry.message || '');
+            html += `<div class="status-entry">
             <span class="status-ts" title="${entry.timestamp}">${ts}</span>
             <span class="status-icon">${icon}</span>
             <span class="status-msg">${msg}</span>
         </div>`;
+        }
+
+        entries.innerHTML = html || '<div class="status-entry muted"><span class="status-msg">No activity yet</span></div>';
     }
-    
-    entries.innerHTML = html || '<div class="status-entry muted"><span class="status-msg">No activity yet</span></div>';
-}
 
-// Format timestamp for history display (HH:MM:SS) - uses central formatTimeShort
-function formatHistoryTimestamp(isoString) {
-    if (!isoString) return '';
-    try {
-        const d = new Date(isoString);
-        return formatTimeShort(d);  // Use central function for consistency
-    } catch {
-        return '';
+    // Format timestamp for history display (HH:MM:SS) - uses central formatTimeShort
+    function formatHistoryTimestamp(isoString) {
+        if (!isoString) return '';
+        try {
+            const d = new Date(isoString);
+            return formatTimeShort(d);  // Use central function for consistency
+        } catch {
+            return '';
+        }
     }
-}
 
-// Escape HTML for safe rendering
-function escapeHtml(str) {
-    const div = document.createElement('div');
-    div.textContent = str;
-    return div.innerHTML;
-}
+    // Escape HTML for safe rendering
+    function escapeHtml(str) {
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
 
-// Download logs for a host
-async function downloadHostLogs(hostId) {
-    try {
-        const response = await fetch(`/api/hosts/${hostId}/logs/download?format=txt`, {
-            credentials: 'same-origin',
-        });
-        
-        if (!response.ok) {
-            if (response.status === 404) {
-                alert('No logs available for this host yet.');
-                return;
+    // Download logs for a host
+    async function downloadHostLogs(hostId) {
+        try {
+            const response = await fetch(`/api/hosts/${hostId}/logs/download?format=txt`, {
+                credentials: 'same-origin',
+            });
+
+            if (!response.ok) {
+                if (response.status === 404) {
+                    alert('No logs available for this host yet.');
+                    return;
+                }
+                throw new Error(`HTTP ${response.status}`);
             }
-            throw new Error(`HTTP ${response.status}`);
-        }
-        
-        // Get filename from Content-Disposition header
-        const disposition = response.headers.get('Content-Disposition');
-        let filename = `${hostId}-logs.txt`;
-        if (disposition) {
-            const match = disposition.match(/filename="([^"]+)"/);
-            if (match) filename = match[1];
-        }
-        
-        // Download the file
-        const blob = await response.blob();
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-    } catch (err) {
-        console.error('Failed to download logs:', err);
-        alert('Failed to download logs. Please try again.');
-    }
-}
 
-// Dropdown toggle
-function toggleDropdown(e) {
-    e.stopPropagation();
-    const dropdown = e.target.closest('.dropdown');
-    
-    // Close all other dropdowns first
-    document.querySelectorAll('.dropdown.open').forEach(d => {
-        if (d !== dropdown) d.classList.remove('open');
+            // Get filename from Content-Disposition header
+            const disposition = response.headers.get('Content-Disposition');
+            let filename = `${hostId}-logs.txt`;
+            if (disposition) {
+                const match = disposition.match(/filename="([^"]+)"/);
+                if (match) filename = match[1];
+            }
+
+            // Download the file
+            const blob = await response.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        } catch (err) {
+            console.error('Failed to download logs:', err);
+            alert('Failed to download logs. Please try again.');
+        }
+    }
+
+    // Dropdown toggle
+    function toggleDropdown(e) {
+        e.stopPropagation();
+        const dropdown = e.target.closest('.dropdown');
+
+        // Close all other dropdowns first
+        document.querySelectorAll('.dropdown.open').forEach(d => {
+            if (d !== dropdown) d.classList.remove('open');
+        });
+
+        dropdown.classList.toggle('open');
+    }
+
+    // Close dropdowns when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.dropdown')) {
+            document.querySelectorAll('.dropdown.open').forEach(d => d.classList.remove('open'));
+        }
     });
-    
-    dropdown.classList.toggle('open');
-}
 
-// Close dropdowns when clicking outside
-document.addEventListener('click', (e) => {
-    if (!e.target.closest('.dropdown')) {
-        document.querySelectorAll('.dropdown.open').forEach(d => d.classList.remove('open'));
-    }
-});
-
-// Close dropdowns on escape key
-document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') {
-        document.querySelectorAll('.dropdown.open').forEach(d => d.classList.remove('open'));
-        closeRemoveModal();
-    }
-});
-
-// Remove host modal
-let hostToRemove = null;
-
-function confirmRemoveHost(hostId, hostname) {
-    hostToRemove = hostId;
-    document.getElementById('removeHostName').textContent = hostname;
-    document.getElementById('removeHostModal').classList.add('open');
-    // Close dropdown
-    document.querySelectorAll('.dropdown.open').forEach(d => d.classList.remove('open'));
-}
-
-function closeRemoveModal() {
-    document.getElementById('removeHostModal').classList.remove('open');
-    hostToRemove = null;
-}
-
-async function removeHost() {
-    if (!hostToRemove) return;
-    
-    const btn = document.getElementById('confirmRemoveBtn');
-    btn.disabled = true;
-    btn.textContent = 'Removing...';
-    
-    try {
-        const response = await fetch(`/api/hosts/${hostToRemove}`, {
-            method: 'DELETE',
-            headers: { 
-                'X-CSRF-Token': csrfToken
-            }
-        });
-        
-        if (response.ok) {
+    // Close dropdowns on escape key
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            document.querySelectorAll('.dropdown.open').forEach(d => d.classList.remove('open'));
             closeRemoveModal();
-            location.reload();
-        } else if (response.status === 401) {
-            location.href = '/login';
-        } else {
-            const data = await response.json().catch(() => ({}));
-            alert(data.detail || 'Failed to remove host');
+        }
+    });
+
+    // Remove host modal
+    let hostToRemove = null;
+
+    function confirmRemoveHost(hostId, hostname) {
+        hostToRemove = hostId;
+        document.getElementById('removeHostName').textContent = hostname;
+        document.getElementById('removeHostModal').classList.add('open');
+        // Close dropdown
+        document.querySelectorAll('.dropdown.open').forEach(d => d.classList.remove('open'));
+    }
+
+    function closeRemoveModal() {
+        document.getElementById('removeHostModal').classList.remove('open');
+        hostToRemove = null;
+    }
+
+    async function removeHost() {
+        if (!hostToRemove) return;
+
+        const btn = document.getElementById('confirmRemoveBtn');
+        btn.disabled = true;
+        btn.textContent = 'Removing...';
+
+        try {
+            const response = await fetch(`/api/hosts/${hostToRemove}`, {
+                method: 'DELETE',
+                headers: {
+                    'X-CSRF-Token': csrfToken
+                }
+            });
+
+            if (response.ok) {
+                closeRemoveModal();
+                location.reload();
+            } else if (response.status === 401) {
+                location.href = '/login';
+            } else {
+                const data = await response.json().catch(() => ({}));
+                alert(data.detail || 'Failed to remove host');
+                btn.disabled = false;
+                btn.textContent = 'Remove';
+            }
+        } catch (e) {
+            alert('Network error');
             btn.disabled = false;
             btn.textContent = 'Remove';
         }
-    } catch (e) {
-        alert('Network error');
-        btn.disabled = false;
-        btn.textContent = 'Remove';
     }
-}
 
-// Close modal when clicking overlay (outside modal)
-document.getElementById('removeHostModal').addEventListener('click', (e) => {
-    if (e.target.classList.contains('modal-overlay')) {
-        closeRemoveModal();
+    // Close modal when clicking overlay (outside modal)
+    document.getElementById('removeHostModal').addEventListener('click', (e) => {
+        if (e.target.classList.contains('modal-overlay')) {
+            closeRemoveModal();
+        }
+    });
+
+    // Add Host modal
+    function openAddHostModal() {
+        document.getElementById('addHostModal').classList.add('open');
+        document.getElementById('addHostName').focus();
+        // Close dropdown
+        document.querySelectorAll('.dropdown.open').forEach(d => d.classList.remove('open'));
     }
-});
 
-// Add Host modal
-function openAddHostModal() {
-    document.getElementById('addHostModal').classList.add('open');
-    document.getElementById('addHostName').focus();
-    // Close dropdown
-    document.querySelectorAll('.dropdown.open').forEach(d => d.classList.remove('open'));
-}
-
-function closeAddHostModal() {
-    document.getElementById('addHostModal').classList.remove('open');
-    document.getElementById('addHostForm').reset();
-}
-
-async function submitAddHost(e) {
-    e.preventDefault();
-    
-    const btn = document.getElementById('confirmAddBtn');
-    btn.disabled = true;
-    btn.textContent = 'Adding...';
-    
-    const form = document.getElementById('addHostForm');
-    const data = {
-        hostname: document.getElementById('addHostName').value.trim(),
-        host_type: document.getElementById('addHostType').value,
-        location: document.getElementById('addHostLocation').value,
-        device_type: document.getElementById('addHostDevice').value,
-        theme_color: document.getElementById('addHostColor').value
-    };
-    
-    if (!data.hostname) {
-        alert('Hostname is required');
-        btn.disabled = false;
-        btn.textContent = 'Add Host';
-        return;
+    function closeAddHostModal() {
+        document.getElementById('addHostModal').classList.remove('open');
+        document.getElementById('addHostForm').reset();
     }
-    
-    try {
-        const response = await fetch('/api/hosts', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-Token': csrfToken
-            },
-            body: JSON.stringify(data)
-        });
-        
-        if (response.ok) {
-            closeAddHostModal();
-            location.reload();
-        } else if (response.status === 401) {
-            location.href = '/login';
-        } else {
-            const result = await response.json().catch(() => ({}));
-            alert(result.detail || 'Failed to add host');
+
+    async function submitAddHost(e) {
+        e.preventDefault();
+
+        const btn = document.getElementById('confirmAddBtn');
+        btn.disabled = true;
+        btn.textContent = 'Adding...';
+
+        const form = document.getElementById('addHostForm');
+        const data = {
+            hostname: document.getElementById('addHostName').value.trim(),
+            host_type: document.getElementById('addHostType').value,
+            location: document.getElementById('addHostLocation').value,
+            device_type: document.getElementById('addHostDevice').value,
+            theme_color: document.getElementById('addHostColor').value
+        };
+
+        if (!data.hostname) {
+            alert('Hostname is required');
+            btn.disabled = false;
+            btn.textContent = 'Add Host';
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/hosts', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': csrfToken
+                },
+                body: JSON.stringify(data)
+            });
+
+            if (response.ok) {
+                closeAddHostModal();
+                location.reload();
+            } else if (response.status === 401) {
+                location.href = '/login';
+            } else {
+                const result = await response.json().catch(() => ({}));
+                alert(result.detail || 'Failed to add host');
+                btn.disabled = false;
+                btn.textContent = 'Add Host';
+            }
+        } catch (e) {
+            alert('Network error');
             btn.disabled = false;
             btn.textContent = 'Add Host';
         }
-    } catch (e) {
-        alert('Network error');
-        btn.disabled = false;
-        btn.textContent = 'Add Host';
     }
-}
 
-// Enable Enter-to-submit for the Add Host form (CSP: no inline onsubmit handlers)
-document.getElementById('addHostForm')?.addEventListener('submit', submitAddHost);
+    // Enable Enter-to-submit for the Add Host form (CSP: no inline onsubmit handlers)
+    document.getElementById('addHostForm')?.addEventListener('submit', submitAddHost);
 
-document.getElementById('addHostModal').addEventListener('click', (e) => {
-    if (e.target.classList.contains('modal-overlay')) {
-        closeAddHostModal();
-    }
-});
+    document.getElementById('addHostModal').addEventListener('click', (e) => {
+        if (e.target.classList.contains('modal-overlay')) {
+            closeAddHostModal();
+        }
+    });
 </script>
 
 <footer class="site-footer">
     <div class="footer-left">
         <span>NixFleet {{ version }}</span>
         <a href="https://github.com/markus-barta/nixfleet" class="footer-link" target="_blank">
-            <svg><use href="#icon-github"/></svg>
+            <svg>
+                <use href="#icon-github" />
+            </svg>
             Source
         </a>
         <a href="https://www.gnu.org/licenses/agpl-3.0.html" class="footer-link" target="_blank">
-            <svg><use href="#icon-license"/></svg>
+            <svg>
+                <use href="#icon-license" />
+            </svg>
             AGPL-3.0
         </a>
     </div>
     <div class="footer-right">
         <span class="made-with">
-            Made with <svg class="heart" width="12" height="12"><use href="#icon-heart"/></svg> by <a href="https://x.com/markusbarta" target="_blank" class="footer-link" rel="noopener">@markusbarta</a>, Claude &amp; Cursor in
+            Made with <svg class="heart" width="12" height="12">
+                <use href="#icon-heart" />
+            </svg> by <a href="https://x.com/markusbarta" target="_blank" class="footer-link"
+                rel="noopener">@markusbarta</a>, Claude &amp; Cursor in
             <a href="https://maps.google.com/?q=Graz,Austria" target="_blank" class="footer-link footer-location-link">
-                <svg width="10" height="10"><use href="#icon-home"/></svg>
+                <svg width="10" height="10">
+                    <use href="#icon-home" />
+                </svg>
                 Graz
             </a>
         </span>

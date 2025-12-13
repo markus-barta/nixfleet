@@ -961,7 +961,7 @@ class CommandRequest(BaseModel):
 
 app = FastAPI(
     title="NixFleet",
-    description="Fleet management for NixOS and macOS hosts",
+    description="Simple, unified fleet management for NixOS and macOS",
     version=VERSION,
 )
 app.mount("/static", StaticFiles(directory=str(Path(__file__).parent / "static")), name="static")
