@@ -1487,13 +1487,13 @@ tr:hover .status .hb-countdown {
                                 {% if host.test_running %}
                                 <div class="status-entry">
                                     <span class="status-ts">{{ host.last_seen | time_short }}</span>
-                                    <span class="status-icon">🧪</span>
+                                    <span class="status-icon">✦</span>
                                     <span class="status-msg">Testing {{ host.test_current }}/{{ host.test_total }}</span>
                                 </div>
                                 {% elif host.pending_command %}
                                 <div class="status-entry">
                                     <span class="status-ts">{{ host.command_queued_at | time_short }}</span>
-                                    <span class="status-icon">⏳</span>
+                                    <span class="status-icon">⧖</span>
                                     <span class="status-msg">{{ host.pending_command }}...</span>
                                 </div>
                                 {% elif host.comment %}
@@ -1924,16 +1924,16 @@ async function sendCommand(hostId, command) {
             'update': 'Updating agent...'
         };
         const commandIcons = {
-            'pull': '⏳',
-            'switch': '⏳',
-            'pull-switch': '⏳',
-            'test': '🧪',
-            'restart': '⏳',
-            'update': '⬆'
+            'pull': '⧖',
+            'switch': '⧖',
+            'pull-switch': '⧖',
+            'test': '✦',
+            'restart': '⧖',
+            'update': '↑'
         };
         const newEntry = document.createElement('div');
         newEntry.className = 'status-entry';
-        newEntry.innerHTML = `<span class="status-ts">${getCurrentTimeShort()}</span><span class="status-icon">${commandIcons[command] || '⏳'}</span><span class="status-msg">${commandLabels[command] || command + '...'}</span>`;
+        newEntry.innerHTML = `<span class="status-ts">${getCurrentTimeShort()}</span><span class="status-icon">${commandIcons[command] || '⧖'}</span><span class="status-msg">${commandLabels[command] || command + '...'}</span>`;
         statusEntries.insertBefore(newEntry, statusEntries.firstChild);
         
         const statusCell = row.querySelector('.status-cell');
@@ -2028,16 +2028,16 @@ async function sendBulkCommand(command) {
                             'update': 'Updating agent...'
                         };
                         const commandIcons = {
-                            'pull': '⏳',
-                            'switch': '⏳',
-                            'pull-switch': '⏳',
-                            'test': '🧪',
-                            'restart': '⏳',
-                            'update': '⬆'
+                            'pull': '⧖',
+                            'switch': '⧖',
+                            'pull-switch': '⧖',
+                            'test': '✦',
+                            'restart': '⧖',
+                            'update': '↑'
                         };
                         const newEntry = document.createElement('div');
                         newEntry.className = 'status-entry';
-                        newEntry.innerHTML = `<span class="status-ts">${getCurrentTimeShort()}</span><span class="status-icon">${commandIcons[command] || '⏳'}</span><span class="status-msg">${commandLabels[command] || command + '...'}</span>`;
+                        newEntry.innerHTML = `<span class="status-ts">${getCurrentTimeShort()}</span><span class="status-icon">${commandIcons[command] || '⧖'}</span><span class="status-msg">${commandLabels[command] || command + '...'}</span>`;
                         statusEntries.insertBefore(newEntry, statusEntries.firstChild);
                         
                         const statusCell = row.querySelector('.status-cell');

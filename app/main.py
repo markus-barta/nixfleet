@@ -1781,7 +1781,7 @@ async def update_test_progress(
         if progress.current == 1 or progress.current % 5 == 0:
             append_history(
                 host_id,
-                icon="🧪",
+                icon="✦",
                 message=f"Testing {progress.current}/{progress.total}",
                 event_type="test_progress",
             )
@@ -1922,17 +1922,17 @@ async def queue_command(host_id: str, request_body: CommandRequest, request: Req
         "update": "Updating agent...",
     }
     command_icons = {
-        "pull": "⏳",
-        "switch": "⏳",
-        "pull-switch": "⏳",
-        "test": "🧪",
-        "restart": "⏳",
-        "stop": "⏹",
-        "update": "⬆",
+        "pull": "⧖",
+        "switch": "⧖",
+        "pull-switch": "⧖",
+        "test": "✦",
+        "restart": "⧖",
+        "stop": "■",
+        "update": "↑",
     }
     append_history(
         host_id,
-        icon=command_icons.get(request_body.command, "⏳"),
+        icon=command_icons.get(request_body.command, "⧖"),
         message=command_labels.get(request_body.command, f"{request_body.command}..."),
         event_type=f"command_queued_{request_body.command}",
     )
