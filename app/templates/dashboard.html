@@ -328,10 +328,9 @@ th:nth-child(4), td:nth-child(4) { width: 40px; text-align: center; } /* Type */
 th:nth-child(5), td:nth-child(5) { min-width: 70px; } /* Last Seen */
 th:nth-child(6), td:nth-child(6) { min-width: 60px; } /* Metrics */
 th:nth-child(7), td:nth-child(7) { min-width: 60px; } /* Config */
-th:nth-child(8), td:nth-child(8) { min-width: 60px; } /* Agent */
-th:nth-child(9), td:nth-child(9) { width: 50px; } /* Tests */
-th:nth-child(10), td:nth-child(10) { min-width: 100px; } /* Status */
-th:nth-child(11), td:nth-child(11) { min-width: 160px; } /* Actions */
+th:nth-child(8), td:nth-child(8) { width: 50px; } /* Tests */
+th:nth-child(9), td:nth-child(9) { min-width: 100px; } /* Status */
+th:nth-child(10), td:nth-child(10) { min-width: 160px; } /* Actions */
 
 th {
 background: var(--bg-highlight);
@@ -426,8 +425,8 @@ font-family: 'JetBrains Mono', 'Fira Code', monospace;
 font-size: 0.7rem;
 }
 
-/* Config & Fleet cells (hash badges) */
-.config-cell, .fleet-cell {
+/* Config cell (hash badge) */
+.config-cell {
 font-family: 'JetBrains Mono', 'Fira Code', monospace;
 font-size: 0.7rem;
 }
@@ -1288,20 +1287,6 @@ th, td { padding: 0.4rem 0.5rem; }
                 </a>
             </div>
             {% endif %}
-            {% if build_hash %}
-            <div class="sot-target">
-                <span class="sot-label"><svg>
-                        <use href="#icon-rocket" />
-                    </svg> Agent</span>
-                <a href="https://github.com/markus-barta/nixfleet/commit/{{ build_hash }}" target="_blank"
-                    class="sot-hash fleet-hash" title="Fleet target (nixfleet)">
-                    <svg width="12" height="12">
-                        <use href="#icon-github" />
-                    </svg>
-                    {{ build_hash }}
-                </a>
-            </div>
-            {% endif %}
         </div>
     </div>
     {% endif %}
@@ -1490,9 +1475,6 @@ th, td { padding: 0.4rem 0.5rem; }
                 <th><svg class="th-icon">
                         <use href="#icon-file" />
                     </svg> Config</th>
-                <th><svg class="th-icon">
-                        <use href="#icon-rocket" />
-                    </svg> Agent</th>
                 <th>Tests</th>
                 <th>Status</th>
                 <th>Actions</th>
@@ -1591,21 +1573,8 @@ th, td { padding: 0.4rem 0.5rem; }
                 <td class="config-cell">
                     {% if host.current_generation %}
                     <code class="hash-badge {{ 'outdated' if host.outdated else 'current' }}"
-                        title="Config: {{ host.current_generation }}{% if host.outdated %} | Target: {{ nixcfg_hash }}{% endif %}">{{ host.current_generation[:7] }}</code><span
+                        title="Config: {{ host.current_generation }}{% if host.outdated %} | Target: {{ nixcfg_hash }}{% endif %}{% if host.agent_version %} | Agent: {{ host.agent_version }}{% endif %}">{{ host.current_generation[:7] }}</code><span
                         class="update-indicator {{ 'outdated' if host.outdated else 'current' }}">{% if host.outdated
-                        %}↓{% else %}✓{% endif %}</span>
-                    {% else %}
-                    <span class="muted">—</span>
-                    {% endif %}
-                </td>
-                <td class="fleet-cell">
-                    {% set agent_hash = host.agent_version.split('-')[-1] if host.agent_version and '-' in
-                    host.agent_version else '' %}
-                    {% set fleet_outdated = agent_hash and build_hash and agent_hash != build_hash %}
-                    {% if agent_hash %}
-                    <code class="hash-badge {{ 'outdated' if fleet_outdated else 'current' }}"
-                        title="Agent: {{ host.agent_version }}{% if fleet_outdated %} | Target: {{ build_hash }}{% endif %}">{{ agent_hash[:7] }}</code><span
-                        class="update-indicator {{ 'outdated' if fleet_outdated else 'current' }}">{% if fleet_outdated
                         %}↓{% else %}✓{% endif %}</span>
                     {% else %}
                     <span class="muted">—</span>
@@ -1716,15 +1685,6 @@ th, td { padding: 0.4rem 0.5rem; }
                                     Restart Agent
                                 </button>
                                 <button class="dropdown-item" type="button" data-action="send-command"
-                                    data-host-id="{{ host.id }}" data-command="update" {% if not host.online or
-                                    host.pending_command or host.test_running %}disabled{% endif %}
-                                    title="Update nixfleet flake input and rebuild">
-                                    <svg>
-                                        <use href="#icon-download" />
-                                    </svg>
-                                    Update Agent
-                                </button>
-                                <button class="dropdown-item" type="button" data-action="send-command"
                                     data-host-id="{{ host.id }}" data-command="pull-reset" {% if not host.online or
                                     host.pending_command or host.test_running %}disabled{% endif %}
                                     title="Reset flake.lock conflicts and pull">
@@ -1757,7 +1717,7 @@ th, td { padding: 0.4rem 0.5rem; }
             {% endfor %}
             {% else %}
             <tr>
-                <td colspan="9" class="empty">
+                <td colspan="10" class="empty">
                     No hosts registered yet. Agents will appear here once they connect.
                 </td>
             </tr>
@@ -2064,8 +2024,7 @@ th, td { padding: 0.4rem 0.5rem; }
                 'switch': 'Switching...',
                 'pull-switch': 'Pull & Switch...',
                 'test': 'Testing...',
-                'restart': 'Restarting...',
-                'update': 'Updating agent...'
+                'restart': 'Restarting...'
             };
             const commandIcons = {
                 'pull': '⧖',
@@ -2073,8 +2032,7 @@ th, td { padding: 0.4rem 0.5rem; }
                 'switch': '⧖',
                 'pull-switch': '⧖',
                 'test': '✦',
-                'restart': '⧖',
-                'update': '↑'
+                'restart': '⧖'
             };
             const newEntry = document.createElement('div');
             newEntry.className = 'status-entry';
@@ -2169,16 +2127,14 @@ th, td { padding: 0.4rem 0.5rem; }
                                 'switch': 'Switching...',
                                 'pull-switch': 'Pull & Switch...',
                                 'test': 'Testing...',
-                                'restart': 'Restarting...',
-                                'update': 'Updating agent...'
+                                'restart': 'Restarting...'
                             };
                             const commandIcons = {
                                 'pull': '⧖',
                                 'switch': '⧖',
                                 'pull-switch': '⧖',
                                 'test': '✦',
-                                'restart': '⧖',
-                                'update': '↑'
+                                'restart': '⧖'
                             };
                             const newEntry = document.createElement('div');
                             newEntry.className = 'status-entry';
@@ -2422,8 +2378,8 @@ th, td { padding: 0.4rem 0.5rem; }
             }
         }
 
-        // Update test progress cell (column 9 = Tests)
-        const testCell = row.querySelector('td:nth-child(9)');
+        // Update test progress cell (column 8 = Tests)
+        const testCell = row.querySelector('td:nth-child(8)');
         if (testCell && (data.test_running !== undefined || data.test_passed_count !== undefined)) {
             if (data.test_running) {
                 testCell.innerHTML = `<span class="test-progress">${data.test_current || 0}/${data.test_total || 0}</span>`;
@@ -2433,18 +2389,9 @@ th, td { padding: 0.4rem 0.5rem; }
             }
         }
 
-        // Update fleet cell if agent_version changed
+        // Track agent version for hover info (used by config cell title)
         if (data.agent_version) {
-            const fleetCell = row.querySelector('.fleet-cell');
-            if (fleetCell && data.agent_version.includes('-')) {
-                const agentHash = data.agent_version.split('-').pop().substring(0, 7);
-                // Get target hash - extract just the hash part
-                const targetHashEl = document.querySelector('.fleet-hash');
-                const targetHash = targetHashEl ? targetHashEl.textContent.replace(/\s/g, '').substring(0, 7) : '';
-                const outdated = agentHash && targetHash && agentHash !== targetHash;
-                fleetCell.innerHTML = `<code class="hash-badge ${outdated ? 'outdated' : 'current'}" title="Agent: ${data.agent_version}${outdated ? ' | Target: ' + targetHash : ''}">${agentHash}</code><span class="update-indicator ${outdated ? 'outdated' : 'current'}">${outdated ? '↓' : '✓'}</span>`;
-            }
-            row.dataset.agentHash = data.agent_version.split('-').pop() || '';
+            row.dataset.agentVersion = data.agent_version;
         }
 
         if (data.os_version) {
@@ -2472,7 +2419,12 @@ th, td { padding: 0.4rem 0.5rem; }
                 const shortHash = data.current_generation.substring(0, 7);
                 // Compare 7-char hashes
                 const outdated = data.outdated !== undefined ? data.outdated : (targetHash && shortHash !== targetHash);
-                configCell.innerHTML = `<code class="hash-badge ${outdated ? 'outdated' : 'current'}" title="Config: ${data.current_generation}${outdated ? ' | Target: ' + targetHash : ''}">${shortHash}</code><span class="update-indicator ${outdated ? 'outdated' : 'current'}">${outdated ? '↓' : '✓'}</span>`;
+                // Include agent version in hover title
+                const agentVersion = data.agent_version || row.dataset.agentVersion || '';
+                let title = `Config: ${data.current_generation}`;
+                if (outdated) title += ` | Target: ${targetHash}`;
+                if (agentVersion) title += ` | Agent: ${agentVersion}`;
+                configCell.innerHTML = `<code class="hash-badge ${outdated ? 'outdated' : 'current'}" title="${title}">${shortHash}</code><span class="update-indicator ${outdated ? 'outdated' : 'current'}">${outdated ? '↓' : '✓'}</span>`;
             }
             row.dataset.gitHash = data.current_generation;
         }
