@@ -170,17 +170,32 @@ header {
 }
 
 .sot-label {
-    font-size: 0.7rem;
-    color: var(--fg-dark);
-    font-weight: 500;
-    margin-right: 0.3rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
     font-size: 0.6rem;
     text-transform: uppercase;
     letter-spacing: 0.1em;
     color: var(--fg-dark);
     font-weight: 650;
-    padding-bottom: 0.15rem;
-    border-bottom: 1px solid rgba(158, 206, 106, 0.15);
+    margin-right: 0.3rem;
+}
+
+.sot-label svg {
+    width: 12px;
+    height: 12px;
+    opacity: 0.8;
+}
+
+.sot-header {
+    font-size: 0.55rem;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: var(--fg-gutter);
+    font-weight: 600;
+    margin-right: 0.75rem;
+    border-right: 1px solid var(--border);
+    padding-right: 0.75rem;
 }
 
 .sot-row {
@@ -198,10 +213,11 @@ header {
     font-family: 'JetBrains Mono', 'Fira Code', monospace;
     font-size: 0.8rem;
     color: var(--green);
-    text-decoration: none;
+    text-decoration: none !important;
     padding: 0.15rem 0.4rem;
     background: var(--bg-highlight);
     border-radius: 4px;
+    border-bottom: none !important;
     transition: all 0.15s;
     flex-shrink: 0;
 }
@@ -258,9 +274,11 @@ header {
 
 /* Header icons */
 .th-icon {
-    font-size: 0.6rem;
-    margin-right: 0.15rem;
-    opacity: 0.8;
+    width: 10px;
+    height: 10px;
+    margin-right: 0.2rem;
+    opacity: 0.7;
+    vertical-align: middle;
 }
 
 /* Table Container */
@@ -1200,13 +1218,14 @@ tr:hover .status .hb-countdown {
     </div>
     {% if nixcfg_hash or build_hash %}
     <div class="source-of-truth" title="Target versions for comparison">
+        <span class="sot-header">Target</span>
         <div class="sot-targets">
             {% if nixcfg_hash %}
             <div class="sot-target">
                 <button class="sot-refresh" type="button" data-action="refresh-target" title="Refresh config hash">
                     <svg><use href="#icon-refresh"/></svg>
                 </button>
-                <span class="sot-label">Config:</span>
+                <span class="sot-label"><svg><use href="#icon-file"/></svg> Config</span>
                 <a href="https://github.com/markus-barta/nixcfg/commit/{{ nixcfg_hash }}" target="_blank" class="sot-hash nixcfg-hash" title="Config target (nixcfg)">
                     <svg width="12" height="12"><use href="#icon-github"/></svg>
                     {{ nixcfg_hash }}
@@ -1215,7 +1234,7 @@ tr:hover .status .hb-countdown {
             {% endif %}
             {% if build_hash %}
             <div class="sot-target">
-                <span class="sot-label">Fleet:</span>
+                <span class="sot-label"><svg><use href="#icon-rocket"/></svg> Fleet</span>
                 <a href="https://github.com/markus-barta/nixfleet/commit/{{ build_hash }}" target="_blank" class="sot-hash fleet-hash" title="Fleet target (nixfleet)">
                     <svg width="12" height="12"><use href="#icon-github"/></svg>
                     {{ build_hash }}
@@ -1340,6 +1359,10 @@ tr:hover .status .hb-countdown {
     <symbol id="icon-chevron" viewBox="0 0 24 24">
         <path fill="currentColor" d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/>
     </symbol>
+    <!-- Rocket icon (fleet/deploy) -->
+    <symbol id="icon-rocket" viewBox="0 0 24 24">
+        <path fill="currentColor" d="M12 2.5c-3.17 0-6.26 1.16-8.64 3.32l1.42 1.42C6.61 5.47 9.21 4.5 12 4.5s5.39.97 7.22 2.74l1.42-1.42A11.94 11.94 0 0 0 12 2.5zM4.93 8.93l1.42 1.42C7.57 9.12 9.67 8.5 12 8.5s4.43.62 5.65 1.85l1.42-1.42C17.41 7.27 14.82 6.5 12 6.5s-5.41.77-7.07 2.43zM12 10.5c-1.65 0-3.14.49-4.24 1.34l1.42 1.42c.73-.53 1.74-.76 2.82-.76s2.09.23 2.82.76l1.42-1.42c-1.1-.85-2.59-1.34-4.24-1.34zM12 14l-4 8 2-3h4l2 3-4-8z"/>
+    </symbol>
     <!-- CPU icon (processor chip) -->
     <symbol id="icon-cpu" viewBox="0 0 24 24">
         <path fill="currentColor" d="M6 18h12V6H6v12zm4-8h4v4h-4v-4zM1 9h2V7H1v2zm0 4h2v-2H1v2zm0 4h2v-2H1v2zm0-12h2V3H1v2zm20 8h2v-2h-2v2zm0 4h2v-2h-2v2zM21 5h2V3h-2v2zm0 12h2v-2h-2v2zm0 4h2v-2h-2v2zM9 1v2h2V1H9zm4 0v2h2V1h-2zm0 20v2h2v-2h-2zM9 21v2h2v-2H9zm8 0v2h2v-2h-2zM5 1v2h2V1H5zM5 21v2h2v-2H5zM17 1v2h2V1h-2z"/>
@@ -1359,8 +1382,8 @@ tr:hover .status .hb-countdown {
                 <th>Loc</th>
                 <th>Type</th>
                 <th>Metrics</th>
-                <th><span class="th-icon">📄</span> Config</th>
-                <th><span class="th-icon">🚀</span> Fleet</th>
+                <th><svg class="th-icon"><use href="#icon-file"/></svg> Config</th>
+                <th><svg class="th-icon"><use href="#icon-rocket"/></svg> Fleet</th>
                 <th>Last Seen</th>
                 <th>Tests</th>
                 <th>Status</th>
