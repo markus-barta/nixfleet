@@ -237,7 +237,7 @@ header {
 
 /* Header stat counts */
 .th-stat {
-    font-size: 0.75rem;
+    font-size: 0.65rem; /* Match th font size */
     font-weight: 600;
     vertical-align: middle;
 }
@@ -254,6 +254,13 @@ header {
 
 .th-stat.total {
     color: var(--fg-dark);
+}
+
+/* Header icons */
+.th-icon {
+    font-size: 0.6rem;
+    margin-right: 0.15rem;
+    opacity: 0.8;
 }
 
 /* Table Container */
@@ -303,6 +310,14 @@ th {
 
 tr:last-child td { border-bottom: none; }
 tr:hover td { background: rgba(41, 46, 66, 0.5); }
+
+/* Subtle green tint for online hosts */
+tr[data-online="true"] td {
+    background: rgba(158, 206, 106, 0.05);
+}
+tr[data-online="true"]:hover td {
+    background: rgba(158, 206, 106, 0.1);
+}
 
 /* Host cell (status dot + hostname) */
 .host-cell {
@@ -429,7 +444,7 @@ tr:hover td { background: rgba(41, 46, 66, 0.5); }
 
 .status-entries {
     flex: 1;
-    max-height: 3em;  /* ~2-3 lines collapsed */
+    max-height: 4em;  /* ~3-4 lines collapsed */
     overflow-y: auto;
     overflow-x: hidden;
     transition: max-height 0.3s ease;
@@ -1344,8 +1359,8 @@ tr:hover .status .hb-countdown {
                 <th>Loc</th>
                 <th>Type</th>
                 <th>Metrics</th>
-                <th>Config</th>
-                <th>Fleet</th>
+                <th><span class="th-icon">📄</span> Config</th>
+                <th><span class="th-icon">🚀</span> Fleet</th>
                 <th>Last Seen</th>
                 <th>Tests</th>
                 <th>Status</th>
