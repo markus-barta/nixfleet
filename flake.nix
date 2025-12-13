@@ -24,11 +24,11 @@
       # Version from git - use short rev or "dev" for dirty trees
       version =
         if self ? shortRev then
-          "0.3.0-${self.shortRev}"
+          "0.4.0-${self.shortRev}"
         else if self ? rev then
-          "0.3.0-${builtins.substring 0 7 self.rev}"
+          "0.4.0-${builtins.substring 0 7 self.rev}"
         else
-          "0.3.0-dev";
+          "0.4.0-dev";
 
       # Helper to create the agent package
       mkAgentPackage =

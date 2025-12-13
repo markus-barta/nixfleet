@@ -40,8 +40,9 @@
 - Other hosts also have test failures
 - Review and fix test scripts
 
-### 4. Replace NixFleet Logo
+### 4. Replace NixFleet Logo [DEFERRED - DO NOT DO THIS YET]
 
+- Deferred until after new logo is defined
 - Top-left logo needs replacement
 - Get new logo asset
 

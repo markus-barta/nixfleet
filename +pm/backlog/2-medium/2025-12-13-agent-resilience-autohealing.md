@@ -17,6 +17,7 @@ The agent was becoming stuck on `mba-mbp-work` with these symptoms:
 3. **Buttons stay locked in UI**: Agent can't report status back due to network failures
 
 **Root causes identified**:
+
 - Launchd starts agents at login before network is fully initialized
 - No process locking to prevent multiple agent instances
 - Agent has no startup delay to wait for network readiness
@@ -91,16 +92,19 @@ The original backlog (created by another LLM) proposed a multi-layered approach.
 ## Remaining Work
 
 ### High Priority
+
 - [x] Add network wait to launchd plist
 - [x] Add flock-based process locking
 
 ### Testing Needed
+
 - [ ] Test agent startup at macOS login (cold boot)
 - [ ] Test home-manager switch doesn't create duplicates
 - [ ] Verify lock file cleanup on normal exit
 - [ ] Test lock prevents second agent from starting
 
 ### Optional (Not Planned)
+
 - [ ] Child process timeouts (only if needed)
 - [ ] NixOS systemd service improvements (already has `After=network-online.target`)
 
