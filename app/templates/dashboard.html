@@ -11,12 +11,12 @@ position: relative;
 body::before {
 content: '';
 position: fixed;
-top: 0;
+top: 50%;
 left: 50%;
-transform: translateX(-50%);
+transform: translate(-50%, -50%);
 width: 500px;
 height: 440px;
-background: url('/static/nixfleet_fade.png') no-repeat top center;
+background: url('/static/nixfleet_fade_1k.png') no-repeat top center;
 background-size: 100% 100%;
 opacity: 0.3;
 pointer-events: none;
@@ -348,12 +348,21 @@ top: 0;
 tr:last-child td { border-bottom: none; }
 tr:hover td { background: rgba(41, 46, 66, 0.5); }
 
-/* Subtle green tint for online hosts */
-tr[data-online="true"] td {
-background: rgba(158, 206, 106, 0.05);
+/* 50% black overlay for offline hosts */
+tr[data-online="false"] {
+position: relative;
 }
-tr[data-online="true"]:hover td {
-background: rgba(158, 206, 106, 0.1);
+
+tr[data-online="false"]::before {
+content: '';
+position: absolute;
+top: 0;
+left: 0;
+right: 0;
+bottom: 0;
+background: rgba(0, 0, 0, 0.5);
+pointer-events: none;
+z-index: 10;
 }
 
 /* Host cell (status dot + hostname) */
@@ -1232,7 +1241,7 @@ th, td { padding: 0.4rem 0.5rem; }
 {% block content %}
 <header>
     <div class="brand">
-        <h1><img src="/static/nixfleet_fade.png" alt="NixFleet" class="brand-logo"> NixFleet</h1>
+        <h1><img src="/static/nixfleet_fade_1k.png" alt="NixFleet" class="brand-logo"> NixFleet</h1>
         <p class="subtitle">Simple, unified fleet management for NixOS and macOS</p>
     </div>
     {% if nixcfg_hash or build_hash %}
