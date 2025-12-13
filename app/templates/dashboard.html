@@ -428,6 +428,7 @@ tr[data-online="true"]:hover td {
     min-width: 100px;
     padding: 0.15rem 0.3rem !important;
     vertical-align: top;
+    height: 1px; /* Trick to make height:100% work on children in table cells */
 }
 
 .status-cell.has-error .status-entry:first-child {
@@ -444,10 +445,9 @@ tr[data-online="true"]:hover td {
 
 .status-entries {
     flex: 1;
-    max-height: 4em;  /* ~3-4 lines collapsed */
+    height: 100%;
     overflow-y: auto;
     overflow-x: hidden;
-    transition: max-height 0.3s ease;
     scrollbar-width: thin;
     scrollbar-color: var(--fg-gutter) transparent;
 }
@@ -461,8 +461,19 @@ tr[data-online="true"]:hover td {
     border-radius: 2px;
 }
 
+/* Expanded state - allow overflow beyond row */
 .status-papertrail.expanded .status-entries {
-    max-height: 20em;  /* ~10x expanded */
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    max-height: 20em;
+    height: auto;
+    background: var(--bg-dark);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    z-index: 10;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
 .status-entry {
@@ -1827,14 +1838,15 @@ function formatRelativeTime(seconds) {
     return `${Math.floor(seconds / 86400)}d ago`;
 }
 
-// Format time as HH:MM for status log entries
+// Format time as HH:MM:SS for status log entries
 function formatTimeShort(date) {
     const h = date.getHours().toString().padStart(2, '0');
     const min = date.getMinutes().toString().padStart(2, '0');
-    return `${h}:${min}`;
+    const sec = date.getSeconds().toString().padStart(2, '0');
+    return `${h}:${min}:${sec}`;
 }
 
-// Get current time as HH:MM
+// Get current time as HH:MM:SS
 function getCurrentTimeShort() {
     return formatTimeShort(new Date());
 }
