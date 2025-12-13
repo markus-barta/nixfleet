@@ -529,6 +529,8 @@ register() {
 
   if api_call POST "/api/hosts/${HOST_ID}/register" "$payload" >/dev/null; then
     log_info "Registration successful"
+    # Report startup in dashboard status column
+    report_status "ok" "$(get_generation)" "Agent started (${AGENT_VERSION})"
   else
     if [[ "${API_HTTP_CODE:-0}" == "401" || "${API_HTTP_CODE:-0}" == "403" ]]; then
       log_error "Registration failed: auth rejected (HTTP ${API_HTTP_CODE})"
