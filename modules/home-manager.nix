@@ -100,6 +100,9 @@ in
           # Always unload first (agent may be dead or running old version)
           /bin/launchctl bootout gui/$USER_ID/$LABEL 2>/dev/null || true
           
+          # Wait for bootout to complete
+          sleep 2
+          
           # Kill any orphaned processes (agent may have been killed mid-switch)
           /usr/bin/pkill -9 -f nixfleet-agent 2>/dev/null || true
           
