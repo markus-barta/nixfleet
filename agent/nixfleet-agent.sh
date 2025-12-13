@@ -772,18 +772,58 @@ do_update() {
   log_info "Executing: update agent (flake update + switch)"
   cd "$NIXFLEET_NIXCFG"
 
+  # Timeout for flake update (5 minutes should be plenty)
+  local FLAKE_TIMEOUT=300
+  # Timeout for git operations (30 seconds)
+  local GIT_TIMEOUT=30
+
   # Update nixfleet input
   log_info "Updating nixfleet flake input..."
+  report_status "ok" "$(get_generation)" "Updating flake..."
+  
   local update_output
-  if ! update_output=$(nix flake update nixfleet 2>&1); then
-    log_error "Flake update failed"
-    report_status "error" "$(get_generation)" "$update_output" "update failed"
-    return 1
+  if command -v timeout &>/dev/null; then
+    # GNU coreutils timeout available
+    if ! update_output=$(timeout "$FLAKE_TIMEOUT" nix flake update nixfleet 2>&1); then
+      if [[ $? -eq 124 ]]; then
+        log_error "Flake update timed out after ${FLAKE_TIMEOUT}s"
+        report_status "error" "$(get_generation)" "Flake update timed out after ${FLAKE_TIMEOUT}s"
+        return 1
+      fi
+      log_error "Flake update failed"
+      report_status "error" "$(get_generation)" "$update_output"
+      return 1
+    fi
+  else
+    # No timeout available (macOS) - run with background monitoring
+    nix flake update nixfleet 2>&1 &
+    local pid=$!
+    local elapsed=0
+    while kill -0 "$pid" 2>/dev/null; do
+      sleep 5
+      elapsed=$((elapsed + 5))
+      if [[ $elapsed -ge $FLAKE_TIMEOUT ]]; then
+        kill -9 "$pid" 2>/dev/null || true
+        log_error "Flake update timed out after ${FLAKE_TIMEOUT}s"
+        report_status "error" "$(get_generation)" "Flake update timed out after ${FLAKE_TIMEOUT}s"
+        return 1
+      fi
+    done
+    wait "$pid"
+    local exit_code=$?
+    if [[ $exit_code -ne 0 ]]; then
+      log_error "Flake update failed (exit $exit_code)"
+      report_status "error" "$(get_generation)" "Flake update failed (exit $exit_code)"
+      return 1
+    fi
   fi
+  
+  log_info "Flake update completed"
 
   # Check if flake.lock changed
   if git diff --quiet flake.lock 2>/dev/null; then
     log_info "No changes to flake.lock (already up to date)"
+    report_status "ok" "$(get_generation)" "Already up to date"
   else
     # Commit and push the change
     log_info "Committing flake.lock update..."
@@ -791,11 +831,47 @@ do_update() {
     git commit -m "chore: Update nixfleet flake input"
 
     log_info "Pushing to remote..."
-    if ! git push 2>&1; then
-      log_warn "Push failed (may already be updated by another host)"
+    report_status "ok" "$(get_generation)" "Pushing flake.lock..."
+    
+    # Use timeout for git push (can hang on auth prompts)
+    local push_failed=false
+    if command -v timeout &>/dev/null; then
+      if ! timeout "$GIT_TIMEOUT" git push 2>&1; then
+        push_failed=true
+      fi
+    else
+      # macOS: use background + kill approach
+      git push 2>&1 &
+      local pid=$!
+      local elapsed=0
+      while kill -0 "$pid" 2>/dev/null; do
+        sleep 2
+        elapsed=$((elapsed + 2))
+        if [[ $elapsed -ge $GIT_TIMEOUT ]]; then
+          kill -9 "$pid" 2>/dev/null || true
+          push_failed=true
+          break
+        fi
+      done
+      if [[ "$push_failed" != "true" ]]; then
+        wait "$pid" || push_failed=true
+      fi
+    fi
+    
+    if [[ "$push_failed" == "true" ]]; then
+      log_warn "Push failed or timed out (may already be updated by another host)"
       git reset --soft HEAD~1  # Undo commit if push failed
       git checkout flake.lock  # Restore original
-      git pull --rebase        # Get latest
+      # Pull with timeout
+      if command -v timeout &>/dev/null; then
+        timeout "$GIT_TIMEOUT" git pull --rebase 2>&1 || true
+      else
+        git pull --rebase 2>&1 &
+        local pid=$!
+        sleep "$GIT_TIMEOUT"
+        kill -9 "$pid" 2>/dev/null || true
+        wait "$pid" 2>/dev/null || true
+      fi
     fi
   fi
 
@@ -803,6 +879,7 @@ do_update() {
   refresh_git_hash >/dev/null
 
   # Now rebuild with the updated flake
+  report_status "ok" "$(get_generation)" "Rebuilding..."
   do_switch
 }
 
