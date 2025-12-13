@@ -141,7 +141,7 @@ Hover on "14.7": "macOS Sonoma 14.7.1 | nixpkgs: 24.11.20241210"
 ### Phase 1: Agent Version from Flake ✅ COMPLETE (2025-12-12)
 
 - [x] Modify NixOS module to inject flake version into agent script
-- [x] Modify Home Manager module similarly  
+- [x] Modify Home Manager module similarly
 - [x] Remove hardcoded `AGENT_VERSION` from agent script (now uses `@agentVersion@` placeholder)
 - [x] Update UI: Agent version now in combined version column
 

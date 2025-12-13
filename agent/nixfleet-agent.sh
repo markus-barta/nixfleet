@@ -132,7 +132,8 @@ CURRENT_TOKEN="$(load_cached_token)"
 # Run git command with SSH key if configured
 git_cmd() {
   if [[ -n "$NIXFLEET_SSH_KEY" && -f "$NIXFLEET_SSH_KEY" ]]; then
-    GIT_SSH_COMMAND="ssh -i '$NIXFLEET_SSH_KEY' -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new" git "$@"
+    # Use proper quoting for paths with spaces
+    GIT_SSH_COMMAND="ssh -i \"$NIXFLEET_SSH_KEY\" -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new" git "$@"
   else
     git "$@"
   fi
@@ -167,14 +168,15 @@ ensure_repo_cloned() {
 
   # Clone the repository
   log_info "Cloning repository from $NIXFLEET_REPO_URL to $NIXFLEET_REPO_DIR"
-  if git_cmd clone --branch "$NIXFLEET_BRANCH" --single-branch "$NIXFLEET_REPO_URL" "$NIXFLEET_REPO_DIR" 2>&1; then
+  local clone_output
+  if clone_output=$(git_cmd clone --branch "$NIXFLEET_BRANCH" --single-branch "$NIXFLEET_REPO_URL" "$NIXFLEET_REPO_DIR" 2>&1); then
     log_info "Repository cloned successfully"
     chmod 700 "$NIXFLEET_REPO_DIR" 2>/dev/null || true
     # Trust the new directory
     git config --global --add safe.directory "$NIXFLEET_REPO_DIR" 2>/dev/null || true
     return 0
   else
-    log_error "Failed to clone repository"
+    log_error "Failed to clone repository: $clone_output"
     return 1
   fi
 }
@@ -633,7 +635,7 @@ heartbeat() {
   local gen metrics_json payload
   gen="$(get_generation)"
   metrics_json="$(get_stasysmo_metrics)"
-  
+
   if [[ -n "$metrics_json" ]]; then
     payload=$(jq -n \
       --arg hostname "$HOSTNAME" \
@@ -697,7 +699,7 @@ heartbeat() {
           os_name: (if $os_name == "" then null else $os_name end)
       }')
   fi
-  
+
   # Call register endpoint which now returns any pending command
   api_call POST "/api/hosts/${HOST_ID}/register" "$payload"
 }
@@ -809,14 +811,14 @@ do_pull_reset() {
 
   local output
   local reset_output=""
-  
+
   # Check if flake.lock has staged changes (in index)
   if ! git diff --cached --quiet flake.lock 2>/dev/null; then
     log_info "Unstaging flake.lock"
     reset_output="Unstaged flake.lock; "
     git reset HEAD flake.lock 2>&1 || true
   fi
-  
+
   # Check if flake.lock has working directory changes
   if ! git diff --quiet flake.lock 2>/dev/null; then
     log_info "Resetting local changes to flake.lock"
@@ -882,6 +884,23 @@ do_update() {
   log_info "Executing: update agent (flake update + switch)"
   cd "$NIXFLEET_NIXCFG"
 
+  # In isolated mode with HTTPS, we can't push changes back
+  # Just do a pull + switch instead
+  if [[ "$ISOLATED_MODE" == "true" ]]; then
+    local repo_is_ssh=false
+    if [[ "$NIXFLEET_REPO_URL" == git@* || "$NIXFLEET_REPO_URL" == ssh://* ]]; then
+      repo_is_ssh=true
+    fi
+
+    if [[ "$repo_is_ssh" != "true" && -z "$NIXFLEET_SSH_KEY" ]]; then
+      log_warn "Update command limited in isolated mode with HTTPS (no push access)"
+      log_info "Performing pull + switch instead of flake update"
+      do_pull
+      do_switch
+      return $?
+    fi
+  fi
+
   # Timeout for flake update (5 minutes should be plenty)
   local FLAKE_TIMEOUT=300
   # Timeout for git operations (30 seconds)
@@ -890,7 +909,7 @@ do_update() {
   # Update nixfleet input
   log_info "Updating nixfleet flake input..."
   report_status "ok" "$(get_generation)" "Update: Updating flake..."
-  
+
   local update_output
   if command -v timeout &>/dev/null; then
     # GNU coreutils timeout available
@@ -927,7 +946,7 @@ do_update() {
       return 1
     fi
   fi
-  
+
   log_info "Flake update completed"
 
   # Check if flake.lock changed
@@ -942,7 +961,7 @@ do_update() {
 
     log_info "Pushing to remote..."
     report_status "ok" "$(get_generation)" "Update: Pushing flake.lock..."
-    
+
     # Use timeout for git push (can hang on auth prompts)
     local push_failed=false
     if command -v timeout &>/dev/null; then
@@ -967,11 +986,11 @@ do_update() {
         wait "$pid" || push_failed=true
       fi
     fi
-    
+
     if [[ "$push_failed" == "true" ]]; then
       log_warn "Push failed or timed out (may already be updated by another host)"
-      git reset --soft HEAD~1  # Undo commit if push failed
-      git checkout flake.lock  # Restore original
+      git reset --soft HEAD~1 # Undo commit if push failed
+      git checkout flake.lock # Restore original
       # Pull with timeout
       if command -v timeout &>/dev/null; then
         timeout "$GIT_TIMEOUT" git pull --rebase 2>&1 || true
@@ -1082,16 +1101,19 @@ acquire_lock() {
       rm -f "$LOCK_FILE"
     fi
   fi
-  
+
   # Try to create lock file atomically
-  if ! ( set -o noclobber; echo $$ > "$LOCK_FILE" ) 2>/dev/null; then
+  if ! (
+    set -o noclobber
+    echo $$ >"$LOCK_FILE"
+  ) 2>/dev/null; then
     local existing_pid
     existing_pid=$(cat "$LOCK_FILE" 2>/dev/null || echo "unknown")
     log_error "Another agent instance is already running (PID: $existing_pid, lock: $LOCK_FILE)"
     log_error "If this is incorrect, remove the lock file and restart"
     return 1
   fi
-  
+
   # Lock acquired - ensure cleanup on exit
   trap 'rm -f "$LOCK_FILE"' EXIT
   log_info "Lock acquired: $LOCK_FILE (PID: $$)"
@@ -1151,7 +1173,7 @@ main() {
 
   while true; do
     local response command sleep_s
-    
+
     # Heartbeat: register sends metrics AND returns any pending command
     # This is more efficient than separate poll + periodic register
     if response=$(heartbeat); then
@@ -1194,7 +1216,7 @@ main() {
       restart)
         log_info "Restart command received - exiting for service restart"
         report_status "ok" "$(get_generation)" "Agent restarting..."
-        exit 0  # Exit cleanly; systemd/launchd will restart us
+        exit 0 # Exit cleanly; systemd/launchd will restart us
         ;;
       *)
         log_warn "Unknown command: $command"
@@ -1208,9 +1230,9 @@ main() {
       local capped
       capped=$failures
       ((capped > 8)) && capped=8
-      sleep_s=$(( NIXFLEET_INTERVAL * (1 << capped) ))
+      sleep_s=$((NIXFLEET_INTERVAL * (1 << capped)))
       ((sleep_s > 300)) && sleep_s=300
-      sleep_s=$(( sleep_s + (RANDOM % 3) ))
+      sleep_s=$((sleep_s + (RANDOM % 3)))
     fi
 
     sleep "$sleep_s"

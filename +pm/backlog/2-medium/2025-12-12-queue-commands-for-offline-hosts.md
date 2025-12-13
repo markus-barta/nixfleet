@@ -17,6 +17,7 @@ Allow users to queue commands for offline hosts. When the host comes back online
 Currently, action buttons (Pull, Switch, Test) only work when a host is online. If a host is offline, users cannot schedule actions to run when it comes back online.
 
 This feature adds a "Queue command" option in the ellipsis menu for each host, allowing users to:
+
 - Queue one or more actions (pull, update/switch, test)
 - Queue all three actions in sequence
 - Have the backend automatically execute queued commands when the host reconnects
@@ -34,6 +35,7 @@ Applies to: dashboard, backend, agent
 ### UI Changes
 
 **Ellipsis Menu Addition:**
+
 - Add "Queue command..." option in the per-host ellipsis dropdown
 - Opens a modal/dialog with checkboxes for:
   - [ ] Pull
@@ -43,6 +45,7 @@ Applies to: dashboard, backend, agent
 - "Cancel" button to close
 
 **Visual Indicators:**
+
 - Show queued command status in host row (e.g., badge or icon)
 - Display queued actions in Comments column or status area
 - Clear indicator when host is offline with queued commands
@@ -50,6 +53,7 @@ Applies to: dashboard, backend, agent
 ### Backend Changes
 
 **Database Schema:**
+
 ```sql
 -- Add queued_commands column to hosts table
 ALTER TABLE hosts ADD COLUMN queued_commands TEXT; -- JSON array: ["pull", "switch", "test"]
@@ -57,6 +61,7 @@ ALTER TABLE hosts ADD COLUMN queued_at TEXT; -- Timestamp when queued
 ```
 
 **New Endpoint:**
+
 ```python
 @app.post("/api/hosts/{host_id}/queue-command")
 async def queue_command(host_id: str, commands: List[str]):
@@ -66,6 +71,7 @@ async def queue_command(host_id: str, commands: List[str]):
 ```
 
 **Command Execution Logic:**
+
 - On agent registration/poll (when host comes online):
   - Check if `queued_commands` is set and not empty
   - If host was offline and now online, execute queued commands in order
@@ -73,6 +79,7 @@ async def queue_command(host_id: str, commands: List[str]):
   - Broadcast SSE events for each queued command execution
 
 **Command Order:**
+
 1. Pull (if queued)
 2. Switch/Update (if queued)
 3. Test (if queued)
@@ -180,4 +187,3 @@ sqlite3 nixfleet.db "SELECT queued_commands FROM hosts WHERE id='test-host';"
 - Backend API: `app/main.py`
 - Agent: `agent/nixfleet-agent.sh`
 - Related: `2025-12-11-nixfleet-action-button-locking.md` (button locking during commands)
-

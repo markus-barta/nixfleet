@@ -14,14 +14,14 @@ Most security hardening from the original security-improvements task is **DONE**
 
 ## ✅ Completed Items (for reference)
 
-| Item | Status | Notes |
-|------|--------|-------|
-| Session cookies with CSRF | ✅ Done | Sessions in DB, CSRF tokens verified |
-| CSP without `unsafe-inline` | ✅ Done | Uses nonces for all scripts/styles |
-| Per-host agent credentials | ✅ Done | `agent_token_hash` column, HMAC verification |
-| Proxy-aware rate limiting | ✅ Done | Uses `X-Forwarded-For`, `X-Real-IP` |
-| Fix `/api/hosts` CSRF | ✅ Done | `verify_csrf()` implemented and called |
-| SSE broadcast robustness | ✅ Done | Uses lock + snapshot, QueueFull drops gracefully |
+| Item                        | Status  | Notes                                            |
+| --------------------------- | ------- | ------------------------------------------------ |
+| Session cookies with CSRF   | ✅ Done | Sessions in DB, CSRF tokens verified             |
+| CSP without `unsafe-inline` | ✅ Done | Uses nonces for all scripts/styles               |
+| Per-host agent credentials  | ✅ Done | `agent_token_hash` column, HMAC verification     |
+| Proxy-aware rate limiting   | ✅ Done | Uses `X-Forwarded-For`, `X-Real-IP`              |
+| Fix `/api/hosts` CSRF       | ✅ Done | `verify_csrf()` implemented and called           |
+| SSE broadcast robustness    | ✅ Done | Uses lock + snapshot, QueueFull drops gracefully |
 
 ---
 
@@ -66,4 +66,3 @@ Most security hardening from the original security-improvements task is **DONE**
 - `2025-12-10-nixfleet-security-improvements.md` (original, most items done)
 - `2025-12-12-fix-add-host-csrf-and-host-id-validation.md` (DONE)
 - `2025-12-12-sse-broadcast-robustness.md` (DONE)
-

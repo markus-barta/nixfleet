@@ -22,7 +22,7 @@ git pull
 GIT_HASH=$(git rev-parse HEAD)
 # Get clean version: strip git hash suffix (e.g., v0.2.1-3-g1a64262 -> v0.2.1-3)
 GIT_VERSION_RAW=$(git describe --tags --always 2>/dev/null || echo "dev")
-GIT_VERSION=$(echo "$GIT_VERSION_RAW" | sed 's/-g[0-9a-f]*$//')
+GIT_VERSION="${GIT_VERSION_RAW%-g*}"
 echo "📌 Version: ${GIT_VERSION} (${GIT_HASH:0:7})"
 
 echo "🔨 Rebuilding container..."
@@ -33,15 +33,15 @@ export GIT_VERSION
 
 # Use csb1-specific compose file if it exists, otherwise default
 if [[ -f docker/docker-compose.csb1.yml ]]; then
-    # Copy .env to docker/ directory where docker-compose.csb1.yml expects it
-    if [[ -f .env ]]; then
-        cp .env docker/.env
-    fi
-    docker compose -f docker/docker-compose.csb1.yml build --no-cache
-    docker compose -f docker/docker-compose.csb1.yml up -d
+  # Copy .env to docker/ directory where docker-compose.csb1.yml expects it
+  if [[ -f .env ]]; then
+    cp .env docker/.env
+  fi
+  docker compose -f docker/docker-compose.csb1.yml build --no-cache
+  docker compose -f docker/docker-compose.csb1.yml up -d
 else
-    docker compose build --no-cache
-    docker compose up -d
+  docker compose build --no-cache
+  docker compose up -d
 fi
 
 echo "✅ NixFleet updated! (version: ${GIT_HASH:0:7})"

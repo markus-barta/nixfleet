@@ -42,6 +42,7 @@ fi
 ```
 
 Features:
+
 - Detects stale locks (dead PIDs)
 - Cleans up on exit via trap
 - Works without flock (not available on macOS)
@@ -70,6 +71,7 @@ The original backlog (from another LLM) proposed a multi-layered approach. Here'
 ## Testing Results
 
 Tested on `imac0` (macOS):
+
 - ✅ Agent starts immediately (no 60s network wait)
 - ✅ Lock file created with correct PID
 - ✅ Heartbeats working (dashboard shows "just now")
@@ -83,4 +85,3 @@ Tested on `imac0` (macOS):
 3. **Dashboard is the authority**: Status tracking belongs in dashboard, not agent files
 4. **Test on real hardware**: DNS timeout only appeared on actual macOS boot
 5. **Use curl, not host**: `/usr/bin/host` doesn't work in launchd context
-

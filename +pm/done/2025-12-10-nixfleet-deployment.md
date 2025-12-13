@@ -76,4 +76,3 @@ ssh mba@HOST "cd ~/Code/nixcfg && git pull && sudo nixos-rebuild switch --flake 
 # Update macOS hosts
 cd ~/Code/nixcfg && git pull && home-manager switch --flake .#HOST
 ```
-

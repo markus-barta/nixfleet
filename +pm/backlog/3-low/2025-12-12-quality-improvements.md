@@ -50,4 +50,3 @@ Long-term quality improvements to reach "production-grade" NixFleet. None of the
 These are polish items. The system works well as-is. Tackle when time permits.
 
 Split from: `2025-12-12-nixfleet-post-extraction-tasks.md`
-

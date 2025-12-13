@@ -14,7 +14,8 @@
 #     enable = true;
 #     url = "https://fleet.example.com";
 #     tokenFile = config.age.secrets.nixfleet-token.path;
-#     configRepo = "/home/admin/Code/nixcfg";
+#     repoUrl = "https://github.com/user/nixcfg.git";  # Agent manages isolated clone
+#     user = "admin";
 #   };
 {
   config,
@@ -122,19 +123,25 @@ in
       wants = [ "network-online.target" ];
       wantedBy = [ "multi-user.target" ];
 
-      environment = shared.mkEnvironment { inherit cfg; } // {
-        # NixOS-specific environment
-        NIXFLEET_TOKEN_CACHE = "/var/lib/nixfleet-agent/token";
-        NIXFLEET_REPO_DIR = "/var/lib/nixfleet-agent/repo";
-        HOME = "/home/${cfg.user}";
-      } // lib.optionalAttrs (cfg.sshKeyFile != null) {
-        NIXFLEET_SSH_KEY = cfg.sshKeyFile;
-      };
+      environment =
+        shared.mkEnvironment { inherit cfg; }
+        // {
+          # NixOS-specific environment
+          NIXFLEET_TOKEN_CACHE = "/var/lib/nixfleet-agent/token";
+          NIXFLEET_REPO_DIR = "/var/lib/nixfleet-agent/repo";
+          HOME = "/home/${cfg.user}";
+        }
+        // lib.optionalAttrs (cfg.sshKeyFile != null) {
+          NIXFLEET_SSH_KEY = cfg.sshKeyFile;
+        };
 
       # CRITICAL: /run/wrappers/bin must come FIRST for setuid sudo wrapper
       # Without this, the agent finds the unwrapped sudo-rs binary which fails
       # with "sudo must be owned by uid 0"
-      path = [ "/run/wrappers" "/run/current-system/sw" ];
+      path = [
+        "/run/wrappers"
+        "/run/current-system/sw"
+      ];
 
       serviceConfig = {
         Type = "simple";

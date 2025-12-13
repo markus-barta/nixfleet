@@ -11,14 +11,14 @@ Test the NixOS rebuild / home-manager switch command via dashboard.
 
 ## What This Test Verifies
 
-| Component       | Verification                                    |
-| --------------- | ----------------------------------------------- |
-| OS Detection    | Agent correctly identifies NixOS vs macOS       |
-| NixOS Switch    | Uses `sudo nixos-rebuild switch --flake`        |
-| macOS Switch    | Uses `home-manager switch --flake`              |
-| Flake Path      | Correct flake reference with hostname           |
-| Status Report   | Reports success/failure with details            |
-| Generation      | New system generation activated                 |
+| Component     | Verification                              |
+| ------------- | ----------------------------------------- |
+| OS Detection  | Agent correctly identifies NixOS vs macOS |
+| NixOS Switch  | Uses `sudo nixos-rebuild switch --flake`  |
+| macOS Switch  | Uses `home-manager switch --flake`        |
+| Flake Path    | Correct flake reference with hostname     |
+| Status Report | Reports success/failure with details      |
+| Generation    | New system generation activated           |
 
 ## OS-Specific Behavior
 
@@ -172,13 +172,13 @@ The agent's `do_switch()` function:
 do_switch() {
     log_info "Executing: switch ($OS_NAME)"
     cd "$NIXCFG_PATH" || return 1
-    
+
     if [[ "$OS_NAME" == "macOS" ]]; then
         home-manager switch --flake ".#${HOSTNAME}"
     else
         sudo nixos-rebuild switch --flake ".#${HOSTNAME}"
     fi
-    
+
     if [[ $? -eq 0 ]]; then
         report_status "success" "Switch completed"
     else

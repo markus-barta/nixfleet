@@ -91,13 +91,13 @@ All changes combined into one agent/backend/dashboard update.
 
 ## Files to Modify
 
-| Component    | Files                              |
-| ------------ | ---------------------------------- |
-| Frontend     | `app/templates/dashboard.html`     |
-| Backend      | `app/main.py`                      |
-| Agent        | `agent/nixfleet-agent.sh`          |
-| NixOS Module | `modules/nixos.nix`                |
-| HM Module    | `modules/home-manager.nix`         |
+| Component    | Files                          |
+| ------------ | ------------------------------ |
+| Frontend     | `app/templates/dashboard.html` |
+| Backend      | `app/main.py`                  |
+| Agent        | `agent/nixfleet-agent.sh`      |
+| NixOS Module | `modules/nixos.nix`            |
+| HM Module    | `modules/home-manager.nix`     |
 
 ---
 
@@ -139,4 +139,3 @@ If files exist and are fresh (< 30s old), include in payload.
 - [x] Comment column shows ✓/✗ icons for success/error
 - [x] Last Seen compact (relative only, full date on hover)
 - [x] All host configs updated (gpc0/hsb8/mba-imac-work offline, will deploy on next boot)
-

@@ -11,13 +11,13 @@ Test the git pull command dispatch from dashboard to agent.
 
 ## What This Test Verifies
 
-| Component       | Verification                                    |
-| --------------- | ----------------------------------------------- |
-| Dashboard UI    | Pull button dispatches command                  |
-| API Endpoint    | Command stored for agent polling                |
-| Agent Function  | `do_pull()` executes git operations             |
-| Status Report   | Agent reports success/failure back to dashboard |
-| Dashboard UI    | Status column updates with result               |
+| Component      | Verification                                    |
+| -------------- | ----------------------------------------------- |
+| Dashboard UI   | Pull button dispatches command                  |
+| API Endpoint   | Command stored for agent polling                |
+| Agent Function | `do_pull()` executes git operations             |
+| Status Report  | Agent reports success/failure back to dashboard |
+| Dashboard UI   | Status column updates with result               |
 
 ## Command Flow
 
@@ -146,7 +146,7 @@ The agent's `do_pull()` function:
 do_pull() {
     log_info "Pulling latest changes..."
     cd "$NIXCFG_PATH" || { log_error "Cannot cd to $NIXCFG_PATH"; return 1; }
-    
+
     if git pull 2>&1; then
         report_status "success" "Pull successful"
         return 0

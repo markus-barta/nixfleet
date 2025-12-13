@@ -14,7 +14,7 @@
 #     enable = true;
 #     url = "https://fleet.example.com";
 #     tokenFile = "/Users/myuser/.config/nixfleet/token";
-#     configRepo = "/Users/myuser/Code/nixcfg";
+#     repoUrl = "https://github.com/user/nixcfg.git";  # Agent manages isolated clone
 #   };
 {
   config,
@@ -149,7 +149,8 @@ in
           "NIXFLEET_DEVICE_TYPE=${cfg.deviceType}"
           "NIXFLEET_THEME_COLOR=${cfg.themeColor}"
           "NIXFLEET_TOKEN_CACHE=%h/.local/state/nixfleet-agent/token"
-        ] ++ lib.optional (cfg.sshKeyFile != null) "NIXFLEET_SSH_KEY=${cfg.sshKeyFile}";
+        ]
+        ++ lib.optional (cfg.sshKeyFile != null) "NIXFLEET_SSH_KEY=${cfg.sshKeyFile}";
         EnvironmentFile = cfg.tokenFile;
       };
       Install = {

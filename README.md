@@ -134,17 +134,17 @@ docker compose up -d
 
 ### NixOS Module (`services.nixfleet-agent`)
 
-| Option | Type | Required | Description |
-|--------|------|----------|-------------|
-| `enable` | bool | - | Enable the agent |
-| `url` | string | **Yes** | Dashboard URL |
-| `tokenFile` | path | **Yes** | Path to API token file |
-| `configRepo` | string | **Yes** | Path to Nix config repo |
-| `user` | string | **Yes** | User to run agent as |
-| `interval` | int | No | Poll interval in seconds (default: 30) |
-| `location` | enum | No | Location category (default: "other") |
-| `deviceType` | enum | No | Device type (default: "server") |
-| `themeColor` | string | No | Hex color for dashboard (default: "#769ff0") |
+| Option       | Type   | Required | Description                                  |
+| ------------ | ------ | -------- | -------------------------------------------- |
+| `enable`     | bool   | -        | Enable the agent                             |
+| `url`        | string | **Yes**  | Dashboard URL                                |
+| `tokenFile`  | path   | **Yes**  | Path to API token file                       |
+| `configRepo` | string | **Yes**  | Path to Nix config repo                      |
+| `user`       | string | **Yes**  | User to run agent as                         |
+| `interval`   | int    | No       | Poll interval in seconds (default: 30)       |
+| `location`   | enum   | No       | Location category (default: "other")         |
+| `deviceType` | enum   | No       | Device type (default: "server")              |
+| `themeColor` | string | No       | Hex color for dashboard (default: "#769ff0") |
 
 ### Home Manager Module
 
@@ -152,28 +152,28 @@ Same options as NixOS, except `user` is not needed (runs as current user).
 
 ## Dashboard Commands
 
-| Command | Description |
-|---------|-------------|
-| `pull` | Run `git pull` in the config repo |
-| `switch` | Run `nixos-rebuild switch` or `home-manager switch` |
-| `pull-switch` | Run both in sequence |
-| `test` | Run host test suite (`hosts/<host>/tests/T*.sh`) |
+| Command       | Description                                         |
+| ------------- | --------------------------------------------------- |
+| `pull`        | Run `git pull` in the config repo                   |
+| `switch`      | Run `nixos-rebuild switch` or `home-manager switch` |
+| `pull-switch` | Run both in sequence                                |
+| `test`        | Run host test suite (`hosts/<host>/tests/T*.sh`)    |
 
 ## API Endpoints
 
-| Endpoint | Method | Auth | Description |
-|----------|--------|------|-------------|
-| `/` | GET | Session | Dashboard UI |
-| `/login` | GET/POST | - | Login page |
-| `/health` | GET | - | Health check |
-| `/api/hosts` | GET | Session | List all hosts |
-| `/api/hosts/{id}/register` | POST | Token | Agent registration |
-| `/api/hosts/{id}/poll` | GET | Token | Agent polls for commands |
-| `/api/hosts/{id}/status` | POST | Token | Agent reports status |
-| `/api/hosts/{id}/command` | POST | Session | Queue a command |
-| `/api/hosts/{id}/agent-token` | POST | Session | Rotate per-host agent token (returns once) |
-| `/api/events` | GET | Session | SSE stream for live updates |
-| `/api/metrics` | GET | Session | Authenticated metrics snapshot |
+| Endpoint                      | Method   | Auth    | Description                                |
+| ----------------------------- | -------- | ------- | ------------------------------------------ |
+| `/`                           | GET      | Session | Dashboard UI                               |
+| `/login`                      | GET/POST | -       | Login page                                 |
+| `/health`                     | GET      | -       | Health check                               |
+| `/api/hosts`                  | GET      | Session | List all hosts                             |
+| `/api/hosts/{id}/register`    | POST     | Token   | Agent registration                         |
+| `/api/hosts/{id}/poll`        | GET      | Token   | Agent polls for commands                   |
+| `/api/hosts/{id}/status`      | POST     | Token   | Agent reports status                       |
+| `/api/hosts/{id}/command`     | POST     | Session | Queue a command                            |
+| `/api/hosts/{id}/agent-token` | POST     | Session | Rotate per-host agent token (returns once) |
+| `/api/events`                 | GET      | Session | SSE stream for live updates                |
+| `/api/metrics`                | GET      | Session | Authenticated metrics snapshot             |
 
 ## Security
 
@@ -186,20 +186,20 @@ Same options as NixOS, except `user` is not needed (runs as current user).
 
 ## Environment Variables
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `NIXFLEET_PASSWORD_HASH` | Yes | bcrypt hash of admin password |
-| `NIXFLEET_SESSION_SECRETS` | Yes (prod) | Comma-separated secrets for signed session cookies (rotation supported) |
-| `NIXFLEET_AGENT_TOKEN_HASH_SECRET` | Yes (when using per-host tokens) | Secret used to hash per-host agent tokens in DB |
-| `NIXFLEET_API_TOKEN` | Yes (prod, if shared token mode) | Shared agent token (recommended as bootstrap/migration aid only) |
-| `NIXFLEET_ALLOW_SHARED_AGENT_TOKEN` | No | Allow shared token auth for agents (default: true) |
-| `NIXFLEET_AUTO_PROVISION_AGENT_TOKENS` | No | Auto-create per-host tokens on first agent contact (default: true) |
-| `NIXFLEET_TOTP_SECRET` | No | Base32-encoded TOTP secret for 2FA |
-| `NIXFLEET_REQUIRE_TOTP` | No | Set to "true" to enforce 2FA |
-| `NIXFLEET_DEV_MODE` | No | Set to "true" for development |
-| `NIXFLEET_DATA_DIR` | No | Database directory (default: `/data`) |
-| `NIXFLEET_TRUST_PROXY_HEADERS` | No | Trust forwarded headers for client IP (rate limiting/logging behind reverse proxies) |
-| `NIXFLEET_TRUSTED_PROXY_IPS` | No | Comma-separated proxy IP allowlist (optional; when empty and trust enabled, trust any proxy) |
+| Variable                               | Required                         | Description                                                                                  |
+| -------------------------------------- | -------------------------------- | -------------------------------------------------------------------------------------------- |
+| `NIXFLEET_PASSWORD_HASH`               | Yes                              | bcrypt hash of admin password                                                                |
+| `NIXFLEET_SESSION_SECRETS`             | Yes (prod)                       | Comma-separated secrets for signed session cookies (rotation supported)                      |
+| `NIXFLEET_AGENT_TOKEN_HASH_SECRET`     | Yes (when using per-host tokens) | Secret used to hash per-host agent tokens in DB                                              |
+| `NIXFLEET_API_TOKEN`                   | Yes (prod, if shared token mode) | Shared agent token (recommended as bootstrap/migration aid only)                             |
+| `NIXFLEET_ALLOW_SHARED_AGENT_TOKEN`    | No                               | Allow shared token auth for agents (default: true)                                           |
+| `NIXFLEET_AUTO_PROVISION_AGENT_TOKENS` | No                               | Auto-create per-host tokens on first agent contact (default: true)                           |
+| `NIXFLEET_TOTP_SECRET`                 | No                               | Base32-encoded TOTP secret for 2FA                                                           |
+| `NIXFLEET_REQUIRE_TOTP`                | No                               | Set to "true" to enforce 2FA                                                                 |
+| `NIXFLEET_DEV_MODE`                    | No                               | Set to "true" for development                                                                |
+| `NIXFLEET_DATA_DIR`                    | No                               | Database directory (default: `/data`)                                                        |
+| `NIXFLEET_TRUST_PROXY_HEADERS`         | No                               | Trust forwarded headers for client IP (rate limiting/logging behind reverse proxies)         |
+| `NIXFLEET_TRUSTED_PROXY_IPS`           | No                               | Comma-separated proxy IP allowlist (optional; when empty and trust enabled, trust any proxy) |
 
 ## Development
 
@@ -224,6 +224,7 @@ ssh mba@cs1.barta.cm -p 2222 "cd ~/docker/nixfleet && ./update.sh"
 ```
 
 The `update.sh` script:
+
 1. Pulls latest from git
 2. Extracts version info for embedding
 3. Rebuilds the Docker container
@@ -248,8 +249,8 @@ ssh mba@cs0.barta.cm -p 2222 "cd ~/Code/nixcfg && git pull && sudo nixos-rebuild
 
 ### SSH Connections
 
-| Host | SSH Command |
-|------|-------------|
+| Host | SSH Command                    |
+| ---- | ------------------------------ |
 | csb0 | `ssh mba@cs0.barta.cm -p 2222` |
 | csb1 | `ssh mba@cs1.barta.cm -p 2222` |
 
@@ -260,6 +261,7 @@ Fish abbreviations are available for interactive use (e.g., `csb0`, `csb1`).
 Use the dashboard UI: **⋮ menu → Restart Agent**
 
 Or manually:
+
 ```bash
 # NixOS
 sudo systemctl restart nixfleet-agent

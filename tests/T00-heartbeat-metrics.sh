@@ -4,9 +4,6 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-
 # Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -17,8 +14,14 @@ NC='\033[0m'
 PASSED=0
 FAILED=0
 
-pass() { echo -e "${GREEN}✅${NC} $1"; PASSED=$((PASSED + 1)); }
-fail() { echo -e "${RED}❌${NC} $1"; FAILED=$((FAILED + 1)); }
+pass() {
+  echo -e "${GREEN}✅${NC} $1"
+  PASSED=$((PASSED + 1))
+}
+fail() {
+  echo -e "${RED}❌${NC} $1"
+  FAILED=$((FAILED + 1))
+}
 info() { echo -e "${YELLOW}ℹ️${NC} $1"; }
 header() { echo -e "${CYAN}$1${NC}"; }
 
@@ -32,14 +35,14 @@ TEST_HOST="integration-test-$$"
 
 # Check for token
 if [[ -z "$AGENT_TOKEN" ]]; then
-    # Try to read from standard locations
-    if [[ -f "$HOME/.config/nixfleet/token" ]]; then
-        AGENT_TOKEN="$(cat "$HOME/.config/nixfleet/token")"
-    else
-        echo "Error: NIXFLEET_TEST_TOKEN not set and no token file found"
-        echo "Set: export NIXFLEET_TEST_TOKEN='your-token'"
-        exit 1
-    fi
+  # Try to read from standard locations
+  if [[ -f "$HOME/.config/nixfleet/token" ]]; then
+    AGENT_TOKEN="$(cat "$HOME/.config/nixfleet/token")"
+  else
+    echo "Error: NIXFLEET_TEST_TOKEN not set and no token file found"
+    echo "Set: export NIXFLEET_TEST_TOKEN='your-token'"
+    exit 1
+  fi
 fi
 
 echo ""
@@ -59,9 +62,9 @@ header "--- Test 1: Dashboard Health Check ---"
 
 HEALTH_RESPONSE=$(curl -sf "${FLEET_URL}/health" 2>/dev/null || echo "FAILED")
 if [[ "$HEALTH_RESPONSE" == *"healthy"* ]] || [[ "$HEALTH_RESPONSE" == *"ok"* ]]; then
-    pass "Dashboard health endpoint responding"
+  pass "Dashboard health endpoint responding"
 else
-    fail "Dashboard health check failed: $HEALTH_RESPONSE"
+  fail "Dashboard health check failed: $HEALTH_RESPONSE"
 fi
 
 # ════════════════════════════════════════════════════════════════════════════════
@@ -71,9 +74,9 @@ fi
 header "--- Test 2: Agent Registration ---"
 
 REG_RESPONSE=$(curl -sf -X POST "${FLEET_URL}/api/hosts/${TEST_HOST}/register" \
-    -H "Authorization: Bearer ${AGENT_TOKEN}" \
-    -H "Content-Type: application/json" \
-    -d '{
+  -H "Authorization: Bearer ${AGENT_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{
         "hostname": "'"${TEST_HOST}"'",
         "host_type": "nixos",
         "location": "cloud",
@@ -89,15 +92,15 @@ REG_RESPONSE=$(curl -sf -X POST "${FLEET_URL}/api/hosts/${TEST_HOST}/register" \
     }' 2>/dev/null || echo '{"error": "request failed"}')
 
 if [[ "$REG_RESPONSE" == *'"status":"registered"'* ]]; then
-    pass "Agent registration successful"
-    # Extract per-host token if provided
-    PER_HOST_TOKEN=$(echo "$REG_RESPONSE" | grep -o '"agent_token":"[^"]*"' | cut -d'"' -f4 || echo "")
-    if [[ -n "$PER_HOST_TOKEN" ]]; then
-        info "Per-host token received (${#PER_HOST_TOKEN} chars)"
-        AGENT_TOKEN="$PER_HOST_TOKEN"
-    fi
+  pass "Agent registration successful"
+  # Extract per-host token if provided
+  PER_HOST_TOKEN=$(echo "$REG_RESPONSE" | grep -o '"agent_token":"[^"]*"' | cut -d'"' -f4 || echo "")
+  if [[ -n "$PER_HOST_TOKEN" ]]; then
+    info "Per-host token received (${#PER_HOST_TOKEN} chars)"
+    AGENT_TOKEN="$PER_HOST_TOKEN"
+  fi
 else
-    fail "Agent registration failed: $REG_RESPONSE"
+  fail "Agent registration failed: $REG_RESPONSE"
 fi
 
 # ════════════════════════════════════════════════════════════════════════════════
@@ -109,13 +112,13 @@ header "--- Test 3: Repeated Poll (Heartbeat) ---"
 # In NixFleet, heartbeats are done via poll endpoint
 # Metrics are sent during registration, poll keeps the host alive
 POLL2_RESPONSE=$(curl -sf "${FLEET_URL}/api/hosts/${TEST_HOST}/poll" \
-    -H "Authorization: Bearer ${AGENT_TOKEN}" \
-    2>/dev/null || echo '{"error": "request failed"}')
+  -H "Authorization: Bearer ${AGENT_TOKEN}" \
+  2>/dev/null || echo '{"error": "request failed"}')
 
 if [[ "$POLL2_RESPONSE" == *'"command"'* ]]; then
-    pass "Second poll successful (heartbeat)"
+  pass "Second poll successful (heartbeat)"
 else
-    fail "Second poll failed: $POLL2_RESPONSE"
+  fail "Second poll failed: $POLL2_RESPONSE"
 fi
 
 # ════════════════════════════════════════════════════════════════════════════════
@@ -125,14 +128,14 @@ fi
 header "--- Test 4: Poll for Commands ---"
 
 POLL_RESPONSE=$(curl -sf "${FLEET_URL}/api/hosts/${TEST_HOST}/poll" \
-    -H "Authorization: Bearer ${AGENT_TOKEN}" \
-    2>/dev/null || echo '{"error": "request failed"}')
+  -H "Authorization: Bearer ${AGENT_TOKEN}" \
+  2>/dev/null || echo '{"error": "request failed"}')
 
 if [[ "$POLL_RESPONSE" == *'"command"'* ]]; then
-    COMMAND=$(echo "$POLL_RESPONSE" | grep -o '"command":"[^"]*"' | cut -d'"' -f4 || echo "none")
-    pass "Poll successful (command: $COMMAND)"
+  COMMAND=$(echo "$POLL_RESPONSE" | grep -o '"command":"[^"]*"' | cut -d'"' -f4 || echo "none")
+  pass "Poll successful (command: $COMMAND)"
 else
-    fail "Poll failed: $POLL_RESPONSE"
+  fail "Poll failed: $POLL_RESPONSE"
 fi
 
 # ════════════════════════════════════════════════════════════════════════════════
@@ -143,9 +146,9 @@ header "--- Test 5: Re-registration with Updated Metrics ---"
 
 # Re-register with updated metrics (this is how agents update their info)
 REREG_RESPONSE=$(curl -sf -X POST "${FLEET_URL}/api/hosts/${TEST_HOST}/register" \
-    -H "Authorization: Bearer ${AGENT_TOKEN}" \
-    -H "Content-Type: application/json" \
-    -d '{
+  -H "Authorization: Bearer ${AGENT_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{
         "hostname": "'"${TEST_HOST}"'",
         "host_type": "nixos",
         "location": "cloud",
@@ -163,9 +166,9 @@ REREG_RESPONSE=$(curl -sf -X POST "${FLEET_URL}/api/hosts/${TEST_HOST}/register"
     }' 2>/dev/null || echo '{"error": "request failed"}')
 
 if [[ "$REREG_RESPONSE" == *'"status":"registered"'* ]]; then
-    pass "Re-registration with updated metrics successful"
+  pass "Re-registration with updated metrics successful"
 else
-    fail "Re-registration failed: $REREG_RESPONSE"
+  fail "Re-registration failed: $REREG_RESPONSE"
 fi
 
 # ════════════════════════════════════════════════════════════════════════════════
@@ -187,4 +190,3 @@ header "════════════════════════
 
 [[ $FAILED -gt 0 ]] && exit 1
 exit 0
-

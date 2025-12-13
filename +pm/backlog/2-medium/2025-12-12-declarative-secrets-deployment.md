@@ -48,13 +48,13 @@ Update README with:
 
 ## Current Required Env Vars
 
-| Variable | Purpose | Generation |
-|----------|---------|------------|
-| `NIXFLEET_PASSWORD_HASH` | Admin login | `python -c "import bcrypt; print(bcrypt.hashpw(b'password', bcrypt.gensalt()).decode())"` |
-| `NIXFLEET_API_TOKEN` | Shared agent bootstrap | `openssl rand -hex 32` |
-| `NIXFLEET_SESSION_SECRETS` | Cookie signing | `openssl rand -hex 32` (comma-separated for rotation) |
-| `NIXFLEET_AGENT_TOKEN_HASH_SECRET` | Per-host token hashing | `openssl rand -hex 32` |
-| `NIXFLEET_TOTP_SECRET` | 2FA (optional) | `python -c "import pyotp; print(pyotp.random_base32())"` |
+| Variable                           | Purpose                | Generation                                                                                |
+| ---------------------------------- | ---------------------- | ----------------------------------------------------------------------------------------- |
+| `NIXFLEET_PASSWORD_HASH`           | Admin login            | `python -c "import bcrypt; print(bcrypt.hashpw(b'password', bcrypt.gensalt()).decode())"` |
+| `NIXFLEET_API_TOKEN`               | Shared agent bootstrap | `openssl rand -hex 32`                                                                    |
+| `NIXFLEET_SESSION_SECRETS`         | Cookie signing         | `openssl rand -hex 32` (comma-separated for rotation)                                     |
+| `NIXFLEET_AGENT_TOKEN_HASH_SECRET` | Per-host token hashing | `openssl rand -hex 32`                                                                    |
+| `NIXFLEET_TOTP_SECRET`             | 2FA (optional)         | `python -c "import pyotp; print(pyotp.random_base32())"`                                  |
 
 ## Acceptance Criteria
 
@@ -62,4 +62,3 @@ Update README with:
 - [ ] Existing deployments can upgrade without breaking
 - [ ] Secret rotation is documented and tested
 - [ ] README includes complete setup instructions
-

@@ -9,12 +9,12 @@ Integration tests for the NixFleet dashboard and agent.
 
 ## Test List
 
-| Test ID | Feature            | 🤖 Auto Last Run   | Notes                                      |
-| ------- | ------------------ | ------------------ | ------------------------------------------ |
-| T00     | Heartbeat/Metrics  | ✅ 2025-12-13      | Registration, heartbeat, host info display |
-| T01     | Pull Command       | ✅ 2025-12-13      | Git pull via dashboard command             |
-| T02     | Switch Command     | ✅ 2025-12-13      | NixOS/home-manager switch via dashboard    |
-| T03     | Update Agent       | ✅ 2025-12-13      | Agent self-update via dashboard            |
+| Test ID | Feature           | 🤖 Auto Last Run | Notes                                      |
+| ------- | ----------------- | ---------------- | ------------------------------------------ |
+| T00     | Heartbeat/Metrics | ✅ 2025-12-13    | Registration, heartbeat, host info display |
+| T01     | Pull Command      | ✅ 2025-12-13    | Git pull via dashboard command             |
+| T02     | Switch Command    | ✅ 2025-12-13    | NixOS/home-manager switch via dashboard    |
+| T03     | Update Agent      | ✅ 2025-12-13    | Agent self-update via dashboard            |
 
 ## Test Types
 
@@ -141,10 +141,12 @@ Test the Feature Name functionality.
 ### Test 1: Description
 
 **Steps:**
+
 1. Step one
 2. Step two
 
 **Expected Results:**
+
 - Expected output
 
 **Status:** ⏳ Pending
@@ -171,4 +173,3 @@ Test the Feature Name functionality.
 
 **Last Updated**: December 13, 2025  
 **Maintainer**: Markus Barta
-

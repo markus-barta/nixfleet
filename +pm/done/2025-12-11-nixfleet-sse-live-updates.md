@@ -75,4 +75,3 @@ Implemented SSE (Server-Sent Events) instead of WebSocket for simplicity:
 - FastAPI EventSourceResponse docs
 - [app/main.py](../../app/main.py) - SSE endpoint implementation
 - [app/templates/dashboard.html](../../app/templates/dashboard.html) - Client-side SSE handling
-

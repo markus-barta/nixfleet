@@ -13,14 +13,16 @@ Successfully deployed NixFleet dashboard and agents after extracting to separate
 ## Completed
 
 ### Dashboard Deployment on csb1
+
 - [x] Deploy dashboard container from new repo
 - [x] Verify dashboard accessible at fleet.barta.cm
 - [x] Verify agents can connect
 - [x] Multiple updates deployed throughout the day
 
 ### Agent Deployment
+
 - [x] Deploy to hsb0
-- [x] Deploy to hsb1  
+- [x] Deploy to hsb1
 - [x] Deploy to hsb8 (offline, will deploy on boot)
 - [x] Deploy to csb0 (with runAsRoot fix for sudo-rs)
 - [x] Deploy to csb1
@@ -39,4 +41,3 @@ Successfully deployed NixFleet dashboard and agents after extracting to separate
 - SVG icons for metrics
 - Fixed dropdown z-index
 - runAsRoot option for sudo-rs compatibility
-

@@ -32,17 +32,17 @@ services.nixfleet-agent = {
   enable = true;
   url = "https://fleet.barta.cm";
   tokenFile = config.age.secrets.nixfleet-token.path;
-  
+
   # NEW: Remote repo to clone (replaces configRepo)
   repoUrl = "git@github.com:markus-barta/nixcfg.git";
   # or HTTPS: "https://github.com/markus-barta/nixcfg.git"
-  
+
   # OPTIONAL: SSH key for private repos
   sshKeyFile = config.age.secrets.nixfleet-deploy-key.path;
-  
+
   # OPTIONAL: Branch to track (default: main)
   branch = "main";
-  
+
   # DEPRECATED: configRepo (local path)
 };
 ```
@@ -51,7 +51,7 @@ services.nixfleet-agent = {
 
 1. **On startup**: Check if `/var/lib/nixfleet-agent/repo` exists and is valid
 2. **If missing or corrupt**: `git clone --branch $BRANCH $REPO_URL /var/lib/nixfleet-agent/repo`
-3. **On `pull` command**: 
+3. **On `pull` command**:
    - `git fetch origin`
    - `git reset --hard origin/$BRANCH` (no merge, just reset to remote state)
 4. **On `update` command**:
@@ -129,4 +129,3 @@ The agent would use `GIT_SSH_COMMAND="ssh -i $SSH_KEY_FILE"` for Git operations.
 - [ ] Update command handles push conflicts gracefully
 - [ ] Legacy `configRepo` still works with deprecation warning
 - [ ] Documentation updated with new configuration
-

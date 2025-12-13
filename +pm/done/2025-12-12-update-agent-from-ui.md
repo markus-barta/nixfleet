@@ -12,6 +12,7 @@ Added "Update Agent" action to the dashboard that updates the nixfleet flake inp
 ### Agent Changes (`agent/nixfleet-agent.sh`)
 
 Added `do_update()` function that:
+
 1. Runs `nix flake update nixfleet`
 2. Commits `flake.lock` if changed
 3. Pushes to remote (with fallback if push fails)
@@ -30,6 +31,7 @@ Added `do_update()` function that:
 ## Testing Results
 
 Tested on `imac0` (macOS):
+
 1. ✅ Dashboard shows "Update Agent" button
 2. ✅ Clicking button queues "update" command
 3. ✅ Agent receives command
@@ -44,4 +46,3 @@ Tested on `imac0` (macOS):
 - `agent/nixfleet-agent.sh` - Added `do_update()` and command handler
 - `app/main.py` - Added "update" to allowed commands
 - `app/templates/dashboard.html` - Added UI button and labels
-

@@ -12,13 +12,13 @@ NixFleet is a **personal fleet management dashboard** for managing NixOS and mac
 
 ### Core components
 
-| Component | Technology | Purpose |
-|-----------|------------|---------|
-| **Dashboard** | Python/FastAPI + Jinja2 | Web UI for viewing hosts and triggering commands |
-| **Agent** | Bash script | Runs on each host, polls dashboard for commands |
-| **NixOS module** | Nix | Declarative agent configuration for NixOS hosts |
-| **Home Manager module** | Nix | Declarative agent configuration for macOS/Linux users |
-| **Database** | SQLite | Stores host state, sessions, command logs |
+| Component               | Technology              | Purpose                                               |
+| ----------------------- | ----------------------- | ----------------------------------------------------- |
+| **Dashboard**           | Python/FastAPI + Jinja2 | Web UI for viewing hosts and triggering commands      |
+| **Agent**               | Bash script             | Runs on each host, polls dashboard for commands       |
+| **NixOS module**        | Nix                     | Declarative agent configuration for NixOS hosts       |
+| **Home Manager module** | Nix                     | Declarative agent configuration for macOS/Linux users |
+| **Database**            | SQLite                  | Stores host state, sessions, command logs             |
 
 ### Architecture (high level)
 
@@ -123,31 +123,31 @@ Commands: pull, switch, pull-switch, test
 
 ### Security
 
-| Issue | Severity | Notes |
-|-------|----------|-------|
-| Shared agent token | Medium | All agents use the same token; compromise affects all |
-| CSP uses `'unsafe-inline'` | Low | Templates need nonce/hash refactoring |
-| Session cookies not signed | Low | DB-backed sessions are secure; signing is defense-in-depth |
-| No agent TLS pinning | Low | Relies on system CA store |
-| No rate limiting on agent commands | Medium | Malicious agent could spam commands |
+| Issue                              | Severity | Notes                                                      |
+| ---------------------------------- | -------- | ---------------------------------------------------------- |
+| Shared agent token                 | Medium   | All agents use the same token; compromise affects all      |
+| CSP uses `'unsafe-inline'`         | Low      | Templates need nonce/hash refactoring                      |
+| Session cookies not signed         | Low      | DB-backed sessions are secure; signing is defense-in-depth |
+| No agent TLS pinning               | Low      | Relies on system CA store                                  |
+| No rate limiting on agent commands | Medium   | Malicious agent could spam commands                        |
 
 ### Operational
 
-| Issue | Severity | Notes |
-|-------|----------|-------|
-| SQLite single-writer | Low | Acceptable for 10–15 hosts |
-| No backup automation | Medium | `/data` volume should be backed up |
-| No metrics/observability | Low | Logs only; no Prometheus/Grafana |
-| Manual version tracking | Low | Git hash embedded at build time |
+| Issue                    | Severity | Notes                              |
+| ------------------------ | -------- | ---------------------------------- |
+| SQLite single-writer     | Low      | Acceptable for 10–15 hosts         |
+| No backup automation     | Medium   | `/data` volume should be backed up |
+| No metrics/observability | Low      | Logs only; no Prometheus/Grafana   |
+| Manual version tracking  | Low      | Git hash embedded at build time    |
 
 ### Code quality
 
-| Area | Rating | Notes |
-|------|--------|-------|
-| Test coverage | 5/10 | No automated Python tests; agent shellcheck only |
-| Documentation | 8/10 | README good; API docs could be improved |
-| Error handling | 7/10 | Basic; could be more user-friendly |
-| Logging | 7/10 | Adequate; structured logging would help |
+| Area           | Rating | Notes                                            |
+| -------------- | ------ | ------------------------------------------------ |
+| Test coverage  | 5/10   | No automated Python tests; agent shellcheck only |
+| Documentation  | 8/10   | README good; API docs could be improved          |
+| Error handling | 7/10   | Basic; could be more user-friendly               |
+| Logging        | 7/10   | Adequate; structured logging would help          |
 
 ---
 
@@ -228,15 +228,15 @@ Not required for personal use:
 
 ### Files to review (suggested order)
 
-| File | Purpose | Priority |
-|------|---------|----------|
-| `app/main.py` | Backend logic (routes, auth, SSE, DB) | High |
-| `agent/nixfleet-agent.sh` | Agent logic (poll, execute, report) | High |
-| `modules/nixos.nix` | NixOS module | Medium |
-| `modules/home-manager.nix` | Home Manager module | Medium |
-| `flake.nix` | Nix packaging/build | Medium |
-| `Dockerfile` | Container build | Low |
-| `docker-compose.yml` / `docker/**` | Deployment wiring | Low |
+| File                               | Purpose                               | Priority |
+| ---------------------------------- | ------------------------------------- | -------- |
+| `app/main.py`                      | Backend logic (routes, auth, SSE, DB) | High     |
+| `agent/nixfleet-agent.sh`          | Agent logic (poll, execute, report)   | High     |
+| `modules/nixos.nix`                | NixOS module                          | Medium   |
+| `modules/home-manager.nix`         | Home Manager module                   | Medium   |
+| `flake.nix`                        | Nix packaging/build                   | Medium   |
+| `Dockerfile`                       | Container build                       | Low      |
+| `docker-compose.yml` / `docker/**` | Deployment wiring                     | Low      |
 
 ---
 
@@ -255,5 +255,3 @@ Not required for personal use:
 - Maintainer: Markus Barta
 - Repository: [github.com/markus-barta/nixfleet](https://github.com/markus-barta/nixfleet)
 - Related infrastructure repo: [github.com/markus-barta/nixcfg](https://github.com/markus-barta/nixcfg)
-
-

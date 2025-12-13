@@ -153,4 +153,3 @@ A simple, custom-built fleet management dashboard that:
 ## References
 
 - [README.md](../../README.md) — Full documentation
-

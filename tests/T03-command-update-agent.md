@@ -11,14 +11,14 @@ Test the agent self-update functionality via dashboard.
 
 ## What This Test Verifies
 
-| Component       | Verification                                    |
-| --------------- | ----------------------------------------------- |
-| Flake Update    | `nix flake update nixfleet` updates flake.lock  |
-| Git Commit      | Changes committed with descriptive message      |
-| Git Push        | Changes pushed to remote repository             |
-| Switch          | New agent version applied via switch            |
-| Agent Restart   | New agent process running after update          |
-| Version Report  | Dashboard shows new agent hash                  |
+| Component      | Verification                                   |
+| -------------- | ---------------------------------------------- |
+| Flake Update   | `nix flake update nixfleet` updates flake.lock |
+| Git Commit     | Changes committed with descriptive message     |
+| Git Push       | Changes pushed to remote repository            |
+| Switch         | New agent version applied via switch           |
+| Agent Restart  | New agent process running after update         |
+| Version Report | Dashboard shows new agent hash                 |
 
 ## Update Flow
 
@@ -181,23 +181,23 @@ The agent's `do_update()` function:
 do_update() {
     report_status "running" "↑ Updating nixfleet agent..."
     cd "$NIXCFG_PATH" || return 1
-    
+
     # Update nixfleet flake input
     log_info "Updating nixfleet flake input..."
     nix flake update nixfleet
-    
+
     # Commit changes
     log_info "Committing flake.lock update..."
     git add flake.lock
     git commit -m "chore: Update nixfleet agent"
-    
+
     # Push to remote
     log_info "Pushing to remote..."
     git push origin master
-    
+
     # Switch to new configuration
     do_switch
-    
+
     report_status "success" "✓ Agent updated"
 }
 ```
@@ -224,4 +224,3 @@ If hooks fail, the commit will be aborted and the update will fail.
 - Automated: [T03-command-update-agent.sh](./T03-command-update-agent.sh)
 - Agent: [nixfleet-agent.sh](../agent/nixfleet-agent.sh) - `do_update()` function
 - Backlog: [Update Agent from UI](../+pm/done/2025-12-12-update-agent-from-ui.md)
-

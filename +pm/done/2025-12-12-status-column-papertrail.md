@@ -56,11 +56,10 @@ Transform the status column from a single-line text display into a scrollable, e
 
 1. **Dual in-memory history stores**
 
-   | Store | Purpose | Message size | Used by |
-   |-------|---------|--------------|---------|
-   | `status_history` | UI display | Truncated (≤100 chars) | Status column |
-   | `full_log` | Download | Complete output | Ellipsis menu → Download Logs |
-
+   | Store            | Purpose    | Message size           | Used by                       |
+   | ---------------- | ---------- | ---------------------- | ----------------------------- |
+   | `status_history` | UI display | Truncated (≤100 chars) | Status column                 |
+   | `full_log`       | Download   | Complete output        | Ellipsis menu → Download Logs |
    - Both keyed by host_id → list of entries
    - NOT persisted to DB (lost on restart)
 
@@ -69,7 +68,7 @@ Transform the status column from a single-line text display into a scrollable, e
    ```python
    # Status history (for UI)
    {"timestamp": "2025-12-12T14:32:05Z", "icon": "✓", "message": "Switch complete"}
-   
+
    # Full log (for download)
    {"timestamp": "2025-12-12T14:32:05Z", "type": "switch_complete", "message": "Switch complete", "output": "<full multi-line output>"}
    ```
@@ -163,9 +162,9 @@ Transform the status column from a single-line text display into a scrollable, e
 
 ### Files to modify
 
-| File | Changes |
-|------|---------|
-| `app/main.py` | Dual in-memory dicts, append on status change, new `/logs` endpoint |
+| File                           | Changes                                                                         |
+| ------------------------------ | ------------------------------------------------------------------------------- |
+| `app/main.py`                  | Dual in-memory dicts, append on status change, new `/logs` endpoint             |
 | `app/templates/dashboard.html` | Status cell structure, CSS for scroll/expand, JS for toggle, download menu item |
 
 ### In-memory structure
@@ -200,19 +199,19 @@ full_log: dict[str, list[dict]] = {}
 def append_history(host_id: str, icon: str, message: str, full_output: str = None, event_type: str = None):
     """Append to both histories. Truncates message for status_history."""
     now = datetime.utcnow().isoformat() + "Z"
-    
+
     # Status history (truncated)
     truncated = message[:100] + "..." if len(message) > 100 else message
     status_history.setdefault(host_id, []).insert(0, {
         "timestamp": now, "icon": icon, "message": truncated
     })
-    
+
     # Full log (complete)
     full_log.setdefault(host_id, []).insert(0, {
         "timestamp": now, "type": event_type or "unknown",
         "message": message, "output": full_output
     })
-    
+
     # Prune old entries (older than HISTORY_DAYS)
     prune_history(host_id)
 ```
@@ -221,14 +220,14 @@ def append_history(host_id: str, icon: str, message: str, full_output: str = Non
 
 ```css
 .status-cell {
-  max-height: 2.5em;  /* collapsed */
+  max-height: 2.5em; /* collapsed */
   overflow-y: auto;
   font-size: 0.65rem;
   transition: max-height 0.3s ease;
 }
 
 .status-cell.expanded {
-  max-height: 25em;  /* ~10x */
+  max-height: 25em; /* ~10x */
 }
 
 .status-entry {

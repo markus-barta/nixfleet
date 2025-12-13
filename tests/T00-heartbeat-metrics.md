@@ -10,21 +10,21 @@ Test agent registration, heartbeats, and host information display in the dashboa
 
 ## What This Test Verifies
 
-| Field          | Source                 | Displayed In        |
-| -------------- | ---------------------- | ------------------- |
-| Hostname       | Agent registration     | Host column         |
-| OS Type        | Agent registration     | OS icon             |
-| OS Version     | Agent heartbeat        | OS column (tooltip) |
-| Location       | Agent registration     | Location column     |
-| Device Type    | Agent registration     | Type column         |
-| Theme Color    | Agent registration     | Row styling         |
-| Config Hash    | Agent heartbeat        | Config column       |
-| Agent Hash     | Agent heartbeat        | Agent column        |
-| Uptime         | Agent heartbeat        | Uptime column       |
-| Load Averages  | Agent heartbeat        | (metrics storage)   |
-| Tests Passed   | Agent heartbeat        | Tests column        |
-| Tests Total    | Agent heartbeat        | Tests column        |
-| Last Seen      | Heartbeat timestamp    | Seen column         |
+| Field         | Source              | Displayed In        |
+| ------------- | ------------------- | ------------------- |
+| Hostname      | Agent registration  | Host column         |
+| OS Type       | Agent registration  | OS icon             |
+| OS Version    | Agent heartbeat     | OS column (tooltip) |
+| Location      | Agent registration  | Location column     |
+| Device Type   | Agent registration  | Type column         |
+| Theme Color   | Agent registration  | Row styling         |
+| Config Hash   | Agent heartbeat     | Config column       |
+| Agent Hash    | Agent heartbeat     | Agent column        |
+| Uptime        | Agent heartbeat     | Uptime column       |
+| Load Averages | Agent heartbeat     | (metrics storage)   |
+| Tests Passed  | Agent heartbeat     | Tests column        |
+| Tests Total   | Agent heartbeat     | Tests column        |
+| Last Seen     | Heartbeat timestamp | Seen column         |
 
 ## Manual Test Procedures
 
@@ -161,12 +161,12 @@ Test agent registration, heartbeats, and host information display in the dashboa
 
 ## API Endpoints Tested
 
-| Endpoint                            | Method | Purpose               |
-| ----------------------------------- | ------ | --------------------- |
-| `/health`                           | GET    | Dashboard health      |
-| `/api/hosts/{host_id}/register`     | POST   | Agent registration    |
-| `/api/hosts/{host_id}/heartbeat`    | POST   | Metrics update        |
-| `/api/hosts/{host_id}/poll`         | GET    | Command polling       |
+| Endpoint                         | Method | Purpose            |
+| -------------------------------- | ------ | ------------------ |
+| `/health`                        | GET    | Dashboard health   |
+| `/api/hosts/{host_id}/register`  | POST   | Agent registration |
+| `/api/hosts/{host_id}/heartbeat` | POST   | Metrics update     |
+| `/api/hosts/{host_id}/poll`      | GET    | Command polling    |
 
 ## Related
 
