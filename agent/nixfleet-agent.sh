@@ -707,10 +707,17 @@ do_pull_reset() {
   local output
   local reset_output=""
   
-  # Check if flake.lock has local changes
+  # Check if flake.lock has staged changes (in index)
+  if ! git diff --cached --quiet flake.lock 2>/dev/null; then
+    log_info "Unstaging flake.lock"
+    reset_output="Unstaged flake.lock; "
+    git reset HEAD flake.lock 2>&1 || true
+  fi
+  
+  # Check if flake.lock has working directory changes
   if ! git diff --quiet flake.lock 2>/dev/null; then
     log_info "Resetting local changes to flake.lock"
-    reset_output="Reset flake.lock; "
+    reset_output="${reset_output}Reset flake.lock; "
     git checkout -- flake.lock 2>&1 || true
   fi
 
