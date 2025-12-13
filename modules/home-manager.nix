@@ -53,9 +53,11 @@ in
           ''
             # Wait for network to be ready (DNS resolution working)
             # This prevents timeout errors when launchd starts the agent at boot
+            # Extract hostname from URL for DNS check
+            FLEET_HOST=$(echo "${cfg.url}" | sed 's|https\?://||' | cut -d/ -f1 | cut -d: -f1)
             MAX_WAIT=60
             WAITED=0
-            while ! /usr/bin/host -W 2 fleet.barta.cm >/dev/null 2>&1; do
+            while ! /usr/bin/host -W 2 "$FLEET_HOST" >/dev/null 2>&1; do
               if [ $WAITED -ge $MAX_WAIT ]; then
                 echo "Warning: Network not ready after ''${MAX_WAIT}s, starting anyway..." >&2
                 break

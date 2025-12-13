@@ -859,18 +859,28 @@ do_test() {
 LOCK_FILE="/tmp/nixfleet-agent-${HOST_ID}.lock"
 
 acquire_lock() {
-  # Open lock file on file descriptor 200
-  exec 200>"$LOCK_FILE"
+  # Check for stale lock (process died without cleanup)
+  if [[ -f "$LOCK_FILE" ]]; then
+    local old_pid
+    old_pid=$(cat "$LOCK_FILE" 2>/dev/null || echo "")
+    if [[ -n "$old_pid" ]] && ! kill -0 "$old_pid" 2>/dev/null; then
+      log_info "Removing stale lock file (PID $old_pid not running)"
+      rm -f "$LOCK_FILE"
+    fi
+  fi
   
-  if ! flock -n 200; then
-    log_error "Another agent instance is already running (lock: $LOCK_FILE)"
+  # Try to create lock file atomically
+  if ! ( set -o noclobber; echo $$ > "$LOCK_FILE" ) 2>/dev/null; then
+    local existing_pid
+    existing_pid=$(cat "$LOCK_FILE" 2>/dev/null || echo "unknown")
+    log_error "Another agent instance is already running (PID: $existing_pid, lock: $LOCK_FILE)"
     log_error "If this is incorrect, remove the lock file and restart"
     return 1
   fi
   
   # Lock acquired - ensure cleanup on exit
-  trap 'flock -u 200 2>/dev/null; rm -f "$LOCK_FILE"' EXIT
-  log_info "Lock acquired: $LOCK_FILE"
+  trap 'rm -f "$LOCK_FILE"' EXIT
+  log_info "Lock acquired: $LOCK_FILE (PID: $$)"
   return 0
 }
 
