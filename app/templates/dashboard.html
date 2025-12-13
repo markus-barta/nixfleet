@@ -665,16 +665,9 @@ font-size: 0.7rem;
 .muted {
 color: var(--fg-gutter);
 margin-left: 0.3rem;
-color: var(--fg-gutter);
 font-family: inherit;
 }
-/* Old version styles removed - using .config-cell and .fleet-cell now */
-color: var(--fg-dark);
-}
-.git-hash.outdated {
-background: rgba(224, 175, 104, 0.2);
-color: var(--yellow);
-}
+
 .outdated-badge {
 display: inline-block;
 margin-left: 0.2rem;
@@ -1264,7 +1257,7 @@ th, td { padding: 0.4rem 0.5rem; }
         <h1><img src="/static/nixfleet_fade_1k.png" alt="NixFleet" class="brand-logo"> NixFleet</h1>
         <p class="subtitle">Simple, unified fleet management for NixOS and macOS</p>
     </div>
-    {% if nixcfg_hash or build_hash %}
+    {% if nixcfg_hash %}
     <div class="source-of-truth" title="Target versions for comparison">
         <span class="sot-header">Target</span>
         <div class="sot-targets">
