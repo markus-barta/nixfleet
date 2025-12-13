@@ -404,7 +404,8 @@ check_prerequisites() {
     exit 1
   fi
 
-  if [[ ! -d "$NIXFLEET_NIXCFG" ]]; then
+  # In isolated mode, the repo will be cloned later; skip directory check
+  if [[ "$ISOLATED_MODE" != "true" && ! -d "$NIXFLEET_NIXCFG" ]]; then
     log_error "nixcfg directory not found: $NIXFLEET_NIXCFG"
     exit 1
   fi
