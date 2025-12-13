@@ -147,7 +147,10 @@ in
         Type = "simple";
         ExecStart = "${agentScript}/bin/nixfleet-agent";
         Restart = "always";
-        RestartSec = 30;
+        RestartSec = 3;
+        # Force restart even when systemd explicitly stops the service during
+        # nixos-rebuild switch. Exit 101 = switch-to-configuration failure.
+        RestartForceExitStatus = "101";
 
         # Read token from file
         EnvironmentFile = cfg.tokenFile;
