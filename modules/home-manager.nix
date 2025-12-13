@@ -51,6 +51,20 @@ in
           "/bin/bash"
           "-c"
           ''
+            # Wait for network to be ready (DNS resolution working)
+            # This prevents timeout errors when launchd starts the agent at boot
+            MAX_WAIT=60
+            WAITED=0
+            while ! /usr/bin/host -W 2 fleet.barta.cm >/dev/null 2>&1; do
+              if [ $WAITED -ge $MAX_WAIT ]; then
+                echo "Warning: Network not ready after ''${MAX_WAIT}s, starting anyway..." >&2
+                break
+              fi
+              sleep 2
+              WAITED=$((WAITED + 2))
+            done
+            [ $WAITED -gt 0 ] && echo "Network ready after ''${WAITED}s" >&2
+
             # Add Nix paths so home-manager is available
             export PATH="$HOME/.nix-profile/bin:/nix/var/nix/profiles/default/bin:/run/current-system/sw/bin:$PATH"
             export NIXFLEET_URL="${cfg.url}"

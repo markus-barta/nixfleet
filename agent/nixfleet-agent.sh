@@ -853,6 +853,28 @@ do_test() {
 }
 
 # ════════════════════════════════════════════════════════════════════════════════
+# Process Locking (prevent duplicate instances)
+# ════════════════════════════════════════════════════════════════════════════════
+
+LOCK_FILE="/tmp/nixfleet-agent-${HOST_ID}.lock"
+
+acquire_lock() {
+  # Open lock file on file descriptor 200
+  exec 200>"$LOCK_FILE"
+  
+  if ! flock -n 200; then
+    log_error "Another agent instance is already running (lock: $LOCK_FILE)"
+    log_error "If this is incorrect, remove the lock file and restart"
+    return 1
+  fi
+  
+  # Lock acquired - ensure cleanup on exit
+  trap 'flock -u 200 2>/dev/null; rm -f "$LOCK_FILE"' EXIT
+  log_info "Lock acquired: $LOCK_FILE"
+  return 0
+}
+
+# ════════════════════════════════════════════════════════════════════════════════
 # Main Loop
 # ════════════════════════════════════════════════════════════════════════════════
 
@@ -871,6 +893,11 @@ main() {
   log_info "Criticality: $CRITICALITY"
   log_info "nixcfg:      $NIXFLEET_NIXCFG"
   log_info "Interval:    ${NIXFLEET_INTERVAL}s"
+
+  # Prevent duplicate agent instances
+  if ! acquire_lock; then
+    exit 1
+  fi
 
   check_prerequisites
 
