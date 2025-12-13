@@ -1,7 +1,8 @@
 # Agent-Managed Isolated Repository
 
 **Created**: 2025-12-13
-**Status**: Backlog
+**Completed**: 2025-12-13
+**Status**: Done
 **Priority**: High
 
 ## Problem
@@ -122,10 +123,10 @@ The agent would use `GIT_SSH_COMMAND="ssh -i $SSH_KEY_FILE"` for Git operations.
 
 ## Acceptance Criteria
 
-- [ ] Agent clones from remote URL on first run
-- [ ] Pull command uses `git reset --hard` instead of `git pull`
-- [ ] Repo directory has restricted permissions (0700, agent-only)
-- [ ] SSH key authentication works for private repos
-- [ ] Update command handles push conflicts gracefully
-- [ ] Legacy `configRepo` still works with deprecation warning
-- [ ] Documentation updated with new configuration
+- [x] Agent clones from remote URL on first run
+- [x] Pull command uses `git reset --hard` instead of `git pull`
+- [x] Repo directory has restricted permissions (0700, agent-only)
+- [x] SSH key authentication works for private repos
+- [x] Update command handles push conflicts gracefully (falls back to pull+switch in HTTPS mode)
+- [x] Legacy `configRepo` still works with deprecation warning
+- [x] Documentation updated with new configuration
