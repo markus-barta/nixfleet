@@ -470,6 +470,20 @@ jinja_env = Environment(
 )
 
 
+def format_time_short(value: str | None) -> str:
+    """Format an ISO timestamp as HH:MM:SS for status log entries."""
+    if not value:
+        return "--:--"
+    try:
+        dt = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        return dt.strftime("%H:%M")
+    except (ValueError, AttributeError):
+        return "--:--"
+
+
+jinja_env.filters["time_short"] = format_time_short
+
+
 def render_template(name: str, **context) -> str:
     """Render a Jinja2 template with context."""
     template = jinja_env.get_template(name)

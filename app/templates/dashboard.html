@@ -1448,19 +1448,19 @@ tr:hover .status .hb-countdown {
                             <div class="status-entries">
                                 {% if host.test_running %}
                                 <div class="status-entry">
-                                    <span class="status-ts">now</span>
+                                    <span class="status-ts">{{ host.last_seen | time_short }}</span>
                                     <span class="status-icon">🧪</span>
                                     <span class="status-msg">Testing {{ host.test_current }}/{{ host.test_total }}</span>
                                 </div>
                                 {% elif host.pending_command %}
                                 <div class="status-entry">
-                                    <span class="status-ts">now</span>
+                                    <span class="status-ts">{{ host.command_queued_at | time_short }}</span>
                                     <span class="status-icon">⏳</span>
                                     <span class="status-msg">{{ host.pending_command }}...</span>
                                 </div>
                                 {% elif host.comment %}
                                 <div class="status-entry">
-                                    <span class="status-ts">now</span>
+                                    <span class="status-ts">{{ host.last_seen | time_short }}</span>
                                     <span class="status-icon">{{ '✗' if host.status == 'error' else '✓' }}</span>
                                     <span class="status-msg">{{ host.comment }}</span>
                                 </div>
@@ -1812,6 +1812,18 @@ function formatRelativeTime(seconds) {
     return `${Math.floor(seconds / 86400)}d ago`;
 }
 
+// Format time as HH:MM for status log entries
+function formatTimeShort(date) {
+    const h = date.getHours().toString().padStart(2, '0');
+    const min = date.getMinutes().toString().padStart(2, '0');
+    return `${h}:${min}`;
+}
+
+// Get current time as HH:MM
+function getCurrentTimeShort() {
+    return formatTimeShort(new Date());
+}
+
 // Parse UTC timestamp (may or may not have Z suffix)
 function parseUTC(ts) {
     if (!ts) return null;
@@ -1882,7 +1894,7 @@ async function sendCommand(hostId, command) {
         };
         const newEntry = document.createElement('div');
         newEntry.className = 'status-entry';
-        newEntry.innerHTML = `<span class="status-ts">now</span><span class="status-icon">${commandIcons[command] || '⏳'}</span><span class="status-msg">${commandLabels[command] || command + '...'}</span>`;
+        newEntry.innerHTML = `<span class="status-ts">${getCurrentTimeShort()}</span><span class="status-icon">${commandIcons[command] || '⏳'}</span><span class="status-msg">${commandLabels[command] || command + '...'}</span>`;
         statusEntries.insertBefore(newEntry, statusEntries.firstChild);
         
         const statusCell = row.querySelector('.status-cell');
@@ -1986,7 +1998,7 @@ async function sendBulkCommand(command) {
                         };
                         const newEntry = document.createElement('div');
                         newEntry.className = 'status-entry';
-                        newEntry.innerHTML = `<span class="status-ts">now</span><span class="status-icon">${commandIcons[command] || '⏳'}</span><span class="status-msg">${commandLabels[command] || command + '...'}</span>`;
+                        newEntry.innerHTML = `<span class="status-ts">${getCurrentTimeShort()}</span><span class="status-icon">${commandIcons[command] || '⏳'}</span><span class="status-msg">${commandLabels[command] || command + '...'}</span>`;
                         statusEntries.insertBefore(newEntry, statusEntries.firstChild);
                         
                         const statusCell = row.querySelector('.status-cell');
