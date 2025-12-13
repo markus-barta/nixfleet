@@ -700,6 +700,33 @@ do_pull() {
   fi
 }
 
+do_pull_reset() {
+  log_info "Executing: git pull-reset (reset flake.lock conflicts)"
+  cd "$NIXFLEET_NIXCFG"
+
+  local output
+  local reset_output=""
+  
+  # Check if flake.lock has local changes
+  if ! git diff --quiet flake.lock 2>/dev/null; then
+    log_info "Resetting local changes to flake.lock"
+    reset_output="Reset flake.lock; "
+    git checkout -- flake.lock 2>&1 || true
+  fi
+
+  # Now pull
+  if output=$(git pull 2>&1); then
+    log_info "Pull successful"
+    refresh_git_hash >/dev/null # Update cached hash after pull
+    report_status "ok" "$(get_generation)" "${reset_output}${output}"
+    return 0
+  else
+    log_error "Pull failed even after reset"
+    report_status "error" "$(get_generation)" "${reset_output}${output}"
+    return 1
+  fi
+}
+
 do_switch() {
   log_info "Executing: switch ($HOST_TYPE)"
   cd "$NIXFLEET_NIXCFG"
@@ -943,6 +970,9 @@ main() {
       case "$command" in
       pull)
         do_pull || true
+        ;;
+      pull-reset)
+        do_pull_reset || true
         ;;
       switch)
         do_switch || true

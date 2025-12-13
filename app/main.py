@@ -952,7 +952,7 @@ class HostUpdate(BaseModel):
 
 class CommandRequest(BaseModel):
     """Model for command queue requests."""
-    command: str = Field(..., pattern="^(pull|switch|pull-switch|test|stop|restart|update)$")
+    command: str = Field(..., pattern="^(pull|pull-reset|switch|pull-switch|test|stop|restart|update)$")
 
 
 # ============================================================================
