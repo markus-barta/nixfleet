@@ -12,10 +12,11 @@ body::before {
 content: '';
 position: fixed;
 top: 0;
-left: 0;
+left: 50%;
+transform: translateX(-50%);
 width: 500px;
 height: 440px;
-background: url('/static/nixfleet_fade.png') no-repeat top left;
+background: url('/static/nixfleet_fade.png') no-repeat top center;
 background-size: 100% 100%;
 opacity: 0.3;
 pointer-events: none;
@@ -58,7 +59,7 @@ gap: 0.5rem;
 }
 
 .brand-logo {
-display: none; /* Hidden - enable with: display: inline; height: 40px; */
+display: inline;
 height: 40px;
 width: auto;
 }
@@ -141,6 +142,7 @@ gap: 1rem;
 }
 
 .sot-target {
+position: relative;
 display: flex;
 align-items: center;
 gap: 0.3rem;
@@ -303,6 +305,7 @@ background: var(--bg-dark);
 border-radius: 8px;
 border: 1px solid var(--border);
 overflow: visible;
+opacity: 0.9;
 }
 
 table {
