@@ -85,42 +85,9 @@ in
       };
     };
 
-    # Force launchd to reload the agent after EVERY home-manager switch
-    # This ensures the agent always restarts with the correct nix store path
-    # The agent may have died during switch, so we always force a reload
-    home.activation.reloadNixfleetAgent = lib.mkIf pkgs.stdenv.isDarwin (
-      lib.hm.dag.entryAfter [ "setupLaunchAgents" ] ''
-        LABEL="com.nixfleet.agent"
-        PLIST="$HOME/Library/LaunchAgents/com.nixfleet.agent.plist"
-        USER_ID=$(/usr/bin/id -u)
-
-        if [ -f "$PLIST" ]; then
-          echo "NixFleet: Reloading agent to ensure correct version..."
-          
-          # Always unload first (agent may be dead or running old version)
-          /bin/launchctl bootout gui/$USER_ID/$LABEL 2>/dev/null || true
-          
-          # Wait for bootout to complete
-          sleep 2
-          
-          # Kill any orphaned processes (agent may have been killed mid-switch)
-          /usr/bin/pkill -9 -f nixfleet-agent 2>/dev/null || true
-          
-          # Remove stale lock files
-          /bin/rm -f /tmp/nixfleet-agent-*.lock 2>/dev/null || true
-          
-          # Brief pause to ensure cleanup
-          sleep 1
-          
-          # Load the fresh agent
-          /bin/launchctl bootstrap gui/$USER_ID "$PLIST" 2>/dev/null || \
-            /bin/launchctl load "$PLIST" 2>/dev/null || \
-            echo "Warning: Failed to load NixFleet agent"
-          
-          echo "NixFleet: Agent reload complete"
-        fi
-      ''
-    );
+    # NOTE: No custom activation hook needed - home-manager's setupLaunchAgents
+    # already handles agent lifecycle (bootout → bootstrap) correctly.
+    # A previous custom hook was causing double-reloads that left the agent dead.
 
     # Linux systemd user service
     systemd.user.services.nixfleet-agent = lib.mkIf pkgs.stdenv.isLinux {
