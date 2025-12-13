@@ -92,13 +92,13 @@ in
       lib.hm.dag.entryAfter [ "setupLaunchAgents" ] ''
         LABEL="com.nixfleet.agent"
         PLIST="$HOME/Library/LaunchAgents/com.nixfleet.agent.plist"
-        UID=$(/usr/bin/id -u)
+        USER_ID=$(/usr/bin/id -u)
 
         if [ -f "$PLIST" ]; then
           echo "NixFleet: Reloading agent to ensure correct version..."
           
           # Always unload first (agent may be dead or running old version)
-          /bin/launchctl bootout gui/$UID/$LABEL 2>/dev/null || true
+          /bin/launchctl bootout gui/$USER_ID/$LABEL 2>/dev/null || true
           
           # Kill any orphaned processes (agent may have been killed mid-switch)
           /usr/bin/pkill -9 -f nixfleet-agent 2>/dev/null || true
@@ -110,7 +110,7 @@ in
           sleep 1
           
           # Load the fresh agent
-          /bin/launchctl bootstrap gui/$UID "$PLIST" 2>/dev/null || \
+          /bin/launchctl bootstrap gui/$USER_ID "$PLIST" 2>/dev/null || \
             /bin/launchctl load "$PLIST" 2>/dev/null || \
             echo "Warning: Failed to load NixFleet agent"
           
