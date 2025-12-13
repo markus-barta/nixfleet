@@ -693,11 +693,11 @@ do_pull() {
   if output=$(git pull 2>&1); then
     log_info "Pull successful"
     refresh_git_hash >/dev/null # Update cached hash after pull
-    report_status "ok" "$(get_generation)" "$output"
+    report_status "ok" "$(get_generation)" "Pull: $output"
     return 0
   else
     log_error "Pull failed"
-    report_status "error" "$(get_generation)" "$output"
+    report_status "error" "$(get_generation)" "Pull failed: $output"
     return 1
   fi
 }
@@ -727,11 +727,11 @@ do_pull_reset() {
   if output=$(git pull 2>&1); then
     log_info "Pull successful"
     refresh_git_hash >/dev/null # Update cached hash after pull
-    report_status "ok" "$(get_generation)" "${reset_output}${output}"
+    report_status "ok" "$(get_generation)" "Pull-reset: ${reset_output}${output}"
     return 0
   else
     log_error "Pull failed even after reset"
-    report_status "error" "$(get_generation)" "${reset_output}${output}"
+    report_status "error" "$(get_generation)" "Pull-reset failed: ${reset_output}${output}"
     return 1
   fi
 }
@@ -769,9 +769,9 @@ do_switch() {
   gen="$(get_generation)"
 
   if [[ $exit_code -eq 0 ]]; then
-    report_status "ok" "$gen" "$output"
+    report_status "ok" "$gen" "Switch: $output"
   else
-    report_status "error" "$gen" "$output"
+    report_status "error" "$gen" "Switch failed: $output"
   fi
 
   return $exit_code
@@ -788,7 +788,7 @@ do_update() {
 
   # Update nixfleet input
   log_info "Updating nixfleet flake input..."
-  report_status "ok" "$(get_generation)" "Updating flake..."
+  report_status "ok" "$(get_generation)" "Update: Updating flake..."
   
   local update_output
   if command -v timeout &>/dev/null; then
@@ -796,11 +796,11 @@ do_update() {
     if ! update_output=$(timeout "$FLAKE_TIMEOUT" nix flake update nixfleet 2>&1); then
       if [[ $? -eq 124 ]]; then
         log_error "Flake update timed out after ${FLAKE_TIMEOUT}s"
-        report_status "error" "$(get_generation)" "Flake update timed out after ${FLAKE_TIMEOUT}s"
+        report_status "error" "$(get_generation)" "Update failed: Flake update timed out after ${FLAKE_TIMEOUT}s"
         return 1
       fi
       log_error "Flake update failed"
-      report_status "error" "$(get_generation)" "$update_output"
+      report_status "error" "$(get_generation)" "Update failed: $update_output"
       return 1
     fi
   else
@@ -814,7 +814,7 @@ do_update() {
       if [[ $elapsed -ge $FLAKE_TIMEOUT ]]; then
         kill -9 "$pid" 2>/dev/null || true
         log_error "Flake update timed out after ${FLAKE_TIMEOUT}s"
-        report_status "error" "$(get_generation)" "Flake update timed out after ${FLAKE_TIMEOUT}s"
+        report_status "error" "$(get_generation)" "Update failed: Flake update timed out after ${FLAKE_TIMEOUT}s"
         return 1
       fi
     done
@@ -822,7 +822,7 @@ do_update() {
     local exit_code=$?
     if [[ $exit_code -ne 0 ]]; then
       log_error "Flake update failed (exit $exit_code)"
-      report_status "error" "$(get_generation)" "Flake update failed (exit $exit_code)"
+      report_status "error" "$(get_generation)" "Update failed: Flake update failed (exit $exit_code)"
       return 1
     fi
   fi
@@ -832,7 +832,7 @@ do_update() {
   # Check if flake.lock changed
   if git diff --quiet flake.lock 2>/dev/null; then
     log_info "No changes to flake.lock (already up to date)"
-    report_status "ok" "$(get_generation)" "Already up to date"
+    report_status "ok" "$(get_generation)" "Update: Already up to date"
   else
     # Commit and push the change
     log_info "Committing flake.lock update..."
@@ -840,7 +840,7 @@ do_update() {
     git commit -m "chore: Update nixfleet flake input"
 
     log_info "Pushing to remote..."
-    report_status "ok" "$(get_generation)" "Pushing flake.lock..."
+    report_status "ok" "$(get_generation)" "Update: Pushing flake.lock..."
     
     # Use timeout for git push (can hang on auth prompts)
     local push_failed=false
@@ -888,7 +888,7 @@ do_update() {
   refresh_git_hash >/dev/null
 
   # Now rebuild with the updated flake
-  report_status "ok" "$(get_generation)" "Rebuilding..."
+  report_status "ok" "$(get_generation)" "Update: Rebuilding..."
   do_switch
 }
 
@@ -901,7 +901,7 @@ do_test() {
   if [[ ! -d "$test_dir" ]]; then
     log_info "No tests directory"
     report_test_progress 0 0 0 false "no tests"
-    report_status "ok" "$(get_generation)" "No tests found" "no tests"
+    report_status "ok" "$(get_generation)" "Test: No tests found" "no tests"
     return 0
   fi
 
@@ -915,7 +915,7 @@ do_test() {
   if [[ $total -eq 0 ]]; then
     log_info "No test scripts found in $test_dir"
     report_test_progress 0 0 0 false "no tests"
-    report_status "ok" "$(get_generation)" "No test scripts found" "no tests"
+    report_status "ok" "$(get_generation)" "Test: No test scripts found" "no tests"
     return 0
   fi
 
@@ -957,9 +957,9 @@ do_test() {
   report_test_progress "$total" "$total" "$passed" false "$test_status" "$fail_comment"
 
   if [[ $failed -eq 0 ]]; then
-    report_status "ok" "$(get_generation)" "$output" "$test_status"
+    report_status "ok" "$(get_generation)" "Test: $output" "$test_status"
   else
-    report_status "error" "$(get_generation)" "$output" "$test_status"
+    report_status "error" "$(get_generation)" "Test failed: $output" "$test_status"
   fi
 
   return $failed
