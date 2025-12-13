@@ -2492,12 +2492,12 @@ function renderStatusHistory(hostId, history) {
     entries.innerHTML = html || '<div class="status-entry muted"><span class="status-msg">No activity yet</span></div>';
 }
 
-// Format timestamp for history display (HH:MM)
+// Format timestamp for history display (HH:MM:SS) - uses central formatTimeShort
 function formatHistoryTimestamp(isoString) {
     if (!isoString) return '';
     try {
         const d = new Date(isoString);
-        return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+        return formatTimeShort(d);  // Use central function for consistency
     } catch {
         return '';
     }
