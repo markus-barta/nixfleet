@@ -11,9 +11,9 @@ position: relative;
 body::before {
 content: '';
 position: fixed;
-top: 50%;
+top: 25%;
 left: 50%;
-transform: translate(-50%, -50%);
+transform: translate(-50%, -25%);
 width: 500px;
 height: 440px;
 background: url('/static/nixfleet_fade_1k.png') no-repeat top center;
@@ -349,11 +349,11 @@ tr:last-child td { border-bottom: none; }
 tr:hover td { background: rgba(41, 46, 66, 0.5); }
 
 /* 50% black overlay for offline hosts */
-tr[data-online="false"] {
+tr[data-online="false"] td {
 position: relative;
 }
 
-tr[data-online="false"]::before {
+tr[data-online="false"] td::before {
 content: '';
 position: absolute;
 top: 0;
