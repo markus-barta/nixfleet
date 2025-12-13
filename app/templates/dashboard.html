@@ -1155,6 +1155,17 @@ transition: color 0.15s;
 .footer-link:hover { color: var(--fg); }
 .footer-link svg { width: 14px; height: 14px; }
 
+.server-host {
+display: inline-flex;
+align-items: center;
+gap: 0.3rem;
+color: var(--fg-dark);
+font-size: 0.85rem;
+}
+.server-host img {
+opacity: 0.7;
+}
+
 .build-hash {
 font-size: 0.7rem;
 text-decoration: none;
@@ -2831,6 +2842,10 @@ th, td { padding: 0.4rem 0.5rem; }
 <footer class="site-footer">
     <div class="footer-left">
         <span>NixFleet {{ version }}</span>
+        <span class="server-host">
+            <img src="/static/nixfleet_favicon.png" alt="" width="14" height="14">
+            {{ server_hostname }}
+        </span>
         <a href="https://github.com/markus-barta/nixfleet" class="footer-link" target="_blank">
             <svg>
                 <use href="#icon-github" />
