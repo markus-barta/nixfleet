@@ -1166,6 +1166,21 @@ font-size: 0.85rem;
 opacity: 0.7;
 }
 
+/* NixFleet server indicator in host list */
+.server-indicator {
+display: inline-block;
+width: 12px;
+height: 12px;
+margin-left: 0.3rem;
+vertical-align: middle;
+opacity: 0.6;
+animation: server-pulse 3s ease-in-out infinite;
+}
+@keyframes server-pulse {
+0%, 100% { opacity: 0.5; transform: scale(1); }
+50% { opacity: 0.8; transform: scale(1.05); }
+}
+
 .build-hash {
 font-size: 0.7rem;
 text-decoration: none;
@@ -1509,7 +1524,7 @@ th, td { padding: 0.4rem 0.5rem; }
                         <span class="status-dot offline"></span>
                         {% endif %}
                     </span>
-                    <span class="hostname host-color-{{ host.id }}">{{ host.hostname }}</span>
+                    <span class="hostname host-color-{{ host.id }}">{{ host.hostname }}{% if host.id == server_hostname %}<img src="/static/nixfleet_favicon.png" alt="NixFleet Server" class="server-indicator" title="NixFleet dashboard runs here">{% endif %}</span>
                 </td>
                 <td class="os-cell host-color-{{ host.id }}"
                     title="{{ host.os_name or 'Unknown' }} {{ host.os_version or '' }}{% if host.nixpkgs_version %} | nixpkgs: {{ host.nixpkgs_version }}{% endif %}">
@@ -2842,10 +2857,6 @@ th, td { padding: 0.4rem 0.5rem; }
 <footer class="site-footer">
     <div class="footer-left">
         <span>NixFleet {{ version }}</span>
-        <span class="server-host">
-            <img src="/static/nixfleet_favicon.png" alt="" width="14" height="14">
-            {{ server_hostname }}
-        </span>
         <a href="https://github.com/markus-barta/nixfleet" class="footer-link" target="_blank">
             <svg>
                 <use href="#icon-github" />

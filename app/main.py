@@ -2167,8 +2167,8 @@ async def dashboard(request: Request):
         latest_hash=latest_hash[:7] if latest_hash else None,
         # NixFleet build hash for footer
         build_hash=build_hash[:7] if build_hash else None,
-        # Server hostname for footer
-        server_hostname=socket.gethostname(),
+        # Server hostname (env var for Docker, fallback to socket)
+        server_hostname=os.environ.get("NIXFLEET_SERVER_HOST", socket.gethostname()),
         csrf_token=csrf_token,
         action_lock_max_seconds=UI_ACTION_LOCK_MAX_SECONDS,
         csp_nonce=getattr(request.state, "csp_nonce", ""),
