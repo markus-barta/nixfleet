@@ -1313,13 +1313,6 @@ th, td { padding: 0.4rem 0.5rem; }
                     </svg>
                     Pull All
                 </button>
-                <button class="dropdown-item" type="button" data-action="bulk-command" data-command="pull-reset"
-                    title="Reset flake.lock conflicts and pull on all online hosts">
-                    <svg>
-                        <use href="#icon-download" />
-                    </svg>
-                    Pull Reset All
-                </button>
                 <button class="dropdown-item" type="button" data-action="bulk-command" data-command="switch"
                     title="Rebuild and switch all online hosts">
                     <svg>
@@ -1677,15 +1670,6 @@ th, td { padding: 0.4rem 0.5rem; }
                                     </svg>
                                     Restart Agent
                                 </button>
-                                <button class="dropdown-item" type="button" data-action="send-command"
-                                    data-host-id="{{ host.id }}" data-command="pull-reset" {% if not host.online or
-                                    host.pending_command or host.test_running %}disabled{% endif %}
-                                    title="Reset flake.lock conflicts and pull">
-                                    <svg>
-                                        <use href="#icon-download" />
-                                    </svg>
-                                    Pull Reset
-                                </button>
                                 <div class="dropdown-divider"></div>
                                 <button class="dropdown-item" type="button" data-action="download-logs"
                                     data-host-id="{{ host.id }}" title="Download full status log">
@@ -2013,7 +1997,6 @@ th, td { padding: 0.4rem 0.5rem; }
         if (statusEntries) {
             const commandLabels = {
                 'pull': 'Pulling...',
-                'pull-reset': 'Pull Reset...',
                 'switch': 'Switching...',
                 'pull-switch': 'Pull & Switch...',
                 'test': 'Testing...',
@@ -2021,7 +2004,6 @@ th, td { padding: 0.4rem 0.5rem; }
             };
             const commandIcons = {
                 'pull': '⧖',
-                'pull-reset': '⧖',
                 'switch': '⧖',
                 'pull-switch': '⧖',
                 'test': '✦',
