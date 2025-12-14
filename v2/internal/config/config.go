@@ -29,6 +29,9 @@ type Config struct {
 
 	// Derived
 	Hostname string // System hostname
+
+	// System info (can be overridden via env)
+	NixpkgsVersion string // nixpkgs version from environment
 }
 
 // DefaultConfig returns a config with default values.
@@ -111,6 +114,9 @@ func LoadFromEnv() (*Config, error) {
 	if hostname := os.Getenv("NIXFLEET_HOSTNAME"); hostname != "" {
 		cfg.Hostname = hostname
 	}
+
+	// Override nixpkgs version if specified (for macOS/Home Manager)
+	cfg.NixpkgsVersion = os.Getenv("NIXFLEET_NIXPKGS_VERSION")
 
 	return cfg, nil
 }

@@ -84,6 +84,17 @@ let
         to the current nixfleet version. You can override it for testing.
       '';
     };
+
+    nixpkgsVersion = lib.mkOption {
+      type = lib.types.str;
+      default = "";
+      description = ''
+        The nixpkgs version/commit to report. This should be set to the
+        nixpkgs input revision (e.g., inputs.nixpkgs.shortRev) in flake.nix.
+        If empty, the agent attempts to detect it automatically.
+      '';
+      example = "24.05pre123456";
+    };
   };
 
   # Build the Go agent package
@@ -101,7 +112,8 @@ let
       NIXFLEET_INTERVAL = toString cfg.interval;
       NIXFLEET_LOG_LEVEL = cfg.logLevel;
     }
-    // lib.optionalAttrs (cfg.hostname != "") { NIXFLEET_HOSTNAME = cfg.hostname; };
+    // lib.optionalAttrs (cfg.hostname != "") { NIXFLEET_HOSTNAME = cfg.hostname; }
+    // lib.optionalAttrs (cfg.nixpkgsVersion != "") { NIXFLEET_NIXPKGS_VERSION = cfg.nixpkgsVersion; };
 in
 {
   inherit mkCommonOptions mkAgentScript mkEnvironment;

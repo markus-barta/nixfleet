@@ -161,14 +161,18 @@ func (a *Agent) detectOSVersion() string {
 
 // detectNixpkgsVersion returns the nixpkgs version.
 func (a *Agent) detectNixpkgsVersion() string {
-	// Try to read from nixos-version
+	// First check if version was passed via environment (for macOS/Home Manager)
+	if a.cfg.NixpkgsVersion != "" {
+		return a.cfg.NixpkgsVersion
+	}
+
+	// Try to read from nixos-version (NixOS systems)
 	data, err := os.ReadFile("/run/current-system/nixos-version")
 	if err == nil {
 		return strings.TrimSpace(string(data))
 	}
 
-	// Fallback: run nix-instantiate
-	// For now, return empty - we can add exec later
+	// Fallback: return empty
 	return ""
 }
 
