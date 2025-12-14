@@ -90,10 +90,30 @@ cd v2 && go test -run TestAgentHeartbeat_DuringCommand ./tests/integration/...
 | T04-dashboard-auth      | 🟢 Passing | 7     | P4200        |
 | T05-dashboard-websocket | 🟢 Passing | 6     | P4200        |
 | T06-dashboard-commands  | 🟢 Passing | 6     | P4200        |
-| T07-e2e-deploy-flow     | 🔴 Pending | 0     | P4200        |
+| T07-e2e-deploy-flow     | 🟡 Skipped | 2     | P4200        |
 | T08-e2e-test-flow       | 🔴 Pending | 0     | P4200        |
 
-Legend: 🟢 Passing | 🟡 Partial | 🔴 Pending
+Legend: 🟢 Passing | 🟡 Skipped (needs env) | 🔴 Pending
+
+### Running E2E Tests
+
+E2E tests require environment variables:
+
+```bash
+# Against production v1 dashboard
+E2E_DASHBOARD_URL=wss://fleet.barta.cm/ws \
+E2E_PASSWORD='your-password' \
+E2E_HOSTS=mba-mbp-work \
+go test -v ./v2/tests/integration/... -run TestE2E
+
+# Against local v2 dashboard
+E2E_DASHBOARD_URL=ws://localhost:8000/ws \
+E2E_PASSWORD='test-password' \
+E2E_HOSTS=mba-mbp-work,hsb1 \
+go test -v ./v2/tests/integration/... -run TestE2E
+```
+
+See `v2/tests/integration/t07_e2e_deploy_test.go` for details.
 
 ---
 
