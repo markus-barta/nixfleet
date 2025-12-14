@@ -408,6 +408,7 @@ templ Base(title string, csrfToken string) {
 				height: 10px;
 				opacity: 0.7;
 				flex-shrink: 0;
+				margin-right: -10px;
 			}
 
 			/* Metrics display */
@@ -427,13 +428,14 @@ templ Base(title string, csrfToken string) {
 			.metric {
 				display: inline-flex;
 				align-items: center;
-				justify-content: flex-end;
 				gap: 0;
 				color: var(--fg-dark);
-				min-width: 3.5rem;
 			}
 
 			.metric-val {
+				display: inline-block;
+				width: 4ch;
+				text-align: right;
 			}
 
 			.metric.high {
