@@ -51,15 +51,25 @@ For v2.0 rewrite:
 2. Look for connection details (IP, SSH config, jump hosts, VPN requirements)
 3. NixFleet runs on **csb1** - check `nixcfg/hosts/csb1/README.md` for access info
 
-Example: To deploy NixFleet updates:
+Example: To deploy NixFleet dashboard updates:
 
 ```bash
-# Check csb1 runbook first for connection details
-cat ~/Code/nixcfg/hosts/csb1/README.md
+# 1. SSH to csb1
+ssh mba@cs1.barta.cm -p 2222
 
-# Then connect and update
-ssh csb1 "cd ~/docker/nixfleet && git pull && ./update.sh"
+# 2. Pull latest nixfleet code
+cd ~/docker/nixfleet && git pull
+
+# 3. Rebuild and restart from MAIN docker-compose (NOT the nixfleet subdirectory!)
+cd ~/docker
+docker compose build --no-cache nixfleet
+docker compose up -d nixfleet
+
+# 4. Verify
+docker logs nixfleet --tail 20
 ```
+
+⚠️ **CRITICAL**: The dashboard is defined in `~/docker/docker-compose.yml`, NOT in the nixfleet repo's docker folder!
 
 ---
 

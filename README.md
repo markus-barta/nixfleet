@@ -217,19 +217,43 @@ uvicorn main:app --reload
 
 ### Deploying Dashboard Updates
 
-The dashboard runs on **csb1** in `~/docker/nixfleet`. Use the `update.sh` script:
+The v2 dashboard runs on **csb1** as part of the main docker-compose stack.
+
+### Deployment Steps
 
 ```bash
-# SSH to csb1 and run update script
-ssh mba@cs1.barta.cm -p 2222 "cd ~/docker/nixfleet && ./update.sh"
+# 1. SSH to csb1
+ssh mba@cs1.barta.cm -p 2222
+
+# 2. Pull latest nixfleet code
+cd ~/docker/nixfleet && git pull
+
+# 3. Rebuild and restart from MAIN docker-compose
+cd ~/docker
+docker compose build --no-cache nixfleet
+docker compose up -d nixfleet
+
+# 4. Verify
+docker logs nixfleet --tail 20
+curl -s https://fleet.barta.cm/health
 ```
 
-The `update.sh` script:
+### Important Notes
 
-1. Pulls latest from git
-2. Extracts version info for embedding
-3. Rebuilds the Docker container
-4. Restarts the service
+- **DO NOT** use `docker/docker-compose.csb1.yml` in the nixfleet repo - it's outdated
+- The main compose is `~/docker/docker-compose.yml` which builds from `./nixfleet/v2/`
+- Environment variables are in `~/secrets/nixfleet.env`
+- Go module path is `github.com/markus-barta/nixfleet` (NOT pbek!)
+
+### Environment Variables (v2)
+
+| Variable                  | Required | Description                          |
+| ------------------------- | -------- | ------------------------------------ |
+| `NIXFLEET_PASSWORD_HASH`  | Yes      | bcrypt hash of admin password        |
+| `NIXFLEET_SESSION_SECRET` | Yes      | Secret for session cookies           |
+| `NIXFLEET_AGENT_TOKEN`    | Yes      | Shared agent authentication token    |
+| `NIXFLEET_TOTP_SECRET`    | No       | TOTP secret for 2FA                  |
+| `NIXFLEET_LOG_LEVEL`      | No       | Log level (debug, info, warn, error) |
 
 ### Updating Agent on Hosts
 
