@@ -69,6 +69,10 @@ func (s *Server) setupRouter() {
 	r.Use(middleware.Recoverer)
 	r.Use(s.securityHeaders)
 
+	// Static files
+	fs := http.FileServer(http.Dir("static"))
+	r.Handle("/static/*", http.StripPrefix("/static/", fs))
+
 	// Public routes
 	r.Get("/health", s.handleHealth)
 	r.Get("/login", s.handleLoginPage)

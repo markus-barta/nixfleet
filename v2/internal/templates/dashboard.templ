@@ -48,8 +48,11 @@ templ Dashboard(data DashboardData) {
 	@Base("NixFleet Dashboard", data.CSRFToken) {
 		<header>
 			<div class="brand">
-				<h1>NixFleet</h1>
-				<div class="subtitle">Fleet Management Dashboard</div>
+				<h1>
+					<img src="/static/nixfleet_fade_1k.png" alt="" class="brand-logo"/>
+					NixFleet
+				</h1>
+				<div class="subtitle">Simple, unified fleet management for NixOS and macOS</div>
 			</div>
 			<div class="header-actions">
 				<form method="POST" action="/logout" style="display: inline;">
