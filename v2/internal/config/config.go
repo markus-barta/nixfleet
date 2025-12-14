@@ -39,7 +39,7 @@ type Config struct {
 func DefaultConfig() *Config {
 	return &Config{
 		Branch:            "main",
-		HeartbeatInterval: 30 * time.Second,
+		HeartbeatInterval: 5 * time.Second,
 		LogLevel:          "info",
 		Hostname:          getStableHostname(),
 	}

@@ -333,7 +333,8 @@ templ Dashboard(data DashboardData) {
 				const date = new Date(isoString);
 				const now = new Date();
 				const diffMs = now - date;
-				const diffSec = Math.floor(diffMs / 1000);
+				// Clamp to 0 to handle clock skew (client ahead of server)
+				const diffSec = Math.max(0, Math.floor(diffMs / 1000));
 				
 				// Format the time text
 				let text;
@@ -644,7 +645,7 @@ templ Dashboard(data DashboardData) {
 				});
 			}
 
-			// Update last-seen cells periodically (every 10s)
+			// Update last-seen cells every second for smooth counting
 			function startLastSeenUpdater() {
 				setInterval(() => {
 					document.querySelectorAll('[data-cell="last-seen"]').forEach(cell => {
@@ -655,7 +656,7 @@ templ Dashboard(data DashboardData) {
 							cell.className = result.className;
 						}
 					});
-				}, 10000);
+				}, 1000);
 			}
 
 			// Initialize page

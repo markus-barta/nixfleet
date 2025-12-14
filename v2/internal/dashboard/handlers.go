@@ -203,7 +203,7 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 		},
 		CSRFToken:         session.CSRFToken,
 		Version:           VersionInfo(),
-		HeartbeatInterval: 30, // Default agent heartbeat interval in seconds
+		HeartbeatInterval: 5, // Agent heartbeat interval in seconds
 	}
 
 	w.Header().Set("Content-Type", "text/html")
