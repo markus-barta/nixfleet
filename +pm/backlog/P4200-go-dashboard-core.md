@@ -7,6 +7,18 @@
 
 ---
 
+## Tests to Pass
+
+| Test                                                | Description                      |
+| --------------------------------------------------- | -------------------------------- |
+| [T04](../../tests/specs/T04-dashboard-auth.md)      | Dashboard Authentication         |
+| [T05](../../tests/specs/T05-dashboard-websocket.md) | Dashboard WebSocket              |
+| [T06](../../tests/specs/T06-dashboard-commands.md)  | Dashboard Commands               |
+| [T07](../../tests/specs/T07-e2e-deploy-flow.md)     | E2E Deploy Flow (dashboard part) |
+| [T08](../../tests/specs/T08-e2e-test-flow.md)       | E2E Test Flow (dashboard part)   |
+
+---
+
 ## Overview
 
 Rewrite the NixFleet dashboard in Go with Templ templates, HTMX interactivity, and unified WebSocket.

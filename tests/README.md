@@ -1,175 +1,161 @@
-# NixFleet Test Suite
+# NixFleet Integration Tests
 
-Integration tests for the NixFleet dashboard and agent.
-
-## Quick Stats
-
-- **Total Tests**: 4 integration tests
-- **Unit Tests**: 1 (security)
-
-## Test List
-
-| Test ID | Feature           | 🤖 Auto Last Run | Notes                                      |
-| ------- | ----------------- | ---------------- | ------------------------------------------ |
-| T00     | Heartbeat/Metrics | ✅ 2025-12-13    | Registration, heartbeat, host info display |
-| T01     | Pull Command      | ✅ 2025-12-13    | Git pull via dashboard command             |
-| T02     | Switch Command    | ✅ 2025-12-13    | NixOS/home-manager switch via dashboard    |
-| T03     | Update Agent      | ✅ 2025-12-13    | Agent self-update via dashboard            |
-
-## Test Types
-
-### 1. Integration Tests (Shell scripts)
-
-**Location:** `tests/T*.sh` with matching `T*.md` documentation
-
-Shell scripts that test the full agent ↔ dashboard flow:
-
-- Agent registration and heartbeats
-- Command dispatch and execution
-- Status reporting and metrics
-
-```bash
-# Run individual test
-./tests/T00-heartbeat-metrics.sh
-
-# Run all integration tests
-for t in tests/T*.sh; do bash "$t"; done
-```
-
-### 2. Unit Tests (Python)
-
-**Location:** `tests/test_*.py`
-
-Python tests using FastAPI TestClient for API endpoint testing:
-
-- Security headers (CSP, CSRF)
-- Authentication flows
-- Input validation
-
-```bash
-# Run Python tests
-cd tests && python -m pytest test_security.py -v
-```
-
-## Prerequisites
-
-Before running integration tests, ensure:
-
-1. **Dashboard running** at the configured URL
-2. **Agent token** available (for authenticated tests)
-3. **Git repository** accessible (for pull/switch tests)
-
-### Environment Variables
-
-```bash
-export NIXFLEET_TEST_URL="https://fleet.barta.cm"      # Dashboard URL
-export NIXFLEET_TEST_TOKEN="your-agent-token"          # Shared agent token
-export NIXFLEET_TEST_HOST="test-host"                  # Test hostname
-export NIXFLEET_NIXCFG="/path/to/nixcfg"               # nixcfg repo path
-```
-
-## Test Naming Convention
-
-```
-T##-descriptive-name.sh   # Automated test
-T##-descriptive-name.md   # Manual procedures + documentation
-```
-
-## Writing Tests
-
-### Shell Test Template
-
-```bash
-#!/usr/bin/env bash
-# Test T##: Feature Name
-# Description: What this test verifies
-
-set -euo pipefail
-
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-
-# Colors
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m'
-
-PASSED=0
-FAILED=0
-
-pass() { echo -e "${GREEN}✅${NC} $1"; ((PASSED++)); }
-fail() { echo -e "${RED}❌${NC} $1"; ((FAILED++)); }
-info() { echo -e "${YELLOW}ℹ️${NC} $1"; }
-
-# ════════════════════════════════════════════════════════════════════════════════
-echo "=== T##: Feature Name ==="
-echo ""
-
-# Test 1: Description
-if [[ some_condition ]]; then
-    pass "Test description"
-else
-    fail "Test description: reason"
-fi
-
-# ════════════════════════════════════════════════════════════════════════════════
-# SUMMARY
-# ════════════════════════════════════════════════════════════════════════════════
-echo ""
-echo "=== Summary ==="
-echo -e "Passed: ${GREEN}${PASSED}${NC}"
-echo -e "Failed: ${RED}${FAILED}${NC}"
-
-[[ $FAILED -gt 0 ]] && exit 1
-exit 0
-```
-
-### Documentation Template (.md)
-
-```markdown
-# T##: Feature Name
-
-Test the Feature Name functionality.
-
-## Prerequisites
-
-- List requirements
-
-## Manual Test Procedures
-
-### Test 1: Description
-
-**Steps:**
-
-1. Step one
-2. Step two
-
-**Expected Results:**
-
-- Expected output
-
-**Status:** ⏳ Pending
-
-## Summary
-
-- Total Tests: X
-- Passed: 0
-- Pending: X
-
-## Related
-
-- Automated: [T##-feature-name.sh](./T##-feature-name.sh)
-```
-
-## Related Documentation
-
-- [Agent Script](../agent/nixfleet-agent.sh) - Agent implementation
-- [Dashboard API](../app/main.py) - API endpoints
-- [NixOS Module](../modules/nixos.nix) - NixOS integration
-- [Home Manager Module](../modules/home-manager.nix) - macOS integration
+> **Test-Driven Development**: Tests define expected behavior. Backlog items make tests pass.
 
 ---
 
-**Last Updated**: December 13, 2025  
-**Maintainer**: Markus Barta
+## Philosophy
+
+1. **Tests First**: Write test specs before implementation
+2. **Human-Readable**: Specs in Markdown for humans and AI
+3. **Executable**: Go tests implement the specs
+4. **Main Flows First**: Cover critical paths, then edge cases
+
+---
+
+## Structure
+
+```text
+tests/
+├── README.md                 # This file
+├── specs/                    # Human-readable test specifications
+│   ├── T01-agent-connection.md
+│   ├── T02-agent-heartbeat.md
+│   ├── T03-agent-commands.md
+│   ├── T04-dashboard-auth.md
+│   ├── T05-dashboard-websocket.md
+│   ├── T06-dashboard-commands.md
+│   ├── T07-e2e-deploy-flow.md
+│   └── T08-e2e-test-flow.md
+└── integration/              # Executable Go tests
+    ├── agent_test.go
+    ├── dashboard_test.go
+    └── e2e_test.go
+```
+
+---
+
+## Test Categories
+
+### Agent Tests (T01-T03)
+
+Test the Go agent in isolation (mock dashboard):
+
+- Connection and reconnection
+- Heartbeat behavior
+- Command execution and output streaming
+
+### Dashboard Tests (T04-T06)
+
+Test the Go dashboard in isolation (mock agents):
+
+- Authentication flow
+- WebSocket handling
+- Command dispatch
+
+### End-to-End Tests (T07-T08)
+
+Test agent + dashboard together:
+
+- Full deployment flow (pull → switch → verify)
+- Full test flow (trigger → progress → results)
+
+---
+
+## Running Tests
+
+```bash
+# Run all tests
+go test ./tests/integration/...
+
+# Run specific test file
+go test ./tests/integration/agent_test.go
+
+# Run with verbose output
+go test -v ./tests/integration/...
+
+# Run specific test by name
+go test -run TestAgentConnection ./tests/integration/...
+```
+
+---
+
+## Test Status
+
+| Spec                    | Status             | Backlog Item |
+| ----------------------- | ------------------ | ------------ |
+| T01-agent-connection    | 🔴 Not Implemented | P4000        |
+| T02-agent-heartbeat     | 🔴 Not Implemented | P4000        |
+| T03-agent-commands      | 🔴 Not Implemented | P4000        |
+| T04-dashboard-auth      | 🔴 Not Implemented | P4200        |
+| T05-dashboard-websocket | 🔴 Not Implemented | P4200        |
+| T06-dashboard-commands  | 🔴 Not Implemented | P4200        |
+| T07-e2e-deploy-flow     | 🔴 Not Implemented | P4200        |
+| T08-e2e-test-flow       | 🔴 Not Implemented | P4200        |
+
+Legend: 🟢 Passing | 🟡 Partial | 🔴 Not Implemented
+
+---
+
+## Writing New Tests
+
+1. **Create spec in `specs/`** with human-readable scenarios
+2. **Create or update Go test** in `integration/`
+3. **Link to backlog item** that will make it pass
+4. **Update status table** above
+
+### Spec Template
+
+```markdown
+# T99 - Feature Name
+
+## Purpose
+
+What this test verifies.
+
+## Prerequisites
+
+- Required setup
+- Mock data needed
+
+## Scenarios
+
+### Scenario 1: Happy Path
+
+**Given** initial state
+**When** action happens
+**Then** expected result
+
+### Scenario 2: Error Case
+
+**Given** error condition
+**When** action happens
+**Then** error handled gracefully
+
+## Verification Commands
+
+\`\`\`bash
+
+# Commands to manually verify
+
+\`\`\`
+```
+
+---
+
+## CI Integration
+
+Tests run on every PR:
+
+```yaml
+# .github/workflows/test.yml
+- name: Run Integration Tests
+  run: go test -v ./tests/integration/...
+```
+
+---
+
+## Related
+
+- [PRD](../+pm/PRD.md) - Product requirements (source of truth)
+- [Backlog](../+pm/backlog/) - Implementation tasks

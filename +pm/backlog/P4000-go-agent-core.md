@@ -6,6 +6,18 @@
 
 ---
 
+## Tests to Pass
+
+| Test                                             | Description                  |
+| ------------------------------------------------ | ---------------------------- |
+| [T01](../../tests/specs/T01-agent-connection.md) | Agent Connection             |
+| [T02](../../tests/specs/T02-agent-heartbeat.md)  | Agent Heartbeat              |
+| [T03](../../tests/specs/T03-agent-commands.md)   | Agent Commands               |
+| [T07](../../tests/specs/T07-e2e-deploy-flow.md)  | E2E Deploy Flow (agent part) |
+| [T08](../../tests/specs/T08-e2e-test-flow.md)    | E2E Test Flow (agent part)   |
+
+---
+
 ## Overview
 
 Rewrite the NixFleet agent in Go with WebSocket communication, proper concurrency, and output streaming.

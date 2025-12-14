@@ -7,6 +7,15 @@
 
 ---
 
+## Tests to Pass
+
+| Test                                            | Description                |
+| ----------------------------------------------- | -------------------------- |
+| [T03](../../tests/specs/T03-agent-commands.md)  | Output streaming scenarios |
+| [T07](../../tests/specs/T07-e2e-deploy-flow.md) | Real-time output in deploy |
+
+---
+
 ## Overview
 
 Real-time command output streaming from agents to browser, with log viewer UI.
