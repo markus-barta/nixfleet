@@ -85,10 +85,16 @@ in
           "-c"
           ''
             # Wait for network to be ready before starting agent
-            # Use curl with short timeout - more reliable than /usr/bin/host in launchd context
+            # Convert wss:// URL to https:// for health check (curl can't do WebSocket)
+            HEALTH_URL="${cfg.url}"
+            HEALTH_URL="''${HEALTH_URL/wss:\/\//https://}"
+            HEALTH_URL="''${HEALTH_URL/ws:\/\//http://}"
+            HEALTH_URL="''${HEALTH_URL%/ws}"  # Remove /ws suffix if present
+            HEALTH_URL="''${HEALTH_URL}/health"
+
             MAX_WAIT=60
             WAITED=0
-            while ! /usr/bin/curl -sf --connect-timeout 2 --max-time 5 "${cfg.url}/health" >/dev/null 2>&1; do
+            while ! /usr/bin/curl -sf --connect-timeout 2 --max-time 5 "$HEALTH_URL" >/dev/null 2>&1; do
               if [ $WAITED -ge $MAX_WAIT ]; then
                 echo "Warning: Network not ready after ''${MAX_WAIT}s, starting anyway..." >&2
                 break
