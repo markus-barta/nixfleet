@@ -4,6 +4,43 @@ Central hub for tracking work on the NixFleet dashboard.
 
 ---
 
+## Priority System
+
+Tasks use a **P-number** prefix for ordering:
+
+```
+P{number}-{name}.md
+```
+
+**Lower number = Higher priority**
+
+| Range       | Priority    | Description                        |
+| ----------- | ----------- | ---------------------------------- |
+| P4000-P4999 | 🔴 Critical | Blocking issues, must fix now      |
+| P5000-P5999 | 🟡 Medium   | Important features, should do soon |
+| P6000-P6999 | 🟢 Low      | Nice-to-have, do when time permits |
+
+### Ordering Within Priority
+
+- Start at **X000** (e.g., P4000, P5000, P6000)
+- New items: add/subtract 100 (P4100, P4200...)
+- Insert between: use finer granularity (P4050 between P4000 and P4100)
+- **Goal**: Never need to rename existing files when priorities change
+
+### Example
+
+```
+backlog/
+  P4000-agent-resilience-detached-switch.md   # First critical task
+  P4100-agent-resilience-macos-watchdog.md    # Second critical task
+  P4200-agent-rewrite-python.md               # Third critical task
+  P5000-action-button-locking.md              # First medium task
+  P5100-version-generation-tracking.md        # Second medium task
+  P6000-heartbeat-communication-visualizer.md # First low-priority task
+```
+
+---
+
 ## Workflow
 
 ```
@@ -48,31 +85,49 @@ Central hub for tracking work on the NixFleet dashboard.
 
 ## File Naming Convention
 
-Files are date-prefixed: `YYYY-MM-DD-short-description.md`
+```
+P{number}-{short-description}.md
+```
 
-Example: `2025-12-10-add-host-grouping.md`
+Examples:
+
+- `P4000-agent-resilience-detached-switch.md`
+- `P5100-version-generation-tracking.md`
+
+**Note**: Date is tracked inside the file, not in the filename.
 
 ---
 
 ## Task Template
 
 ````markdown
-# YYYY-MM-DD - Task Title
+# Task Title
 
-## Status: BACKLOG | DONE | CANCELLED
+**Created**: YYYY-MM-DD  
+**Priority**: P{number} (Critical/Medium/Low)  
+**Status**: Backlog  
+**Depends on**: P{other} (optional)
 
-## Description
+---
 
-Brief explanation of what needs to be done.
+## Problem
 
-## Scope
+Brief explanation of what needs to be fixed or built.
 
-Applies to: [dashboard / agent / modules / docker]
+---
+
+## Solution
+
+How we're going to solve it.
+
+---
 
 ## Acceptance Criteria
 
 - [ ] Criterion 1
 - [ ] Criterion 2
+
+---
 
 ## Test Plan
 
@@ -80,20 +135,20 @@ Applies to: [dashboard / agent / modules / docker]
 
 1. Step 1 to verify
 2. Step 2 to verify
-3. Expected result
 
 ### Automated Test
 
 ```bash
-# Reference to test script or inline commands
-docker compose up -d
-curl http://localhost:8000/health
+# Commands to verify
 ```
 ````
 
-## Notes
+---
 
-- Relevant context, links, or references
+## Related
+
+- Depends on: P{number}
+- Enables: P{number}
 
 ```
 
@@ -103,20 +158,20 @@ curl http://localhost:8000/health
 
 Every task should have tests defined:
 
-| Test Type          | Description                                     | Required    |
-| ------------------ | ----------------------------------------------- | ----------- |
-| **Manual Test**    | Human verification steps documented in the task | ✅ Yes      |
-| **Automated Test** | Script or curl commands that verify the change  | Recommended |
+| Test Type | Description | Required |
+|-----------|-------------|----------|
+| **Manual Test** | Human verification steps documented in the task | ✅ Yes |
+| **Automated Test** | Script or curl commands that verify the change | Recommended |
 
 ### Testing Approaches
 
-| Test Type      | How to Test                                             |
-| -------------- | ------------------------------------------------------- |
-| **API**        | `curl` commands, check responses                        |
-| **Dashboard**  | Browser test, verify UI elements                        |
-| **Agent**      | Deploy to test host, check registration                 |
-| **Docker**     | `docker compose build && docker compose up -d`          |
-| **Nix Modules** | `nix flake check` (on a NixOS machine)                 |
+| Test Type | How to Test |
+|-----------|-------------|
+| **API** | `curl` commands, check responses |
+| **Dashboard** | Browser test, verify UI elements |
+| **Agent** | Deploy to test host, check registration |
+| **Docker** | `docker compose build && docker compose up -d` |
+| **Nix Modules** | `nix flake check` (on a NixOS machine) |
 
 ---
 
@@ -124,5 +179,4 @@ Every task should have tests defined:
 
 - [Main README](../README.md) - Project overview
 - [nixcfg](https://github.com/markus-barta/nixcfg) - Parent infrastructure repository
-
 ```
