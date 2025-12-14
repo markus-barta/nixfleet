@@ -65,10 +65,10 @@ systemctl status nixfleet-agent
 
 #### macOS Hosts (launchd)
 
-| Host         | SSH Command                  | Config Location                    |
-| ------------ | ---------------------------- | ---------------------------------- |
-| mba-mbp-work | `ssh mba@mba-mbp-work.local` | nixcfg/hosts/mba-mbp-work/home.nix |
-| imac0        | `ssh markus@192.168.1.150`   | nixcfg/hosts/imac0/home.nix        |
+| Host         | SSH Command                | Config Location                    |
+| ------------ | -------------------------- | ---------------------------------- |
+| mba-mbp-work | `ssh mba@192.168.1.197`    | nixcfg/hosts/mba-mbp-work/home.nix |
+| imac0        | `ssh markus@192.168.1.150` | nixcfg/hosts/imac0/home.nix        |
 
 **Action**: Set `services.nixfleet-agent.enable = false;` in home.nix.
 
