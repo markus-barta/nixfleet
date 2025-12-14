@@ -122,8 +122,8 @@ If v2 agent fails:
 - [x] NixOS module updated for v2
 - [x] Home Manager module updated for v2
 - [x] gpc0 running v2 agent, visible in dashboard (2025-12-14)
-- [ ] mba-mbp-work running v2 agent, visible in dashboard
-- [ ] Both can receive commands via WebSocket
+- [x] mba-mbp-work running v2 agent, visible in dashboard (2025-12-14)
+- [ ] Both can receive commands via WebSocket (manual test pending)
 
 ---
 
