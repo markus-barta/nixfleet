@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/pquerna/otp/totp"
 )
 
 // E2E Configuration from environment
@@ -32,6 +33,7 @@ type e2eConfig struct {
 	HTTPBaseURL  string   // http://localhost:8000 or https://fleet.barta.cm
 	AgentToken   string   // Token for agent connections
 	Password     string   // Dashboard login password
+	TOTPSecret   string   // TOTP secret for 2FA (optional)
 	Hosts        []string // Hosts to test (e.g., mba-mbp-work)
 }
 
@@ -40,6 +42,7 @@ func loadE2EConfig(t *testing.T) *e2eConfig {
 		DashboardURL: os.Getenv("E2E_DASHBOARD_URL"),
 		AgentToken:   os.Getenv("E2E_AGENT_TOKEN"),
 		Password:     os.Getenv("E2E_PASSWORD"),
+		TOTPSecret:   os.Getenv("E2E_TOTP_SECRET"),
 	}
 
 	// Derive HTTP URL from WebSocket URL
@@ -62,6 +65,18 @@ func (c *e2eConfig) isConfigured() bool {
 	return c.DashboardURL != "" && c.Password != "" && len(c.Hosts) > 0
 }
 
+// generateTOTP generates a TOTP code from the secret.
+func (c *e2eConfig) generateTOTP() string {
+	if c.TOTPSecret == "" {
+		return ""
+	}
+	code, err := totp.GenerateCode(c.TOTPSecret, time.Now())
+	if err != nil {
+		return ""
+	}
+	return code
+}
+
 // TestE2E_DeployFlow tests a full pull → switch flow on a real host.
 // Requires E2E environment variables to be set.
 func TestE2E_DeployFlow(t *testing.T) {
@@ -78,9 +93,15 @@ func TestE2E_DeployFlow(t *testing.T) {
 	jar, _ := cookiejar.New(nil)
 	client := &http.Client{Jar: jar}
 
-	resp, err := client.PostForm(cfg.HTTPBaseURL+"/login", url.Values{
+	formData := url.Values{
 		"password": {cfg.Password},
-	})
+	}
+	if totpCode := cfg.generateTOTP(); totpCode != "" {
+		formData.Set("totp", totpCode)
+		t.Logf("using TOTP code: %s", totpCode)
+	}
+
+	resp, err := client.PostForm(cfg.HTTPBaseURL+"/login", formData)
 	if err != nil {
 		t.Fatalf("login failed: %v", err)
 	}
@@ -250,13 +271,18 @@ func TestE2E_HostConnectivity(t *testing.T) {
 		t.Skip("E2E not configured. Set E2E_DASHBOARD_URL, E2E_PASSWORD, E2E_HOSTS")
 	}
 
-	// Login
+	// Login with TOTP if configured
 	jar, _ := cookiejar.New(nil)
 	client := &http.Client{Jar: jar}
 
-	resp, err := client.PostForm(cfg.HTTPBaseURL+"/login", url.Values{
+	formData := url.Values{
 		"password": {cfg.Password},
-	})
+	}
+	if totpCode := cfg.generateTOTP(); totpCode != "" {
+		formData.Set("totp", totpCode)
+	}
+
+	resp, err := client.PostForm(cfg.HTTPBaseURL+"/login", formData)
 	if err != nil {
 		t.Fatalf("login failed: %v", err)
 	}

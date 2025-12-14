@@ -4,6 +4,9 @@
 .env.*.local
 docker/.env
 
+# Secrets (E2E test credentials, etc.)
+.secrets/
+
 # Python
 __pycache__/
 *.py[cod]
