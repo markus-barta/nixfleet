@@ -413,8 +413,9 @@ templ Base(title string, csrfToken string) {
 			/* Metrics display */
 			.metrics-cell {
 				display: flex;
-				gap: 0.75rem;
+				gap: 0.5rem;
 				font-size: 0.85rem;
+				font-family: var(--font-mono);
 			}
 
 			.metric {
@@ -422,6 +423,12 @@ templ Base(title string, csrfToken string) {
 				align-items: center;
 				gap: 0.25rem;
 				color: var(--fg-dark);
+				min-width: 3.5rem;
+			}
+
+			.metric-val {
+				min-width: 2.5rem;
+				text-align: right;
 			}
 
 			.metric.high {

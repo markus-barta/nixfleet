@@ -378,9 +378,9 @@ templ HostCard(host Host, csrfToken string) {
 				<div class="host-card-row">
 					<span class="host-card-label">Metrics</span>
 					<span class="metrics-cell">
-						<span class={ metricsClass("cpu", host.Metrics.CPU) }><svg class="metric-icon"><use href="#icon-cpu"></use></svg> { formatPercent(host.Metrics.CPU) }</span>
-						<span class={ metricsClass("ram", host.Metrics.RAM) }><svg class="metric-icon"><use href="#icon-ram"></use></svg> { formatPercent(host.Metrics.RAM) }</span>
-						<span class="metric">{ formatLoad(host.Metrics.Load) }</span>
+						<span class={ metricsClass("cpu", host.Metrics.CPU) }><svg class="metric-icon"><use href="#icon-cpu"></use></svg><span class="metric-val">{ formatPercent(host.Metrics.CPU) }</span></span>
+						<span class={ metricsClass("ram", host.Metrics.RAM) }><svg class="metric-icon"><use href="#icon-ram"></use></svg><span class="metric-val">{ formatPercent(host.Metrics.RAM) }</span></span>
+						<span class="metric"><span class="metric-val">{ formatLoad(host.Metrics.Load) }</span></span>
 					</span>
 				</div>
 			}
@@ -425,10 +425,10 @@ templ HostRow(host Host, csrfToken string) {
 		<td class="metrics-cell">
 			if host.Metrics != nil {
 				<span class={ metricsClass("cpu", host.Metrics.CPU) } title={ "CPU: " + formatPercent(host.Metrics.CPU) }>
-					<svg class="metric-icon"><use href="#icon-cpu"></use></svg> { formatPercent(host.Metrics.CPU) }
+					<svg class="metric-icon"><use href="#icon-cpu"></use></svg><span class="metric-val">{ formatPercent(host.Metrics.CPU) }</span>
 				</span>
 				<span class={ metricsClass("ram", host.Metrics.RAM) } title={ "RAM: " + formatPercent(host.Metrics.RAM) + ", Swap: " + formatPercent(host.Metrics.Swap) + ", Load: " + formatLoad(host.Metrics.Load) }>
-					<svg class="metric-icon"><use href="#icon-ram"></use></svg> { formatPercent(host.Metrics.RAM) }
+					<svg class="metric-icon"><use href="#icon-ram"></use></svg><span class="metric-val">{ formatPercent(host.Metrics.RAM) }</span>
 				</span>
 			} else {
 				<span class="metrics-na">—</span>
