@@ -418,13 +418,13 @@ func TestDashboardCommand_StatusUpdate(t *testing.T) {
 	// Wait for broadcast
 	time.Sleep(500 * time.Millisecond)
 
-	// Check browser received command_status
+	// Check browser received command_complete
 	mu.Lock()
 	defer mu.Unlock()
 
 	var foundStatus bool
 	for _, msg := range browserMessages {
-		if msg["type"] == "command_status" {
+		if msg["type"] == "command_complete" {
 			foundStatus = true
 			payload := msg["payload"].(map[string]any)
 			if payload["status"] != "ok" {
@@ -436,7 +436,7 @@ func TestDashboardCommand_StatusUpdate(t *testing.T) {
 	}
 
 	if !foundStatus {
-		t.Error("browser did not receive command_status")
+		t.Error("browser did not receive command_complete")
 		t.Logf("browser messages: %v", browserMessages)
 	}
 }

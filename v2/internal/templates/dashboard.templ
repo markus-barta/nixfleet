@@ -1,0 +1,457 @@
+package templates
+
+import "fmt"
+
+// Host represents a host in the dashboard
+type Host struct {
+	ID             string
+	Hostname       string
+	HostType       string
+	Status         string
+	Online         bool
+	AgentVersion   string
+	OSVersion      string
+	Generation     string
+	LastSeen       string
+	PendingCommand string
+	ThemeColor     string
+}
+
+// Stats represents dashboard statistics
+type Stats struct {
+	Online int
+	Total  int
+}
+
+// DashboardData contains all data needed to render the dashboard
+type DashboardData struct {
+	Hosts     []Host
+	Stats     Stats
+	CSRFToken string
+	Version   string
+}
+
+// Dashboard renders the main dashboard page
+templ Dashboard(data DashboardData) {
+	@Base("NixFleet Dashboard", data.CSRFToken) {
+		<header>
+			<div class="brand">
+				<h1>⚡ NixFleet</h1>
+				<div class="subtitle">Fleet Management Dashboard</div>
+			</div>
+			<div class="header-actions">
+				<span class="connection-indicator" id="ws-status">
+					<span class="status-dot status-offline"></span>
+					Connecting...
+				</span>
+				<form method="POST" action="/logout" style="display: inline;">
+					<input type="hidden" name="csrf_token" value={ data.CSRFToken }/>
+					<button type="submit" class="btn btn-danger">Logout</button>
+				</form>
+			</div>
+		</header>
+
+		<!-- Stats Bar -->
+		<div class="stats-bar">
+			<div class="stat">
+				<span>Hosts:</span>
+				<span class="stat-value">{ fmt.Sprint(data.Stats.Total) }</span>
+			</div>
+			<div class="stat">
+				<span>Online:</span>
+				<span class="stat-value online" id="stat-online">{ fmt.Sprint(data.Stats.Online) }</span>
+			</div>
+			<div class="stat">
+				<span>Offline:</span>
+				<span class="stat-value offline" id="stat-offline">{ fmt.Sprint(data.Stats.Total - data.Stats.Online) }</span>
+			</div>
+		</div>
+
+		<!-- Mobile: Card View -->
+		<div class="host-grid" id="host-cards">
+			for _, host := range data.Hosts {
+				@HostCard(host, data.CSRFToken)
+			}
+		</div>
+
+		<!-- Desktop: Table View -->
+		<table class="host-table" id="host-table">
+			<thead>
+				<tr>
+					<th>Status</th>
+					<th>Host</th>
+					<th>Type</th>
+					<th>Version</th>
+					<th>Generation</th>
+					<th>Last Seen</th>
+					<th>Actions</th>
+				</tr>
+			</thead>
+			<tbody>
+				for _, host := range data.Hosts {
+					@HostRow(host, data.CSRFToken)
+				}
+			</tbody>
+		</table>
+
+		<!-- Log Viewer (global, shown when command is running) -->
+		<div class="log-panel hidden" id="log-panel" x-data="logViewer()">
+			<div class="log-header" @click="toggle()">
+				<div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+					<span>
+						📋 Command Output
+						<span x-show="hostId" x-text="'(' + hostId + ')'"></span>
+					</span>
+					<!-- Progress indicator -->
+					<span x-show="phase" class="progress-badge" x-text="phaseIcon + ' ' + phase + (buildCount ? ' (' + buildCurrent + '/' + buildCount + ')' : '')"></span>
+				</div>
+				<span class="chevron" :class="{ 'expanded': open }">▼</span>
+			</div>
+			<div class="log-content" x-show="open" x-ref="logContent">
+				<template x-for="line in lines" :key="line.id">
+					<div class="log-line" :class="{ 'error': line.isError, 'success': line.isSuccess }" x-text="line.text"></div>
+				</template>
+			</div>
+		</div>
+
+		<footer>
+			NixFleet { data.Version } • Powered by Go + HTMX
+		</footer>
+
+		<!-- WebSocket and Alpine.js logic -->
+		<script>
+			// WebSocket connection
+			let ws = null;
+			let reconnectAttempts = 0;
+			const maxReconnectDelay = 30000;
+
+			function connectWebSocket() {
+				const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+				ws = new WebSocket(`${protocol}//${window.location.host}/ws`);
+
+				ws.onopen = () => {
+					console.log('WebSocket connected');
+					reconnectAttempts = 0;
+					updateConnectionStatus(true);
+				};
+
+				ws.onclose = () => {
+					console.log('WebSocket disconnected');
+					updateConnectionStatus(false);
+					scheduleReconnect();
+				};
+
+				ws.onerror = (err) => {
+					console.error('WebSocket error:', err);
+				};
+
+				ws.onmessage = (event) => {
+					try {
+						const msg = JSON.parse(event.data);
+						handleMessage(msg);
+					} catch (e) {
+						console.error('Failed to parse message:', e);
+					}
+				};
+			}
+
+			function updateConnectionStatus(connected) {
+				const el = document.getElementById('ws-status');
+				if (connected) {
+					el.className = 'connection-indicator connected';
+					el.innerHTML = '<span class="status-dot status-online"></span> Connected';
+				} else {
+					el.className = 'connection-indicator disconnected';
+					el.innerHTML = '<span class="status-dot status-offline"></span> Disconnected';
+				}
+			}
+
+			function scheduleReconnect() {
+				reconnectAttempts++;
+				const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), maxReconnectDelay);
+				console.log(`Reconnecting in ${delay}ms...`);
+				setTimeout(connectWebSocket, delay);
+			}
+
+			function handleMessage(msg) {
+				switch (msg.type) {
+					case 'host_update':
+						updateHost(msg.payload);
+						break;
+					case 'command_output':
+						appendLog(msg.payload);
+						break;
+					case 'command_queued':
+						showLogPanel(msg.payload.host_id);
+						break;
+					case 'command_complete':
+						markCommandComplete(msg.payload);
+						break;
+				}
+			}
+
+			function updateHost(host) {
+				// Update table row
+				const row = document.querySelector(`tr[data-host-id="${host.host_id}"]`);
+				if (row) {
+					const statusDot = row.querySelector('.status-dot');
+					statusDot.className = 'status-dot status-' + (host.online ? 'online' : 'offline');
+					// Update other fields as needed
+				}
+
+				// Update card
+				const card = document.querySelector(`.host-card[data-host-id="${host.host_id}"]`);
+				if (card) {
+					const statusDot = card.querySelector('.status-dot');
+					statusDot.className = 'status-dot status-' + (host.online ? 'online' : 'offline');
+				}
+			}
+
+			function appendLog(payload) {
+				// Dispatch to Alpine component
+				window.dispatchEvent(new CustomEvent('log-line', { detail: payload }));
+			}
+
+			function showLogPanel(hostId) {
+				const panel = document.getElementById('log-panel');
+				panel.classList.remove('hidden');
+				window.dispatchEvent(new CustomEvent('log-start', { detail: { hostId } }));
+			}
+
+			function markCommandComplete(payload) {
+				window.dispatchEvent(new CustomEvent('log-complete', { detail: payload }));
+			}
+
+			// Send command to host
+			function sendCommand(hostId, command) {
+				const csrfToken = document.body.dataset.csrfToken;
+				fetch(`/api/hosts/${hostId}/command`, {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+						'X-CSRF-Token': csrfToken
+					},
+					body: JSON.stringify({ command })
+				}).then(resp => {
+					if (!resp.ok) {
+						return resp.text().then(text => { throw new Error(text); });
+					}
+					return resp.json();
+				}).then(data => {
+					console.log('Command queued:', data);
+				}).catch(err => {
+					console.error('Command failed:', err);
+					alert('Command failed: ' + err.message);
+				});
+			}
+
+			// Alpine.js log viewer component
+			document.addEventListener('alpine:init', () => {
+				Alpine.data('logViewer', () => ({
+					open: true,
+					lines: [],
+					hostId: '',
+					lineCounter: 0,
+					// Progress tracking
+					phase: '',
+					phaseIcon: '',
+					buildCount: 0,
+					buildCurrent: 0,
+
+					init() {
+						window.addEventListener('log-line', (e) => {
+							this.addLine(e.detail);
+						});
+						window.addEventListener('log-start', (e) => {
+							this.hostId = e.detail.hostId;
+							this.lines = [];
+							this.open = true;
+							this.resetProgress();
+						});
+						window.addEventListener('log-complete', (e) => {
+							this.phase = e.detail.exit_code === 0 ? 'Complete' : 'Failed';
+							this.phaseIcon = e.detail.exit_code === 0 ? '✅' : '❌';
+							this.addLine({
+								line: `\n${this.phaseIcon} Command completed (exit code: ${e.detail.exit_code || 0})`,
+								isSuccess: e.detail.exit_code === 0
+							});
+						});
+					},
+
+					resetProgress() {
+						this.phase = '';
+						this.phaseIcon = '';
+						this.buildCount = 0;
+						this.buildCurrent = 0;
+					},
+
+					parseProgress(line) {
+						// NixOS rebuild phases
+						if (line.includes('evaluating derivation')) {
+							this.phase = 'Evaluation';
+							this.phaseIcon = '🔄';
+						} else if (line.includes('these derivations will be built')) {
+							// Extract count: "these 42 derivations will be built"
+							const match = line.match(/these (\d+) derivations/);
+							if (match) this.buildCount = parseInt(match[1], 10);
+							this.phase = 'Building';
+							this.phaseIcon = '🔨';
+						} else if (line.includes("building '/nix/store/")) {
+							this.buildCurrent++;
+							this.phase = 'Building';
+							this.phaseIcon = '🔨';
+						} else if (line.includes('activating the configuration')) {
+							this.phase = 'Activation';
+							this.phaseIcon = '⚡';
+						} else if (line.includes('switching to configuration')) {
+							this.phase = 'Switch';
+							this.phaseIcon = '🔄';
+						} else if (line.includes('setting up /etc')) {
+							this.phase = 'Setup';
+							this.phaseIcon = '📁';
+						} else if (line.includes('will be fetched')) {
+							this.phase = 'Fetching';
+							this.phaseIcon = '📥';
+						}
+					},
+
+					toggle() {
+						this.open = !this.open;
+					},
+
+					addLine(payload) {
+						const text = payload.line;
+						this.parseProgress(text);
+						this.lines.push({
+							id: ++this.lineCounter,
+							text: text,
+							isError: payload.is_error || payload.stream === 'stderr',
+							isSuccess: payload.isSuccess || false
+						});
+						// Auto-scroll
+						this.$nextTick(() => {
+							const el = this.$refs.logContent;
+							if (el) el.scrollTop = el.scrollHeight;
+						});
+					}
+				}));
+			});
+
+			// Initialize WebSocket
+			connectWebSocket();
+		</script>
+	}
+}
+
+// HostCard renders a host as a card (mobile view)
+templ HostCard(host Host, csrfToken string) {
+	<div class="host-card" data-host-id={ host.ID } x-data="{ expanded: false }">
+		<div class="host-card-header" @click="expanded = !expanded">
+			<div class="host-name">
+				<span class={ "status-dot", statusClass(host) }></span>
+				<span style={ hostColorStyle(host) }>{ host.Hostname }</span>
+				if host.PendingCommand != "" {
+					<span class="progress-badge">{ host.PendingCommand }</span>
+				}
+			</div>
+			<span class="chevron" :class="{ 'expanded': expanded }">▼</span>
+		</div>
+		<div class="host-card-body" x-show="expanded" x-collapse>
+			<div class="host-card-row">
+				<span class="host-card-label">Type</span>
+				<span>{ host.HostType }</span>
+			</div>
+			<div class="host-card-row">
+				<span class="host-card-label">OS Version</span>
+				<span>{ valueOrDash(host.OSVersion) }</span>
+			</div>
+			<div class="host-card-row">
+				<span class="host-card-label">Generation</span>
+				<span>{ valueOrDash(host.Generation) }</span>
+			</div>
+			<div class="host-card-row">
+				<span class="host-card-label">Agent</span>
+				<span>{ valueOrDash(host.AgentVersion) }</span>
+			</div>
+			<div class="host-card-row">
+				<span class="host-card-label">Last Seen</span>
+				<span>{ valueOrDash(host.LastSeen) }</span>
+			</div>
+			<div class="host-card-actions">
+				@CommandButton(host.ID, "pull", "📥 Pull", "btn", host.Online && host.PendingCommand == "")
+				@CommandButton(host.ID, "switch", "🔄 Switch", "btn btn-primary", host.Online && host.PendingCommand == "")
+				@CommandButton(host.ID, "test", "🧪 Test", "btn", host.Online && host.PendingCommand == "")
+			</div>
+		</div>
+	</div>
+}
+
+// HostRow renders a host as a table row (desktop view)
+templ HostRow(host Host, csrfToken string) {
+	<tr data-host-id={ host.ID }>
+		<td>
+			<span class={ "status-dot", statusClass(host) }></span>
+		</td>
+		<td>
+			<span style={ hostColorStyle(host) }>{ host.Hostname }</span>
+			if host.PendingCommand != "" {
+				<span class="progress-badge" style="margin-left: 0.5rem;">{ host.PendingCommand }</span>
+			}
+		</td>
+		<td>{ host.HostType }</td>
+		<td>{ valueOrDash(host.OSVersion) }</td>
+		<td>{ valueOrDash(host.Generation) }</td>
+		<td>{ valueOrDash(host.LastSeen) }</td>
+		<td>
+			<div style="display: flex; gap: 0.25rem;">
+				@CommandButton(host.ID, "pull", "📥", "btn", host.Online && host.PendingCommand == "")
+				@CommandButton(host.ID, "switch", "🔄", "btn btn-primary", host.Online && host.PendingCommand == "")
+				@CommandButton(host.ID, "test", "🧪", "btn", host.Online && host.PendingCommand == "")
+			</div>
+		</td>
+	</tr>
+}
+
+// CommandButton renders a command button with proper onclick handling
+templ CommandButton(hostID, command, label, classes string, enabled bool) {
+	if enabled {
+		<button 
+			class={ classes }
+			data-host-id={ hostID }
+			data-command={ command }
+			onclick="sendCommand(this.dataset.hostId, this.dataset.command)"
+		>
+			{ label }
+		</button>
+	} else {
+		<button class={ classes } disabled>
+			{ label }
+		</button>
+	}
+}
+
+// Helper functions
+func statusClass(host Host) string {
+	if host.PendingCommand != "" {
+		return "status-running"
+	}
+	if host.Online {
+		return "status-online"
+	}
+	return "status-offline"
+}
+
+func hostColorStyle(host Host) string {
+	if host.ThemeColor != "" {
+		return "color: " + host.ThemeColor
+	}
+	return ""
+}
+
+func valueOrDash(v string) string {
+	if v == "" {
+		return "—"
+	}
+	return v
+}
+

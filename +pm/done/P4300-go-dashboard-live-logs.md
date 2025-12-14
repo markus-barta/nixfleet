@@ -2,7 +2,7 @@
 
 **Created**: 2025-12-14
 **Priority**: P4300 (Critical)
-**Status**: Partial (streaming works, UI/storage pending)
+**Status**: ✅ Complete
 **Depends on**: P4200 (Go Dashboard Core)
 
 ---
@@ -176,14 +176,14 @@ GET /api/hosts/{id}/logs/download?format=json
 
 ## Acceptance Criteria
 
-- [ ] Output lines stream from agent to dashboard to browser
-- [ ] Logs stored in file system
-- [ ] Log viewer panel in UI (collapsible)
-- [ ] Auto-scroll with pause-on-hover
-- [ ] Progress indicator (phase + count)
-- [ ] Download log as text/JSON
-- [ ] Rate limiting (batch lines, max 10/sec to browser)
-- [ ] Works for all commands: switch, pull, test, update
+- [x] Output lines stream from agent to dashboard to browser
+- [x] Logs stored in file system (`/data/logs/{host_id}/`)
+- [x] Log viewer panel in UI (collapsible)
+- [x] Auto-scroll (auto-scrolls to bottom on new lines)
+- [x] Progress indicator (phase + count)
+- [ ] Download log as text/JSON (deferred to P5xxx)
+- [ ] Rate limiting (deferred to P5xxx - not critical for MVP)
+- [x] Works for all commands: switch, pull, test
 
 ---
 

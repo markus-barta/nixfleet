@@ -54,6 +54,9 @@ type Hub struct {
 	// Channel for messages from agents
 	agentMessages chan *agentMessage
 
+	// Log storage for command output
+	logStore *LogStore
+
 	mu sync.RWMutex
 }
 
@@ -166,6 +169,11 @@ func (h *Hub) handleAgentMessage(msg *agentMessage) {
 			return
 		}
 
+		// Log to file
+		if h.logStore != nil {
+			_ = h.logStore.AppendLine(msg.client.clientID, payload.Command, payload.Line, payload.IsError)
+		}
+
 		// Forward to browsers
 		h.BroadcastToBrowsers(map[string]any{
 			"type": "command_output",
@@ -245,9 +253,14 @@ func (h *Hub) handleStatus(hostID string, payload protocol.StatusPayload) {
 		Str("status", payload.Status).
 		Msg("command status")
 
+	// Complete the log file
+	if h.logStore != nil {
+		_ = h.logStore.CompleteCommand(hostID, payload.Command, payload.ExitCode)
+	}
+
 	// Broadcast to browsers
 	h.BroadcastToBrowsers(map[string]any{
-		"type": "command_status",
+		"type": "command_complete",
 		"payload": map[string]any{
 			"host_id":   hostID,
 			"command":   payload.Command,

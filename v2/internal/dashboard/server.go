@@ -11,22 +11,34 @@ import (
 
 // Server is the main dashboard server.
 type Server struct {
-	cfg    *Config
-	db     *sql.DB
-	log    zerolog.Logger
-	auth   *AuthService
-	hub    *Hub
-	router *chi.Mux
+	cfg      *Config
+	db       *sql.DB
+	log      zerolog.Logger
+	auth     *AuthService
+	hub      *Hub
+	logStore *LogStore
+	router   *chi.Mux
 }
 
 // New creates a new dashboard server.
 func New(cfg *Config, db *sql.DB, log zerolog.Logger) *Server {
+	// Initialize log store
+	logsPath := cfg.DataDir + "/logs"
+	logStore, err := NewLogStore(logsPath)
+	if err != nil {
+		log.Warn().Err(err).Msg("failed to initialize log store, logs will not be persisted")
+	}
+
+	hub := NewHub(log)
+	hub.logStore = logStore // Pass log store to hub for output logging
+
 	s := &Server{
-		cfg:  cfg,
-		db:   db,
-		log:  log.With().Str("component", "dashboard").Logger(),
-		auth: NewAuthService(cfg, db),
-		hub:  NewHub(log),
+		cfg:      cfg,
+		db:       db,
+		log:      log.With().Str("component", "dashboard").Logger(),
+		auth:     NewAuthService(cfg, db),
+		hub:      hub,
+		logStore: logStore,
 	}
 
 	s.setupRouter()

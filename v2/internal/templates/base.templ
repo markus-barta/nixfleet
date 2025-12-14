@@ -1,0 +1,416 @@
+package templates
+
+// Base layout with Tokyo Night theme and responsive design
+templ Base(title string, csrfToken string) {
+	<!DOCTYPE html>
+	<html lang="en">
+	<head>
+		<meta charset="UTF-8"/>
+		<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+		<title>{ title }</title>
+		<link rel="preconnect" href="https://fonts.googleapis.com"/>
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+		<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+		<script src="https://unpkg.com/htmx.org@1.9.10"></script>
+		<script defer src="https://unpkg.com/alpinejs@3.13.3/dist/cdn.min.js"></script>
+		<style>
+			/* Tokyo Night Color Palette */
+			:root {
+				--bg: #1a1b26;
+				--bg-dark: #16161e;
+				--bg-highlight: #292e42;
+				--bg-float: #24283b;
+				--border: #3b4261;
+				--fg: #c0caf5;
+				--fg-dark: #565f89;
+				--fg-gutter: #3b4261;
+				--blue: #7aa2f7;
+				--cyan: #7dcfff;
+				--green: #9ece6a;
+				--yellow: #e0af68;
+				--orange: #ff9e64;
+				--red: #f7768e;
+				--purple: #bb9af7;
+				--magenta: #bb9af7;
+			}
+
+			* {
+				margin: 0;
+				padding: 0;
+				box-sizing: border-box;
+			}
+
+			body {
+				font-family: "JetBrains Mono", "Fira Code", "SF Mono", monospace;
+				background: var(--bg);
+				color: var(--fg);
+				line-height: 1.6;
+				min-height: 100vh;
+			}
+
+			/* Container */
+			.container {
+				max-width: 1400px;
+				margin: 0 auto;
+				padding: 1rem;
+			}
+
+			@media (min-width: 768px) {
+				.container {
+					padding: 1.5rem 2rem;
+				}
+			}
+
+			/* Header */
+			header {
+				display: flex;
+				justify-content: space-between;
+				align-items: center;
+				padding-bottom: 1rem;
+				margin-bottom: 1.5rem;
+				border-bottom: 1px solid var(--border);
+				flex-wrap: wrap;
+				gap: 1rem;
+			}
+
+			.brand h1 {
+				color: var(--blue);
+				font-size: 1.25rem;
+				font-weight: 600;
+				display: flex;
+				align-items: center;
+				gap: 0.5rem;
+			}
+
+			@media (min-width: 768px) {
+				.brand h1 {
+					font-size: 1.5rem;
+				}
+			}
+
+			.brand .subtitle {
+				color: var(--fg-dark);
+				font-size: 0.75rem;
+			}
+
+			/* Buttons */
+			.btn {
+				display: inline-flex;
+				align-items: center;
+				gap: 0.4rem;
+				padding: 0.5rem 0.75rem;
+				border: 1px solid var(--border);
+				border-radius: 6px;
+				font-size: 0.8rem;
+				font-family: inherit;
+				background: var(--bg-highlight);
+				color: var(--fg);
+				cursor: pointer;
+				transition: all 0.2s ease;
+				text-decoration: none;
+			}
+
+			.btn:hover {
+				border-color: var(--blue);
+				background: rgba(122, 162, 247, 0.1);
+			}
+
+			.btn-primary {
+				background: var(--blue);
+				border-color: var(--blue);
+				color: var(--bg);
+			}
+
+			.btn-primary:hover {
+				background: #8aacf7;
+			}
+
+			.btn-danger {
+				border-color: var(--red);
+				color: var(--red);
+			}
+
+			.btn-danger:hover {
+				background: rgba(247, 118, 142, 0.1);
+			}
+
+			.btn:disabled {
+				opacity: 0.5;
+				cursor: not-allowed;
+			}
+
+			/* Cards (mobile-first) */
+			.host-grid {
+				display: grid;
+				gap: 1rem;
+			}
+
+			/* Desktop: table layout */
+			@media (min-width: 1024px) {
+				.host-grid {
+					display: none;
+				}
+				.host-table {
+					display: table;
+				}
+			}
+
+			/* Mobile: card layout */
+			@media (max-width: 1023px) {
+				.host-table {
+					display: none;
+				}
+			}
+
+			/* Host Card (mobile) */
+			.host-card {
+				background: var(--bg-float);
+				border: 1px solid var(--border);
+				border-radius: 8px;
+				overflow: hidden;
+			}
+
+			.host-card-header {
+				display: flex;
+				justify-content: space-between;
+				align-items: center;
+				padding: 0.75rem 1rem;
+				background: var(--bg-highlight);
+				cursor: pointer;
+			}
+
+			.host-card-header:hover {
+				background: var(--bg);
+			}
+
+			.host-name {
+				font-weight: 600;
+				display: flex;
+				align-items: center;
+				gap: 0.5rem;
+			}
+
+			.host-card-body {
+				padding: 1rem;
+				display: none;
+			}
+
+			.host-card.expanded .host-card-body {
+				display: block;
+			}
+
+			.host-card-row {
+				display: flex;
+				justify-content: space-between;
+				padding: 0.5rem 0;
+				border-bottom: 1px solid var(--border);
+			}
+
+			.host-card-row:last-child {
+				border-bottom: none;
+			}
+
+			.host-card-label {
+				color: var(--fg-dark);
+				font-size: 0.8rem;
+			}
+
+			.host-card-actions {
+				display: flex;
+				gap: 0.5rem;
+				flex-wrap: wrap;
+				margin-top: 1rem;
+			}
+
+			/* Host Table (desktop) */
+			.host-table {
+				width: 100%;
+				border-collapse: collapse;
+				background: var(--bg-float);
+				border-radius: 8px;
+				overflow: hidden;
+			}
+
+			.host-table th,
+			.host-table td {
+				padding: 0.75rem 1rem;
+				text-align: left;
+				border-bottom: 1px solid var(--border);
+			}
+
+			.host-table th {
+				background: var(--bg-highlight);
+				font-weight: 500;
+				color: var(--fg-dark);
+				font-size: 0.8rem;
+				text-transform: uppercase;
+				letter-spacing: 0.05em;
+			}
+
+			.host-table tr:hover {
+				background: var(--bg-highlight);
+			}
+
+			.host-table tr:last-child td {
+				border-bottom: none;
+			}
+
+			/* Status indicators */
+			.status-dot {
+				width: 8px;
+				height: 8px;
+				border-radius: 50%;
+				display: inline-block;
+			}
+
+			.status-online { background: var(--green); }
+			.status-offline { background: var(--fg-dark); }
+			.status-running { background: var(--yellow); animation: pulse 1.5s infinite; }
+			.status-error { background: var(--red); }
+
+			@keyframes pulse {
+				0%, 100% { opacity: 1; }
+				50% { opacity: 0.5; }
+			}
+
+			/* Log viewer */
+			.log-panel {
+				margin-top: 1rem;
+				background: var(--bg-dark);
+				border: 1px solid var(--border);
+				border-radius: 6px;
+				overflow: hidden;
+			}
+
+			.log-header {
+				display: flex;
+				justify-content: space-between;
+				align-items: center;
+				padding: 0.5rem 1rem;
+				background: var(--bg-highlight);
+				cursor: pointer;
+			}
+
+			.log-content {
+				max-height: 300px;
+				overflow-y: auto;
+				padding: 0.75rem;
+				font-size: 0.8rem;
+				line-height: 1.4;
+			}
+
+			.log-line {
+				padding: 0.1rem 0;
+				white-space: pre-wrap;
+				word-break: break-all;
+			}
+
+			.log-line.error {
+				color: var(--red);
+			}
+
+			.log-line.success {
+				color: var(--green);
+			}
+
+			/* Progress indicator */
+			.progress-badge {
+				display: inline-flex;
+				align-items: center;
+				gap: 0.3rem;
+				padding: 0.25rem 0.5rem;
+				background: rgba(224, 175, 104, 0.15);
+				border: 1px solid var(--yellow);
+				border-radius: 4px;
+				font-size: 0.75rem;
+				color: var(--yellow);
+			}
+
+			/* Footer */
+			footer {
+				margin-top: 2rem;
+				padding-top: 1rem;
+				border-top: 1px solid var(--border);
+				color: var(--fg-dark);
+				font-size: 0.75rem;
+				text-align: center;
+			}
+
+			/* Stats bar */
+			.stats-bar {
+				display: flex;
+				gap: 1rem;
+				margin-bottom: 1rem;
+				flex-wrap: wrap;
+			}
+
+			.stat {
+				display: flex;
+				align-items: center;
+				gap: 0.5rem;
+				padding: 0.5rem 1rem;
+				background: var(--bg-float);
+				border: 1px solid var(--border);
+				border-radius: 6px;
+				font-size: 0.85rem;
+			}
+
+			.stat-value {
+				font-weight: 600;
+			}
+
+			.stat-value.online { color: var(--green); }
+			.stat-value.offline { color: var(--fg-dark); }
+
+			/* Connection indicator */
+			.connection-indicator {
+				display: flex;
+				align-items: center;
+				gap: 0.3rem;
+				font-size: 0.75rem;
+				color: var(--fg-dark);
+			}
+
+			.connection-indicator.connected {
+				color: var(--green);
+			}
+
+			.connection-indicator.disconnected {
+				color: var(--red);
+			}
+
+			/* Chevron icon */
+			.chevron {
+				transition: transform 0.2s ease;
+			}
+
+			.expanded .chevron {
+				transform: rotate(180deg);
+			}
+
+			/* Hide utility */
+			.hidden { display: none !important; }
+
+			/* Loading spinner */
+			.spinner {
+				width: 16px;
+				height: 16px;
+				border: 2px solid var(--border);
+				border-top-color: var(--blue);
+				border-radius: 50%;
+				animation: spin 0.8s linear infinite;
+			}
+
+			@keyframes spin {
+				to { transform: rotate(360deg); }
+			}
+		</style>
+	</head>
+	<body data-csrf-token={ csrfToken }>
+		<div class="container">
+			{ children... }
+		</div>
+	</body>
+	</html>
+}
+

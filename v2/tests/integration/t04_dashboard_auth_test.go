@@ -97,14 +97,18 @@ func (td *testDashboard) URL() string {
 }
 
 // newClientWithCookies creates an HTTP client with cookie jar.
-func newClientWithCookies(t *testing.T) *http.Client {
+func newCookieJar(t *testing.T) *cookiejar.Jar {
 	jar, err := cookiejar.New(nil)
 	if err != nil {
 		t.Fatalf("failed to create cookie jar: %v", err)
 	}
+	return jar
+}
+
+func newClientWithCookies(t *testing.T) *http.Client {
 	return &http.Client{
-		Jar: jar,
-		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+		Jar: newCookieJar(t),
+		CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
 			return http.ErrUseLastResponse // Don't follow redirects
 		},
 	}
@@ -179,7 +183,13 @@ func TestDashboardAuth_LoginFailed(t *testing.T) {
 	td := setupTestDashboard(t)
 	defer td.Close()
 
-	client := newClientWithCookies(t)
+	// Use a client that doesn't follow redirects
+	client := &http.Client{
+		Jar: newCookieJar(t),
+		CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
+			return http.ErrUseLastResponse // Don't follow redirects
+		},
+	}
 
 	// POST login with wrong password
 	resp, err := client.PostForm(td.URL()+"/login", url.Values{
@@ -190,10 +200,16 @@ func TestDashboardAuth_LoginFailed(t *testing.T) {
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	// Should return 401
-	if resp.StatusCode != http.StatusUnauthorized {
+	// Should redirect to /login with error parameter
+	if resp.StatusCode != http.StatusFound {
 		body, _ := io.ReadAll(resp.Body)
-		t.Errorf("expected 401, got %d: %s", resp.StatusCode, body)
+		t.Errorf("expected 302 redirect, got %d: %s", resp.StatusCode, body)
+	}
+
+	// Check redirect location contains error
+	location := resp.Header.Get("Location")
+	if !strings.Contains(location, "error=") {
+		t.Errorf("expected redirect to /login?error=..., got: %s", location)
 	}
 
 	// Should not have session cookie
@@ -220,7 +236,13 @@ func TestDashboardAuth_RateLimit(t *testing.T) {
 	td := setupTestDashboard(t)
 	defer td.Close()
 
-	client := newClientWithCookies(t)
+	// Use a client that doesn't follow redirects
+	client := &http.Client{
+		Jar: newCookieJar(t),
+		CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
+			return http.ErrUseLastResponse // Don't follow redirects
+		},
+	}
 
 	// Make 5 failed attempts (fills the limit)
 	for i := 0; i < 5; i++ {
@@ -231,9 +253,9 @@ func TestDashboardAuth_RateLimit(t *testing.T) {
 			t.Fatalf("login request %d failed: %v", i+1, err)
 		}
 		_ = resp.Body.Close()
-		t.Logf("attempt %d: status %d", i+1, resp.StatusCode)
-		if resp.StatusCode != http.StatusUnauthorized {
-			t.Errorf("attempt %d: expected 401, got %d", i+1, resp.StatusCode)
+		t.Logf("attempt %d: status %d, location: %s", i+1, resp.StatusCode, resp.Header.Get("Location"))
+		if resp.StatusCode != http.StatusFound {
+			t.Errorf("attempt %d: expected 302, got %d", i+1, resp.StatusCode)
 		}
 	}
 
@@ -246,9 +268,15 @@ func TestDashboardAuth_RateLimit(t *testing.T) {
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	if resp.StatusCode != http.StatusTooManyRequests {
+	// Should redirect with rate limit error message
+	if resp.StatusCode != http.StatusFound {
 		body, _ := io.ReadAll(resp.Body)
-		t.Errorf("expected 429 Too Many Requests, got %d: %s", resp.StatusCode, body)
+		t.Errorf("expected 302 redirect, got %d: %s", resp.StatusCode, body)
+	}
+
+	location := resp.Header.Get("Location")
+	if !strings.Contains(location, "error=") || !strings.Contains(location, "many") {
+		t.Errorf("expected rate limit error in redirect, got: %s", location)
 	} else {
 		t.Log("rate limiting working correctly")
 	}

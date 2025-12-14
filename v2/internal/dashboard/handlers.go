@@ -1,12 +1,14 @@
 package dashboard
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/gorilla/websocket"
+	"github.com/markus-barta/nixfleet/v2/internal/templates"
 )
 
 var upgrader = websocket.Upgrader{
@@ -25,20 +27,11 @@ func (s *Server) handleLoginPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Get error from query param (set after failed login)
+	errorMsg := r.URL.Query().Get("error")
+
 	w.Header().Set("Content-Type", "text/html")
-	// For now, return a simple login form
-	_, _ = w.Write([]byte(`<!DOCTYPE html>
-<html>
-<head><title>NixFleet Login</title></head>
-<body>
-<h1>NixFleet Login</h1>
-<form method="POST" action="/login">
-  <input type="password" name="password" placeholder="Password" required>
-  <input type="text" name="totp" placeholder="TOTP (if enabled)">
-  <button type="submit">Login</button>
-</form>
-</body>
-</html>`))
+	_ = templates.Login(errorMsg).Render(context.Background(), w)
 }
 
 // handleLogin processes login form submission.
@@ -52,13 +45,13 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if s.auth.IsRateLimited(ip) {
-		http.Error(w, "Too Many Requests", http.StatusTooManyRequests)
+		http.Redirect(w, r, "/login?error=Too+many+attempts.+Please+wait.", http.StatusFound)
 		return
 	}
 
 	// Parse form
 	if err := r.ParseForm(); err != nil {
-		http.Error(w, "Bad Request", http.StatusBadRequest)
+		http.Redirect(w, r, "/login?error=Invalid+request", http.StatusFound)
 		return
 	}
 
@@ -68,14 +61,14 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	// Check password
 	if !s.auth.CheckPassword(password) {
 		s.log.Warn().Str("ip", ip).Msg("failed login attempt: wrong password")
-		http.Error(w, "Invalid password", http.StatusUnauthorized)
+		http.Redirect(w, r, "/login?error=Invalid+password", http.StatusFound)
 		return
 	}
 
 	// Check TOTP if configured
 	if s.cfg.HasTOTP() && !s.auth.CheckTOTP(totpCode) {
 		s.log.Warn().Str("ip", ip).Msg("failed login attempt: wrong TOTP")
-		http.Error(w, "Invalid TOTP code", http.StatusUnauthorized)
+		http.Redirect(w, r, "/login?error=Invalid+TOTP+code", http.StatusFound)
 		return
 	}
 
@@ -83,7 +76,7 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	session, err := s.auth.CreateSession()
 	if err != nil {
 		s.log.Error().Err(err).Msg("failed to create session")
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		http.Redirect(w, r, "/login?error=Server+error", http.StatusFound)
 		return
 	}
 
@@ -109,20 +102,91 @@ func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 	session := sessionFromContext(r.Context())
 
+	// Fetch hosts from database
+	hosts, err := s.getHosts()
+	if err != nil {
+		s.log.Error().Err(err).Msg("failed to fetch hosts")
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+
+	// Count online hosts
+	onlineCount := 0
+	for _, h := range hosts {
+		if h.Online {
+			onlineCount++
+		}
+	}
+
+	data := templates.DashboardData{
+		Hosts: hosts,
+		Stats: templates.Stats{
+			Online: onlineCount,
+			Total:  len(hosts),
+		},
+		CSRFToken: session.CSRFToken,
+		Version:   "2.0.0", // TODO: inject from build
+	}
+
 	w.Header().Set("Content-Type", "text/html")
-	// For now, return a simple dashboard placeholder
-	// CSRF token is exposed in a data attribute for easy extraction
-	_, _ = w.Write([]byte(`<!DOCTYPE html>
-<html>
-<head><title>NixFleet Dashboard</title></head>
-<body data-csrf-token="` + session.CSRFToken + `">
-<h1>NixFleet Dashboard</h1>
-<form method="POST" action="/logout">
-  <input type="hidden" name="csrf_token" value="` + session.CSRFToken + `">
-  <button type="submit">Logout</button>
-</form>
-</body>
-</html>`))
+	_ = templates.Dashboard(data).Render(context.Background(), w)
+}
+
+// getHosts fetches all hosts from the database
+func (s *Server) getHosts() ([]templates.Host, error) {
+	rows, err := s.db.Query(`
+		SELECT id, hostname, host_type, agent_version, os_version, 
+		       nixpkgs_version, generation, last_seen, status, pending_command, theme_color
+		FROM hosts ORDER BY hostname
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+
+	var hosts []templates.Host
+	for rows.Next() {
+		var h struct {
+			ID, Hostname, HostType                                  string
+			AgentVersion, OSVersion, NixpkgsVersion, Generation     *string
+			LastSeen                                                *string
+			Status                                                  string
+			PendingCommand, ThemeColor                              *string
+		}
+		if err := rows.Scan(&h.ID, &h.Hostname, &h.HostType, &h.AgentVersion,
+			&h.OSVersion, &h.NixpkgsVersion, &h.Generation, &h.LastSeen,
+			&h.Status, &h.PendingCommand, &h.ThemeColor); err != nil {
+			continue
+		}
+
+		host := templates.Host{
+			ID:       h.ID,
+			Hostname: h.Hostname,
+			HostType: h.HostType,
+			Status:   h.Status,
+			Online:   h.Status == "online" || h.Status == "running",
+		}
+		if h.AgentVersion != nil {
+			host.AgentVersion = *h.AgentVersion
+		}
+		if h.OSVersion != nil {
+			host.OSVersion = *h.OSVersion
+		}
+		if h.Generation != nil {
+			host.Generation = *h.Generation
+		}
+		if h.LastSeen != nil {
+			host.LastSeen = *h.LastSeen
+		}
+		if h.PendingCommand != nil {
+			host.PendingCommand = *h.PendingCommand
+		}
+		if h.ThemeColor != nil {
+			host.ThemeColor = *h.ThemeColor
+		}
+		hosts = append(hosts, host)
+	}
+	return hosts, nil
 }
 
 // handleWebSocket handles both agent and browser WebSocket connections.

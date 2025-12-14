@@ -53,3 +53,7 @@ devenv.local.yaml
 
 .shared
 bin/
+
+# Go binaries in v2
+v2/nixfleet-agent
+v2/nixfleet-dashboard

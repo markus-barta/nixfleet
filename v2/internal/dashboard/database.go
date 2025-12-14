@@ -3,12 +3,12 @@ package dashboard
 import (
 	"database/sql"
 
-	_ "github.com/mattn/go-sqlite3" // SQLite driver
+	_ "modernc.org/sqlite" // Pure-Go SQLite driver (no CGO)
 )
 
 // InitDatabase creates the database and tables.
 func InitDatabase(path string) (*sql.DB, error) {
-	db, err := sql.Open("sqlite3", path)
+	db, err := sql.Open("sqlite", path)
 	if err != nil {
 		return nil, err
 	}
@@ -50,6 +50,7 @@ func createTables(db *sql.DB) error {
 		status TEXT DEFAULT 'unknown',
 		pending_command TEXT,
 		comment TEXT,
+		theme_color TEXT DEFAULT '#7aa2f7',
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	);
 

@@ -30,10 +30,15 @@ type Config struct {
 
 	// Database
 	DatabasePath string
+
+	// Data directory for logs etc
+	DataDir string
 }
 
 // LoadConfig loads configuration from environment variables.
 func LoadConfig() (*Config, error) {
+	dataDir := getEnv("NIXFLEET_DATA_DIR", "/data")
+
 	cfg := &Config{
 		ListenAddr:        getEnv("NIXFLEET_LISTEN", ":8000"),
 		BaseURL:           getEnv("NIXFLEET_BASE_URL", "http://localhost:8000"),
@@ -44,7 +49,8 @@ func LoadConfig() (*Config, error) {
 		SessionDuration:   parseDuration("NIXFLEET_SESSION_DURATION", 24*time.Hour),
 		RateLimitRequests: parseInt("NIXFLEET_RATE_LIMIT", 5),
 		RateLimitWindow:   parseDuration("NIXFLEET_RATE_WINDOW", 1*time.Minute),
-		DatabasePath:      getEnv("NIXFLEET_DB_PATH", "nixfleet.db"),
+		DatabasePath:      getEnv("NIXFLEET_DB_PATH", dataDir+"/nixfleet.db"),
+		DataDir:           dataDir,
 	}
 
 	if err := cfg.validate(); err != nil {

@@ -1,0 +1,60 @@
+package templates
+
+// Login renders the login page
+templ Login(errorMsg string) {
+	@Base("NixFleet Login", "") {
+		<div style="display: flex; justify-content: center; align-items: center; min-height: 80vh;">
+			<div style="width: 100%; max-width: 360px;">
+				<div style="text-align: center; margin-bottom: 2rem;">
+					<h1 style="color: var(--blue); font-size: 2rem; margin-bottom: 0.5rem;">⚡ NixFleet</h1>
+					<p style="color: var(--fg-dark);">Fleet Management Dashboard</p>
+				</div>
+
+				if errorMsg != "" {
+					<div style="background: rgba(247, 118, 142, 0.15); border: 1px solid var(--red); color: var(--red); padding: 0.75rem 1rem; border-radius: 6px; margin-bottom: 1rem; font-size: 0.9rem;">
+						{ errorMsg }
+					</div>
+				}
+
+				<form method="POST" action="/login" style="background: var(--bg-float); border: 1px solid var(--border); border-radius: 8px; padding: 1.5rem;">
+					<div style="margin-bottom: 1rem;">
+						<label for="password" style="display: block; color: var(--fg-dark); font-size: 0.85rem; margin-bottom: 0.5rem;">Password</label>
+						<input 
+							type="password" 
+							id="password"
+							name="password" 
+							required
+							autofocus
+							style="width: 100%; padding: 0.75rem; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; color: var(--fg); font-family: inherit; font-size: 1rem;"
+							placeholder="Enter password"
+						/>
+					</div>
+
+					<div style="margin-bottom: 1.5rem;">
+						<label for="totp" style="display: block; color: var(--fg-dark); font-size: 0.85rem; margin-bottom: 0.5rem;">TOTP Code (if enabled)</label>
+						<input 
+							type="text" 
+							id="totp"
+							name="totp" 
+							autocomplete="one-time-code"
+							inputmode="numeric"
+							pattern="[0-9]*"
+							maxlength="6"
+							style="width: 100%; padding: 0.75rem; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; color: var(--fg); font-family: inherit; font-size: 1rem; letter-spacing: 0.2em;"
+							placeholder="000000"
+						/>
+					</div>
+
+					<button 
+						type="submit" 
+						class="btn btn-primary"
+						style="width: 100%; justify-content: center; padding: 0.75rem; font-size: 1rem;"
+					>
+						Login
+					</button>
+				</form>
+			</div>
+		</div>
+	}
+}
+
