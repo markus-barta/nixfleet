@@ -122,7 +122,7 @@ ALTER TABLE hosts ADD COLUMN heartbeat_interval INTEGER DEFAULT 30;
 
 ```bash
 # On csb1
-ssh -p 2222 mba@cs1.barta.cm
+ssh mba@cs1.barta.cm -p 2222
 
 # Backup current state
 cd ~/docker/nixfleet

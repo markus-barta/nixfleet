@@ -2,7 +2,7 @@
 
 **Created**: 2025-12-14
 **Priority**: P4300 (Critical)
-**Status**: Backlog
+**Status**: Partial (streaming works, UI/storage pending)
 **Depends on**: P4200 (Go Dashboard Core)
 
 ---
