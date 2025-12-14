@@ -264,6 +264,20 @@ func (h *Hub) updateHost(payload protocol.RegisterPayload) {
 		Str("os_version", payload.OSVersion).
 		Str("theme_color", themeColor).
 		Msg("updated host record")
+
+	// Broadcast to browsers that host is now online
+	// This ensures immediate UI update after agent reconnects (e.g., after switch)
+	h.BroadcastToBrowsers(map[string]any{
+		"type": "host_update",
+		"payload": map[string]any{
+			"host_id":         payload.Hostname,
+			"online":          true,
+			"pending_command": "",
+			"generation":      payload.Generation,
+			"os_version":      payload.OSVersion,
+			"agent_version":   payload.AgentVersion,
+		},
+	})
 }
 
 func (h *Hub) handleHeartbeat(hostID string, payload protocol.HeartbeatPayload) {
