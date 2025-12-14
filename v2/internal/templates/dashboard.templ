@@ -405,10 +405,10 @@ templ Dashboard(data DashboardData) {
 
 // HostCard renders a host as a card (mobile view)
 templ HostCard(host Host, csrfToken string) {
-	<div class="host-card" data-host-id={ host.ID } x-data="{ expanded: false }">
+	<div class={ "host-card", templ.KV("host-offline", !host.Online) } data-host-id={ host.ID } x-data="{ expanded: false }">
 		<div class="host-card-header" @click="expanded = !expanded">
 			<div class="host-name">
-				<span class={ "status-dot", statusClass(host) }></span>
+				@StatusIndicator(host)
 				<span style={ hostColorStyle(host) }>{ host.Hostname }</span>
 				if host.PendingCommand != "" {
 					<span class="progress-badge">{ host.PendingCommand }</span>
@@ -459,9 +459,9 @@ templ HostCard(host Host, csrfToken string) {
 
 // HostRow renders a host as a table row (desktop view)
 templ HostRow(host Host, csrfToken string) {
-	<tr data-host-id={ host.ID }>
+	<tr data-host-id={ host.ID } class={ templ.KV("host-offline", !host.Online) }>
 		<td>
-			<span class={ "status-dot", statusClass(host) }></span>
+			@StatusIndicator(host)
 		</td>
 		<td>
 			<span style={ hostColorStyle(host) }>{ host.Hostname }</span>
@@ -494,6 +494,22 @@ templ HostRow(host Host, csrfToken string) {
 			</div>
 		</td>
 	</tr>
+}
+
+// StatusIndicator renders the appropriate status indicator (ripple for online, dot for offline)
+templ StatusIndicator(host Host) {
+	if host.Online && host.PendingCommand == "" {
+		<span class="status-ripple">
+			<span class="hb-wave"></span>
+			<span class="hb-wave"></span>
+			<span class="hb-wave"></span>
+			<span class="hb-core"></span>
+		</span>
+	} else if host.PendingCommand != "" {
+		<span class="status-dot status-running"></span>
+	} else {
+		<span class="status-dot status-offline"></span>
+	}
 }
 
 // CommandButton renders a command button with proper onclick handling and SVG icon

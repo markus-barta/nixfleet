@@ -282,6 +282,67 @@ templ Base(title string, csrfToken string) {
 				50% { opacity: 0.5; }
 			}
 
+			/* Heartbeat ripple for online hosts */
+			.status-ripple {
+				width: 12px;
+				height: 12px;
+				position: relative;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				color: var(--green);
+			}
+
+			.status-ripple .hb-core {
+				width: 4px;
+				height: 4px;
+				background: currentColor;
+				border-radius: 50%;
+				position: relative;
+				z-index: 2;
+			}
+
+			.status-ripple .hb-wave {
+				position: absolute;
+				top: 50%;
+				left: 50%;
+				width: 4px;
+				height: 4px;
+				background: currentColor;
+				border-radius: 50%;
+				opacity: 0;
+				animation: ripple-wave 1.5s ease-out infinite;
+			}
+
+			.status-ripple .hb-wave:nth-child(2) { animation-delay: 0.5s; }
+			.status-ripple .hb-wave:nth-child(3) { animation-delay: 1s; }
+
+			@keyframes ripple-wave {
+				0% {
+					width: 4px;
+					height: 4px;
+					margin: -2px 0 0 -2px;
+					opacity: 0.8;
+				}
+				100% {
+					width: 16px;
+					height: 16px;
+					margin: -8px 0 0 -8px;
+					opacity: 0;
+				}
+			}
+
+			/* Offline host dimming */
+			tr.host-offline,
+			.host-card.host-offline {
+				opacity: 0.5;
+			}
+
+			tr.host-offline:hover,
+			.host-card.host-offline:hover {
+				opacity: 0.8;
+			}
+
 			/* Log viewer */
 			.log-panel {
 				margin-top: 1rem;
