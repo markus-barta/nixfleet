@@ -15,7 +15,7 @@ buildGoModule rec {
 
   # Computed by running: nix-build -E 'with import <nixpkgs> {}; buildGoModule { src = ./v2; vendorHash = lib.fakeHash; }'
   # and extracting the expected hash from the error message
-  vendorHash = "sha256-iu4+WsynxFvLGtmoMOVlYlYNCwIEt4+rcDso/zgo32I=";
+  vendorHash = "sha256-UIPfKQ2cDYcTKZrMfP5V6pJaDQDvG4D6KTgbeVT7JDE=";
 
   # Only build the agent, not the dashboard
   subPackages = [ "cmd/nixfleet-agent" ];
