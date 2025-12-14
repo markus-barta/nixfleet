@@ -1,7 +1,7 @@
 # P4398 - Static Assets (Favicon, Logo)
 
 **Priority**: High  
-**Status**: Pending  
+**Status**: Done  
 **Effort**: Small  
 **References**: `+pm/legacy/v1.0/base.html`
 
@@ -85,13 +85,13 @@ COPY v2/static /app/static
 
 ### Requirements
 
-- [ ] Copy favicon from v1
-- [ ] Copy logo from v1
-- [ ] Add static file serving route
-- [ ] Add favicon link to base template
-- [ ] Add logo to header
-- [ ] Add background watermark
-- [ ] Update Dockerfile to include static files
+- [x] Copy favicon from v1
+- [x] Copy logo from v1
+- [x] Add static file serving route
+- [x] Add favicon link to base template
+- [x] Add logo to header
+- [x] Add background watermark
+- [x] Update Dockerfile to include static files
 
 ## Related
 
