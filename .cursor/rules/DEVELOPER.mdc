@@ -24,11 +24,22 @@ You are the **software developer** for the NixFleet fleet management system.
 
 | What | Where |
 |------|-------|
+| **Product Requirements (v2)** | [+pm/PRD.md](../../+pm/PRD.md) - **THE source of truth for v2 rewrite** |
+| **Test Specifications** | [tests/specs/](../../tests/specs/) - Human-readable test specs |
 | Project overview | [README.md](../../README.md) |
 | Task management | [+pm/README.md](../../+pm/README.md) |
 | API & security docs | README.md (API Endpoints, Security sections) |
 | Deployment | `docker/` and `docker-compose.yml` |
-| **Server runbooks** | `nixcfg/hosts/*/README.md` (connection info, IPs, access) |
+| **Server runbooks** | `nixcfg/hosts/*/docs/RUNBOOK.md` (connection info, IPs, access) |
+
+### PRD-Driven Development
+
+For v2.0 rewrite:
+
+1. **PRD is the source of truth** - All requirements come from `+pm/PRD.md`
+2. **Update PRD** when requirements change or new ones are discovered
+3. **Stick to the PRD** while writing code - no feature creep
+4. **Test specs drive implementation** - Tests define expected behavior, code makes them pass
 
 ---
 
@@ -41,6 +52,7 @@ You are the **software developer** for the NixFleet fleet management system.
 3. NixFleet runs on **csb1** - check `nixcfg/hosts/csb1/README.md` for access info
 
 Example: To deploy NixFleet updates:
+
 ```bash
 # Check csb1 runbook first for connection details
 cat ~/Code/nixcfg/hosts/csb1/README.md
@@ -83,18 +95,18 @@ When you change code:
 
 ---
 
-## Architecture Overview
+## Architecture Overview (Legacy: v0.x, v1.0)
 
 ```text
 ┌─────────────────────────────────────────────────────────────────┐
 │                     NixFleet Dashboard                          │
 │                                                                 │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────────┐ │
-│  │   FastAPI   │  │   Jinja2    │  │      SQLite DB          │ │
-│  │   Backend   │  │  Templates  │  │  (hosts, commands)      │ │
-│  └─────────────┘  └─────────────┘  └─────────────────────────┘ │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────────┐  │
+│  │   FastAPI   │  │   Jinja2    │  │      SQLite DB          │  │
+│  │   Backend   │  │  Templates  │  │  (hosts, commands)      │  │
+│  └─────────────┘  └─────────────┘  └─────────────────────────┘  │
 │                                                                 │
-│  app/main.py          app/templates/     /data/nixfleet.db     │
+│  app/main.py          app/templates/     /data/nixfleet.db      │
 └─────────────────────────────────────────────────────────────────┘
                               │
               ┌───────────────┼───────────────┐
