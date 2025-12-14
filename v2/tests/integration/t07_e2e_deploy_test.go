@@ -1,15 +1,13 @@
 // Package integration contains end-to-end tests for the NixFleet v2 system.
 //
-// E2E tests in this file are SKIPPED by default as they require:
-// - A running dashboard (local or remote)
-// - Real agents deployed to hosts
+// These E2E tests verify the FULL v2 stack (Go dashboard + Go agent).
+// They are currently placeholders until:
+// - P4100: Agent is packaged as Nix module
+// - P4400: Dashboard is packaged for deployment
 //
-// To run E2E tests:
-//   E2E_DASHBOARD_URL=ws://localhost:8000/ws \
-//   E2E_AGENT_TOKEN=your-token \
-//   E2E_PASSWORD=your-password \
-//   E2E_HOSTS=mba-mbp-work,hsb1 \
-//   go test -v ./tests/integration/... -run TestE2E
+// Once both are deployed, these tests will run against real hosts with the v2 stack.
+//
+// NOTE: Do NOT test against v1 production (fleet.barta.cm) - that tests different code!
 package integration
 
 import (
@@ -78,8 +76,14 @@ func (c *e2eConfig) generateTOTP() string {
 }
 
 // TestE2E_DeployFlow tests a full pull → switch flow on a real host.
+//
+// IMPORTANT: This tests the v2 stack only. Once P4100 and P4400 are complete,
+// deploy v2 agent to mba-mbp-work and run this test.
+//
 // Requires E2E environment variables to be set.
 func TestE2E_DeployFlow(t *testing.T) {
+	t.Skip("E2E tests require v2 deployment (P4100 + P4400) - currently testing v2 via T01-T06")
+
 	cfg := loadE2EConfig(t)
 	if !cfg.isConfigured() {
 		t.Skip("E2E not configured. Set E2E_DASHBOARD_URL, E2E_PASSWORD, E2E_HOSTS")
@@ -265,7 +269,11 @@ func waitForCommandComplete(t *testing.T, ws *websocket.Conn, host, command stri
 }
 
 // TestE2E_HostConnectivity tests that expected hosts are online.
+//
+// IMPORTANT: This tests the v2 stack only. Do not run against v1 production.
 func TestE2E_HostConnectivity(t *testing.T) {
+	t.Skip("E2E tests require v2 deployment (P4100 + P4400) - currently testing v2 via T01-T06")
+
 	cfg := loadE2EConfig(t)
 	if !cfg.isConfigured() {
 		t.Skip("E2E not configured. Set E2E_DASHBOARD_URL, E2E_PASSWORD, E2E_HOSTS")

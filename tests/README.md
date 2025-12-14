@@ -95,25 +95,18 @@ cd v2 && go test -run TestAgentHeartbeat_DuringCommand ./tests/integration/...
 
 Legend: 🟢 Passing | 🟡 Skipped (needs env) | 🔴 Pending
 
-### Running E2E Tests
+### E2E Tests (T07/T08)
 
-E2E tests require environment variables:
+E2E tests verify the **full v2 stack** (Go dashboard + Go agent).
 
-```bash
-# Against production v1 dashboard
-E2E_DASHBOARD_URL=wss://fleet.barta.cm/ws \
-E2E_PASSWORD='your-password' \
-E2E_HOSTS=mba-mbp-work \
-go test -v ./v2/tests/integration/... -run TestE2E
+**Current Status**: Skipped until v2 is deployed
 
-# Against local v2 dashboard
-E2E_DASHBOARD_URL=ws://localhost:8000/ws \
-E2E_PASSWORD='test-password' \
-E2E_HOSTS=mba-mbp-work,hsb1 \
-go test -v ./v2/tests/integration/... -run TestE2E
-```
+- P4100 (Agent Nix packaging) - pending
+- P4400 (Dashboard packaging) - pending
 
-See `v2/tests/integration/t07_e2e_deploy_test.go` for details.
+Once deployed, E2E tests will run against real hosts like `mba-mbp-work` with the v2 stack.
+
+**⚠️ Do NOT test against v1 production** - that tests different code (Python/Bash)!
 
 ---
 
