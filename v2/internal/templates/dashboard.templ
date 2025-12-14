@@ -52,10 +52,6 @@ templ Dashboard(data DashboardData) {
 				<div class="subtitle">Fleet Management Dashboard</div>
 			</div>
 			<div class="header-actions">
-				<span class="connection-indicator" id="ws-status">
-					<span class="status-dot status-offline"></span>
-					Connecting...
-				</span>
 				<form method="POST" action="/logout" style="display: inline;">
 					<input type="hidden" name="csrf_token" value={ data.CSRFToken }/>
 					<button type="submit" class="btn btn-danger">Logout</button>
@@ -130,6 +126,13 @@ templ Dashboard(data DashboardData) {
 		<footer>
 			NixFleet { data.Version } • Powered by Go + HTMX
 		</footer>
+
+		<div class="connection-status">
+			<span class="connection-indicator" id="ws-status">
+				<span class="status-dot status-offline"></span>
+				Connecting...
+			</span>
+		</div>
 
 		<!-- WebSocket and Alpine.js logic -->
 		<script>
