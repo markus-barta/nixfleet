@@ -61,8 +61,14 @@ RUN mkdir -p /data && chown nixfleet:nixfleet /data
 # Copy binary from builder
 COPY --from=builder /nixfleet-dashboard /usr/local/bin/nixfleet-dashboard
 
+# Copy static files
+COPY --from=builder /app/static /static
+
 # Switch to non-root user
 USER nixfleet
+
+# Working directory (for relative static file paths)
+WORKDIR /
 
 # Expose internal port (Traefik connects here, NOT exposed to host)
 EXPOSE 8000
