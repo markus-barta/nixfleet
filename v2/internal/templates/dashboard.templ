@@ -343,11 +343,20 @@ templ Dashboard(data DashboardData) {
 					btn.disabled = !!pending;
 				});
 
-				// Update progress badge if exists
-				const badge = container.querySelector('.progress-badge');
+				// Update progress badge (mini version next to status dot)
+				const badge = container.querySelector('.progress-badge-mini');
 				if (badge) {
 					badge.textContent = pending || '';
 					badge.style.display = pending ? 'inline' : 'none';
+				} else if (pending) {
+					// Create badge if doesn't exist
+					const statusCell = container.querySelector('.status-cell-with-badge, .status-with-badge');
+					if (statusCell) {
+						const newBadge = document.createElement('span');
+						newBadge.className = 'progress-badge-mini';
+						newBadge.textContent = pending;
+						statusCell.appendChild(newBadge);
+					}
 				}
 			}
 
@@ -480,11 +489,13 @@ templ HostCard(host Host, csrfToken string) {
 	<div class={ "host-card", templ.KV("host-offline", !host.Online) } data-host-id={ host.ID } x-data="{ expanded: false }">
 		<div class="host-card-header" @click="expanded = !expanded">
 			<div class="host-name">
-				@StatusIndicator(host)
+				<span class="status-with-badge">
+					@StatusIndicator(host)
+					if host.PendingCommand != "" {
+						<span class="progress-badge-mini">{ host.PendingCommand }</span>
+					}
+				</span>
 				<span style={ hostColorStyle(host) }>{ host.Hostname }</span>
-				if host.PendingCommand != "" {
-					<span class="progress-badge">{ host.PendingCommand }</span>
-				}
 			</div>
 			<span class="chevron" :class="{ 'expanded': expanded }">▼</span>
 		</div>
@@ -532,14 +543,14 @@ templ HostCard(host Host, csrfToken string) {
 // HostRow renders a host as a table row (desktop view)
 templ HostRow(host Host, csrfToken string) {
 	<tr data-host-id={ host.ID } class={ templ.KV("host-offline", !host.Online) }>
-		<td>
+		<td class="status-cell-with-badge">
 			@StatusIndicator(host)
+			if host.PendingCommand != "" {
+				<span class="progress-badge-mini">{ host.PendingCommand }</span>
+			}
 		</td>
 		<td>
 			<span style={ hostColorStyle(host) }>{ host.Hostname }</span>
-			if host.PendingCommand != "" {
-				<span class="progress-badge" style="margin-left: 0.5rem;">{ host.PendingCommand }</span>
-			}
 		</td>
 		<td>{ host.HostType }</td>
 		<td class="metrics-cell">
