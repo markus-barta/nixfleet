@@ -228,16 +228,49 @@ templ Dashboard(data DashboardData) {
 				// Update table row
 				const row = document.querySelector(`tr[data-host-id="${host.host_id}"]`);
 				if (row) {
-					const statusDot = row.querySelector('.status-dot');
-					statusDot.className = 'status-dot status-' + (host.online ? 'online' : 'offline');
-					// Update other fields as needed
+					updateStatusIndicator(row, host);
+					row.classList.toggle('host-offline', !host.online);
+					if (host.pending_command !== undefined) {
+						row.dataset.pendingCommand = host.pending_command || '';
+						applyButtonStates(row);
+					}
 				}
 
 				// Update card
 				const card = document.querySelector(`.host-card[data-host-id="${host.host_id}"]`);
 				if (card) {
-					const statusDot = card.querySelector('.status-dot');
-					statusDot.className = 'status-dot status-' + (host.online ? 'online' : 'offline');
+					updateStatusIndicator(card, host);
+					card.classList.toggle('host-offline', !host.online);
+					if (host.pending_command !== undefined) {
+						card.dataset.pendingCommand = host.pending_command || '';
+						applyButtonStates(card);
+					}
+				}
+			}
+
+			function updateStatusIndicator(container, host) {
+				const statusCell = container.querySelector('td:first-child') || container.querySelector('.host-name');
+				if (!statusCell) return;
+
+				// Determine correct indicator type
+				let html;
+				if (host.online && !host.pending_command) {
+					// Online idle - show ripple
+					html = '<span class="status-ripple"><span class="hb-wave"></span><span class="hb-wave"></span><span class="hb-wave"></span><span class="hb-core"></span></span>';
+				} else if (host.pending_command) {
+					// Running - pulsing yellow
+					html = '<span class="status-dot status-running"></span>';
+				} else {
+					// Offline - static red
+					html = '<span class="status-dot status-offline"></span>';
+				}
+
+				// Only update if different
+				const existing = statusCell.querySelector('.status-ripple, .status-dot');
+				if (existing) {
+					const wrapper = document.createElement('div');
+					wrapper.innerHTML = html;
+					existing.replaceWith(wrapper.firstChild);
 				}
 			}
 
@@ -254,10 +287,15 @@ templ Dashboard(data DashboardData) {
 
 			function markCommandComplete(payload) {
 				window.dispatchEvent(new CustomEvent('log-complete', { detail: payload }));
+				// Clear busy state - command is done
+				setHostBusy(payload.host_id, null);
 			}
 
 			// Send command to host
 			function sendCommand(hostId, command) {
+				// Immediate UI feedback - disable buttons
+				setHostBusy(hostId, command);
+
 				const csrfToken = document.body.dataset.csrfToken;
 				fetch(`/api/hosts/${hostId}/command`, {
 					method: 'POST',
@@ -273,10 +311,44 @@ templ Dashboard(data DashboardData) {
 					return resp.json();
 				}).then(data => {
 					console.log('Command queued:', data);
+					// WebSocket will update state when command completes
 				}).catch(err => {
 					console.error('Command failed:', err);
 					alert('Command failed: ' + err.message);
+					// On error, re-enable buttons
+					setHostBusy(hostId, null);
 				});
+			}
+
+			function setHostBusy(hostId, command) {
+				// Update table row
+				const row = document.querySelector(`tr[data-host-id="${hostId}"]`);
+				if (row) {
+					row.dataset.pendingCommand = command || '';
+					applyButtonStates(row);
+				}
+
+				// Update card
+				const card = document.querySelector(`.host-card[data-host-id="${hostId}"]`);
+				if (card) {
+					card.dataset.pendingCommand = command || '';
+					applyButtonStates(card);
+				}
+			}
+
+			function applyButtonStates(container) {
+				const pending = container.dataset.pendingCommand;
+				const btns = container.querySelectorAll('button[data-command]');
+				btns.forEach(btn => {
+					btn.disabled = !!pending;
+				});
+
+				// Update progress badge if exists
+				const badge = container.querySelector('.progress-badge');
+				if (badge) {
+					badge.textContent = pending || '';
+					badge.style.display = pending ? 'inline' : 'none';
+				}
 			}
 
 			// Delete host

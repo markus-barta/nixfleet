@@ -108,15 +108,15 @@ tr[data-online="false"] td::before {
 
 ### Requirements
 
-- [ ] Add Location column with icons
-- [ ] Add Device Type column with icons
-- [ ] Add Metrics column with CPU/RAM
-- [ ] Add Config column with hash badge
+- [ ] Add Location column with icons (requires agent changes)
+- [ ] Add Device Type column with icons (requires agent changes)
+- [x] Add Metrics column with CPU/RAM
+- [x] Add Config column with hash badge
 - [ ] Add Tests column with progress/results
-- [ ] Implement heartbeat ripple animation
-- [ ] Add 50% overlay for offline hosts
+- [x] Implement heartbeat ripple animation
+- [x] Add 50% overlay for offline hosts
 - [ ] Set proper column widths
-- [ ] Add hover titles for full info
+- [x] Add hover titles for full info (metrics)
 
 ## Related
 
