@@ -236,9 +236,10 @@ func (h *Hub) updateHost(payload protocol.RegisterPayload) {
 	}
 
 	// Upsert host record
+	// On re-registration (after switch/restart), clear pending_command and set online
 	_, err := h.db.Exec(`
-		INSERT INTO hosts (id, hostname, host_type, agent_version, os_version, nixpkgs_version, generation, theme_color, last_seen, status)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), 'online')
+		INSERT INTO hosts (id, hostname, host_type, agent_version, os_version, nixpkgs_version, generation, theme_color, last_seen, status, pending_command)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), 'online', NULL)
 		ON CONFLICT(hostname) DO UPDATE SET
 			host_type = excluded.host_type,
 			agent_version = excluded.agent_version,
@@ -247,7 +248,8 @@ func (h *Hub) updateHost(payload protocol.RegisterPayload) {
 			generation = excluded.generation,
 			theme_color = excluded.theme_color,
 			last_seen = datetime('now'),
-			status = 'online'
+			status = 'online',
+			pending_command = NULL
 	`, payload.Hostname, payload.Hostname, payload.HostType, payload.AgentVersion,
 		payload.OSVersion, payload.NixpkgsVersion, payload.Generation, themeColor)
 
@@ -317,6 +319,12 @@ func (h *Hub) handleStatus(hostID string, payload protocol.StatusPayload) {
 		Str("command", payload.Command).
 		Str("status", payload.Status).
 		Msg("command status")
+
+	// Clear pending_command in database - command is complete
+	_, err := h.db.Exec(`UPDATE hosts SET pending_command = NULL WHERE hostname = ?`, hostID)
+	if err != nil {
+		h.log.Error().Err(err).Str("host", hostID).Msg("failed to clear pending_command")
+	}
 
 	// Complete the log file
 	if h.logStore != nil {

@@ -1,7 +1,7 @@
 # P4385 - UI: Button States & Locking
 
 **Priority**: High  
-**Status**: Pending  
+**Status**: Done  
 **Effort**: Small  
 **References**: `+pm/legacy/v1.0/dashboard.html` (lines 2143-2188), PRD FR-3.6
 
