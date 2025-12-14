@@ -110,10 +110,11 @@ func (c *WebSocketClient) connect(ctx context.Context) error {
 	c.mu.Unlock()
 
 	// Configure connection
-	conn.SetReadDeadline(time.Now().Add(pongWait))
+	if err := conn.SetReadDeadline(time.Now().Add(pongWait)); err != nil {
+		c.log.Debug().Err(err).Msg("failed to set read deadline")
+	}
 	conn.SetPongHandler(func(string) error {
-		conn.SetReadDeadline(time.Now().Add(pongWait))
-		return nil
+		return conn.SetReadDeadline(time.Now().Add(pongWait))
 	})
 
 	// Start ping goroutine
@@ -131,7 +132,7 @@ func (c *WebSocketClient) readLoop(ctx context.Context) {
 		c.mu.Lock()
 		c.connected = false
 		if c.conn != nil {
-			c.conn.Close()
+			_ = c.conn.Close() // Ignore close error in cleanup
 			c.conn = nil
 		}
 		c.mu.Unlock()
@@ -240,7 +241,9 @@ func (c *WebSocketClient) SendMessage(msgType string, payload any) error {
 		return websocket.ErrCloseSent
 	}
 
-	c.conn.SetWriteDeadline(time.Now().Add(writeWait))
+	if err := c.conn.SetWriteDeadline(time.Now().Add(writeWait)); err != nil {
+		return err
+	}
 	return c.conn.WriteMessage(websocket.TextMessage, data)
 }
 
@@ -266,7 +269,7 @@ func (c *WebSocketClient) Close() error {
 		deadline,
 	)
 	if err != nil {
-		c.conn.Close()
+		_ = c.conn.Close() // Ignore close error when write failed
 		return err
 	}
 

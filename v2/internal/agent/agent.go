@@ -86,7 +86,9 @@ func (a *Agent) Shutdown() {
 	a.log.Info().Msg("shutting down")
 	a.cancel()
 	if a.ws != nil {
-		a.ws.Close()
+		if err := a.ws.Close(); err != nil {
+			a.log.Debug().Err(err).Msg("error closing websocket")
+		}
 	}
 }
 

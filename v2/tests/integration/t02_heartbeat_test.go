@@ -38,7 +38,7 @@ func TestAgentHeartbeat_Regular(t *testing.T) {
 
 	// Run agent
 	go func() {
-		a.Run()
+		_ = a.Run() // Ignore error in test goroutine
 	}()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Second)
@@ -99,7 +99,7 @@ func TestAgentHeartbeat_DuringCommand(t *testing.T) {
 
 	// Run agent
 	go func() {
-		a.Run()
+		_ = a.Run() // Ignore error in test goroutine
 	}()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -174,7 +174,7 @@ func TestAgentHeartbeat_WithoutMetrics(t *testing.T) {
 
 	// Run agent
 	go func() {
-		a.Run()
+		_ = a.Run() // Ignore error in test goroutine
 	}()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -235,7 +235,7 @@ func TestAgentHeartbeat_ConcurrentCommandRejection(t *testing.T) {
 
 	// Run agent
 	go func() {
-		a.Run()
+		_ = a.Run() // Ignore error in test goroutine
 	}()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -308,7 +308,7 @@ func TestAgentHeartbeat_ImmediateFirst(t *testing.T) {
 
 	// Run agent
 	go func() {
-		a.Run()
+		_ = a.Run() // Ignore error in test goroutine
 	}()
 
 	// Short timeout - heartbeat should arrive quickly (immediate)

@@ -41,7 +41,7 @@ func TestAgentConnection_Success(t *testing.T) {
 	defer cancel()
 
 	go func() {
-		a.Run()
+		_ = a.Run() // Ignore error in test goroutine
 	}()
 
 	// Wait for registration message
@@ -103,7 +103,7 @@ func TestAgentConnection_InvalidToken(t *testing.T) {
 	defer cancel()
 
 	go func() {
-		a.Run()
+		_ = a.Run() // Ignore error in test goroutine
 	}()
 
 	// Wait a bit for connection attempts
@@ -148,7 +148,7 @@ func TestAgentConnection_Reconnect(t *testing.T) {
 
 	// Run agent
 	go func() {
-		a.Run()
+		_ = a.Run() // Ignore error in test goroutine
 	}()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -207,7 +207,7 @@ func TestAgentConnection_MalformedMessage(t *testing.T) {
 
 	// Run agent
 	go func() {
-		a.Run()
+		_ = a.Run() // Ignore error in test goroutine
 	}()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

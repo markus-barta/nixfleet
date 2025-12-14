@@ -52,7 +52,7 @@ func (m *MockDashboard) URL() string {
 func (m *MockDashboard) Close() {
 	m.mu.Lock()
 	for _, conn := range m.conns {
-		conn.Close()
+		_ = conn.Close() // Ignore close errors in cleanup
 	}
 	m.mu.Unlock()
 	m.server.Close()
@@ -177,7 +177,7 @@ func (m *MockDashboard) handleWS(w http.ResponseWriter, r *http.Request) {
 	m.mu.Unlock()
 
 	defer func() {
-		conn.Close()
+		_ = conn.Close() // Ignore close error in cleanup
 		m.mu.Lock()
 		for i, c := range m.conns {
 			if c == conn {
@@ -217,7 +217,7 @@ func (m *MockDashboard) handleWS(w http.ResponseWriter, r *http.Request) {
 						HostID: payload.Hostname,
 					})
 					respData, _ := json.Marshal(resp)
-					conn.WriteMessage(websocket.TextMessage, respData)
+					_ = conn.WriteMessage(websocket.TextMessage, respData) // Ignore error in test
 				}
 			}
 		}

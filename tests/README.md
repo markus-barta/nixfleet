@@ -18,19 +18,21 @@
 ```text
 tests/
 ├── README.md                 # This file
-├── specs/                    # Human-readable test specifications
-│   ├── T01-agent-connection.md
-│   ├── T02-agent-heartbeat.md
-│   ├── T03-agent-commands.md
-│   ├── T04-dashboard-auth.md
-│   ├── T05-dashboard-websocket.md
-│   ├── T06-dashboard-commands.md
-│   ├── T07-e2e-deploy-flow.md
-│   └── T08-e2e-test-flow.md
-└── integration/              # Executable Go tests
-    ├── agent_test.go
-    ├── dashboard_test.go
-    └── e2e_test.go
+└── specs/                    # Human-readable test specifications
+    ├── T01-agent-connection.md
+    ├── T02-agent-heartbeat.md
+    ├── T03-agent-commands.md
+    ├── T04-dashboard-auth.md
+    ├── T05-dashboard-websocket.md
+    ├── T06-dashboard-commands.md
+    ├── T07-e2e-deploy-flow.md
+    └── T08-e2e-test-flow.md
+
+v2/tests/integration/         # Executable Go tests
+├── helpers_test.go           # Mock dashboard, test utilities
+├── t01_connection_test.go    # T01 implementation
+├── t02_heartbeat_test.go     # T02 implementation
+└── t03_commands_test.go      # T03 implementation
 ```
 
 ---
@@ -65,35 +67,33 @@ Test agent + dashboard together:
 ## Running Tests
 
 ```bash
-# Run all tests
-go test ./tests/integration/...
+# With devenv (recommended):
+test-agent                              # Run all agent tests
+test-agent -run TestAgentConnection     # Run specific test
 
-# Run specific test file
-go test ./tests/integration/agent_test.go
+# Or directly with Go:
+cd v2 && go test ./tests/integration/... -v
 
-# Run with verbose output
-go test -v ./tests/integration/...
-
-# Run specific test by name
-go test -run TestAgentConnection ./tests/integration/...
+# Run specific test by name:
+cd v2 && go test -run TestAgentHeartbeat_DuringCommand ./tests/integration/...
 ```
 
 ---
 
 ## Test Status
 
-| Spec                    | Status             | Backlog Item |
-| ----------------------- | ------------------ | ------------ |
-| T01-agent-connection    | 🔴 Not Implemented | P4000        |
-| T02-agent-heartbeat     | 🔴 Not Implemented | P4000        |
-| T03-agent-commands      | 🔴 Not Implemented | P4000        |
-| T04-dashboard-auth      | 🔴 Not Implemented | P4200        |
-| T05-dashboard-websocket | 🔴 Not Implemented | P4200        |
-| T06-dashboard-commands  | 🔴 Not Implemented | P4200        |
-| T07-e2e-deploy-flow     | 🔴 Not Implemented | P4200        |
-| T08-e2e-test-flow       | 🔴 Not Implemented | P4200        |
+| Spec                    | Status     | Tests | Backlog Item |
+| ----------------------- | ---------- | ----- | ------------ |
+| T01-agent-connection    | 🟢 Passing | 5     | P4000        |
+| T02-agent-heartbeat     | 🟢 Passing | 5     | P4000        |
+| T03-agent-commands      | 🟢 Passing | 5     | P4000        |
+| T04-dashboard-auth      | 🔴 Pending | 0     | P4200        |
+| T05-dashboard-websocket | 🔴 Pending | 0     | P4200        |
+| T06-dashboard-commands  | 🔴 Pending | 0     | P4200        |
+| T07-e2e-deploy-flow     | 🔴 Pending | 0     | P4200        |
+| T08-e2e-test-flow       | 🔴 Pending | 0     | P4200        |
 
-Legend: 🟢 Passing | 🟡 Partial | 🔴 Not Implemented
+Legend: 🟢 Passing | 🟡 Partial | 🔴 Pending
 
 ---
 

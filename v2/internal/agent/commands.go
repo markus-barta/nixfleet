@@ -37,7 +37,9 @@ func (a *Agent) handleCommand(command string) {
 			CurrentCommand: currentCmd,
 			CurrentPID:     currentPID,
 		}
-		a.ws.SendMessage(protocol.TypeRejected, payload)
+		if err := a.ws.SendMessage(protocol.TypeRejected, payload); err != nil {
+			a.log.Debug().Err(err).Msg("failed to send rejection")
+		}
 		return
 	}
 

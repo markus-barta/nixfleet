@@ -62,7 +62,7 @@ echo "line 5"
 	// Create and run agent
 	log := zerolog.Nop()
 	a := agent.New(cfg, log)
-	go a.Run()
+	go func() { _ = a.Run() }()
 	defer a.Shutdown()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
@@ -145,7 +145,7 @@ echo "this should not appear"
 	// Create and run agent
 	log := zerolog.Nop()
 	a := agent.New(cfg, log)
-	go a.Run()
+	go func() { _ = a.Run() }()
 	defer a.Shutdown()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -248,7 +248,7 @@ exit 1
 	// Create and run agent
 	log := zerolog.Nop()
 	a := agent.New(cfg, log)
-	go a.Run()
+	go func() { _ = a.Run() }()
 	defer a.Shutdown()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -309,14 +309,14 @@ func TestAgentCommand_Pull(t *testing.T) {
 	}
 
 	// Configure git user (required for commits)
-	exec.Command("git", "-C", tmpDir, "config", "user.email", "test@test.com").Run()
-	exec.Command("git", "-C", tmpDir, "config", "user.name", "Test").Run()
+	_ = exec.Command("git", "-C", tmpDir, "config", "user.email", "test@test.com").Run()
+	_ = exec.Command("git", "-C", tmpDir, "config", "user.name", "Test").Run()
 
 	// Create initial commit
 	testFile := filepath.Join(tmpDir, "test.txt")
-	os.WriteFile(testFile, []byte("initial"), 0644)
-	exec.Command("git", "-C", tmpDir, "add", ".").Run()
-	exec.Command("git", "-C", tmpDir, "commit", "-m", "initial").Run()
+	_ = os.WriteFile(testFile, []byte("initial"), 0644)
+	_ = exec.Command("git", "-C", tmpDir, "add", ".").Run()
+	_ = exec.Command("git", "-C", tmpDir, "commit", "-m", "initial").Run()
 
 	// Start mock dashboard
 	dashboard := NewMockDashboard(t)
@@ -335,7 +335,7 @@ func TestAgentCommand_Pull(t *testing.T) {
 	// Create and run agent
 	log := zerolog.Nop()
 	a := agent.New(cfg, log)
-	go a.Run()
+	go func() { _ = a.Run() }()
 	defer a.Shutdown()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -417,7 +417,7 @@ echo "done"
 	// Create and run agent
 	log := zerolog.Nop()
 	a := agent.New(cfg, log)
-	go a.Run()
+	go func() { _ = a.Run() }()
 	defer a.Shutdown()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)

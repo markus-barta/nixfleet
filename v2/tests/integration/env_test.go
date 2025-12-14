@@ -7,10 +7,10 @@ func lookupEnv(key string) (string, bool) {
 }
 
 func setEnv(key, value string) {
-	os.Setenv(key, value)
+	_ = os.Setenv(key, value) // Ignore error in test helper
 }
 
 func unsetEnv(key string) {
-	os.Unsetenv(key)
+	_ = os.Unsetenv(key) // Ignore error in test helper
 }
 
