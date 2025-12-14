@@ -263,8 +263,8 @@ templ Base(title string, csrfToken string) {
 				display: inline-block;
 			}
 
-			.status-online { background: var(--green); }
-			.status-offline { background: var(--fg-dark); }
+			.status-online { background: var(--green); box-shadow: 0 0 6px var(--green); }
+			.status-offline { background: var(--red); opacity: 0.7; }
 			.status-running { background: var(--yellow); animation: pulse 1.5s infinite; }
 			.status-error { background: var(--red); }
 
