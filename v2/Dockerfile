@@ -34,9 +34,9 @@ ARG BUILD_TIME=unknown
 # CGO_ENABLED=0 for static binary (modernc.org/sqlite is pure Go)
 RUN CGO_ENABLED=0 GOOS=linux go build \
     -ldflags="-s -w \
-      -X github.com/pbek/nixfleet/v2/internal/dashboard.Version=${VERSION} \
-      -X github.com/pbek/nixfleet/v2/internal/dashboard.GitCommit=${GIT_COMMIT} \
-      -X github.com/pbek/nixfleet/v2/internal/dashboard.BuildTime=${BUILD_TIME}" \
+      -X github.com/markus-barta/nixfleet/v2/internal/dashboard.Version=${VERSION} \
+      -X github.com/markus-barta/nixfleet/v2/internal/dashboard.GitCommit=${GIT_COMMIT} \
+      -X github.com/markus-barta/nixfleet/v2/internal/dashboard.BuildTime=${BUILD_TIME}" \
     -o /nixfleet-dashboard \
     ./cmd/nixfleet-dashboard
 

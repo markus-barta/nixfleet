@@ -1,7 +1,7 @@
 package dashboard
 
 // These variables are set at build time via ldflags
-// Example: go build -ldflags "-X github.com/pbek/nixfleet/v2/internal/dashboard.Version=2.0.1"
+// Example: go build -ldflags "-X github.com/markus-barta/nixfleet/v2/internal/dashboard.Version=2.0.1"
 var (
 	// Version is the semantic version, set via ldflags at build time
 	Version = "dev"
