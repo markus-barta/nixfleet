@@ -258,6 +258,32 @@ templ Dashboard(data DashboardData) {
 				});
 			}
 
+			// Delete host
+			function deleteHost(hostId) {
+				if (!confirm(`Delete host "${hostId}"? This cannot be undone.`)) {
+					return;
+				}
+				const csrfToken = document.body.dataset.csrfToken;
+				fetch(`/api/hosts/${hostId}`, {
+					method: 'DELETE',
+					headers: {
+						'X-CSRF-Token': csrfToken
+					}
+				}).then(resp => {
+					if (!resp.ok) {
+						return resp.text().then(text => { throw new Error(text); });
+					}
+					return resp.json();
+				}).then(data => {
+					console.log('Host deleted:', data);
+					// Remove host from DOM
+					document.querySelectorAll(`[data-host-id="${hostId}"]`).forEach(el => el.remove());
+				}).catch(err => {
+					console.error('Delete failed:', err);
+					alert('Delete failed: ' + err.message);
+				});
+			}
+
 			// Alpine.js log viewer component
 			document.addEventListener('alpine:init', () => {
 				Alpine.data('logViewer', () => ({
@@ -404,6 +430,7 @@ templ HostCard(host Host, csrfToken string) {
 				@CommandButton(host.ID, "pull", "Pull", "btn", host.Online && host.PendingCommand == "")
 				@CommandButton(host.ID, "switch", "Switch", "btn btn-primary", host.Online && host.PendingCommand == "")
 				@CommandButton(host.ID, "test", "Test", "btn", host.Online && host.PendingCommand == "")
+				@DeleteButton(host.ID, !host.Online)
 			</div>
 		</div>
 	</div>
@@ -442,6 +469,7 @@ templ HostRow(host Host, csrfToken string) {
 				@CommandButton(host.ID, "pull", "", "btn", host.Online && host.PendingCommand == "")
 				@CommandButton(host.ID, "switch", "", "btn btn-primary", host.Online && host.PendingCommand == "")
 				@CommandButton(host.ID, "test", "", "btn", host.Online && host.PendingCommand == "")
+				@DeleteButton(host.ID, !host.Online)
 			</div>
 		</td>
 	</tr>
@@ -482,6 +510,24 @@ templ commandIcon(command string) {
 			<svg class="icon"><use href="#icon-flask"></use></svg>
 		default:
 			// No icon for unknown commands
+	}
+}
+
+// DeleteButton renders a delete button for offline hosts
+templ DeleteButton(hostID string, enabled bool) {
+	if enabled {
+		<button 
+			class="btn btn-danger"
+			data-host-id={ hostID }
+			onclick="deleteHost(this.dataset.hostId)"
+			title="Delete offline host"
+		>
+			<svg class="icon"><use href="#icon-trash"></use></svg>
+		</button>
+	} else {
+		<button class="btn btn-danger" disabled title="Cannot delete online host">
+			<svg class="icon"><use href="#icon-trash"></use></svg>
+		</button>
 	}
 }
 

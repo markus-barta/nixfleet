@@ -427,6 +427,48 @@ func (s *Server) handleCommand(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// handleDeleteHost removes a host from the database.
+func (s *Server) handleDeleteHost(w http.ResponseWriter, r *http.Request) {
+	hostID := chi.URLParam(r, "hostID")
+
+	// Check if host is online - don't allow deleting online hosts
+	agent := s.hub.GetAgent(hostID)
+	if agent != nil {
+		http.Error(w, "Cannot delete online host", http.StatusConflict)
+		return
+	}
+
+	// Delete command logs first (foreign key)
+	_, _ = s.db.Exec(`DELETE FROM command_logs WHERE host_id = ?`, hostID)
+
+	// Delete the host
+	result, err := s.db.Exec(`DELETE FROM hosts WHERE id = ?`, hostID)
+	if err != nil {
+		s.log.Error().Err(err).Str("host_id", hostID).Msg("failed to delete host")
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+
+	rows, _ := result.RowsAffected()
+	if rows == 0 {
+		http.Error(w, "Host not found", http.StatusNotFound)
+		return
+	}
+
+	s.log.Info().Str("host_id", hostID).Msg("host deleted")
+
+	// Broadcast to browsers
+	s.hub.BroadcastToBrowsers(map[string]any{
+		"type": "host_deleted",
+		"payload": map[string]any{
+			"host_id": hostID,
+		},
+	})
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]any{"status": "deleted", "host_id": hostID})
+}
+
 // handleGetLogs returns command logs for a host.
 func (s *Server) handleGetLogs(w http.ResponseWriter, r *http.Request) {
 	hostID := chi.URLParam(r, "hostID")
