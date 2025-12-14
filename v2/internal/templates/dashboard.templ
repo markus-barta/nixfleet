@@ -37,15 +37,18 @@ type Stats struct {
 
 // DashboardData contains all data needed to render the dashboard
 type DashboardData struct {
-	Hosts     []Host
-	Stats     Stats
-	CSRFToken string
-	Version   string
+	Hosts             []Host
+	Stats             Stats
+	CSRFToken         string
+	Version           string
+	HeartbeatInterval int // in seconds, for last-seen display
 }
 
 // Dashboard renders the main dashboard page
 templ Dashboard(data DashboardData) {
 	@Base("NixFleet Dashboard", data.CSRFToken) {
+		<!-- Config for JavaScript -->
+		<div id="config" data-heartbeat-interval={ strconv.Itoa(data.HeartbeatInterval) } style="display:none;"></div>
 		<header>
 			<div class="brand">
 				<h1>
@@ -321,8 +324,8 @@ templ Dashboard(data DashboardData) {
 				return cls;
 			}
 
-			// Heartbeat interval in seconds (default 30s)
-			const HEARTBEAT_INTERVAL = 30;
+			// Heartbeat interval in seconds (from server config)
+			const HEARTBEAT_INTERVAL = parseInt(document.getElementById('config').dataset.heartbeatInterval) || 30;
 
 			function formatLastSeen(isoString) {
 				if (!isoString) return { text: '—', className: '' };

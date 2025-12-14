@@ -201,8 +201,9 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 			Online: onlineCount,
 			Total:  len(hosts),
 		},
-		CSRFToken: session.CSRFToken,
-		Version:   VersionInfo(),
+		CSRFToken:         session.CSRFToken,
+		Version:           VersionInfo(),
+		HeartbeatInterval: 30, // Default agent heartbeat interval in seconds
 	}
 
 	w.Header().Set("Content-Type", "text/html")
