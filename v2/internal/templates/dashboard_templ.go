@@ -157,20 +157,20 @@ func Dashboard(data DashboardData) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "</tbody></table><!-- Log Viewer (global, shown when command is running) --> <div class=\"log-panel hidden\" id=\"log-panel\" x-data=\"logViewer()\"><div class=\"log-header\" @click=\"toggle()\"><div style=\"display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;\"><span>Command Output <span x-show=\"hostId\" x-text=\"'(' + hostId + ')'\"></span></span><!-- Progress indicator --><span x-show=\"phase\" class=\"progress-badge\" x-text=\"phaseIcon + ' ' + phase + (buildCount ? ' (' + buildCurrent + '/' + buildCount + ')' : '')\"></span></div><span class=\"chevron\" :class=\"{ 'expanded': open }\">▼</span></div><div class=\"log-content\" x-show=\"open\" x-ref=\"logContent\"><template x-for=\"line in lines\" :key=\"line.id\"><div class=\"log-line\" :class=\"{ 'error': line.isError, 'success': line.isSuccess }\" x-text=\"line.text\"></div></template></div></div><footer>NixFleet ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "</tbody></table><!-- Log Viewer (global, shown when command is running) --> <div class=\"log-panel hidden\" id=\"log-panel\" x-data=\"logViewer()\"><div class=\"log-header\" @click=\"toggle()\"><div style=\"display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;\"><span>Command Output <span x-show=\"hostId\" x-text=\"'(' + hostId + ')'\"></span></span><!-- Progress indicator --><span x-show=\"phase\" class=\"progress-badge\" x-text=\"phaseIcon + ' ' + phase + (buildCount ? ' (' + buildCurrent + '/' + buildCount + ')' : '')\"></span></div><span class=\"chevron\" :class=\"{ 'expanded': open }\">▼</span></div><div class=\"log-content\" x-show=\"open\" x-ref=\"logContent\"><template x-for=\"line in lines\" :key=\"line.id\"><div class=\"log-line\" :class=\"{ 'error': line.isError, 'success': line.isSuccess }\" x-text=\"line.text\"></div></template></div></div><footer><span class=\"connection-indicator\" id=\"ws-status\"><span class=\"status-dot status-offline\"></span> Connecting...</span> • NixFleet ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var7 string
 			templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(data.Version)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 127, Col: 26}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 131, Col: 31}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, " • Powered by Go + HTMX</footer><div class=\"connection-status\"><span class=\"connection-indicator\" id=\"ws-status\"><span class=\"status-dot status-offline\"></span> Connecting...</span></div><!-- WebSocket and Alpine.js logic --> <script>\n\t\t\t// WebSocket connection\n\t\t\tlet ws = null;\n\t\t\tlet reconnectAttempts = 0;\n\t\t\tconst maxReconnectDelay = 30000;\n\n\t\t\tfunction connectWebSocket() {\n\t\t\t\tconst protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';\n\t\t\t\tws = new WebSocket(`${protocol}//${window.location.host}/ws`);\n\n\t\t\t\tws.onopen = () => {\n\t\t\t\t\tconsole.log('WebSocket connected');\n\t\t\t\t\treconnectAttempts = 0;\n\t\t\t\t\tupdateConnectionStatus(true);\n\t\t\t\t};\n\n\t\t\t\tws.onclose = () => {\n\t\t\t\t\tconsole.log('WebSocket disconnected');\n\t\t\t\t\tupdateConnectionStatus(false);\n\t\t\t\t\tscheduleReconnect();\n\t\t\t\t};\n\n\t\t\t\tws.onerror = (err) => {\n\t\t\t\t\tconsole.error('WebSocket error:', err);\n\t\t\t\t};\n\n\t\t\t\tws.onmessage = (event) => {\n\t\t\t\t\ttry {\n\t\t\t\t\t\tconst msg = JSON.parse(event.data);\n\t\t\t\t\t\thandleMessage(msg);\n\t\t\t\t\t} catch (e) {\n\t\t\t\t\t\tconsole.error('Failed to parse message:', e);\n\t\t\t\t\t}\n\t\t\t\t};\n\t\t\t}\n\n\t\t\tfunction updateConnectionStatus(connected) {\n\t\t\t\tconst el = document.getElementById('ws-status');\n\t\t\t\tif (connected) {\n\t\t\t\t\tel.className = 'connection-indicator connected';\n\t\t\t\t\tel.innerHTML = '<span class=\"status-dot status-online\"></span> Connected';\n\t\t\t\t} else {\n\t\t\t\t\tel.className = 'connection-indicator disconnected';\n\t\t\t\t\tel.innerHTML = '<span class=\"status-dot status-offline\"></span> Disconnected';\n\t\t\t\t}\n\t\t\t}\n\n\t\t\tfunction scheduleReconnect() {\n\t\t\t\treconnectAttempts++;\n\t\t\t\tconst delay = Math.min(1000 * Math.pow(2, reconnectAttempts), maxReconnectDelay);\n\t\t\t\tconsole.log(`Reconnecting in ${delay}ms...`);\n\t\t\t\tsetTimeout(connectWebSocket, delay);\n\t\t\t}\n\n\t\t\tfunction handleMessage(msg) {\n\t\t\t\tswitch (msg.type) {\n\t\t\t\t\tcase 'host_update':\n\t\t\t\t\t\tupdateHost(msg.payload);\n\t\t\t\t\t\tbreak;\n\t\t\t\t\tcase 'command_output':\n\t\t\t\t\t\tappendLog(msg.payload);\n\t\t\t\t\t\tbreak;\n\t\t\t\t\tcase 'command_queued':\n\t\t\t\t\t\tshowLogPanel(msg.payload.host_id);\n\t\t\t\t\t\tbreak;\n\t\t\t\t\tcase 'command_complete':\n\t\t\t\t\t\tmarkCommandComplete(msg.payload);\n\t\t\t\t\t\tbreak;\n\t\t\t\t}\n\t\t\t}\n\n\t\t\tfunction updateHost(host) {\n\t\t\t\t// Update table row\n\t\t\t\tconst row = document.querySelector(`tr[data-host-id=\"${host.host_id}\"]`);\n\t\t\t\tif (row) {\n\t\t\t\t\tconst statusDot = row.querySelector('.status-dot');\n\t\t\t\t\tstatusDot.className = 'status-dot status-' + (host.online ? 'online' : 'offline');\n\t\t\t\t\t// Update other fields as needed\n\t\t\t\t}\n\n\t\t\t\t// Update card\n\t\t\t\tconst card = document.querySelector(`.host-card[data-host-id=\"${host.host_id}\"]`);\n\t\t\t\tif (card) {\n\t\t\t\t\tconst statusDot = card.querySelector('.status-dot');\n\t\t\t\t\tstatusDot.className = 'status-dot status-' + (host.online ? 'online' : 'offline');\n\t\t\t\t}\n\t\t\t}\n\n\t\t\tfunction appendLog(payload) {\n\t\t\t\t// Dispatch to Alpine component\n\t\t\t\twindow.dispatchEvent(new CustomEvent('log-line', { detail: payload }));\n\t\t\t}\n\n\t\t\tfunction showLogPanel(hostId) {\n\t\t\t\tconst panel = document.getElementById('log-panel');\n\t\t\t\tpanel.classList.remove('hidden');\n\t\t\t\twindow.dispatchEvent(new CustomEvent('log-start', { detail: { hostId } }));\n\t\t\t}\n\n\t\t\tfunction markCommandComplete(payload) {\n\t\t\t\twindow.dispatchEvent(new CustomEvent('log-complete', { detail: payload }));\n\t\t\t}\n\n\t\t\t// Send command to host\n\t\t\tfunction sendCommand(hostId, command) {\n\t\t\t\tconst csrfToken = document.body.dataset.csrfToken;\n\t\t\t\tfetch(`/api/hosts/${hostId}/command`, {\n\t\t\t\t\tmethod: 'POST',\n\t\t\t\t\theaders: {\n\t\t\t\t\t\t'Content-Type': 'application/json',\n\t\t\t\t\t\t'X-CSRF-Token': csrfToken\n\t\t\t\t\t},\n\t\t\t\t\tbody: JSON.stringify({ command })\n\t\t\t\t}).then(resp => {\n\t\t\t\t\tif (!resp.ok) {\n\t\t\t\t\t\treturn resp.text().then(text => { throw new Error(text); });\n\t\t\t\t\t}\n\t\t\t\t\treturn resp.json();\n\t\t\t\t}).then(data => {\n\t\t\t\t\tconsole.log('Command queued:', data);\n\t\t\t\t}).catch(err => {\n\t\t\t\t\tconsole.error('Command failed:', err);\n\t\t\t\t\talert('Command failed: ' + err.message);\n\t\t\t\t});\n\t\t\t}\n\n\t\t\t// Delete host\n\t\t\tfunction deleteHost(hostId) {\n\t\t\t\tif (!confirm(`Delete host \"${hostId}\"? This cannot be undone.`)) {\n\t\t\t\t\treturn;\n\t\t\t\t}\n\t\t\t\tconst csrfToken = document.body.dataset.csrfToken;\n\t\t\t\tfetch(`/api/hosts/${hostId}`, {\n\t\t\t\t\tmethod: 'DELETE',\n\t\t\t\t\theaders: {\n\t\t\t\t\t\t'X-CSRF-Token': csrfToken\n\t\t\t\t\t}\n\t\t\t\t}).then(resp => {\n\t\t\t\t\tif (!resp.ok) {\n\t\t\t\t\t\treturn resp.text().then(text => { throw new Error(text); });\n\t\t\t\t\t}\n\t\t\t\t\treturn resp.json();\n\t\t\t\t}).then(data => {\n\t\t\t\t\tconsole.log('Host deleted:', data);\n\t\t\t\t\t// Remove host from DOM\n\t\t\t\t\tdocument.querySelectorAll(`[data-host-id=\"${hostId}\"]`).forEach(el => el.remove());\n\t\t\t\t}).catch(err => {\n\t\t\t\t\tconsole.error('Delete failed:', err);\n\t\t\t\t\talert('Delete failed: ' + err.message);\n\t\t\t\t});\n\t\t\t}\n\n\t\t\t// Alpine.js log viewer component\n\t\t\tdocument.addEventListener('alpine:init', () => {\n\t\t\t\tAlpine.data('logViewer', () => ({\n\t\t\t\t\topen: true,\n\t\t\t\t\tlines: [],\n\t\t\t\t\thostId: '',\n\t\t\t\t\tlineCounter: 0,\n\t\t\t\t\t// Progress tracking\n\t\t\t\t\tphase: '',\n\t\t\t\t\tphaseIcon: '',\n\t\t\t\t\tbuildCount: 0,\n\t\t\t\t\tbuildCurrent: 0,\n\n\t\t\t\t\tinit() {\n\t\t\t\t\t\twindow.addEventListener('log-line', (e) => {\n\t\t\t\t\t\t\tthis.addLine(e.detail);\n\t\t\t\t\t\t});\n\t\t\t\t\t\twindow.addEventListener('log-start', (e) => {\n\t\t\t\t\t\t\tthis.hostId = e.detail.hostId;\n\t\t\t\t\t\t\tthis.lines = [];\n\t\t\t\t\t\t\tthis.open = true;\n\t\t\t\t\t\t\tthis.resetProgress();\n\t\t\t\t\t\t});\n\t\t\t\t\t\twindow.addEventListener('log-complete', (e) => {\n\t\t\t\t\t\t\tthis.phase = e.detail.exit_code === 0 ? 'Complete' : 'Failed';\n\t\t\t\t\t\t\tthis.phaseIcon = e.detail.exit_code === 0 ? '✓' : '✗';\n\t\t\t\t\t\t\tthis.addLine({\n\t\t\t\t\t\t\t\tline: `\\n${this.phaseIcon} Command completed (exit code: ${e.detail.exit_code || 0})`,\n\t\t\t\t\t\t\t\tisSuccess: e.detail.exit_code === 0\n\t\t\t\t\t\t\t});\n\t\t\t\t\t\t});\n\t\t\t\t\t},\n\n\t\t\t\t\tresetProgress() {\n\t\t\t\t\t\tthis.phase = '';\n\t\t\t\t\t\tthis.phaseIcon = '';\n\t\t\t\t\t\tthis.buildCount = 0;\n\t\t\t\t\t\tthis.buildCurrent = 0;\n\t\t\t\t\t},\n\n\t\t\t\t\tparseProgress(line) {\n\t\t\t\t\t\t// NixOS rebuild phases\n\t\t\t\t\t\tif (line.includes('evaluating derivation')) {\n\t\t\t\t\t\t\tthis.phase = 'Evaluation';\n\t\t\t\t\t\t\tthis.phaseIcon = '→';\n\t\t\t\t\t\t} else if (line.includes('these derivations will be built')) {\n\t\t\t\t\t\t\t// Extract count: \"these 42 derivations will be built\"\n\t\t\t\t\t\t\tconst match = line.match(/these (\\d+) derivations/);\n\t\t\t\t\t\t\tif (match) this.buildCount = parseInt(match[1], 10);\n\t\t\t\t\t\t\tthis.phase = 'Building';\n\t\t\t\t\t\t\tthis.phaseIcon = '●';\n\t\t\t\t\t\t} else if (line.includes(\"building '/nix/store/\")) {\n\t\t\t\t\t\t\tthis.buildCurrent++;\n\t\t\t\t\t\t\tthis.phase = 'Building';\n\t\t\t\t\t\t\tthis.phaseIcon = '●';\n\t\t\t\t\t\t} else if (line.includes('activating the configuration')) {\n\t\t\t\t\t\t\tthis.phase = 'Activation';\n\t\t\t\t\t\t\tthis.phaseIcon = '▶';\n\t\t\t\t\t\t} else if (line.includes('switching to configuration')) {\n\t\t\t\t\t\t\tthis.phase = 'Switch';\n\t\t\t\t\t\t\tthis.phaseIcon = '→';\n\t\t\t\t\t\t} else if (line.includes('setting up /etc')) {\n\t\t\t\t\t\t\tthis.phase = 'Setup';\n\t\t\t\t\t\t\tthis.phaseIcon = '○';\n\t\t\t\t\t\t} else if (line.includes('will be fetched')) {\n\t\t\t\t\t\t\tthis.phase = 'Fetching';\n\t\t\t\t\t\t\tthis.phaseIcon = '↓';\n\t\t\t\t\t\t}\n\t\t\t\t\t},\n\n\t\t\t\t\ttoggle() {\n\t\t\t\t\t\tthis.open = !this.open;\n\t\t\t\t\t},\n\n\t\t\t\t\taddLine(payload) {\n\t\t\t\t\t\tconst text = payload.line;\n\t\t\t\t\t\tthis.parseProgress(text);\n\t\t\t\t\t\tthis.lines.push({\n\t\t\t\t\t\t\tid: ++this.lineCounter,\n\t\t\t\t\t\t\ttext: text,\n\t\t\t\t\t\t\tisError: payload.is_error || payload.stream === 'stderr',\n\t\t\t\t\t\t\tisSuccess: payload.isSuccess || false\n\t\t\t\t\t\t});\n\t\t\t\t\t\t// Auto-scroll\n\t\t\t\t\t\tthis.$nextTick(() => {\n\t\t\t\t\t\t\tconst el = this.$refs.logContent;\n\t\t\t\t\t\t\tif (el) el.scrollTop = el.scrollHeight;\n\t\t\t\t\t\t});\n\t\t\t\t\t}\n\t\t\t\t}));\n\t\t\t});\n\n\t\t\t// Initialize WebSocket\n\t\t\tconnectWebSocket();\n\t\t</script>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, " • Powered by Go + HTMX</footer><!-- WebSocket and Alpine.js logic --> <script>\n\t\t\t// WebSocket connection\n\t\t\tlet ws = null;\n\t\t\tlet reconnectAttempts = 0;\n\t\t\tconst maxReconnectDelay = 30000;\n\n\t\t\tfunction connectWebSocket() {\n\t\t\t\tconst protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';\n\t\t\t\tws = new WebSocket(`${protocol}//${window.location.host}/ws`);\n\n\t\t\t\tws.onopen = () => {\n\t\t\t\t\tconsole.log('WebSocket connected');\n\t\t\t\t\treconnectAttempts = 0;\n\t\t\t\t\tupdateConnectionStatus(true);\n\t\t\t\t};\n\n\t\t\t\tws.onclose = () => {\n\t\t\t\t\tconsole.log('WebSocket disconnected');\n\t\t\t\t\tupdateConnectionStatus(false);\n\t\t\t\t\tscheduleReconnect();\n\t\t\t\t};\n\n\t\t\t\tws.onerror = (err) => {\n\t\t\t\t\tconsole.error('WebSocket error:', err);\n\t\t\t\t};\n\n\t\t\t\tws.onmessage = (event) => {\n\t\t\t\t\ttry {\n\t\t\t\t\t\tconst msg = JSON.parse(event.data);\n\t\t\t\t\t\thandleMessage(msg);\n\t\t\t\t\t} catch (e) {\n\t\t\t\t\t\tconsole.error('Failed to parse message:', e);\n\t\t\t\t\t}\n\t\t\t\t};\n\t\t\t}\n\n\t\t\tfunction updateConnectionStatus(connected) {\n\t\t\t\tconst el = document.getElementById('ws-status');\n\t\t\t\tif (connected) {\n\t\t\t\t\tel.className = 'connection-indicator connected';\n\t\t\t\t\tel.innerHTML = '<span class=\"status-dot status-online\"></span> Connected';\n\t\t\t\t} else {\n\t\t\t\t\tel.className = 'connection-indicator disconnected';\n\t\t\t\t\tel.innerHTML = '<span class=\"status-dot status-offline\"></span> Disconnected';\n\t\t\t\t}\n\t\t\t}\n\n\t\t\tfunction scheduleReconnect() {\n\t\t\t\treconnectAttempts++;\n\t\t\t\tconst delay = Math.min(1000 * Math.pow(2, reconnectAttempts), maxReconnectDelay);\n\t\t\t\tconsole.log(`Reconnecting in ${delay}ms...`);\n\t\t\t\tsetTimeout(connectWebSocket, delay);\n\t\t\t}\n\n\t\t\tfunction handleMessage(msg) {\n\t\t\t\tswitch (msg.type) {\n\t\t\t\t\tcase 'host_update':\n\t\t\t\t\t\tupdateHost(msg.payload);\n\t\t\t\t\t\tbreak;\n\t\t\t\t\tcase 'command_output':\n\t\t\t\t\t\tappendLog(msg.payload);\n\t\t\t\t\t\tbreak;\n\t\t\t\t\tcase 'command_queued':\n\t\t\t\t\t\tshowLogPanel(msg.payload.host_id);\n\t\t\t\t\t\tbreak;\n\t\t\t\t\tcase 'command_complete':\n\t\t\t\t\t\tmarkCommandComplete(msg.payload);\n\t\t\t\t\t\tbreak;\n\t\t\t\t}\n\t\t\t}\n\n\t\t\tfunction updateHost(host) {\n\t\t\t\t// Update table row\n\t\t\t\tconst row = document.querySelector(`tr[data-host-id=\"${host.host_id}\"]`);\n\t\t\t\tif (row) {\n\t\t\t\t\tconst statusDot = row.querySelector('.status-dot');\n\t\t\t\t\tstatusDot.className = 'status-dot status-' + (host.online ? 'online' : 'offline');\n\t\t\t\t\t// Update other fields as needed\n\t\t\t\t}\n\n\t\t\t\t// Update card\n\t\t\t\tconst card = document.querySelector(`.host-card[data-host-id=\"${host.host_id}\"]`);\n\t\t\t\tif (card) {\n\t\t\t\t\tconst statusDot = card.querySelector('.status-dot');\n\t\t\t\t\tstatusDot.className = 'status-dot status-' + (host.online ? 'online' : 'offline');\n\t\t\t\t}\n\t\t\t}\n\n\t\t\tfunction appendLog(payload) {\n\t\t\t\t// Dispatch to Alpine component\n\t\t\t\twindow.dispatchEvent(new CustomEvent('log-line', { detail: payload }));\n\t\t\t}\n\n\t\t\tfunction showLogPanel(hostId) {\n\t\t\t\tconst panel = document.getElementById('log-panel');\n\t\t\t\tpanel.classList.remove('hidden');\n\t\t\t\twindow.dispatchEvent(new CustomEvent('log-start', { detail: { hostId } }));\n\t\t\t}\n\n\t\t\tfunction markCommandComplete(payload) {\n\t\t\t\twindow.dispatchEvent(new CustomEvent('log-complete', { detail: payload }));\n\t\t\t}\n\n\t\t\t// Send command to host\n\t\t\tfunction sendCommand(hostId, command) {\n\t\t\t\tconst csrfToken = document.body.dataset.csrfToken;\n\t\t\t\tfetch(`/api/hosts/${hostId}/command`, {\n\t\t\t\t\tmethod: 'POST',\n\t\t\t\t\theaders: {\n\t\t\t\t\t\t'Content-Type': 'application/json',\n\t\t\t\t\t\t'X-CSRF-Token': csrfToken\n\t\t\t\t\t},\n\t\t\t\t\tbody: JSON.stringify({ command })\n\t\t\t\t}).then(resp => {\n\t\t\t\t\tif (!resp.ok) {\n\t\t\t\t\t\treturn resp.text().then(text => { throw new Error(text); });\n\t\t\t\t\t}\n\t\t\t\t\treturn resp.json();\n\t\t\t\t}).then(data => {\n\t\t\t\t\tconsole.log('Command queued:', data);\n\t\t\t\t}).catch(err => {\n\t\t\t\t\tconsole.error('Command failed:', err);\n\t\t\t\t\talert('Command failed: ' + err.message);\n\t\t\t\t});\n\t\t\t}\n\n\t\t\t// Delete host\n\t\t\tfunction deleteHost(hostId) {\n\t\t\t\tif (!confirm(`Delete host \"${hostId}\"? This cannot be undone.`)) {\n\t\t\t\t\treturn;\n\t\t\t\t}\n\t\t\t\tconst csrfToken = document.body.dataset.csrfToken;\n\t\t\t\tfetch(`/api/hosts/${hostId}`, {\n\t\t\t\t\tmethod: 'DELETE',\n\t\t\t\t\theaders: {\n\t\t\t\t\t\t'X-CSRF-Token': csrfToken\n\t\t\t\t\t}\n\t\t\t\t}).then(resp => {\n\t\t\t\t\tif (!resp.ok) {\n\t\t\t\t\t\treturn resp.text().then(text => { throw new Error(text); });\n\t\t\t\t\t}\n\t\t\t\t\treturn resp.json();\n\t\t\t\t}).then(data => {\n\t\t\t\t\tconsole.log('Host deleted:', data);\n\t\t\t\t\t// Remove host from DOM\n\t\t\t\t\tdocument.querySelectorAll(`[data-host-id=\"${hostId}\"]`).forEach(el => el.remove());\n\t\t\t\t}).catch(err => {\n\t\t\t\t\tconsole.error('Delete failed:', err);\n\t\t\t\t\talert('Delete failed: ' + err.message);\n\t\t\t\t});\n\t\t\t}\n\n\t\t\t// Alpine.js log viewer component\n\t\t\tdocument.addEventListener('alpine:init', () => {\n\t\t\t\tAlpine.data('logViewer', () => ({\n\t\t\t\t\topen: true,\n\t\t\t\t\tlines: [],\n\t\t\t\t\thostId: '',\n\t\t\t\t\tlineCounter: 0,\n\t\t\t\t\t// Progress tracking\n\t\t\t\t\tphase: '',\n\t\t\t\t\tphaseIcon: '',\n\t\t\t\t\tbuildCount: 0,\n\t\t\t\t\tbuildCurrent: 0,\n\n\t\t\t\t\tinit() {\n\t\t\t\t\t\twindow.addEventListener('log-line', (e) => {\n\t\t\t\t\t\t\tthis.addLine(e.detail);\n\t\t\t\t\t\t});\n\t\t\t\t\t\twindow.addEventListener('log-start', (e) => {\n\t\t\t\t\t\t\tthis.hostId = e.detail.hostId;\n\t\t\t\t\t\t\tthis.lines = [];\n\t\t\t\t\t\t\tthis.open = true;\n\t\t\t\t\t\t\tthis.resetProgress();\n\t\t\t\t\t\t});\n\t\t\t\t\t\twindow.addEventListener('log-complete', (e) => {\n\t\t\t\t\t\t\tthis.phase = e.detail.exit_code === 0 ? 'Complete' : 'Failed';\n\t\t\t\t\t\t\tthis.phaseIcon = e.detail.exit_code === 0 ? '✓' : '✗';\n\t\t\t\t\t\t\tthis.addLine({\n\t\t\t\t\t\t\t\tline: `\\n${this.phaseIcon} Command completed (exit code: ${e.detail.exit_code || 0})`,\n\t\t\t\t\t\t\t\tisSuccess: e.detail.exit_code === 0\n\t\t\t\t\t\t\t});\n\t\t\t\t\t\t});\n\t\t\t\t\t},\n\n\t\t\t\t\tresetProgress() {\n\t\t\t\t\t\tthis.phase = '';\n\t\t\t\t\t\tthis.phaseIcon = '';\n\t\t\t\t\t\tthis.buildCount = 0;\n\t\t\t\t\t\tthis.buildCurrent = 0;\n\t\t\t\t\t},\n\n\t\t\t\t\tparseProgress(line) {\n\t\t\t\t\t\t// NixOS rebuild phases\n\t\t\t\t\t\tif (line.includes('evaluating derivation')) {\n\t\t\t\t\t\t\tthis.phase = 'Evaluation';\n\t\t\t\t\t\t\tthis.phaseIcon = '→';\n\t\t\t\t\t\t} else if (line.includes('these derivations will be built')) {\n\t\t\t\t\t\t\t// Extract count: \"these 42 derivations will be built\"\n\t\t\t\t\t\t\tconst match = line.match(/these (\\d+) derivations/);\n\t\t\t\t\t\t\tif (match) this.buildCount = parseInt(match[1], 10);\n\t\t\t\t\t\t\tthis.phase = 'Building';\n\t\t\t\t\t\t\tthis.phaseIcon = '●';\n\t\t\t\t\t\t} else if (line.includes(\"building '/nix/store/\")) {\n\t\t\t\t\t\t\tthis.buildCurrent++;\n\t\t\t\t\t\t\tthis.phase = 'Building';\n\t\t\t\t\t\t\tthis.phaseIcon = '●';\n\t\t\t\t\t\t} else if (line.includes('activating the configuration')) {\n\t\t\t\t\t\t\tthis.phase = 'Activation';\n\t\t\t\t\t\t\tthis.phaseIcon = '▶';\n\t\t\t\t\t\t} else if (line.includes('switching to configuration')) {\n\t\t\t\t\t\t\tthis.phase = 'Switch';\n\t\t\t\t\t\t\tthis.phaseIcon = '→';\n\t\t\t\t\t\t} else if (line.includes('setting up /etc')) {\n\t\t\t\t\t\t\tthis.phase = 'Setup';\n\t\t\t\t\t\t\tthis.phaseIcon = '○';\n\t\t\t\t\t\t} else if (line.includes('will be fetched')) {\n\t\t\t\t\t\t\tthis.phase = 'Fetching';\n\t\t\t\t\t\t\tthis.phaseIcon = '↓';\n\t\t\t\t\t\t}\n\t\t\t\t\t},\n\n\t\t\t\t\ttoggle() {\n\t\t\t\t\t\tthis.open = !this.open;\n\t\t\t\t\t},\n\n\t\t\t\t\taddLine(payload) {\n\t\t\t\t\t\tconst text = payload.line;\n\t\t\t\t\t\tthis.parseProgress(text);\n\t\t\t\t\t\tthis.lines.push({\n\t\t\t\t\t\t\tid: ++this.lineCounter,\n\t\t\t\t\t\t\ttext: text,\n\t\t\t\t\t\t\tisError: payload.is_error || payload.stream === 'stderr',\n\t\t\t\t\t\t\tisSuccess: payload.isSuccess || false\n\t\t\t\t\t\t});\n\t\t\t\t\t\t// Auto-scroll\n\t\t\t\t\t\tthis.$nextTick(() => {\n\t\t\t\t\t\t\tconst el = this.$refs.logContent;\n\t\t\t\t\t\t\tif (el) el.scrollTop = el.scrollHeight;\n\t\t\t\t\t\t});\n\t\t\t\t\t}\n\t\t\t\t}));\n\t\t\t});\n\n\t\t\t// Initialize WebSocket\n\t\t\tconnectWebSocket();\n\t\t</script>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -213,7 +213,7 @@ func HostCard(host Host, csrfToken string) templ.Component {
 		var templ_7745c5c3_Var9 string
 		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(host.ID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 390, Col: 46}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 387, Col: 46}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 		if templ_7745c5c3_Err != nil {
@@ -248,7 +248,7 @@ func HostCard(host Host, csrfToken string) templ.Component {
 		var templ_7745c5c3_Var12 string
 		templ_7745c5c3_Var12, templ_7745c5c3_Err = templruntime.SanitizeStyleAttributeValues(hostColorStyle(host))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 394, Col: 38}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 391, Col: 38}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 		if templ_7745c5c3_Err != nil {
@@ -261,7 +261,7 @@ func HostCard(host Host, csrfToken string) templ.Component {
 		var templ_7745c5c3_Var13 string
 		templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(host.Hostname)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 394, Col: 56}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 391, Col: 56}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
 		if templ_7745c5c3_Err != nil {
@@ -279,7 +279,7 @@ func HostCard(host Host, csrfToken string) templ.Component {
 			var templ_7745c5c3_Var14 string
 			templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinStringErrs(host.PendingCommand)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 396, Col: 55}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 393, Col: 55}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var14))
 			if templ_7745c5c3_Err != nil {
@@ -297,7 +297,7 @@ func HostCard(host Host, csrfToken string) templ.Component {
 		var templ_7745c5c3_Var15 string
 		templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(host.HostType)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 404, Col: 25}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 401, Col: 25}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
 		if templ_7745c5c3_Err != nil {
@@ -337,7 +337,7 @@ func HostCard(host Host, csrfToken string) templ.Component {
 			var templ_7745c5c3_Var18 string
 			templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(formatPercent(host.Metrics.CPU))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 410, Col: 177}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 407, Col: 177}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
 			if templ_7745c5c3_Err != nil {
@@ -372,7 +372,7 @@ func HostCard(host Host, csrfToken string) templ.Component {
 			var templ_7745c5c3_Var21 string
 			templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.JoinStringErrs(formatPercent(host.Metrics.RAM))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 411, Col: 177}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 408, Col: 177}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var21))
 			if templ_7745c5c3_Err != nil {
@@ -385,7 +385,7 @@ func HostCard(host Host, csrfToken string) templ.Component {
 			var templ_7745c5c3_Var22 string
 			templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.JoinStringErrs(formatLoad(host.Metrics.Load))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 412, Col: 83}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 409, Col: 83}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var22))
 			if templ_7745c5c3_Err != nil {
@@ -403,7 +403,7 @@ func HostCard(host Host, csrfToken string) templ.Component {
 		var templ_7745c5c3_Var23 string
 		templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.JoinStringErrs(valueOrDash(host.OSVersion))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 418, Col: 39}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 415, Col: 39}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var23))
 		if templ_7745c5c3_Err != nil {
@@ -416,7 +416,7 @@ func HostCard(host Host, csrfToken string) templ.Component {
 		var templ_7745c5c3_Var24 string
 		templ_7745c5c3_Var24, templ_7745c5c3_Err = templ.JoinStringErrs(valueOrDash(host.Generation))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 422, Col: 40}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 419, Col: 40}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var24))
 		if templ_7745c5c3_Err != nil {
@@ -429,7 +429,7 @@ func HostCard(host Host, csrfToken string) templ.Component {
 		var templ_7745c5c3_Var25 string
 		templ_7745c5c3_Var25, templ_7745c5c3_Err = templ.JoinStringErrs(valueOrDash(host.AgentVersion))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 426, Col: 42}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 423, Col: 42}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var25))
 		if templ_7745c5c3_Err != nil {
@@ -442,7 +442,7 @@ func HostCard(host Host, csrfToken string) templ.Component {
 		var templ_7745c5c3_Var26 string
 		templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.JoinStringErrs(valueOrDash(host.LastSeen))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 430, Col: 38}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 427, Col: 38}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var26))
 		if templ_7745c5c3_Err != nil {
@@ -505,7 +505,7 @@ func HostRow(host Host, csrfToken string) templ.Component {
 		var templ_7745c5c3_Var28 string
 		templ_7745c5c3_Var28, templ_7745c5c3_Err = templ.JoinStringErrs(host.ID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 444, Col: 27}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 441, Col: 27}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var28))
 		if templ_7745c5c3_Err != nil {
@@ -540,7 +540,7 @@ func HostRow(host Host, csrfToken string) templ.Component {
 		var templ_7745c5c3_Var31 string
 		templ_7745c5c3_Var31, templ_7745c5c3_Err = templruntime.SanitizeStyleAttributeValues(hostColorStyle(host))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 449, Col: 37}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 446, Col: 37}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var31))
 		if templ_7745c5c3_Err != nil {
@@ -553,7 +553,7 @@ func HostRow(host Host, csrfToken string) templ.Component {
 		var templ_7745c5c3_Var32 string
 		templ_7745c5c3_Var32, templ_7745c5c3_Err = templ.JoinStringErrs(host.Hostname)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 449, Col: 55}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 446, Col: 55}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var32))
 		if templ_7745c5c3_Err != nil {
@@ -571,7 +571,7 @@ func HostRow(host Host, csrfToken string) templ.Component {
 			var templ_7745c5c3_Var33 string
 			templ_7745c5c3_Var33, templ_7745c5c3_Err = templ.JoinStringErrs(host.PendingCommand)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 451, Col: 83}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 448, Col: 83}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var33))
 			if templ_7745c5c3_Err != nil {
@@ -589,7 +589,7 @@ func HostRow(host Host, csrfToken string) templ.Component {
 		var templ_7745c5c3_Var34 string
 		templ_7745c5c3_Var34, templ_7745c5c3_Err = templ.JoinStringErrs(host.HostType)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 454, Col: 21}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 451, Col: 21}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var34))
 		if templ_7745c5c3_Err != nil {
@@ -625,7 +625,7 @@ func HostRow(host Host, csrfToken string) templ.Component {
 			var templ_7745c5c3_Var37 string
 			templ_7745c5c3_Var37, templ_7745c5c3_Err = templ.JoinStringErrs("CPU: " + formatPercent(host.Metrics.CPU))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 457, Col: 107}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 454, Col: 107}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var37))
 			if templ_7745c5c3_Err != nil {
@@ -638,7 +638,7 @@ func HostRow(host Host, csrfToken string) templ.Component {
 			var templ_7745c5c3_Var38 string
 			templ_7745c5c3_Var38, templ_7745c5c3_Err = templ.JoinStringErrs(formatPercent(host.Metrics.CPU))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 458, Col: 122}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 455, Col: 122}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var38))
 			if templ_7745c5c3_Err != nil {
@@ -673,7 +673,7 @@ func HostRow(host Host, csrfToken string) templ.Component {
 			var templ_7745c5c3_Var41 string
 			templ_7745c5c3_Var41, templ_7745c5c3_Err = templ.JoinStringErrs("RAM: " + formatPercent(host.Metrics.RAM) + ", Swap: " + formatPercent(host.Metrics.Swap) + ", Load: " + formatLoad(host.Metrics.Load))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 460, Col: 200}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 457, Col: 200}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var41))
 			if templ_7745c5c3_Err != nil {
@@ -686,7 +686,7 @@ func HostRow(host Host, csrfToken string) templ.Component {
 			var templ_7745c5c3_Var42 string
 			templ_7745c5c3_Var42, templ_7745c5c3_Err = templ.JoinStringErrs(formatPercent(host.Metrics.RAM))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 461, Col: 122}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 458, Col: 122}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var42))
 			if templ_7745c5c3_Err != nil {
@@ -709,7 +709,7 @@ func HostRow(host Host, csrfToken string) templ.Component {
 		var templ_7745c5c3_Var43 string
 		templ_7745c5c3_Var43, templ_7745c5c3_Err = templ.JoinStringErrs(valueOrDash(host.OSVersion))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 467, Col: 35}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 464, Col: 35}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var43))
 		if templ_7745c5c3_Err != nil {
@@ -722,7 +722,7 @@ func HostRow(host Host, csrfToken string) templ.Component {
 		var templ_7745c5c3_Var44 string
 		templ_7745c5c3_Var44, templ_7745c5c3_Err = templ.JoinStringErrs(valueOrDash(host.Generation))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 468, Col: 36}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 465, Col: 36}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var44))
 		if templ_7745c5c3_Err != nil {
@@ -735,7 +735,7 @@ func HostRow(host Host, csrfToken string) templ.Component {
 		var templ_7745c5c3_Var45 string
 		templ_7745c5c3_Var45, templ_7745c5c3_Err = templ.JoinStringErrs(valueOrDash(host.LastSeen))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 469, Col: 34}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 466, Col: 34}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var45))
 		if templ_7745c5c3_Err != nil {
@@ -817,7 +817,7 @@ func CommandButton(hostID, command, label, classes string, enabled bool) templ.C
 			var templ_7745c5c3_Var49 string
 			templ_7745c5c3_Var49, templ_7745c5c3_Err = templ.JoinStringErrs(hostID)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 486, Col: 24}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 483, Col: 24}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var49))
 			if templ_7745c5c3_Err != nil {
@@ -830,7 +830,7 @@ func CommandButton(hostID, command, label, classes string, enabled bool) templ.C
 			var templ_7745c5c3_Var50 string
 			templ_7745c5c3_Var50, templ_7745c5c3_Err = templ.JoinStringErrs(command)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 487, Col: 25}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 484, Col: 25}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var50))
 			if templ_7745c5c3_Err != nil {
@@ -848,7 +848,7 @@ func CommandButton(hostID, command, label, classes string, enabled bool) templ.C
 				var templ_7745c5c3_Var51 string
 				templ_7745c5c3_Var51, templ_7745c5c3_Err = templ.JoinStringErrs(label)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 492, Col: 11}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 489, Col: 11}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var51))
 				if templ_7745c5c3_Err != nil {
@@ -890,7 +890,7 @@ func CommandButton(hostID, command, label, classes string, enabled bool) templ.C
 				var templ_7745c5c3_Var54 string
 				templ_7745c5c3_Var54, templ_7745c5c3_Err = templ.JoinStringErrs(label)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 499, Col: 11}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 496, Col: 11}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var54))
 				if templ_7745c5c3_Err != nil {
@@ -980,7 +980,7 @@ func DeleteButton(hostID string, enabled bool) templ.Component {
 			var templ_7745c5c3_Var57 string
 			templ_7745c5c3_Var57, templ_7745c5c3_Err = templ.JoinStringErrs(hostID)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 524, Col: 24}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 521, Col: 24}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var57))
 			if templ_7745c5c3_Err != nil {

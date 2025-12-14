@@ -124,15 +124,12 @@ templ Dashboard(data DashboardData) {
 		</div>
 
 		<footer>
-			NixFleet { data.Version } • Powered by Go + HTMX
-		</footer>
-
-		<div class="connection-status">
 			<span class="connection-indicator" id="ws-status">
 				<span class="status-dot status-offline"></span>
 				Connecting...
 			</span>
-		</div>
+			 • NixFleet { data.Version } • Powered by Go + HTMX
+		</footer>
 
 		<!-- WebSocket and Alpine.js logic -->
 		<script>
