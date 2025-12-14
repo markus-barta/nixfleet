@@ -307,7 +307,7 @@ templ Base(title string, csrfToken string) {
 				50% { opacity: 0.5; }
 			}
 
-			/* Heartbeat ripple for online hosts */
+			/* Heartbeat indicator for online hosts */
 			.status-ripple {
 				width: 12px;
 				height: 12px;
@@ -319,40 +319,48 @@ templ Base(title string, csrfToken string) {
 			}
 
 			.status-ripple .hb-core {
-				width: 4px;
-				height: 4px;
+				width: 8px;
+				height: 8px;
 				background: currentColor;
 				border-radius: 50%;
 				position: relative;
 				z-index: 2;
+				box-shadow: 0 0 6px currentColor;
 			}
 
+			/* Waves hidden by default - only show on heartbeat */
 			.status-ripple .hb-wave {
 				position: absolute;
 				top: 50%;
 				left: 50%;
-				width: 4px;
-				height: 4px;
+				width: 8px;
+				height: 8px;
+				margin: -4px 0 0 -4px;
 				background: currentColor;
 				border-radius: 50%;
 				opacity: 0;
-				animation: ripple-wave 1.5s ease-out infinite;
+				/* No animation by default */
 			}
 
-			.status-ripple .hb-wave:nth-child(2) { animation-delay: 0.5s; }
-			.status-ripple .hb-wave:nth-child(3) { animation-delay: 1s; }
+			/* Animate only when .heartbeat class is present */
+			.status-ripple.heartbeat .hb-wave {
+				animation: ripple-wave 1.5s ease-out forwards;
+			}
+
+			.status-ripple.heartbeat .hb-wave:nth-child(2) { animation-delay: 0.3s; }
+			.status-ripple.heartbeat .hb-wave:nth-child(3) { animation-delay: 0.6s; }
 
 			@keyframes ripple-wave {
 				0% {
-					width: 4px;
-					height: 4px;
-					margin: -2px 0 0 -2px;
+					width: 8px;
+					height: 8px;
+					margin: -4px 0 0 -4px;
 					opacity: 0.8;
 				}
 				100% {
-					width: 16px;
-					height: 16px;
-					margin: -8px 0 0 -8px;
+					width: 20px;
+					height: 20px;
+					margin: -10px 0 0 -10px;
 					opacity: 0;
 				}
 			}

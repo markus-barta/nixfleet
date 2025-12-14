@@ -352,26 +352,51 @@ templ Dashboard(data DashboardData) {
 				const statusCell = container.querySelector('td:first-child') || container.querySelector('.host-name');
 				if (!statusCell) return;
 
-				// Determine correct indicator type
-				let html;
+				const existing = statusCell.querySelector('.status-ripple, .status-dot');
+
 				if (host.online && !host.pending_command) {
-					// Online idle - show ripple
-					html = '<span class="status-ripple"><span class="hb-wave"></span><span class="hb-wave"></span><span class="hb-wave"></span><span class="hb-core"></span></span>';
+					// Online idle - static green with heartbeat animation on update
+					if (existing && existing.classList.contains('status-ripple')) {
+						// Already a ripple - just trigger heartbeat animation
+						triggerHeartbeat(existing);
+					} else {
+						// Create new ripple indicator
+						const html = '<span class="status-ripple"><span class="hb-wave"></span><span class="hb-wave"></span><span class="hb-wave"></span><span class="hb-core"></span></span>';
+						const wrapper = document.createElement('div');
+						wrapper.innerHTML = html;
+						const newEl = wrapper.firstChild;
+						if (existing) {
+							existing.replaceWith(newEl);
+						}
+						// Trigger heartbeat on new element
+						triggerHeartbeat(newEl);
+					}
 				} else if (host.pending_command) {
 					// Running - pulsing yellow
-					html = '<span class="status-dot status-running"></span>';
+					const html = '<span class="status-dot status-running"></span>';
+					if (existing) {
+						const wrapper = document.createElement('div');
+						wrapper.innerHTML = html;
+						existing.replaceWith(wrapper.firstChild);
+					}
 				} else {
 					// Offline - static red
-					html = '<span class="status-dot status-offline"></span>';
+					const html = '<span class="status-dot status-offline"></span>';
+					if (existing) {
+						const wrapper = document.createElement('div');
+						wrapper.innerHTML = html;
+						existing.replaceWith(wrapper.firstChild);
+					}
 				}
+			}
 
-				// Only update if different
-				const existing = statusCell.querySelector('.status-ripple, .status-dot');
-				if (existing) {
-					const wrapper = document.createElement('div');
-					wrapper.innerHTML = html;
-					existing.replaceWith(wrapper.firstChild);
-				}
+			function triggerHeartbeat(rippleEl) {
+				// Add heartbeat class to trigger animation
+				rippleEl.classList.add('heartbeat');
+				// Remove after animation completes (1.5s total)
+				setTimeout(() => {
+					rippleEl.classList.remove('heartbeat');
+				}, 1500);
 			}
 
 			function appendLog(payload) {
