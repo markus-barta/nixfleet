@@ -59,6 +59,7 @@ func (s *Server) setupRouter() {
 	r.Use(s.securityHeaders)
 
 	// Public routes
+	r.Get("/health", s.handleHealth)
 	r.Get("/login", s.handleLoginPage)
 	r.Post("/login", s.handleLogin)
 

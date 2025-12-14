@@ -19,6 +19,13 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
+// handleHealth returns a simple health check response.
+func (s *Server) handleHealth(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write([]byte(`{"status":"ok"}`))
+}
+
 // handleLoginPage renders the login page.
 func (s *Server) handleLoginPage(w http.ResponseWriter, r *http.Request) {
 	// Check if already logged in
