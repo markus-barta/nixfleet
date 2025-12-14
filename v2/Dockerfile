@@ -27,8 +27,8 @@ ARG VERSION=dev
 ARG GIT_COMMIT=unknown
 ARG BUILD_TIME=unknown
 
-# Generate templ templates if needed (they should be pre-generated, but just in case)
-# RUN go install github.com/a-h/templ/cmd/templ@latest && templ generate
+# Generate templ templates (required when .templ files change)
+RUN go install github.com/a-h/templ/cmd/templ@latest && templ generate
 
 # Build the dashboard binary
 # CGO_ENABLED=0 for static binary (modernc.org/sqlite is pure Go)
