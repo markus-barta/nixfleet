@@ -31,14 +31,17 @@ Also missing:
 | OS        | 60px  | Icon + version (5 chars)        |
 | Loc       | 40px  | Location icon                   |
 | Type      | 40px  | Device type icon                |
-| Last Seen | 70px  | Relative time\*, full on hover  |
+| Last Seen | 70px  | Relative time, full on hover    |
 | Metrics   | 60px  | CPU + RAM with icons            |
 | Config    | 60px  | Hash badge + ↓/✓ indicator      |
 | Tests     | 50px  | Progress or results             |
 | Status    | 100px | Papertrail (expandable history) |
 | Actions   | 160px | Buttons + dropdown              |
 
-- Relative time is the time since the last heartbeat. Human readable. Have the day
+- "Last Seen" shows time since last heartbeat in relative terms (e.g., "3h ago", "12m ago").
+- If offline ≥ 1 day, show days (e.g., "2") in a calendar SVG icon (normal color) beside the relative time.
+- Support up to 99 days; for >99, show "99+" in a larger, red calendar icon.
+- Omit the calendar icon if offline < 1 day.
 
 ### Status Indicator (Host cell)
 
