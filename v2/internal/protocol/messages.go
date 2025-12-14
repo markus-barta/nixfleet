@@ -49,7 +49,8 @@ type RegisterPayload struct {
 	AgentVersion      string `json:"agent_version"`
 	OSVersion         string `json:"os_version"`
 	NixpkgsVersion    string `json:"nixpkgs_version"`
-	Generation        string `json:"generation"` // git commit hash
+	Generation        string `json:"generation"`   // git commit hash
+	ThemeColor        string `json:"theme_color"`  // hex color like #7aa2f7
 	HeartbeatInterval int    `json:"heartbeat_interval"`
 }
 

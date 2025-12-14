@@ -104,6 +104,7 @@ func (a *Agent) OnConnected() {
 		OSVersion:         a.osVersion,
 		NixpkgsVersion:    a.nixpkgsVersion,
 		Generation:        a.generation,
+		ThemeColor:        a.cfg.ThemeColor,
 		HeartbeatInterval: int(a.cfg.HeartbeatInterval.Seconds()),
 	}
 

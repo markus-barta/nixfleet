@@ -32,6 +32,7 @@ type Config struct {
 
 	// System info (can be overridden via env)
 	NixpkgsVersion string // nixpkgs version from environment
+	ThemeColor     string // Host theme color (hex like #7aa2f7)
 }
 
 // DefaultConfig returns a config with default values.
@@ -117,6 +118,9 @@ func LoadFromEnv() (*Config, error) {
 
 	// Override nixpkgs version if specified (for macOS/Home Manager)
 	cfg.NixpkgsVersion = os.Getenv("NIXFLEET_NIXPKGS_VERSION")
+
+	// Theme color for dashboard
+	cfg.ThemeColor = os.Getenv("NIXFLEET_THEME_COLOR")
 
 	return cfg, nil
 }

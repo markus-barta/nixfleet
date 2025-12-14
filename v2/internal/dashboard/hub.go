@@ -225,20 +225,31 @@ func (h *Hub) handleAgentMessage(msg *agentMessage) {
 }
 
 func (h *Hub) updateHost(payload protocol.RegisterPayload) {
+	// Use default color if not provided
+	themeColor := payload.ThemeColor
+	if themeColor == "" {
+		if payload.HostType == "macos" {
+			themeColor = "#bb9af7" // Tokyo Night purple for macOS
+		} else {
+			themeColor = "#7aa2f7" // Tokyo Night blue for NixOS
+		}
+	}
+
 	// Upsert host record
 	_, err := h.db.Exec(`
-		INSERT INTO hosts (id, hostname, host_type, agent_version, os_version, nixpkgs_version, generation, last_seen, status)
-		VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), 'online')
+		INSERT INTO hosts (id, hostname, host_type, agent_version, os_version, nixpkgs_version, generation, theme_color, last_seen, status)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), 'online')
 		ON CONFLICT(hostname) DO UPDATE SET
 			host_type = excluded.host_type,
 			agent_version = excluded.agent_version,
 			os_version = excluded.os_version,
 			nixpkgs_version = excluded.nixpkgs_version,
 			generation = excluded.generation,
+			theme_color = excluded.theme_color,
 			last_seen = datetime('now'),
 			status = 'online'
 	`, payload.Hostname, payload.Hostname, payload.HostType, payload.AgentVersion,
-		payload.OSVersion, payload.NixpkgsVersion, payload.Generation)
+		payload.OSVersion, payload.NixpkgsVersion, payload.Generation, themeColor)
 
 	if err != nil {
 		h.log.Error().Err(err).Str("hostname", payload.Hostname).Msg("failed to upsert host")
@@ -249,6 +260,7 @@ func (h *Hub) updateHost(payload protocol.RegisterPayload) {
 		Str("hostname", payload.Hostname).
 		Str("host_type", payload.HostType).
 		Str("os_version", payload.OSVersion).
+		Str("theme_color", themeColor).
 		Msg("updated host record")
 }
 

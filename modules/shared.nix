@@ -95,6 +95,17 @@ let
       '';
       example = "24.05pre123456";
     };
+
+    themeColor = lib.mkOption {
+      type = lib.types.str;
+      default = "";
+      description = ''
+        Hex color code for this host in the NixFleet dashboard.
+        If empty, uses default: #7aa2f7 (blue) for NixOS, #bb9af7 (purple) for macOS.
+        Should match the host's terminal/editor theme color for visual consistency.
+      '';
+      example = "#f7768e";
+    };
   };
 
   # Build the Go agent package
@@ -113,7 +124,8 @@ let
       NIXFLEET_LOG_LEVEL = cfg.logLevel;
     }
     // lib.optionalAttrs (cfg.hostname != "") { NIXFLEET_HOSTNAME = cfg.hostname; }
-    // lib.optionalAttrs (cfg.nixpkgsVersion != "") { NIXFLEET_NIXPKGS_VERSION = cfg.nixpkgsVersion; };
+    // lib.optionalAttrs (cfg.nixpkgsVersion != "") { NIXFLEET_NIXPKGS_VERSION = cfg.nixpkgsVersion; }
+    // lib.optionalAttrs (cfg.themeColor != "") { NIXFLEET_THEME_COLOR = cfg.themeColor; };
 in
 {
   inherit mkCommonOptions mkAgentScript mkEnvironment;

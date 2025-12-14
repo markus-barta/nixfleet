@@ -118,6 +118,7 @@ in
             ${lib.optionalString (
               cfg.nixpkgsVersion != ""
             ) ''export NIXFLEET_NIXPKGS_VERSION="${cfg.nixpkgsVersion}"''}
+            ${lib.optionalString (cfg.themeColor != "") ''export NIXFLEET_THEME_COLOR="${cfg.themeColor}"''}
             ${lib.optionalString (cfg.sshKeyFile != null) ''export NIXFLEET_SSH_KEY="${cfg.sshKeyFile}"''}
             exec ${agentScript}/bin/nixfleet-agent
           ''
@@ -156,6 +157,7 @@ in
         ]
         ++ lib.optional (cfg.hostname != "") "NIXFLEET_HOSTNAME=${cfg.hostname}"
         ++ lib.optional (cfg.nixpkgsVersion != "") "NIXFLEET_NIXPKGS_VERSION=${cfg.nixpkgsVersion}"
+        ++ lib.optional (cfg.themeColor != "") "NIXFLEET_THEME_COLOR=${cfg.themeColor}"
         ++ lib.optional (cfg.sshKeyFile != null) "NIXFLEET_SSH_KEY=${cfg.sshKeyFile}";
         EnvironmentFile = cfg.tokenFile;
       };
