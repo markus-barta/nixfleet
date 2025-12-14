@@ -29,7 +29,7 @@ func New(cfg *Config, db *sql.DB, log zerolog.Logger) *Server {
 		log.Warn().Err(err).Msg("failed to initialize log store, logs will not be persisted")
 	}
 
-	hub := NewHub(log)
+	hub := NewHub(log, db)
 	hub.logStore = logStore // Pass log store to hub for output logging
 
 	s := &Server{

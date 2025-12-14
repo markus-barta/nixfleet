@@ -1,6 +1,7 @@
 package dashboard
 
 import (
+	"database/sql"
 	"encoding/json"
 	"sync"
 	"time"
@@ -37,6 +38,7 @@ type Client struct {
 // Hub maintains active connections and broadcasts messages.
 type Hub struct {
 	log zerolog.Logger
+	db  *sql.DB
 
 	// Registered clients
 	clients map[*Client]bool
@@ -66,9 +68,10 @@ type agentMessage struct {
 }
 
 // NewHub creates a new Hub.
-func NewHub(log zerolog.Logger) *Hub {
+func NewHub(log zerolog.Logger, db *sql.DB) *Hub {
 	return &Hub{
 		log:           log.With().Str("component", "hub").Logger(),
+		db:            db,
 		clients:       make(map[*Client]bool),
 		agents:        make(map[string]*Client),
 		browsers:      make(map[*Client]bool),
@@ -215,17 +218,49 @@ func (h *Hub) handleAgentMessage(msg *agentMessage) {
 }
 
 func (h *Hub) updateHost(payload protocol.RegisterPayload) {
-	// This would normally use the server's database
-	// For now, just log it
+	// Upsert host record
+	_, err := h.db.Exec(`
+		INSERT INTO hosts (id, hostname, host_type, agent_version, os_version, nixpkgs_version, generation, last_seen, status)
+		VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), 'online')
+		ON CONFLICT(hostname) DO UPDATE SET
+			host_type = excluded.host_type,
+			agent_version = excluded.agent_version,
+			os_version = excluded.os_version,
+			nixpkgs_version = excluded.nixpkgs_version,
+			generation = excluded.generation,
+			last_seen = datetime('now'),
+			status = 'online'
+	`, payload.Hostname, payload.Hostname, payload.HostType, payload.AgentVersion,
+		payload.OSVersion, payload.NixpkgsVersion, payload.Generation)
+
+	if err != nil {
+		h.log.Error().Err(err).Str("hostname", payload.Hostname).Msg("failed to upsert host")
+		return
+	}
+
 	h.log.Debug().
 		Str("hostname", payload.Hostname).
 		Str("host_type", payload.HostType).
 		Str("os_version", payload.OSVersion).
-		Msg("updating host record")
+		Msg("updated host record")
 }
 
 func (h *Hub) handleHeartbeat(hostID string, payload protocol.HeartbeatPayload) {
-	// Update host status
+	// Update host last_seen and status in database
+	_, err := h.db.Exec(`
+		UPDATE hosts SET 
+			last_seen = datetime('now'),
+			status = 'online',
+			generation = ?,
+			nixpkgs_version = ?,
+			pending_command = ?
+		WHERE hostname = ?
+	`, payload.Generation, payload.NixpkgsVersion, payload.PendingCommand, hostID)
+
+	if err != nil {
+		h.log.Error().Err(err).Str("host", hostID).Msg("failed to update heartbeat")
+	}
+
 	h.log.Debug().
 		Str("host", hostID).
 		Str("generation", payload.Generation).
