@@ -49,3 +49,4 @@ devenv.local.yaml
 .pre-commit-config.yaml
 
 .shared
+bin/
