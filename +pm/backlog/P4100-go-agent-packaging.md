@@ -1,188 +1,134 @@
-# Go Agent: Nix Packaging
+# P4100 - Go Agent Packaging & Deployment
 
-**Created**: 2025-12-14
-**Priority**: P4100 (Critical)
-**Status**: Backlog
-**Depends on**: P4000 (Go Agent Core)
-
----
-
-## Overview
-
-Package the Go agent for NixOS and macOS via Nix flake.
+**Priority**: High (blocks E2E testing)
+**Depends on**: T01-T03 (agent tests) ✅ Complete
+**Blocks**: T07-T08 (real E2E tests)
 
 ---
 
-## Deliverables
+## Goal
 
-### 1. Nix Package
+Package the v2 Go agent as a Nix flake and deploy to test hosts.
+
+---
+
+## Test Hosts
+
+| Host         | OS    | Type    | Current Agent | Notes                   |
+| ------------ | ----- | ------- | ------------- | ----------------------- |
+| gpc0         | NixOS | Desktop | v1 (bash)     | NixOS module deployment |
+| mba-mbp-work | macOS | Laptop  | v1 (bash)     | Home Manager deployment |
+
+---
+
+## Tasks
+
+### 1. Build Go Agent Binary
+
+```bash
+# In v2/
+go build -o bin/nixfleet-agent ./cmd/nixfleet-agent
+```
+
+**Output**: `nixfleet-agent` binary (~10MB)
+
+### 2. Create Nix Package
 
 ```nix
-# packages/nixfleet-agent/default.nix
-{ buildGoModule, ... }:
-
-buildGoModule {
+# packages/nixfleet-agent.nix
+{ buildGoModule, lib }:
+buildGoModule rec {
   pname = "nixfleet-agent";
   version = "2.0.0";
-
-  src = ../../agent;
-
+  src = ../v2;
   vendorHash = "sha256-...";
-
-  ldflags = [
-    "-s" "-w"
-    "-X main.Version=${version}"
-  ];
-
-  meta = {
-    description = "NixFleet agent for fleet management";
-    license = lib.licenses.agpl3Plus;
-    platforms = [ "x86_64-linux" "aarch64-linux" "x86_64-darwin" "aarch64-darwin" ];
-  };
+  subPackages = [ "cmd/nixfleet-agent" ];
 }
 ```
 
-### 2. NixOS Module
+### 3. Update NixOS Module
 
 ```nix
-# modules/nixos.nix
-{ config, lib, pkgs, ... }:
-
-{
-  options.services.nixfleet-agent = {
-    enable = lib.mkEnableOption "NixFleet agent";
-
-    url = lib.mkOption {
-      type = lib.types.str;
-      description = "Dashboard WebSocket URL";
-    };
-
-    tokenFile = lib.mkOption {
-      type = lib.types.path;
-      description = "Path to agent token file";
-    };
-
-    repoUrl = lib.mkOption {
-      type = lib.types.str;
-      description = "Git repository URL";
-    };
-
-    # ... more options
-  };
-
-  config = lib.mkIf cfg.enable {
-    systemd.services.nixfleet-agent = {
-      description = "NixFleet Agent";
-      wantedBy = [ "multi-user.target" ];
-      after = [ "network-online.target" ];
-
-      serviceConfig = {
-        Type = "simple";
-        ExecStart = "${pkgs.nixfleet-agent}/bin/nixfleet-agent";
-        Restart = "always";
-        RestartSec = 10;
-        # Security hardening
-        DynamicUser = true;
-        StateDirectory = "nixfleet-agent";
-        # ...
-      };
-
-      environment = {
-        NIXFLEET_URL = cfg.url;
-        # ...
-      };
-    };
-  };
-}
+# modules/nixos.nix - changes needed:
+# - Replace bash agent with Go agent
+# - Update environment variables for v2 protocol
+# - WebSocket URL instead of HTTP
 ```
 
-### 3. Home Manager Module
+**Key changes**:
+| v1 (bash) | v2 (Go) |
+| ---------------------------- | ------------------------------ |
+| `NIXFLEET_URL` (HTTP) | `NIXFLEET_URL` (WebSocket) |
+| `NIXFLEET_INTERVAL` polling | `NIXFLEET_INTERVAL` heartbeat |
+| Bash script | Go binary |
+
+### 4. Update Home Manager Module
 
 ```nix
-# modules/home-manager.nix
-{ config, lib, pkgs, ... }:
-
-{
-  options.services.nixfleet-agent = {
-    # Similar to NixOS but for launchd
-  };
-
-  config = lib.mkIf cfg.enable {
-    launchd.agents.nixfleet-agent = {
-      enable = true;
-      config = {
-        Label = "com.nixfleet.agent";
-        ProgramArguments = [ "${pkgs.nixfleet-agent}/bin/nixfleet-agent" ];
-        KeepAlive = true;
-        RunAtLoad = true;
-        EnvironmentVariables = {
-          NIXFLEET_URL = cfg.url;
-          # ...
-        };
-      };
-    };
-  };
-}
+# modules/home-manager.nix - changes needed:
+# - Replace bash agent with Go agent
+# - LaunchAgent plist updates for Go binary
 ```
 
-### 4. macOS Watchdog
+### 5. Deploy to Test Hosts
 
-Separate launchd job that ensures agent stays running:
+#### gpc0 (NixOS)
 
-```nix
-launchd.agents.nixfleet-watchdog = {
-  enable = true;
-  config = {
-    Label = "com.nixfleet.watchdog";
-    ProgramArguments = [
-      "/bin/sh" "-c"
-      "launchctl list | grep -q com.nixfleet.agent || launchctl kickstart gui/$(id -u)/com.nixfleet.agent"
-    ];
-    StartInterval = 30;
-    RunAtLoad = true;
-  };
-};
+```bash
+# On gpc0 or via nixcfg
+cd ~/Code/nixcfg
+nix flake update nixfleet
+sudo nixos-rebuild switch --flake .#gpc0
+```
+
+**Verification**:
+
+```bash
+systemctl status nixfleet-agent
+journalctl -u nixfleet-agent -f
+```
+
+#### mba-mbp-work (macOS)
+
+```bash
+# On mba-mbp-work
+cd ~/Code/nixcfg
+nix flake update nixfleet
+home-manager switch --flake ".#mba@mba-mbp-work"
+```
+
+**Verification**:
+
+```bash
+launchctl list | grep nixfleet
+tail -f /tmp/nixfleet-agent.log
 ```
 
 ---
 
-## Flake Structure
+## Rollback Plan
 
-```nix
-# flake.nix
-{
-  outputs = { self, nixpkgs, ... }: {
-    packages = forAllSystems (system: {
-      nixfleet-agent = ...;
-      nixfleet-dashboard = ...;
-    });
+If v2 agent fails:
 
-    nixosModules = {
-      nixfleet-agent = import ./modules/nixos.nix;
-    };
-
-    homeManagerModules = {
-      nixfleet-agent = import ./modules/home-manager.nix;
-    };
-  };
-}
-```
+1. Revert nixcfg to previous commit
+2. Rebuild: `nixos-rebuild switch` or `home-manager switch`
+3. v1 agent resumes
 
 ---
 
 ## Acceptance Criteria
 
-- [ ] `nix build .#nixfleet-agent` works on x86_64-linux
-- [ ] `nix build .#nixfleet-agent` works on aarch64-darwin
-- [ ] NixOS module creates working systemd service
-- [ ] Home Manager module creates working launchd agent
-- [ ] Watchdog module for macOS reliability
-- [ ] Version injected at build time
-- [ ] Secrets handled via tokenFile (no hardcoding)
+- [ ] Go agent builds via Nix
+- [ ] NixOS module updated for v2
+- [ ] Home Manager module updated for v2
+- [ ] gpc0 running v2 agent, visible in dashboard
+- [ ] mba-mbp-work running v2 agent, visible in dashboard
+- [ ] Both can receive commands via WebSocket
 
 ---
 
-## Related
+## Open Questions
 
-- Depends on: P4000 (Go Agent Core)
-- Enables: Deployment to all hosts
+1. **Parallel operation?** Run v2 agent alongside v1 temporarily?
+2. **Dashboard URL?** Keep `fleet.barta.cm` or new URL for v2?
+3. **Token reuse?** Same agent tokens or regenerate?
