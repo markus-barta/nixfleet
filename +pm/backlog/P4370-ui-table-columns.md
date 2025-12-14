@@ -31,12 +31,14 @@ Also missing:
 | OS        | 60px  | Icon + version (5 chars)        |
 | Loc       | 40px  | Location icon                   |
 | Type      | 40px  | Device type icon                |
-| Last Seen | 70px  | Relative time, full on hover    |
+| Last Seen | 70px  | Relative time\*, full on hover  |
 | Metrics   | 60px  | CPU + RAM with icons            |
 | Config    | 60px  | Hash badge + ↓/✓ indicator      |
 | Tests     | 50px  | Progress or results             |
 | Status    | 100px | Papertrail (expandable history) |
 | Actions   | 160px | Buttons + dropdown              |
+
+- Relative time is the time since the last heartbeat. Human readable. Have the day
 
 ### Status Indicator (Host cell)
 

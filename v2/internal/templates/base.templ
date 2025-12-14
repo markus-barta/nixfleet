@@ -397,11 +397,20 @@ templ Base(title string, csrfToken string) {
 			}
 
 			/* Mini progress badge (next to status dot) */
-			.status-with-badge,
-			.status-cell-with-badge {
+			.status-with-badge {
 				display: inline-flex;
 				align-items: center;
 				gap: 0.25rem;
+			}
+
+			/* For table cells: use a wrapper inside instead of flexing the td */
+			td.status-cell-with-badge {
+				vertical-align: middle;
+			}
+
+			td.status-cell-with-badge > * {
+				display: inline;
+				vertical-align: middle;
 			}
 
 			.progress-badge-mini {
@@ -414,6 +423,7 @@ templ Base(title string, csrfToken string) {
 				color: var(--yellow);
 				line-height: 1;
 				text-transform: lowercase;
+				margin-left: 0.25rem;
 			}
 
 			/* Footer */
