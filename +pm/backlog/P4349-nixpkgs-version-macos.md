@@ -1,48 +1,46 @@
 # P4349 - Fix nixpkgs Version on macOS
 
 **Priority**: Low  
-**Status**: Pending  
+**Status**: Done  
 **Effort**: Small
 
 ## Problem
 
 On macOS hosts, `nixpkgs_version` shows empty in dashboard. The agent should detect and report the nixpkgs version.
 
-## Investigation
+## Solution
 
-The agent runs on macOS via Home Manager. Need to check:
+Implemented Option C: Pass nixpkgs version as environment variable from Nix config.
 
-1. Where does the agent get nixpkgs version?
-2. Is the detection code platform-specific?
-3. Does Home Manager expose this differently than NixOS?
+### Changes Made
 
-## Potential Solutions
+1. **shared.nix**: Added `nixpkgsVersion` option
+2. **config.go**: Added `NixpkgsVersion` field and `NIXFLEET_NIXPKGS_VERSION` env var
+3. **heartbeat.go**: Use env var if set, otherwise detect from `/run/current-system`
 
-### Option A: Read from nix-info
+### nixcfg Usage
 
-```bash
-nix-info -m 2>/dev/null | grep "nixpkgs" | cut -d':' -f2 | tr -d ' '
-```
-
-### Option B: Read from NIX_PATH
-
-```bash
-nix eval --impure --expr 'builtins.substring 0 11 (builtins.readFile ((builtins.getFlake (builtins.toString ~/.config/home-manager)).inputs.nixpkgs.rev))'
-```
-
-### Option C: Store in Agent Config
-
-Pass nixpkgs version as environment variable at build time:
+In each host's home.nix that uses Home Manager:
 
 ```nix
-environment.NIXFLEET_NIXPKGS_VERSION = inputs.nixpkgs.rev;
+services.nixfleet-agent = {
+  enable = true;
+  # ... other options ...
+  nixpkgsVersion = inputs.nixpkgs.shortRev; # e.g., "abc1234"
+};
 ```
+
+Note: The nixcfg flake needs to be updated to:
+
+1. Update flake.lock to get the new nixfleet version
+2. Add `nixpkgsVersion` to macOS home configurations
 
 ### Requirements
 
-- [ ] Investigate current detection code
-- [ ] Identify why it fails on macOS
-- [ ] Implement cross-platform detection
+- [x] Investigate current detection code
+- [x] Identify why it fails on macOS (reads /run/current-system which doesn't exist)
+- [x] Implement cross-platform detection (via NIXFLEET_NIXPKGS_VERSION env var)
+- [ ] Update nixcfg to pass nixpkgsVersion (separate PR)
 - [ ] Test on macOS (mba-mbp-work)
 - [ ] Verify in dashboard
 

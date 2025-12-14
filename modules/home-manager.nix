@@ -114,6 +114,10 @@ in
             export NIXFLEET_INTERVAL="${toString cfg.interval}"
             export NIXFLEET_LOG_LEVEL="${cfg.logLevel}"
             export NIXFLEET_TOKEN="$(cat '${cfg.tokenFile}')"
+            ${lib.optionalString (cfg.hostname != "") ''export NIXFLEET_HOSTNAME="${cfg.hostname}"''}
+            ${lib.optionalString (
+              cfg.nixpkgsVersion != ""
+            ) ''export NIXFLEET_NIXPKGS_VERSION="${cfg.nixpkgsVersion}"''}
             ${lib.optionalString (cfg.sshKeyFile != null) ''export NIXFLEET_SSH_KEY="${cfg.sshKeyFile}"''}
             exec ${agentScript}/bin/nixfleet-agent
           ''
@@ -150,6 +154,8 @@ in
           "NIXFLEET_INTERVAL=${toString cfg.interval}"
           "NIXFLEET_LOG_LEVEL=${cfg.logLevel}"
         ]
+        ++ lib.optional (cfg.hostname != "") "NIXFLEET_HOSTNAME=${cfg.hostname}"
+        ++ lib.optional (cfg.nixpkgsVersion != "") "NIXFLEET_NIXPKGS_VERSION=${cfg.nixpkgsVersion}"
         ++ lib.optional (cfg.sshKeyFile != null) "NIXFLEET_SSH_KEY=${cfg.sshKeyFile}";
         EnvironmentFile = cfg.tokenFile;
       };
