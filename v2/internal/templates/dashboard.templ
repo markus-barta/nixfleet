@@ -233,7 +233,10 @@ templ Dashboard(data DashboardData) {
 					if (host.pending_command !== undefined) {
 						row.dataset.pendingCommand = host.pending_command || '';
 						applyButtonStates(row);
+						updateProgressBadge(row, host.pending_command);
 					}
+					// Update data cells
+					updateCellData(row, host);
 				}
 
 				// Update card
@@ -244,7 +247,104 @@ templ Dashboard(data DashboardData) {
 					if (host.pending_command !== undefined) {
 						card.dataset.pendingCommand = host.pending_command || '';
 						applyButtonStates(card);
+						updateProgressBadge(card, host.pending_command);
 					}
+				}
+			}
+
+			function updateCellData(row, host) {
+				// Update generation
+				if (host.generation !== undefined) {
+					const genCell = row.querySelector('[data-cell="generation"]');
+					if (genCell) genCell.textContent = host.generation || '—';
+				}
+
+				// Update last seen (format as relative time)
+				if (host.last_seen !== undefined) {
+					const lastSeenCell = row.querySelector('[data-cell="last-seen"]');
+					if (lastSeenCell) {
+						lastSeenCell.textContent = formatRelativeTime(host.last_seen);
+					}
+				}
+
+				// Update metrics
+				if (host.metrics) {
+					const metricsCell = row.querySelector('[data-cell="metrics"]');
+					if (metricsCell) {
+						updateMetrics(metricsCell, host.metrics);
+					}
+				}
+			}
+
+			function updateMetrics(cell, metrics) {
+				// Update CPU
+				const cpuEl = cell.querySelector('[data-metric="cpu"]');
+				if (cpuEl && metrics.cpu !== undefined) {
+					const val = cpuEl.querySelector('.metric-val');
+					if (val) val.textContent = Math.round(metrics.cpu) + '%';
+					cpuEl.className = getMetricClass('cpu', metrics.cpu);
+					cpuEl.title = 'CPU: ' + Math.round(metrics.cpu) + '%';
+				}
+
+				// Update RAM
+				const ramEl = cell.querySelector('[data-metric="ram"]');
+				if (ramEl && metrics.ram !== undefined) {
+					const val = ramEl.querySelector('.metric-val');
+					if (val) val.textContent = Math.round(metrics.ram) + '%';
+					ramEl.className = getMetricClass('ram', metrics.ram);
+					const swap = metrics.swap !== undefined ? Math.round(metrics.swap) : 0;
+					const load = metrics.load !== undefined ? metrics.load.toFixed(2) : '0.00';
+					ramEl.title = `RAM: ${Math.round(metrics.ram)}%, Swap: ${swap}%, Load: ${load}`;
+				}
+
+				// If metrics cell was showing "—", replace with proper structure
+				const naSpan = cell.querySelector('.metrics-na');
+				if (naSpan && (metrics.cpu !== undefined || metrics.ram !== undefined)) {
+					cell.innerHTML = `
+						<span class="${getMetricClass('cpu', metrics.cpu || 0)}" data-metric="cpu" title="CPU: ${Math.round(metrics.cpu || 0)}%">
+							<svg class="metric-icon"><use href="#icon-cpu"></use></svg><span class="metric-val">${Math.round(metrics.cpu || 0)}%</span>
+						</span>
+						<span class="${getMetricClass('ram', metrics.ram || 0)}" data-metric="ram" title="RAM: ${Math.round(metrics.ram || 0)}%">
+							<svg class="metric-icon"><use href="#icon-ram"></use></svg><span class="metric-val">${Math.round(metrics.ram || 0)}%</span>
+						</span>
+					`;
+				}
+			}
+
+			function getMetricClass(type, value) {
+				let cls = 'metric';
+				if (type === 'cpu' && value >= 80) cls += ' metric-high';
+				if (type === 'ram' && value >= 80) cls += ' metric-high';
+				return cls;
+			}
+
+			function formatRelativeTime(isoString) {
+				if (!isoString) return '—';
+				const date = new Date(isoString);
+				const now = new Date();
+				const diffMs = now - date;
+				const diffSec = Math.floor(diffMs / 1000);
+				
+				if (diffSec < 60) return 'now';
+				if (diffSec < 3600) return Math.floor(diffSec / 60) + 'm ago';
+				if (diffSec < 86400) return Math.floor(diffSec / 3600) + 'h ago';
+				return Math.floor(diffSec / 86400) + 'd ago';
+			}
+
+			function updateProgressBadge(container, command) {
+				const statusCell = container.querySelector('td:first-child') || container.querySelector('.status-with-badge');
+				if (!statusCell) return;
+				
+				let badge = statusCell.querySelector('.progress-badge-mini');
+				if (command) {
+					if (!badge) {
+						badge = document.createElement('span');
+						badge.className = 'progress-badge-mini';
+						statusCell.appendChild(badge);
+					}
+					badge.textContent = command;
+				} else if (badge) {
+					badge.remove();
 				}
 			}
 
@@ -553,21 +653,21 @@ templ HostRow(host Host, csrfToken string) {
 			<span style={ hostColorStyle(host) }>{ host.Hostname }</span>
 		</td>
 		<td>{ host.HostType }</td>
-		<td class="metrics-cell">
+		<td class="metrics-cell" data-cell="metrics">
 			if host.Metrics != nil {
-				<span class={ metricsClass("cpu", host.Metrics.CPU) } title={ "CPU: " + formatPercent(host.Metrics.CPU) }>
+				<span class={ metricsClass("cpu", host.Metrics.CPU) } data-metric="cpu" title={ "CPU: " + formatPercent(host.Metrics.CPU) }>
 					<svg class="metric-icon"><use href="#icon-cpu"></use></svg><span class="metric-val">{ formatPercent(host.Metrics.CPU) }</span>
 				</span>
-				<span class={ metricsClass("ram", host.Metrics.RAM) } title={ "RAM: " + formatPercent(host.Metrics.RAM) + ", Swap: " + formatPercent(host.Metrics.Swap) + ", Load: " + formatLoad(host.Metrics.Load) }>
+				<span class={ metricsClass("ram", host.Metrics.RAM) } data-metric="ram" title={ "RAM: " + formatPercent(host.Metrics.RAM) + ", Swap: " + formatPercent(host.Metrics.Swap) + ", Load: " + formatLoad(host.Metrics.Load) }>
 					<svg class="metric-icon"><use href="#icon-ram"></use></svg><span class="metric-val">{ formatPercent(host.Metrics.RAM) }</span>
 				</span>
 			} else {
 				<span class="metrics-na">—</span>
 			}
 		</td>
-		<td>{ valueOrDash(host.OSVersion) }</td>
-		<td>{ valueOrDash(host.Generation) }</td>
-		<td>{ valueOrDash(host.LastSeen) }</td>
+		<td data-cell="os-version">{ valueOrDash(host.OSVersion) }</td>
+		<td data-cell="generation">{ valueOrDash(host.Generation) }</td>
+		<td data-cell="last-seen">{ valueOrDash(host.LastSeen) }</td>
 		<td>
 			<div style="display: flex; gap: 0.25rem;">
 				@CommandButton(host.ID, "pull", "", "btn", host.Online && host.PendingCommand == "")
