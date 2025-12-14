@@ -3,6 +3,7 @@
 **Priority**: High (blocks E2E testing)
 **Depends on**: T04-T06 (dashboard tests) ✅ Complete
 **Blocks**: T07-T08 (real E2E tests)
+**Status**: ✅ Ready to deploy (Dockerfile tested, P4500 updated)
 
 ---
 
@@ -179,8 +180,12 @@ docker compose up -d
 
 ## Acceptance Criteria
 
-- [ ] v2 dashboard builds as Docker image
-- [ ] v2 dashboard running on csb1
+- [x] v2 dashboard builds as Docker image (tested on csb1)
+- [x] v2 Dockerfile uses multi-stage build, pure-Go SQLite
+- [x] P4500 migration plan updated with Traefik analysis
+- [x] Rollback procedures documented
+- [x] Service availability testing documented
+- [ ] v2 dashboard running on csb1 (pending P4500 execution)
 - [ ] Login with password + TOTP works
 - [ ] WebSocket endpoint accepting connections
 - [ ] v2 agents can connect and register
