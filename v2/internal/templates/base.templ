@@ -49,20 +49,20 @@ templ Base(title string, csrfToken string) {
 				min-height: 100vh;
 			}
 
-			/* Background watermark */
-			body::before {
+			/* Background watermark - shows through semi-transparent table */
+			body::after {
 				content: "";
 				position: fixed;
 				top: 50%;
 				left: 50%;
 				transform: translate(-50%, -50%);
-				width: 600px;
-				height: 528px;
+				width: 500px;
+				height: 440px;
 				background: url("/static/nixfleet_fade_1k.png") no-repeat center center;
 				background-size: contain;
-				opacity: 0.15;
+				opacity: 0.06;
 				pointer-events: none;
-				z-index: 0;
+				z-index: 100;
 			}
 
 			/* Container */
@@ -287,15 +287,19 @@ templ Base(title string, csrfToken string) {
 
 			/* Status indicators */
 			.status-dot {
-				width: 8px;
-				height: 8px;
+				width: 10px;
+				height: 10px;
+				min-width: 10px;
+				min-height: 10px;
 				border-radius: 50%;
 				display: inline-block;
+				vertical-align: middle;
+				flex-shrink: 0;
 			}
 
 			.status-online { background: var(--green); box-shadow: 0 0 6px var(--green); }
-			.status-offline { background: var(--red); opacity: 0.7; }
-			.status-running { background: var(--yellow); animation: pulse 1.5s infinite; }
+			.status-offline { background: #f7768e; box-shadow: 0 0 4px rgba(247, 118, 142, 0.5); }
+			.status-running { background: var(--yellow); animation: pulse 1.5s infinite; box-shadow: 0 0 4px var(--yellow); }
 			.status-error { background: var(--red); }
 
 			@keyframes pulse {

@@ -48,9 +48,9 @@ let
 
     interval = lib.mkOption {
       type = lib.types.ints.between 1 3600;
-      default = 30;
+      default = 5;
       description = "Heartbeat interval in seconds (1-3600).";
-      example = 30;
+      example = 5;
     };
 
     logLevel = lib.mkOption {
