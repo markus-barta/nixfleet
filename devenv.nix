@@ -4,7 +4,7 @@
   # https://devenv.sh/languages/
   languages.go = {
     enable = true;
-    # Go 1.25 is current stable (Dec 2025)
+    # Go 1.23 is current stable (Docker Hub compatible)
     # devenv-nixpkgs uses rolling channel with latest
   };
 

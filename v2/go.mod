@@ -1,6 +1,6 @@
 module github.com/markus-barta/nixfleet/v2
 
-go 1.25
+go 1.24.0
 
 require (
 	github.com/a-h/templ v0.3.960
