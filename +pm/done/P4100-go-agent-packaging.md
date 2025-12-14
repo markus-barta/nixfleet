@@ -118,10 +118,10 @@ If v2 agent fails:
 
 ## Acceptance Criteria
 
-- [ ] Go agent builds via Nix
-- [ ] NixOS module updated for v2
-- [ ] Home Manager module updated for v2
-- [ ] gpc0 running v2 agent, visible in dashboard
+- [x] Go agent builds via Nix
+- [x] NixOS module updated for v2
+- [x] Home Manager module updated for v2
+- [x] gpc0 running v2 agent, visible in dashboard (2025-12-14)
 - [ ] mba-mbp-work running v2 agent, visible in dashboard
 - [ ] Both can receive commands via WebSocket
 
