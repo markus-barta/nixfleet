@@ -22,6 +22,15 @@ type Server struct {
 
 // New creates a new dashboard server.
 func New(cfg *Config, db *sql.DB, log zerolog.Logger) *Server {
+	// Mark all hosts offline on startup - they'll go online when agents reconnect
+	// This prevents stale "online" status from previous dashboard instances
+	result, err := db.Exec(`UPDATE hosts SET status = 'offline' WHERE status = 'online'`)
+	if err != nil {
+		log.Warn().Err(err).Msg("failed to reset host status on startup")
+	} else if rows, _ := result.RowsAffected(); rows > 0 {
+		log.Info().Int64("count", rows).Msg("marked hosts offline on startup (will reconnect)")
+	}
+
 	// Initialize log store
 	logsPath := cfg.DataDir + "/logs"
 	logStore, err := NewLogStore(logsPath)
