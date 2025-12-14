@@ -1,25 +1,59 @@
 { pkgs, lib, ... }:
 
 {
-  # Development tools
-  packages = with pkgs; [
-    # Go development
-    go
-    gopls
-    golangci-lint
-    gotools # goimports, etc.
-
-    # Testing
-    gotestsum
-  ];
-
-  # Environment variables
-  env = {
-    GOPATH = "$HOME/go";
-    GOCACHE = "$HOME/.cache/go-build";
-    GOMODCACHE = "$HOME/go/pkg/mod";
+  # https://devenv.sh/languages/
+  languages.go = {
+    enable = true;
+    # Go 1.25 is current stable (Dec 2025)
+    # devenv-nixpkgs uses rolling channel with latest
   };
 
-  # Use pkgs and lib in valid devenv options to satisfy deadnix
-  enterShell = lib.optionalString pkgs.stdenv.isDarwin "";
+  # Development tools
+  packages = with pkgs; [
+    # Go tools
+    gopls # Language server
+    golangci-lint # Linter
+    gotools # goimports, godoc, etc.
+    delve # Debugger
+    gotestsum # Better test output
+
+    # General dev tools
+    jq
+    curl
+    websocat # WebSocket testing
+  ];
+
+  # Direnv integration
+  dotenv.enable = true;
+
+  # Scripts for common tasks
+  scripts = {
+    test-agent.exec = ''
+      cd v2 && go test ./tests/integration/... -v -count=1 "$@"
+    '';
+    build-agent.exec = ''
+      cd v2 && go build -o ../bin/nixfleet-agent ./cmd/nixfleet-agent
+    '';
+    run-agent.exec = ''
+      cd v2 && go run ./cmd/nixfleet-agent "$@"
+    '';
+    lint.exec = ''
+      cd v2 && golangci-lint run ./...
+    '';
+  };
+
+  enterShell = ''
+    echo "🚀 NixFleet v2 development environment"
+    echo ""
+    echo "Commands:"
+    echo "  test-agent   - Run agent integration tests"
+    echo "  build-agent  - Build agent binary"
+    echo "  run-agent    - Run agent (needs env vars)"
+    echo "  lint         - Run golangci-lint"
+    echo ""
+    go version
+  '';
+
+  # Use lib to satisfy deadnix
+  _module.args.lib' = lib;
 }
