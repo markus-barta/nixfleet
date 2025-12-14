@@ -1,7 +1,7 @@
 # P4355 - UI: Header Polish
 
 **Priority**: High  
-**Status**: Pending  
+**Status**: Done  
 **Effort**: Medium  
 **References**: `+pm/legacy/v1.0/dashboard.html`, `+pm/legacy/v1.0/screenshot.png`
 

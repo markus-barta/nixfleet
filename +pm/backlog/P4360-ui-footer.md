@@ -1,7 +1,7 @@
 # P4360 - UI: Footer
 
 **Priority**: Medium  
-**Status**: Pending  
+**Status**: Done  
 **Effort**: Small  
 **References**: `+pm/legacy/v1.0/dashboard.html` (lines 2782-2816)
 

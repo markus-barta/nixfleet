@@ -1,7 +1,7 @@
 # P4365 - UI: Per-Host Theme Colors
 
 **Priority**: Medium  
-**Status**: Pending  
+**Status**: Done  
 **Effort**: Medium  
 **References**: `+pm/legacy/v1.0/dashboard.html`, `nixcfg/modules/uzumaki/theme/theme-palettes.nix`
 
