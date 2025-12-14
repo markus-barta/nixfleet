@@ -202,8 +202,8 @@ NixFleet is a fleet management system for NixOS and macOS hosts. It enables cent
 
 | Component          | Technology                    |
 | ------------------ | ----------------------------- |
-| Agent              | Go 1.23+                      |
-| Dashboard Backend  | Go 1.23+ with Chi router      |
+| Agent              | Go 1.24+                      |
+| Dashboard Backend  | Go 1.24+ with Chi router      |
 | Dashboard Frontend | Templ + HTMX + Alpine.js      |
 | Database           | SQLite                        |
 | Communication      | WebSocket (gorilla/websocket) |
