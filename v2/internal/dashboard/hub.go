@@ -105,6 +105,13 @@ func (h *Hub) Run() {
 				if client.clientType == "agent" && client.clientID != "" {
 					if h.agents[client.clientID] == client {
 						delete(h.agents, client.clientID)
+						// Mark host as offline in database
+						_, err := h.db.Exec(`UPDATE hosts SET status = 'offline' WHERE hostname = ?`, client.clientID)
+						if err != nil {
+							h.log.Error().Err(err).Str("host", client.clientID).Msg("failed to mark host offline")
+						}
+						// Broadcast offline status to browsers
+						h.broadcastHostOffline(client.clientID)
 					}
 				}
 				close(client.send)
@@ -334,6 +341,18 @@ func (h *Hub) BroadcastToBrowsers(msg map[string]any) {
 			// Client send buffer full, skip
 		}
 	}
+}
+
+// broadcastHostOffline notifies browsers that a host went offline.
+func (h *Hub) broadcastHostOffline(hostID string) {
+	h.BroadcastToBrowsers(map[string]any{
+		"type": "host_update",
+		"payload": map[string]any{
+			"host_id": hostID,
+			"online":  false,
+			"status":  "offline",
+		},
+	})
 }
 
 // readPump reads messages from the WebSocket connection.
