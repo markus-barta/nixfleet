@@ -411,11 +411,17 @@ templ Base(title string, csrfToken string) {
 			}
 
 			/* Metrics display */
-			.metrics-cell {
-				display: flex;
-				gap: 0.5rem;
+			td.metrics-cell {
 				font-size: 0.85rem;
 				font-family: var(--font-mono);
+				vertical-align: middle;
+			}
+
+			td.metrics-cell > span,
+			span.metrics-cell {
+				display: inline-flex;
+				align-items: center;
+				gap: 0.5rem;
 			}
 
 			.metric {
