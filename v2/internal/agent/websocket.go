@@ -114,7 +114,12 @@ func (c *WebSocketClient) connect(ctx context.Context) error {
 		c.log.Debug().Err(err).Msg("failed to set read deadline")
 	}
 	conn.SetPongHandler(func(string) error {
+		c.log.Debug().Msg("pong received, resetting read deadline")
 		return conn.SetReadDeadline(time.Now().Add(pongWait))
+	})
+	conn.SetPingHandler(func(string) error {
+		c.log.Debug().Msg("ping received from server")
+		return conn.WriteControl(websocket.PongMessage, nil, time.Now().Add(writeWait))
 	})
 
 	// Start ping goroutine
@@ -162,6 +167,9 @@ func (c *WebSocketClient) readLoop(ctx context.Context) {
 			return
 		}
 
+		// Reset read deadline on any received message
+		_ = conn.SetReadDeadline(time.Now().Add(pongWait))
+
 		var msg protocol.Message
 		if err := json.Unmarshal(data, &msg); err != nil {
 			c.log.Error().Err(err).Str("data", string(data)).Msg("failed to parse message")
@@ -201,6 +209,7 @@ func (c *WebSocketClient) pingLoop(ctx context.Context) {
 				c.log.Debug().Err(err).Msg("ping failed")
 				return
 			}
+			c.log.Debug().Msg("ping sent")
 		}
 	}
 }

@@ -1,9 +1,10 @@
 # P4344 - Security: Cookie Secure Flag Configuration
 
 **Priority**: Medium  
-**Status**: Pending  
+**Status**: Done  
 **Effort**: Small  
-**References**: `v2/internal/dashboard/auth.go:186`, NFR-3
+**References**: `v2/internal/dashboard/auth.go`, NFR-3  
+**Completed**: 2025-12-14
 
 ## Problem
 
@@ -40,7 +41,7 @@ func (a *Auth) SetSessionCookie(w http.ResponseWriter, sessionID string) {
 }
 ```
 
-### Alternative: Auto-Detect
+### Alternative: Auto-Detect (I THINK WE WANT TO USE THIS)
 
 ```go
 func isSecureRequest(r *http.Request) bool {
@@ -58,11 +59,11 @@ func isSecureRequest(r *http.Request) bool {
 
 ### Requirements
 
-- [ ] Add `NIXFLEET_ENV` environment variable
-- [ ] Set `Secure: true` when `NIXFLEET_ENV=production`
-- [ ] Document in README/deployment docs
-- [ ] Update Dockerfile to set `NIXFLEET_ENV=production`
-- [ ] Test in both development and production
+- [x] ~~Add `NIXFLEET_ENV` environment variable~~ (used auto-detect instead)
+- [x] Set `Secure: true` when HTTPS detected (auto-detect from request)
+- [x] Document in README/deployment docs (auto-detect, no config needed)
+- [x] ~~Update Dockerfile to set `NIXFLEET_ENV=production`~~ (not needed)
+- [ ] Test in both development and production (manual verification)
 
 ## Related
 

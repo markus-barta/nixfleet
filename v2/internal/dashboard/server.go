@@ -6,18 +6,20 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/gorilla/websocket"
 	"github.com/rs/zerolog"
 )
 
 // Server is the main dashboard server.
 type Server struct {
-	cfg      *Config
-	db       *sql.DB
-	log      zerolog.Logger
-	auth     *AuthService
-	hub      *Hub
-	logStore *LogStore
-	router   *chi.Mux
+	cfg        *Config
+	db         *sql.DB
+	log        zerolog.Logger
+	auth       *AuthService
+	hub        *Hub
+	logStore   *LogStore
+	router     *chi.Mux
+	wsUpgrader *websocket.Upgrader
 }
 
 // New creates a new dashboard server.

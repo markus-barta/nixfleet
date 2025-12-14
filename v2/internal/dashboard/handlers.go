@@ -3,7 +3,9 @@ package dashboard
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/go-chi/chi/v5"
@@ -11,12 +13,80 @@ import (
 	"github.com/markus-barta/nixfleet/v2/internal/templates"
 )
 
-var upgrader = websocket.Upgrader{
-	ReadBufferSize:  1024,
-	WriteBufferSize: 1024,
-	CheckOrigin: func(r *http.Request) bool {
-		return true // TODO: validate origin in production
-	},
+// upgrader returns the WebSocket upgrader (lazily initialized).
+func (s *Server) upgrader() *websocket.Upgrader {
+	if s.wsUpgrader == nil {
+		s.wsUpgrader = &websocket.Upgrader{
+			ReadBufferSize:  1024,
+			WriteBufferSize: 1024,
+			CheckOrigin:     s.checkOrigin,
+		}
+	}
+	return s.wsUpgrader
+}
+
+// checkOrigin validates the Origin header for WebSocket connections.
+// Returns true if the origin is allowed, false otherwise.
+func (s *Server) checkOrigin(r *http.Request) bool {
+	origin := r.Header.Get("Origin")
+
+	// No origin header = same-origin request (non-browser or same-origin browser)
+	if origin == "" {
+		return true
+	}
+
+	// Parse origin URL
+	originURL, err := url.Parse(origin)
+	if err != nil {
+		s.log.Warn().Str("origin", origin).Msg("rejected WebSocket: invalid origin URL")
+		return false
+	}
+
+	// Check against explicitly allowed origins first
+	for _, allowed := range s.cfg.AllowedOrigins {
+		if origin == allowed {
+			return true
+		}
+	}
+
+	// Get request host (what the browser thinks it's connecting to)
+	host := r.Host
+
+	// Development: allow localhost variants
+	if isLocalhost(host) {
+		if isLocalhost(originURL.Host) {
+			return true
+		}
+		s.log.Warn().
+			Str("origin", origin).
+			Str("host", host).
+			Msg("rejected WebSocket: localhost host but non-localhost origin")
+		return false
+	}
+
+	// Production: origin must match request host with HTTPS
+	expectedOrigin := fmt.Sprintf("https://%s", host)
+	if origin == expectedOrigin {
+		return true
+	}
+
+	s.log.Warn().
+		Str("origin", origin).
+		Str("expected", expectedOrigin).
+		Msg("rejected WebSocket: origin mismatch")
+	return false
+}
+
+// isLocalhost checks if the host is a localhost variant.
+func isLocalhost(host string) bool {
+	// Strip port if present
+	if colonIdx := strings.LastIndex(host, ":"); colonIdx != -1 {
+		// Handle IPv6 addresses in brackets
+		if bracketIdx := strings.LastIndex(host, "]"); bracketIdx == -1 || colonIdx > bracketIdx {
+			host = host[:colonIdx]
+		}
+	}
+	return host == "localhost" || host == "127.0.0.1" || host == "::1"
 }
 
 // handleHealth returns a simple health check response.
@@ -91,7 +161,7 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	s.auth.ResetRateLimit(ip)
 
 	// Set cookie and redirect
-	s.auth.SetSessionCookie(w, session)
+	s.auth.SetSessionCookie(w, r, session)
 	http.Redirect(w, r, "/", http.StatusFound)
 }
 
@@ -132,7 +202,7 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 			Total:  len(hosts),
 		},
 		CSRFToken: session.CSRFToken,
-		Version:   "2.0.0", // TODO: inject from build
+		Version:   VersionInfo(),
 	}
 
 	w.Header().Set("Content-Type", "text/html")
@@ -143,7 +213,7 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 func (s *Server) getHosts() ([]templates.Host, error) {
 	rows, err := s.db.Query(`
 		SELECT id, hostname, host_type, agent_version, os_version, 
-		       nixpkgs_version, generation, last_seen, status, pending_command, theme_color
+		       nixpkgs_version, generation, last_seen, status, pending_command, theme_color, metrics_json
 		FROM hosts ORDER BY hostname
 	`)
 	if err != nil {
@@ -158,11 +228,11 @@ func (s *Server) getHosts() ([]templates.Host, error) {
 			AgentVersion, OSVersion, NixpkgsVersion, Generation     *string
 			LastSeen                                                *string
 			Status                                                  string
-			PendingCommand, ThemeColor                              *string
+			PendingCommand, ThemeColor, MetricsJSON                 *string
 		}
 		if err := rows.Scan(&h.ID, &h.Hostname, &h.HostType, &h.AgentVersion,
 			&h.OSVersion, &h.NixpkgsVersion, &h.Generation, &h.LastSeen,
-			&h.Status, &h.PendingCommand, &h.ThemeColor); err != nil {
+			&h.Status, &h.PendingCommand, &h.ThemeColor, &h.MetricsJSON); err != nil {
 			continue
 		}
 
@@ -190,6 +260,12 @@ func (s *Server) getHosts() ([]templates.Host, error) {
 		}
 		if h.ThemeColor != nil {
 			host.ThemeColor = *h.ThemeColor
+		}
+		if h.MetricsJSON != nil {
+			var metrics templates.Metrics
+			if err := json.Unmarshal([]byte(*h.MetricsJSON), &metrics); err == nil {
+				host.Metrics = &metrics
+			}
 		}
 		hosts = append(hosts, host)
 	}
@@ -221,8 +297,8 @@ func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 		clientID = session.ID
 	}
 
-	// Upgrade connection
-	conn, err := upgrader.Upgrade(w, r, nil)
+	// Upgrade connection with origin validation
+	conn, err := s.upgrader().Upgrade(w, r, nil)
 	if err != nil {
 		s.log.Error().Err(err).Msg("WebSocket upgrade failed")
 		return

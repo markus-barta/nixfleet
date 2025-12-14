@@ -253,6 +253,16 @@ func (h *Hub) updateHost(payload protocol.RegisterPayload) {
 }
 
 func (h *Hub) handleHeartbeat(hostID string, payload protocol.HeartbeatPayload) {
+	// Serialize metrics to JSON if available
+	var metricsJSON *string
+	if payload.Metrics != nil {
+		data, err := json.Marshal(payload.Metrics)
+		if err == nil {
+			s := string(data)
+			metricsJSON = &s
+		}
+	}
+
 	// Update host last_seen and status in database
 	_, err := h.db.Exec(`
 		UPDATE hosts SET 
@@ -260,9 +270,10 @@ func (h *Hub) handleHeartbeat(hostID string, payload protocol.HeartbeatPayload) 
 			status = 'online',
 			generation = ?,
 			nixpkgs_version = ?,
-			pending_command = ?
+			pending_command = ?,
+			metrics_json = ?
 		WHERE hostname = ?
-	`, payload.Generation, payload.NixpkgsVersion, payload.PendingCommand, hostID)
+	`, payload.Generation, payload.NixpkgsVersion, payload.PendingCommand, metricsJSON, hostID)
 
 	if err != nil {
 		h.log.Error().Err(err).Str("host", hostID).Msg("failed to update heartbeat")
@@ -368,6 +379,12 @@ func (c *Client) readPump() {
 		_ = c.conn.SetReadDeadline(time.Now().Add(pongWait))
 		return nil
 	})
+	// Explicitly handle pings by sending pongs (gorilla/websocket does this by default,
+	// but being explicit ensures it works through all proxies)
+	c.conn.SetPingHandler(func(appData string) error {
+		_ = c.conn.SetReadDeadline(time.Now().Add(pongWait))
+		return c.conn.WriteControl(websocket.PongMessage, []byte(appData), time.Now().Add(writeWait))
+	})
 
 	for {
 		_, data, err := c.conn.ReadMessage()
@@ -377,6 +394,9 @@ func (c *Client) readPump() {
 			}
 			return
 		}
+
+		// Reset read deadline on any received message
+		_ = c.conn.SetReadDeadline(time.Now().Add(pongWait))
 
 		if c.clientType == "agent" {
 			var msg protocol.Message

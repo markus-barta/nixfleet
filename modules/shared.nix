@@ -65,6 +65,17 @@ let
       example = "debug";
     };
 
+    hostname = lib.mkOption {
+      type = lib.types.str;
+      default = "";
+      description = ''
+        Override the auto-detected hostname. Useful on macOS where
+        the hostname can change based on network interface (e.g., imac0.lan vs imac0).
+        If empty, the agent uses the system hostname with domain suffix stripped.
+      '';
+      example = "imac0";
+    };
+
     version = lib.mkOption {
       type = lib.types.str;
       default = "0.0.0";
@@ -89,7 +100,8 @@ let
       NIXFLEET_BRANCH = cfg.branch;
       NIXFLEET_INTERVAL = toString cfg.interval;
       NIXFLEET_LOG_LEVEL = cfg.logLevel;
-    };
+    }
+    // lib.optionalAttrs (cfg.hostname != "") { NIXFLEET_HOSTNAME = cfg.hostname; };
 in
 {
   inherit mkCommonOptions mkAgentScript mkEnvironment;

@@ -1,6 +1,9 @@
 package templates
 
-import "fmt"
+import (
+	"fmt"
+	"strconv"
+)
 
 // Host represents a host in the dashboard
 type Host struct {
@@ -15,6 +18,15 @@ type Host struct {
 	LastSeen       string
 	PendingCommand string
 	ThemeColor     string
+	Metrics        *Metrics
+}
+
+// Metrics contains system metrics from StaSysMo
+type Metrics struct {
+	CPU  float64 `json:"cpu"`  // percentage 0-100
+	RAM  float64 `json:"ram"`  // percentage 0-100
+	Swap float64 `json:"swap"` // percentage 0-100
+	Load float64 `json:"load"` // 1-minute load average
 }
 
 // Stats represents dashboard statistics
@@ -36,7 +48,7 @@ templ Dashboard(data DashboardData) {
 	@Base("NixFleet Dashboard", data.CSRFToken) {
 		<header>
 			<div class="brand">
-				<h1>⚡ NixFleet</h1>
+				<h1>NixFleet</h1>
 				<div class="subtitle">Fleet Management Dashboard</div>
 			</div>
 			<div class="header-actions">
@@ -81,6 +93,7 @@ templ Dashboard(data DashboardData) {
 					<th>Status</th>
 					<th>Host</th>
 					<th>Type</th>
+					<th>Metrics</th>
 					<th>Version</th>
 					<th>Generation</th>
 					<th>Last Seen</th>
@@ -99,7 +112,7 @@ templ Dashboard(data DashboardData) {
 			<div class="log-header" @click="toggle()">
 				<div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
 					<span>
-						📋 Command Output
+						Command Output
 						<span x-show="hostId" x-text="'(' + hostId + ')'"></span>
 					</span>
 					<!-- Progress indicator -->
@@ -270,7 +283,7 @@ templ Dashboard(data DashboardData) {
 						});
 						window.addEventListener('log-complete', (e) => {
 							this.phase = e.detail.exit_code === 0 ? 'Complete' : 'Failed';
-							this.phaseIcon = e.detail.exit_code === 0 ? '✅' : '❌';
+							this.phaseIcon = e.detail.exit_code === 0 ? '✓' : '✗';
 							this.addLine({
 								line: `\n${this.phaseIcon} Command completed (exit code: ${e.detail.exit_code || 0})`,
 								isSuccess: e.detail.exit_code === 0
@@ -289,29 +302,29 @@ templ Dashboard(data DashboardData) {
 						// NixOS rebuild phases
 						if (line.includes('evaluating derivation')) {
 							this.phase = 'Evaluation';
-							this.phaseIcon = '🔄';
+							this.phaseIcon = '→';
 						} else if (line.includes('these derivations will be built')) {
 							// Extract count: "these 42 derivations will be built"
 							const match = line.match(/these (\d+) derivations/);
 							if (match) this.buildCount = parseInt(match[1], 10);
 							this.phase = 'Building';
-							this.phaseIcon = '🔨';
+							this.phaseIcon = '●';
 						} else if (line.includes("building '/nix/store/")) {
 							this.buildCurrent++;
 							this.phase = 'Building';
-							this.phaseIcon = '🔨';
+							this.phaseIcon = '●';
 						} else if (line.includes('activating the configuration')) {
 							this.phase = 'Activation';
-							this.phaseIcon = '⚡';
+							this.phaseIcon = '▶';
 						} else if (line.includes('switching to configuration')) {
 							this.phase = 'Switch';
-							this.phaseIcon = '🔄';
+							this.phaseIcon = '→';
 						} else if (line.includes('setting up /etc')) {
 							this.phase = 'Setup';
-							this.phaseIcon = '📁';
+							this.phaseIcon = '○';
 						} else if (line.includes('will be fetched')) {
 							this.phase = 'Fetching';
-							this.phaseIcon = '📥';
+							this.phaseIcon = '↓';
 						}
 					},
 
@@ -361,6 +374,16 @@ templ HostCard(host Host, csrfToken string) {
 				<span class="host-card-label">Type</span>
 				<span>{ host.HostType }</span>
 			</div>
+			if host.Metrics != nil {
+				<div class="host-card-row">
+					<span class="host-card-label">Metrics</span>
+					<span class="metrics-cell">
+						<span class={ metricsClass("cpu", host.Metrics.CPU) }><svg class="metric-icon"><use href="#icon-cpu"></use></svg> { formatPercent(host.Metrics.CPU) }</span>
+						<span class={ metricsClass("ram", host.Metrics.RAM) }><svg class="metric-icon"><use href="#icon-ram"></use></svg> { formatPercent(host.Metrics.RAM) }</span>
+						<span class="metric">{ formatLoad(host.Metrics.Load) }</span>
+					</span>
+				</div>
+			}
 			<div class="host-card-row">
 				<span class="host-card-label">OS Version</span>
 				<span>{ valueOrDash(host.OSVersion) }</span>
@@ -378,9 +401,9 @@ templ HostCard(host Host, csrfToken string) {
 				<span>{ valueOrDash(host.LastSeen) }</span>
 			</div>
 			<div class="host-card-actions">
-				@CommandButton(host.ID, "pull", "📥 Pull", "btn", host.Online && host.PendingCommand == "")
-				@CommandButton(host.ID, "switch", "🔄 Switch", "btn btn-primary", host.Online && host.PendingCommand == "")
-				@CommandButton(host.ID, "test", "🧪 Test", "btn", host.Online && host.PendingCommand == "")
+				@CommandButton(host.ID, "pull", "Pull", "btn", host.Online && host.PendingCommand == "")
+				@CommandButton(host.ID, "switch", "Switch", "btn btn-primary", host.Online && host.PendingCommand == "")
+				@CommandButton(host.ID, "test", "Test", "btn", host.Online && host.PendingCommand == "")
 			</div>
 		</div>
 	</div>
@@ -399,20 +422,32 @@ templ HostRow(host Host, csrfToken string) {
 			}
 		</td>
 		<td>{ host.HostType }</td>
+		<td class="metrics-cell">
+			if host.Metrics != nil {
+				<span class={ metricsClass("cpu", host.Metrics.CPU) } title={ "CPU: " + formatPercent(host.Metrics.CPU) }>
+					<svg class="metric-icon"><use href="#icon-cpu"></use></svg> { formatPercent(host.Metrics.CPU) }
+				</span>
+				<span class={ metricsClass("ram", host.Metrics.RAM) } title={ "RAM: " + formatPercent(host.Metrics.RAM) + ", Swap: " + formatPercent(host.Metrics.Swap) + ", Load: " + formatLoad(host.Metrics.Load) }>
+					<svg class="metric-icon"><use href="#icon-ram"></use></svg> { formatPercent(host.Metrics.RAM) }
+				</span>
+			} else {
+				<span class="metrics-na">—</span>
+			}
+		</td>
 		<td>{ valueOrDash(host.OSVersion) }</td>
 		<td>{ valueOrDash(host.Generation) }</td>
 		<td>{ valueOrDash(host.LastSeen) }</td>
 		<td>
 			<div style="display: flex; gap: 0.25rem;">
-				@CommandButton(host.ID, "pull", "📥", "btn", host.Online && host.PendingCommand == "")
-				@CommandButton(host.ID, "switch", "🔄", "btn btn-primary", host.Online && host.PendingCommand == "")
-				@CommandButton(host.ID, "test", "🧪", "btn", host.Online && host.PendingCommand == "")
+				@CommandButton(host.ID, "pull", "", "btn", host.Online && host.PendingCommand == "")
+				@CommandButton(host.ID, "switch", "", "btn btn-primary", host.Online && host.PendingCommand == "")
+				@CommandButton(host.ID, "test", "", "btn", host.Online && host.PendingCommand == "")
 			</div>
 		</td>
 	</tr>
 }
 
-// CommandButton renders a command button with proper onclick handling
+// CommandButton renders a command button with proper onclick handling and SVG icon
 templ CommandButton(hostID, command, label, classes string, enabled bool) {
 	if enabled {
 		<button 
@@ -421,12 +456,32 @@ templ CommandButton(hostID, command, label, classes string, enabled bool) {
 			data-command={ command }
 			onclick="sendCommand(this.dataset.hostId, this.dataset.command)"
 		>
-			{ label }
+			@commandIcon(command)
+			if label != "" {
+				{ label }
+			}
 		</button>
 	} else {
 		<button class={ classes } disabled>
-			{ label }
+			@commandIcon(command)
+			if label != "" {
+				{ label }
+			}
 		</button>
+	}
+}
+
+// commandIcon renders the SVG icon for a command
+templ commandIcon(command string) {
+	switch command {
+		case "pull":
+			<svg class="icon"><use href="#icon-download"></use></svg>
+		case "switch":
+			<svg class="icon"><use href="#icon-refresh"></use></svg>
+		case "test":
+			<svg class="icon"><use href="#icon-flask"></use></svg>
+		default:
+			// No icon for unknown commands
 	}
 }
 
@@ -453,5 +508,21 @@ func valueOrDash(v string) string {
 		return "—"
 	}
 	return v
+}
+
+func formatPercent(v float64) string {
+	return strconv.FormatFloat(v, 'f', 0, 64) + "%"
+}
+
+func formatLoad(v float64) string {
+	return strconv.FormatFloat(v, 'f', 2, 64)
+}
+
+func metricsClass(metricType string, value float64) string {
+	base := "metric " + metricType
+	if value >= 80 {
+		return base + " high"
+	}
+	return base
 }
 

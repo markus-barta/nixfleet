@@ -175,18 +175,31 @@ func (a *AuthService) ResetRateLimit(ip string) {
 }
 
 // SetSessionCookie sets the session cookie on the response.
-func (a *AuthService) SetSessionCookie(w http.ResponseWriter, session *Session) {
-	// Note: Secure should be true in production (HTTPS only)
-	// In development/testing it's set to false to work with HTTP
+// The Secure flag is automatically set based on the request context.
+func (a *AuthService) SetSessionCookie(w http.ResponseWriter, r *http.Request, session *Session) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     "nixfleet_session",
 		Value:    session.ID,
 		Path:     "/",
 		HttpOnly: true,
-		Secure:   false, // TODO: make configurable for production
+		Secure:   isSecureRequest(r),
 		SameSite: http.SameSiteLaxMode,
 		Expires:  session.ExpiresAt,
 	})
+}
+
+// isSecureRequest checks if the request came over HTTPS.
+// Checks both direct TLS and reverse proxy headers.
+func isSecureRequest(r *http.Request) bool {
+	// Check X-Forwarded-Proto (behind reverse proxy like Traefik)
+	if r.Header.Get("X-Forwarded-Proto") == "https" {
+		return true
+	}
+	// Check TLS directly
+	if r.TLS != nil {
+		return true
+	}
+	return false
 }
 
 // ClearSessionCookie clears the session cookie.

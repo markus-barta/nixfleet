@@ -139,6 +139,44 @@ When you change code:
 
 ---
 
+## Agent Updates Workflow
+
+**The agent binary is built and pinned via Nix flakes.** After modifying agent code:
+
+1. **Build locally** to verify:
+   ```bash
+   cd nixfleet/v2 && go build ./...
+   ```
+
+2. **Update the nixcfg flake lock** to pick up your changes:
+   ```bash
+   cd nixcfg
+   nix flake update nixfleet  # Updates flake.lock to latest nixfleet
+   ```
+
+3. **Switch the machine** to deploy the new agent:
+   ```bash
+   # macOS (Home Manager)
+   home-manager switch --flake .#<hostname>
+
+   # NixOS
+   sudo nixos-rebuild switch --flake .#<hostname>
+   ```
+
+> **Why?** The `nixcfg` flake references `nixfleet` as an input. The agent package
+> is built from that pinned input, not from your working directory. Without updating
+> the flake lock and switching, the old agent binary continues running.
+
+### Quick Override (Development)
+
+To test local changes without committing:
+
+```bash
+home-manager switch --flake .#hostname --override-input nixfleet path:/Users/markus/Code/nixfleet
+```
+
+---
+
 ## Security Reminders
 
 - ❌ NEVER commit `.env` files with real credentials

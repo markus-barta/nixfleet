@@ -200,6 +200,7 @@ Same options as NixOS, except `user` is not needed (runs as current user).
 | `NIXFLEET_DATA_DIR`                    | No                               | Database directory (default: `/data`)                                                        |
 | `NIXFLEET_TRUST_PROXY_HEADERS`         | No                               | Trust forwarded headers for client IP (rate limiting/logging behind reverse proxies)         |
 | `NIXFLEET_TRUSTED_PROXY_IPS`           | No                               | Comma-separated proxy IP allowlist (optional; when empty and trust enabled, trust any proxy) |
+| `NIXFLEET_ALLOWED_ORIGINS`             | No                               | Comma-separated allowed origins for WebSocket connections (auto-detects in production)       |
 
 ## Development
 

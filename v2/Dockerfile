@@ -1,6 +1,6 @@
 # NixFleet Dashboard v2 - Multi-stage Go Build
 #
-# Build: docker build -t nixfleet:v2 .
+# Build: docker build --build-arg VERSION=2.0.0 --build-arg GIT_COMMIT=$(git rev-parse HEAD) -t nixfleet:v2 .
 # Run:   docker run -p 8000:8000 -v nixfleet_data:/data nixfleet:v2
 #
 # This uses modernc.org/sqlite (pure Go, no CGO) so we can use scratch/alpine
@@ -22,13 +22,21 @@ RUN go mod download
 # Copy source
 COPY . .
 
+# Build arguments for version injection
+ARG VERSION=dev
+ARG GIT_COMMIT=unknown
+ARG BUILD_TIME=unknown
+
 # Generate templ templates if needed (they should be pre-generated, but just in case)
 # RUN go install github.com/a-h/templ/cmd/templ@latest && templ generate
 
 # Build the dashboard binary
 # CGO_ENABLED=0 for static binary (modernc.org/sqlite is pure Go)
 RUN CGO_ENABLED=0 GOOS=linux go build \
-    -ldflags="-s -w" \
+    -ldflags="-s -w \
+      -X github.com/pbek/nixfleet/v2/internal/dashboard.Version=${VERSION} \
+      -X github.com/pbek/nixfleet/v2/internal/dashboard.GitCommit=${GIT_COMMIT} \
+      -X github.com/pbek/nixfleet/v2/internal/dashboard.BuildTime=${BUILD_TIME}" \
     -o /nixfleet-dashboard \
     ./cmd/nixfleet-dashboard
 

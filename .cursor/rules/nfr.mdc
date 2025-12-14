@@ -1,0 +1,71 @@
+---
+description: Non-functional requirements for NixFleet development
+globs: []
+alwaysApply: true
+---
+
+# Non-Functional Requirements (NFR)
+
+These requirements apply to **all** NixFleet development work.
+
+---
+
+## NFR-1: Clarity Over Speed
+
+**Do not take shortcuts when uncertain.**
+
+- If something is unclear, **ask the user** before proceeding
+- Don't guess at requirements or make assumptions
+- When in doubt, clarify scope, behavior, or edge cases first
+- Better to ask one question than fix three bugs
+
+---
+
+## NFR-2: Icons — No Emojis
+
+**When working on UI elements (icons, buttons, labels), never use emojis unless explicitly told to do so.**
+
+- Use SVG icons, icon fonts, or CSS-based icons
+- Emojis render inconsistently across platforms and can look unprofessional
+- If you need an icon and none exists, ask which icon library to use
+- Exception: Only if user explicitly says "use emoji" or "emoji is fine"
+
+---
+
+## NFR-3: Responsive Design
+
+**Always design for both extremes: mobile phones and large desktop displays.**
+
+| Breakpoint | Target Devices | Considerations |
+|------------|----------------|----------------|
+| < 640px | Mobile phones (portrait) | Touch targets ≥44px, single column, collapsible sections |
+| 640-1024px | Tablets, small laptops | Flexible layouts, may show more columns |
+| > 1024px | Desktops, laptops | Full table views, side panels acceptable |
+| > 2560px | 27" 5K displays | Don't stretch content infinitely, use max-width |
+
+### Design Principles
+
+1. **Mobile-first**: Start with mobile layout, enhance for larger screens
+2. **Content hierarchy**: Most important info visible without scrolling on mobile
+3. **Touch-friendly**: Buttons and interactive elements must be easily tappable
+4. **Readable at scale**: Use `rem` units, respect user font preferences
+5. **Max-width containers**: Prevent content from spanning full width on ultra-wide displays
+
+### Testing Checklist
+
+Before completing any UI work:
+
+- [ ] Test at 375px width (iPhone SE)
+- [ ] Test at 768px width (iPad portrait)
+- [ ] Test at 1920px width (Full HD)
+- [ ] Test at 2560px+ width (5K display)
+
+---
+
+## Quick Reference
+
+| Requirement | Rule |
+|-------------|------|
+| Uncertainty | Ask, don't assume |
+| Icons | SVG/CSS, no emojis |
+| Responsive | Mobile-first, test at extremes |

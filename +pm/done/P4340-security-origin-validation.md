@@ -1,9 +1,10 @@
 # P4340 - Security: WebSocket Origin Validation
 
 **Priority**: Critical  
-**Status**: Pending  
+**Status**: Done  
 **Effort**: Small  
-**References**: `v2/internal/dashboard/handlers.go:18`, NFR-3
+**References**: `v2/internal/dashboard/handlers.go`, NFR-3  
+**Completed**: 2025-12-14
 
 ## Problem
 
@@ -69,12 +70,12 @@ if allowedOrigins != "" {
 
 ### Requirements
 
-- [ ] Implement `checkOrigin` function
-- [ ] Validate against request Host header
-- [ ] Allow localhost in development
-- [ ] Add `NIXFLEET_ALLOWED_ORIGINS` env var
-- [ ] Log rejected origins for debugging
-- [ ] Test with browser console
+- [x] Implement `checkOrigin` function
+- [x] Validate against request Host header
+- [x] Allow localhost in development
+- [x] Add `NIXFLEET_ALLOWED_ORIGINS` env var
+- [x] Log rejected origins for debugging
+- [ ] Test with browser console (manual verification)
 
 ## Related
 

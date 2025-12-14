@@ -42,7 +42,7 @@ func Login(errorMsg string) templ.Component {
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div style=\"display: flex; justify-content: center; align-items: center; min-height: 80vh;\"><div style=\"width: 100%; max-width: 360px;\"><div style=\"text-align: center; margin-bottom: 2rem;\"><h1 style=\"color: var(--blue); font-size: 2rem; margin-bottom: 0.5rem;\">⚡ NixFleet</h1><p style=\"color: var(--fg-dark);\">Fleet Management Dashboard</p></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div style=\"display: flex; justify-content: center; align-items: center; min-height: 80vh;\"><div style=\"width: 100%; max-width: 360px;\"><div style=\"text-align: center; margin-bottom: 2rem;\"><h1 style=\"color: var(--blue); font-size: 2rem; margin-bottom: 0.5rem;\">NixFleet</h1><p style=\"color: var(--fg-dark);\">Fleet Management Dashboard</p></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

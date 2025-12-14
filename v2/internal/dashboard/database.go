@@ -51,6 +51,7 @@ func createTables(db *sql.DB) error {
 		pending_command TEXT,
 		comment TEXT,
 		theme_color TEXT DEFAULT '#7aa2f7',
+		metrics_json TEXT,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	);
 
@@ -84,6 +85,21 @@ func createTables(db *sql.DB) error {
 	`
 
 	_, err := db.Exec(schema)
-	return err
+	if err != nil {
+		return err
+	}
+
+	// Migrations for existing databases
+	migrations := []string{
+		// Add metrics_json column if not exists (v2.1.0)
+		`ALTER TABLE hosts ADD COLUMN metrics_json TEXT`,
+	}
+
+	for _, m := range migrations {
+		// Ignore errors - column may already exist
+		_, _ = db.Exec(m)
+	}
+
+	return nil
 }
 

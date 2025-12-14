@@ -4,7 +4,10 @@ package config
 import (
 	"errors"
 	"os"
+	"os/exec"
+	"runtime"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -30,13 +33,33 @@ type Config struct {
 
 // DefaultConfig returns a config with default values.
 func DefaultConfig() *Config {
-	hostname, _ := os.Hostname()
 	return &Config{
 		Branch:            "main",
 		HeartbeatInterval: 30 * time.Second,
 		LogLevel:          "info",
-		Hostname:          hostname,
+		Hostname:          getStableHostname(),
 	}
+}
+
+// getStableHostname returns a stable hostname that doesn't change with network.
+// On macOS, os.Hostname() can return network-dependent names like "imac0w.lan"
+// which change when switching between ethernet/wifi. We use LocalHostName instead.
+func getStableHostname() string {
+	// On macOS, use scutil to get the stable LocalHostName
+	if runtime.GOOS == "darwin" {
+		if out, err := exec.Command("scutil", "--get", "LocalHostName").Output(); err == nil {
+			if hostname := strings.TrimSpace(string(out)); hostname != "" {
+				return hostname
+			}
+		}
+	}
+
+	// Fallback to os.Hostname() with domain suffix stripped
+	hostname, _ := os.Hostname()
+	if idx := strings.Index(hostname, "."); idx != -1 {
+		hostname = hostname[:idx]
+	}
+	return hostname
 }
 
 // LoadFromEnv loads configuration from environment variables.

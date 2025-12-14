@@ -1,9 +1,10 @@
 # P4346 - Display Host Metrics (CPU/RAM/Load)
 
 **Priority**: Medium  
-**Status**: Pending  
+**Status**: Done  
 **Effort**: Small  
-**References**: PRD FR-1.7, FR-3.7, US-4
+**References**: PRD FR-1.7, FR-3.7, US-4  
+**Completed**: 2025-12-14
 
 ## Problem
 
@@ -102,13 +103,13 @@ Include metrics in `host_update` message to browsers.
 
 ### Requirements
 
-- [ ] Add metrics columns to hosts table
-- [ ] Store metrics on heartbeat
-- [ ] Load metrics when rendering dashboard
-- [ ] Display CPU/RAM with icons
-- [ ] Highlight high usage (≥80%) in red
-- [ ] Show full details (swap, load) on hover
-- [ ] Broadcast metrics updates to browsers
+- [x] Add metrics columns to hosts table (metrics_json)
+- [x] Store metrics on heartbeat
+- [x] Load metrics when rendering dashboard
+- [x] Display CPU/RAM with icons (🖥️ 💾)
+- [x] Highlight high usage (≥80%) in red
+- [x] Show full details (swap, load) on hover (via title tooltip)
+- [x] Broadcast metrics updates to browsers (already done via host_update)
 
 ## Related
 

@@ -33,6 +33,9 @@ type Config struct {
 
 	// Data directory for logs etc
 	DataDir string
+
+	// Security
+	AllowedOrigins []string // optional, for WebSocket origin validation
 }
 
 // LoadConfig loads configuration from environment variables.
@@ -51,6 +54,7 @@ func LoadConfig() (*Config, error) {
 		RateLimitWindow:   parseDuration("NIXFLEET_RATE_WINDOW", 1*time.Minute),
 		DatabasePath:      getEnv("NIXFLEET_DB_PATH", dataDir+"/nixfleet.db"),
 		DataDir:           dataDir,
+		AllowedOrigins:    parseOrigins("NIXFLEET_ALLOWED_ORIGINS"),
 	}
 
 	if err := cfg.validate(); err != nil {
@@ -107,5 +111,20 @@ func parseInt(key string, defaultValue int) int {
 		}
 	}
 	return defaultValue
+}
+
+func parseOrigins(key string) []string {
+	v := os.Getenv(key)
+	if v == "" {
+		return nil
+	}
+	parts := strings.Split(v, ",")
+	origins := make([]string, 0, len(parts))
+	for _, p := range parts {
+		if trimmed := strings.TrimSpace(p); trimmed != "" {
+			origins = append(origins, trimmed)
+		}
+	}
+	return origins
 }
 
