@@ -10,8 +10,11 @@ let
 
     url = lib.mkOption {
       type = lib.types.str;
-      description = "URL of the NixFleet dashboard.";
-      example = "https://fleet.example.com";
+      description = ''
+        WebSocket URL of the NixFleet dashboard.
+        For v2 agents, use wss:// protocol (e.g., wss://fleet.example.com/ws).
+      '';
+      example = "wss://fleet.example.com/ws";
     };
 
     configRepo = lib.mkOption {
@@ -46,44 +49,20 @@ let
     interval = lib.mkOption {
       type = lib.types.ints.between 1 3600;
       default = 30;
-      description = "Poll interval in seconds (1-3600).";
+      description = "Heartbeat interval in seconds (1-3600).";
       example = 30;
     };
 
-    location = lib.mkOption {
+    logLevel = lib.mkOption {
       type = lib.types.enum [
-        "cloud"
-        "home"
-        "work"
-        "office"
-        "mobile"
-        "other"
+        "debug"
+        "info"
+        "warn"
+        "error"
       ];
-      default = "home";
-      description = "Physical location category for grouping hosts.";
-      example = "cloud";
-    };
-
-    deviceType = lib.mkOption {
-      type = lib.types.enum [
-        "server"
-        "desktop"
-        "laptop"
-        "gaming"
-        "vm"
-        "container"
-        "other"
-      ];
-      default = "server";
-      description = "Device type for categorization.";
-      example = "desktop";
-    };
-
-    themeColor = lib.mkOption {
-      type = lib.types.strMatching "^#[0-9a-fA-F]{6}$";
-      default = "#769ff0";
-      description = "Theme color hex code for dashboard display.";
-      example = "#ff6b6b";
+      default = "info";
+      description = "Agent log level.";
+      example = "debug";
     };
 
     version = lib.mkOption {
@@ -96,38 +75,20 @@ let
     };
   };
 
-  # Build the agent script with version injection
-  mkAgentScript =
-    { cfg }:
-    let
-      agentScriptSrc = pkgs.replaceVars ../agent/nixfleet-agent.sh {
-        agentVersion = cfg.version;
-      };
-    in
-    pkgs.writeShellApplication {
-      name = "nixfleet-agent";
-      runtimeInputs = with pkgs; [
-        curl
-        jq
-        git
-        hostname
-      ];
-      text = builtins.readFile agentScriptSrc;
-    };
+  # Build the Go agent package
+  # Note: The package is now built via buildGoModule, not a shell script
+  mkAgentScript = _: pkgs.callPackage ../packages/nixfleet-agent-v2.nix { };
 
-  # Common environment variables
+  # Common environment variables for v2 Go agent
   mkEnvironment =
     { cfg }:
     {
       NIXFLEET_URL = cfg.url;
-      # Legacy mode: use user-provided path; new mode: agent-managed path
-      NIXFLEET_NIXCFG = cfg.configRepo;
+      NIXFLEET_NIXCFG = cfg.configRepo; # Legacy, deprecated
       NIXFLEET_REPO_URL = cfg.repoUrl;
       NIXFLEET_BRANCH = cfg.branch;
       NIXFLEET_INTERVAL = toString cfg.interval;
-      NIXFLEET_LOCATION = cfg.location;
-      NIXFLEET_DEVICE_TYPE = cfg.deviceType;
-      NIXFLEET_THEME_COLOR = cfg.themeColor;
+      NIXFLEET_LOG_LEVEL = cfg.logLevel;
     };
 in
 {

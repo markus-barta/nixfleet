@@ -25,7 +25,7 @@
 let
   cfg = config.services.nixfleet-agent;
   shared = import ./shared.nix { inherit lib pkgs; };
-  agentScript = shared.mkAgentScript { inherit cfg; };
+  agentScript = shared.mkAgentScript { };
 in
 {
   options.services.nixfleet-agent = shared.mkCommonOptions // {
@@ -106,10 +106,7 @@ in
             export NIXFLEET_BRANCH="${cfg.branch}"
             export NIXFLEET_REPO_DIR="$HOME/.local/state/nixfleet-agent/repo"
             export NIXFLEET_INTERVAL="${toString cfg.interval}"
-            export NIXFLEET_LOCATION="${cfg.location}"
-            export NIXFLEET_DEVICE_TYPE="${cfg.deviceType}"
-            export NIXFLEET_THEME_COLOR="${cfg.themeColor}"
-            export NIXFLEET_TOKEN_CACHE="$HOME/.local/state/nixfleet-agent/token"
+            export NIXFLEET_LOG_LEVEL="${cfg.logLevel}"
             export NIXFLEET_TOKEN="$(cat '${cfg.tokenFile}')"
             ${lib.optionalString (cfg.sshKeyFile != null) ''export NIXFLEET_SSH_KEY="${cfg.sshKeyFile}"''}
             exec ${agentScript}/bin/nixfleet-agent
@@ -145,10 +142,7 @@ in
           "NIXFLEET_BRANCH=${cfg.branch}"
           "NIXFLEET_REPO_DIR=%h/.local/state/nixfleet-agent/repo"
           "NIXFLEET_INTERVAL=${toString cfg.interval}"
-          "NIXFLEET_LOCATION=${cfg.location}"
-          "NIXFLEET_DEVICE_TYPE=${cfg.deviceType}"
-          "NIXFLEET_THEME_COLOR=${cfg.themeColor}"
-          "NIXFLEET_TOKEN_CACHE=%h/.local/state/nixfleet-agent/token"
+          "NIXFLEET_LOG_LEVEL=${cfg.logLevel}"
         ]
         ++ lib.optional (cfg.sshKeyFile != null) "NIXFLEET_SSH_KEY=${cfg.sshKeyFile}";
         EnvironmentFile = cfg.tokenFile;

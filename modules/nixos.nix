@@ -26,7 +26,7 @@
 let
   cfg = config.services.nixfleet-agent;
   shared = import ./shared.nix { inherit lib pkgs; };
-  agentScript = shared.mkAgentScript { inherit cfg; };
+  agentScript = shared.mkAgentScript { };
 in
 {
   options.services.nixfleet-agent = shared.mkCommonOptions // {

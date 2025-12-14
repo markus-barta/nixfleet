@@ -24,30 +24,14 @@
       # Version from git - use short rev or "dev" for dirty trees
       version =
         if self ? shortRev then
-          "0.4.0-${self.shortRev}"
+          "2.0.0-${self.shortRev}"
         else if self ? rev then
-          "0.4.0-${builtins.substring 0 7 self.rev}"
+          "2.0.0-${builtins.substring 0 7 self.rev}"
         else
-          "0.4.0-dev";
+          "2.0.0-dev";
 
-      # Helper to create the agent package
-      mkAgentPackage =
-        pkgs:
-        let
-          agentScriptSrc = pkgs.replaceVars ./agent/nixfleet-agent.sh {
-            agentVersion = version;
-          };
-        in
-        pkgs.writeShellApplication {
-          name = "nixfleet-agent";
-          runtimeInputs = with pkgs; [
-            curl
-            jq
-            git
-            hostname
-          ];
-          text = builtins.readFile agentScriptSrc;
-        };
+      # Helper to create the Go agent package
+      mkAgentPackage = pkgs: pkgs.callPackage ./packages/nixfleet-agent-v2.nix { };
     in
     {
       # ════════════════════════════════════════════════════════════════════════
@@ -101,15 +85,10 @@
         devShells.default = pkgs.mkShell {
           name = "nixfleet-dev";
           buildInputs = with pkgs; [
-            # Python for backend
-            python312
-            python312Packages.fastapi
-            python312Packages.uvicorn
-            python312Packages.jinja2
-            python312Packages.bcrypt
-            python312Packages.pyotp
-            python312Packages.pydantic
-            python312Packages.slowapi
+            # Go for v2 backend and agent
+            go
+            gopls
+            golangci-lint
 
             # Agent dependencies
             curl
@@ -122,11 +101,12 @@
           ];
 
           shellHook = ''
-            echo "🚀 NixFleet development shell"
+            echo "🚀 NixFleet v2 development shell"
             echo ""
             echo "Commands:"
-            echo "  cd app && uvicorn main:app --reload  # Run dashboard"
-            echo "  ./agent/nixfleet-agent.sh            # Test agent"
+            echo "  cd v2 && go build ./cmd/nixfleet-agent      # Build agent"
+            echo "  cd v2 && go build ./cmd/nixfleet-dashboard  # Build dashboard"
+            echo "  cd v2 && go test ./tests/integration/...    # Run tests"
             echo ""
           '';
         };
