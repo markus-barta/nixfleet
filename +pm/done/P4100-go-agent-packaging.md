@@ -2,7 +2,7 @@
 
 **Priority**: High (blocks E2E testing)
 **Depends on**: T01-T03 (agent tests) ✅ Complete
-**Blocks**: T07-T08 (real E2E tests)
+**Status**: ✅ Done
 
 ---
 
