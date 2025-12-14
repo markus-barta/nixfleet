@@ -123,6 +123,14 @@ in
       wants = [ "network-online.target" ];
       wantedBy = [ "multi-user.target" ];
 
+      # CRITICAL: Don't restart the agent during nixos-rebuild switch.
+      # The agent orchestrates the switch, so it must stay alive throughout.
+      # Without this, systemd stops the agent during activation, and if the
+      # switch fails, the agent stays dead (explicit stops don't trigger Restart=always).
+      # The agent will pick up any config changes on its next restart (e.g., reboot).
+      restartIfChanged = false;
+      stopIfChanged = false;
+
       environment =
         shared.mkEnvironment { inherit cfg; }
         // {
@@ -148,8 +156,8 @@ in
         ExecStart = "${agentScript}/bin/nixfleet-agent";
         Restart = "always";
         RestartSec = 3;
-        # Force restart even when systemd explicitly stops the service during
-        # nixos-rebuild switch. Exit 101 = switch-to-configuration failure.
+        # Belt-and-suspenders: if the agent does get stopped somehow and
+        # the switch fails with exit 101, force a restart anyway.
         RestartForceExitStatus = "101";
 
         # Read token from file
