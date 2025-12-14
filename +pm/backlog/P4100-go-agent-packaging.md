@@ -127,8 +127,8 @@ If v2 agent fails:
 
 ---
 
-## Open Questions
+## Decisions
 
-1. **Parallel operation?** Run v2 agent alongside v1 temporarily?
-2. **Dashboard URL?** Keep `fleet.barta.cm` or new URL for v2?
-3. **Token reuse?** Same agent tokens or regenerate?
+1. **No parallel operation** - Direct swap, rollback via Nix if needed
+2. **Same URL** - Keep `fleet.barta.cm`
+3. **Reuse tokens** - Same agent tokens from agenix

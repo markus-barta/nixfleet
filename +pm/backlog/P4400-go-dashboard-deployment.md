@@ -188,9 +188,9 @@ docker compose up -d
 
 ---
 
-## Open Questions
+## Decisions
 
-1. **Downtime?** Accept brief downtime or blue-green deploy?
-2. **Same domain?** Keep `fleet.barta.cm` or use `fleet-v2.barta.cm` initially?
-3. **Database migration?** Automatic or manual verification?
-4. **TOTP secret?** Reuse existing or regenerate?
+1. **Brief downtime OK** - Simple swap, < 5 min
+2. **Same domain** - Keep `fleet.barta.cm`
+3. **Auto migration** - Go code handles it, backup first
+4. **Reuse TOTP** - Same secret, no re-enrollment
