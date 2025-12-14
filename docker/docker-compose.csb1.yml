@@ -1,31 +1,27 @@
-# NixFleet - csb1 Deployment (with Traefik)
+# NixFleet v2 - csb1 Deployment (with Traefik)
 #
 # This is the deployment-specific configuration for csb1.
 # Requires Traefik reverse proxy with csb1_traefik network.
 #
-# Deploy: docker compose -f docker-compose.csb1.yml up -d
+# Deploy: docker compose -f docker/docker-compose.csb1.yml --env-file ~/secrets/nixfleet.env up -d
 
 services:
   nixfleet:
     build:
-      context: ..
+      context: ../v2
       args:
-        - GIT_HASH=${GIT_HASH:-unknown}
-        - GIT_VERSION=${GIT_VERSION:-dev}
+        - VERSION=${NIXFLEET_VERSION:-2.0.0}
+        - GIT_COMMIT=${GIT_COMMIT:-unknown}
+        - BUILD_TIME=${BUILD_TIME:-unknown}
     container_name: nixfleet
     restart: unless-stopped
     environment:
       - NIXFLEET_DATA_DIR=/data
-      - NIXFLEET_SERVER_HOST=csb1
+      - NIXFLEET_LISTEN=:8000
       - NIXFLEET_PASSWORD_HASH=${NIXFLEET_PASSWORD_HASH}
       - NIXFLEET_TOTP_SECRET=${NIXFLEET_TOTP_SECRET:-}
-      - NIXFLEET_SESSION_SECRETS=${NIXFLEET_SESSION_SECRETS}
       - NIXFLEET_API_TOKEN=${NIXFLEET_API_TOKEN}
-      - NIXFLEET_AGENT_TOKEN_HASH_SECRET=${NIXFLEET_AGENT_TOKEN_HASH_SECRET}
-      - NIXFLEET_ALLOW_SHARED_AGENT_TOKEN=${NIXFLEET_ALLOW_SHARED_AGENT_TOKEN:-true}
-      - NIXFLEET_AUTO_PROVISION_AGENT_TOKENS=${NIXFLEET_AUTO_PROVISION_AGENT_TOKENS:-true}
-      - NIXFLEET_TRUST_PROXY_HEADERS=${NIXFLEET_TRUST_PROXY_HEADERS:-true}
-      - NIXFLEET_TRUSTED_PROXY_IPS=${NIXFLEET_TRUSTED_PROXY_IPS:-}
+      - NIXFLEET_ALLOWED_ORIGINS=${NIXFLEET_ALLOWED_ORIGINS:-}
     volumes:
       - nixfleet-data:/data
     labels:
