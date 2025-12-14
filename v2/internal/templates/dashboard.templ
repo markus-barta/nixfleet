@@ -259,11 +259,14 @@ templ Dashboard(data DashboardData) {
 					if (genCell) genCell.textContent = host.generation || '—';
 				}
 
-				// Update last seen (format as relative time)
+				// Update last seen (format as relative time with color)
 				if (host.last_seen !== undefined) {
 					const lastSeenCell = row.querySelector('[data-cell="last-seen"]');
 					if (lastSeenCell) {
-						lastSeenCell.textContent = formatRelativeTime(host.last_seen);
+						lastSeenCell.dataset.timestamp = host.last_seen;
+						const result = formatLastSeen(host.last_seen);
+						lastSeenCell.textContent = result.text;
+						lastSeenCell.className = result.className;
 					}
 				}
 
@@ -318,17 +321,40 @@ templ Dashboard(data DashboardData) {
 				return cls;
 			}
 
-			function formatRelativeTime(isoString) {
-				if (!isoString) return '—';
+			// Heartbeat interval in seconds (default 30s)
+			const HEARTBEAT_INTERVAL = 30;
+
+			function formatLastSeen(isoString) {
+				if (!isoString) return { text: '—', className: '' };
+				
 				const date = new Date(isoString);
 				const now = new Date();
 				const diffMs = now - date;
 				const diffSec = Math.floor(diffMs / 1000);
 				
-				if (diffSec < 60) return 'now';
-				if (diffSec < 3600) return Math.floor(diffSec / 60) + 'm ago';
-				if (diffSec < 86400) return Math.floor(diffSec / 3600) + 'h ago';
-				return Math.floor(diffSec / 86400) + 'd ago';
+				// Format the time text
+				let text;
+				if (diffSec < 60) {
+					text = diffSec + 's';
+				} else if (diffSec < 3600) {
+					text = Math.floor(diffSec / 60) + 'm';
+				} else if (diffSec < 86400) {
+					text = Math.floor(diffSec / 3600) + 'h';
+				} else {
+					text = Math.floor(diffSec / 86400) + 'd';
+				}
+
+				// Determine color class based on heartbeat interval
+				let className;
+				if (diffSec <= HEARTBEAT_INTERVAL * 2) {
+					className = 'last-seen-ok';      // Within 2x heartbeat: gray
+				} else if (diffSec <= HEARTBEAT_INTERVAL * 10) {
+					className = 'last-seen-warn';    // Within 10x heartbeat: yellow
+				} else {
+					className = 'last-seen-stale';   // Beyond 10x heartbeat: red
+				}
+
+				return { text, className };
 			}
 
 			function updateProgressBadge(container, command) {
@@ -603,7 +629,35 @@ templ Dashboard(data DashboardData) {
 				}));
 			});
 
-			// Initialize WebSocket
+			// Format all last-seen cells on page load
+			function initLastSeenCells() {
+				document.querySelectorAll('[data-cell="last-seen"]').forEach(cell => {
+					const timestamp = cell.dataset.timestamp;
+					if (timestamp) {
+						const result = formatLastSeen(timestamp);
+						cell.textContent = result.text;
+						cell.className = result.className;
+					}
+				});
+			}
+
+			// Update last-seen cells periodically (every 10s)
+			function startLastSeenUpdater() {
+				setInterval(() => {
+					document.querySelectorAll('[data-cell="last-seen"]').forEach(cell => {
+						const timestamp = cell.dataset.timestamp;
+						if (timestamp) {
+							const result = formatLastSeen(timestamp);
+							cell.textContent = result.text;
+							cell.className = result.className;
+						}
+					});
+				}, 10000);
+			}
+
+			// Initialize page
+			initLastSeenCells();
+			startLastSeenUpdater();
 			connectWebSocket();
 		</script>
 	}
@@ -653,7 +707,7 @@ templ HostCard(host Host, csrfToken string) {
 			</div>
 			<div class="host-card-row">
 				<span class="host-card-label">Last Seen</span>
-				<span>{ valueOrDash(host.LastSeen) }</span>
+				<span data-cell="last-seen" data-timestamp={ host.LastSeen }>{ valueOrDash(host.LastSeen) }</span>
 			</div>
 			<div class="host-card-actions">
 				@CommandButton(host.ID, "pull", "Pull", "btn", host.Online && host.PendingCommand == "")
@@ -692,7 +746,7 @@ templ HostRow(host Host, csrfToken string) {
 		</td>
 		<td data-cell="os-version">{ valueOrDash(host.OSVersion) }</td>
 		<td data-cell="generation">{ valueOrDash(host.Generation) }</td>
-		<td data-cell="last-seen">{ valueOrDash(host.LastSeen) }</td>
+		<td data-cell="last-seen" data-timestamp={ host.LastSeen }>{ valueOrDash(host.LastSeen) }</td>
 		<td>
 			<div style="display: flex; gap: 0.25rem;">
 				@CommandButton(host.ID, "pull", "", "btn", host.Online && host.PendingCommand == "")
