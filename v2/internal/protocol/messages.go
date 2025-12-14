@@ -28,11 +28,12 @@ func (m *Message) ParsePayload(target any) error {
 
 // Message types (agent → dashboard)
 const (
-	TypeRegister  = "register"
-	TypeHeartbeat = "heartbeat"
-	TypeOutput    = "output"
-	TypeStatus    = "status"
-	TypeRejected  = "command_rejected"
+	TypeRegister     = "register"
+	TypeHeartbeat    = "heartbeat"
+	TypeOutput       = "output"
+	TypeStatus       = "status"
+	TypeRejected     = "command_rejected"
+	TypeTestProgress = "test_progress"
 )
 
 // Message types (dashboard → agent)
@@ -81,8 +82,10 @@ type CommandPayload struct {
 
 // OutputPayload is sent by the agent to stream command output.
 type OutputPayload struct {
-	Line   string `json:"line"`
-	Stream string `json:"stream"` // "stdout" or "stderr"
+	Line    string `json:"line"`
+	Stream  string `json:"stream"`   // "stdout" or "stderr"
+	Command string `json:"command"`  // command that produced this output
+	IsError bool   `json:"is_error"` // true if this is from stderr
 }
 
 // StatusPayload is sent by the agent when a command completes.
@@ -98,5 +101,14 @@ type CommandRejectedPayload struct {
 	Reason         string `json:"reason"`
 	CurrentCommand string `json:"current_command,omitempty"`
 	CurrentPID     int    `json:"current_pid,omitempty"`
+}
+
+// TestProgressPayload is sent during test execution.
+type TestProgressPayload struct {
+	Current int    `json:"current"` // current test number
+	Total   int    `json:"total"`   // total tests
+	Passed  int    `json:"passed"`  // passed so far
+	Running bool   `json:"running"` // still running
+	Result  string `json:"result"`  // summary result when done
 }
 

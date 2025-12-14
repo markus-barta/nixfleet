@@ -87,8 +87,8 @@ cd v2 && go test -run TestAgentHeartbeat_DuringCommand ./tests/integration/...
 | T01-agent-connection    | 🟢 Passing | 5     | P4000        |
 | T02-agent-heartbeat     | 🟢 Passing | 5     | P4000        |
 | T03-agent-commands      | 🟢 Passing | 5     | P4000        |
-| T04-dashboard-auth      | 🔴 Pending | 0     | P4200        |
-| T05-dashboard-websocket | 🔴 Pending | 0     | P4200        |
+| T04-dashboard-auth      | 🟢 Passing | 7     | P4200        |
+| T05-dashboard-websocket | 🟢 Passing | 6     | P4200        |
 | T06-dashboard-commands  | 🔴 Pending | 0     | P4200        |
 | T07-e2e-deploy-flow     | 🔴 Pending | 0     | P4200        |
 | T08-e2e-test-flow       | 🔴 Pending | 0     | P4200        |
