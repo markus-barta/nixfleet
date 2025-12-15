@@ -288,9 +288,50 @@ func (s *Server) getHosts() ([]templates.Host, error) {
 				host.TestProgress = &testProgress
 			}
 		}
+
+		// Populate Update Status (P5000 - Git check)
+		host.UpdateStatus = s.getUpdateStatus(host.Generation)
+
 		hosts = append(hosts, host)
 	}
 	return hosts, nil
+}
+
+// getUpdateStatus returns the update status for a host based on its generation.
+func (s *Server) getUpdateStatus(generation string) *templates.UpdateStatus {
+	status := &templates.UpdateStatus{}
+
+	// Git status (from GitHub Pages)
+	if s.versionFetcher != nil {
+		gitStatus, gitMsg, gitChecked := s.versionFetcher.GetGitStatus(generation)
+		status.Git = templates.StatusCheck{
+			Status:    gitStatus,
+			Message:   gitMsg,
+			CheckedAt: gitChecked,
+		}
+	} else {
+		status.Git = templates.StatusCheck{
+			Status:    "unknown",
+			Message:   "Version tracking not configured",
+			CheckedAt: "",
+		}
+	}
+
+	// Lock status (placeholder - requires agent-side implementation)
+	status.Lock = templates.StatusCheck{
+		Status:    "unknown",
+		Message:   "Lock status requires agent update",
+		CheckedAt: "",
+	}
+
+	// System status (placeholder - requires agent-side implementation)
+	status.System = templates.StatusCheck{
+		Status:    "unknown",
+		Message:   "System status requires agent update",
+		CheckedAt: "",
+	}
+
+	return status
 }
 
 // handleWebSocket handles both agent and browser WebSocket connections.

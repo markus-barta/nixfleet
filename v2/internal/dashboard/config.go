@@ -37,6 +37,10 @@ type Config struct {
 	// Security
 	AllowedOrigins []string // optional, for WebSocket origin validation
 
+	// Update Status (P5000)
+	VersionURL         string        // URL to fetch version.json from GitHub Pages
+	VersionFetchTTL    time.Duration // How often to fetch version (default: 30s)
+
 	// Stale command cleanup (PRD FR-2.13)
 	// Uses multiplier × heartbeat_interval with a floor (like Kubernetes liveness probes)
 	HeartbeatInterval    time.Duration // Reference interval for stale detection (default: 5s)
@@ -62,6 +66,10 @@ func LoadConfig() (*Config, error) {
 		DatabasePath:      getEnv("NIXFLEET_DB_PATH", dataDir+"/nixfleet.db"),
 		DataDir:           dataDir,
 		AllowedOrigins:    parseOrigins("NIXFLEET_ALLOWED_ORIGINS"),
+
+		// Update Status (P5000)
+		VersionURL:      getEnv("NIXFLEET_VERSION_URL", ""), // e.g., https://user.github.io/nixcfg/version.json
+		VersionFetchTTL: parseDuration("NIXFLEET_VERSION_FETCH_TTL", 30*time.Second),
 
 		// Stale command cleanup defaults (PRD FR-2.13)
 		HeartbeatInterval:    parseDuration("NIXFLEET_HEARTBEAT_INTERVAL", 5*time.Second),
@@ -99,6 +107,11 @@ func (c *Config) validate() error {
 // HasTOTP returns true if TOTP is configured.
 func (c *Config) HasTOTP() bool {
 	return c.TOTPSecret != ""
+}
+
+// HasVersionTracking returns true if version URL is configured.
+func (c *Config) HasVersionTracking() bool {
+	return c.VersionURL != ""
 }
 
 // StaleCommandTimeout calculates the threshold for stale command cleanup.

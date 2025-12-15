@@ -13,15 +13,16 @@ import (
 
 // Server is the main dashboard server.
 type Server struct {
-	cfg        *Config
-	db         *sql.DB
-	log        zerolog.Logger
-	auth       *AuthService
-	hub        *Hub
-	logStore   *LogStore
-	router     *chi.Mux
-	wsUpgrader *websocket.Upgrader
-	httpServer *http.Server
+	cfg            *Config
+	db             *sql.DB
+	log            zerolog.Logger
+	auth           *AuthService
+	hub            *Hub
+	logStore       *LogStore
+	versionFetcher *VersionFetcher
+	router         *chi.Mux
+	wsUpgrader     *websocket.Upgrader
+	httpServer     *http.Server
 
 	// Context for hub lifecycle (created in New, canceled in Shutdown)
 	hubCtx    context.Context
@@ -52,15 +53,24 @@ func New(cfg *Config, db *sql.DB, log zerolog.Logger) *Server {
 	// Create hub context - used for graceful shutdown
 	hubCtx, hubCancel := context.WithCancel(context.Background())
 
+	// Create version fetcher if configured (P5000)
+	var versionFetcher *VersionFetcher
+	if cfg.HasVersionTracking() {
+		versionFetcher = NewVersionFetcher(cfg.VersionURL, cfg.VersionFetchTTL)
+		versionFetcher.Start(hubCtx)
+		log.Info().Str("url", cfg.VersionURL).Msg("version tracking enabled")
+	}
+
 	s := &Server{
-		cfg:       cfg,
-		db:        db,
-		log:       log.With().Str("component", "dashboard").Logger(),
-		auth:      NewAuthService(cfg, db),
-		hub:       hub,
-		logStore:  logStore,
-		hubCtx:    hubCtx,
-		hubCancel: hubCancel,
+		cfg:            cfg,
+		db:             db,
+		log:            log.With().Str("component", "dashboard").Logger(),
+		auth:           NewAuthService(cfg, db),
+		hub:            hub,
+		logStore:       logStore,
+		versionFetcher: versionFetcher,
+		hubCtx:         hubCtx,
+		hubCancel:      hubCancel,
 	}
 
 	s.setupRouter()
