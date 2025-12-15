@@ -1,7 +1,7 @@
 # P4395 - Stop Command Implementation
 
 **Priority**: High  
-**Status**: Pending  
+**Status**: Done  
 **Effort**: Medium  
 **References**: PRD FR-1.4, PRD FR-1.11, `+pm/legacy/v1.0/dashboard.html`
 
@@ -96,13 +96,13 @@ Already have button styling. Need to:
 
 ### Requirements
 
-- [ ] Agent: Implement actual process kill in `handleStop()`
-- [ ] Agent: Handle SIGTERM/SIGKILL gracefully
-- [ ] Agent: Clear busy state after kill
-- [ ] Dashboard: Forward stop command to agent
-- [ ] UI: Dynamic Stop/Test button swap
-- [ ] UI: Keep Stop enabled during busy
-- [ ] Test: Verify kill works on long-running test
+- [x] Agent: Implement actual process kill in `handleStop()`
+- [x] Agent: Handle SIGTERM/SIGKILL gracefully
+- [x] Agent: Clear busy state after kill
+- [x] Dashboard: Forward stop command to agent
+- [x] UI: Dynamic Stop/Test button swap
+- [x] UI: Keep Stop enabled during busy
+- [x] Test: Verify kill works on long-running test
 
 ## Related
 
