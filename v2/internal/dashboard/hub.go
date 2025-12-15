@@ -86,6 +86,7 @@ func (c *Client) Close() {
 type Hub struct {
 	log zerolog.Logger
 	db  *sql.DB
+	cfg *Config // Dashboard config for stale command cleanup
 
 	// Registered clients
 	clients map[*Client]bool
@@ -118,10 +119,11 @@ type agentMessage struct {
 }
 
 // NewHub creates a new Hub.
-func NewHub(log zerolog.Logger, db *sql.DB) *Hub {
+func NewHub(log zerolog.Logger, db *sql.DB, cfg *Config) *Hub {
 	return &Hub{
 		log:           log.With().Str("component", "hub").Logger(),
 		db:            db,
+		cfg:           cfg,
 		clients:       make(map[*Client]bool),
 		agents:        make(map[string]*Client),
 		browsers:      make(map[*Client]bool),
@@ -137,6 +139,9 @@ func NewHub(log zerolog.Logger, db *sql.DB) *Hub {
 func (h *Hub) Run(ctx context.Context) {
 	// Start broadcast loop in separate goroutine
 	go h.broadcastLoop(ctx)
+
+	// Start stale command cleanup loop (PRD FR-2.13)
+	go h.staleCommandCleanupLoop(ctx)
 
 	// Main loop with panic recovery
 	for {
@@ -285,6 +290,111 @@ func (h *Hub) doBroadcast(data []byte) {
 
 	for _, client := range browsers {
 		client.SafeSend(data) // Never panics
+	}
+}
+
+// staleCommandCleanupLoop periodically cleans up stale pending_command for offline hosts.
+// This implements PRD FR-2.13: Uses multiplier × heartbeat_interval (like Kubernetes liveness probes).
+func (h *Hub) staleCommandCleanupLoop(ctx context.Context) {
+	defer func() {
+		if r := recover(); r != nil {
+			h.log.Error().
+				Interface("panic", r).
+				Str("stack", string(debug.Stack())).
+				Msg("stale command cleanup loop crashed, restarting...")
+			if ctx.Err() == nil {
+				go h.staleCommandCleanupLoop(ctx)
+			}
+		}
+	}()
+
+	ticker := time.NewTicker(h.cfg.StaleCleanupInterval)
+	defer ticker.Stop()
+
+	h.log.Info().
+		Dur("interval", h.cfg.StaleCleanupInterval).
+		Dur("threshold", h.cfg.StaleCommandTimeout()).
+		Int("multiplier", h.cfg.StaleMultiplier).
+		Msg("stale command cleanup loop started")
+
+	for {
+		select {
+		case <-ctx.Done():
+			h.log.Info().Msg("stale command cleanup loop shutting down")
+			return
+		case <-ticker.C:
+			h.cleanupStaleCommands()
+		}
+	}
+}
+
+// cleanupStaleCommands clears pending_command for offline hosts that have been
+// offline longer than the stale threshold. Only affects OFFLINE hosts.
+func (h *Hub) cleanupStaleCommands() {
+	timeout := h.cfg.StaleCommandTimeout()
+	thresholdMinutes := int(timeout.Minutes())
+
+	// First, query which hosts will be affected (for broadcasting)
+	rows, err := h.db.Query(`
+		SELECT hostname, pending_command
+		FROM hosts
+		WHERE pending_command IS NOT NULL
+		AND status = 'offline'
+		AND last_seen < datetime('now', '-' || ? || ' minutes')
+	`, thresholdMinutes)
+	if err != nil {
+		h.log.Error().Err(err).Msg("failed to query stale commands")
+		return
+	}
+
+	var hostsToUpdate []string
+	for rows.Next() {
+		var hostname, pendingCommand string
+		if err := rows.Scan(&hostname, &pendingCommand); err != nil {
+			continue
+		}
+		hostsToUpdate = append(hostsToUpdate, hostname)
+		h.log.Info().
+			Str("host", hostname).
+			Str("command", pendingCommand).
+			Dur("threshold", timeout).
+			Msg("clearing stale pending_command for offline host")
+	}
+	rows.Close()
+
+	if len(hostsToUpdate) == 0 {
+		return
+	}
+
+	// Update the database
+	result, err := h.db.Exec(`
+		UPDATE hosts
+		SET pending_command = NULL
+		WHERE pending_command IS NOT NULL
+		AND status = 'offline'
+		AND last_seen < datetime('now', '-' || ? || ' minutes')
+	`, thresholdMinutes)
+	if err != nil {
+		h.log.Error().Err(err).Msg("failed to cleanup stale commands")
+		return
+	}
+
+	if affected, _ := result.RowsAffected(); affected > 0 {
+		h.log.Info().
+			Int64("count", affected).
+			Dur("threshold", timeout).
+			Msg("cleared stale commands for offline hosts")
+
+		// Broadcast updates to browsers so UI refreshes
+		for _, hostname := range hostsToUpdate {
+			h.queueBroadcast(map[string]any{
+				"type": "host_update",
+				"payload": map[string]any{
+					"host_id":         hostname,
+					"pending_command": nil,
+				},
+			})
+		}
 	}
 }
 

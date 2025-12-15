@@ -36,6 +36,13 @@ type Config struct {
 
 	// Security
 	AllowedOrigins []string // optional, for WebSocket origin validation
+
+	// Stale command cleanup (PRD FR-2.13)
+	// Uses multiplier × heartbeat_interval with a floor (like Kubernetes liveness probes)
+	HeartbeatInterval    time.Duration // Reference interval for stale detection (default: 5s)
+	StaleMultiplier      int           // Number of missed heartbeats before stale (default: 120)
+	StaleMinimum         time.Duration // Floor to prevent aggressive cleanup (default: 5m)
+	StaleCleanupInterval time.Duration // How often to run cleanup job (default: 1m)
 }
 
 // LoadConfig loads configuration from environment variables.
@@ -55,6 +62,12 @@ func LoadConfig() (*Config, error) {
 		DatabasePath:      getEnv("NIXFLEET_DB_PATH", dataDir+"/nixfleet.db"),
 		DataDir:           dataDir,
 		AllowedOrigins:    parseOrigins("NIXFLEET_ALLOWED_ORIGINS"),
+
+		// Stale command cleanup defaults (PRD FR-2.13)
+		HeartbeatInterval:    parseDuration("NIXFLEET_HEARTBEAT_INTERVAL", 5*time.Second),
+		StaleMultiplier:      parseInt("NIXFLEET_STALE_MULTIPLIER", 120),
+		StaleMinimum:         parseDuration("NIXFLEET_STALE_MINIMUM", 5*time.Minute),
+		StaleCleanupInterval: parseDuration("NIXFLEET_STALE_CLEANUP_INTERVAL", 1*time.Minute),
 	}
 
 	if err := cfg.validate(); err != nil {
@@ -86,6 +99,17 @@ func (c *Config) validate() error {
 // HasTOTP returns true if TOTP is configured.
 func (c *Config) HasTOTP() bool {
 	return c.TOTPSecret != ""
+}
+
+// StaleCommandTimeout calculates the threshold for stale command cleanup.
+// Uses multiplier × heartbeat_interval with a floor (like Kubernetes liveness probes).
+// Example: 120 × 5s = 10 minutes (with 5m floor, effective = 10 minutes)
+func (c *Config) StaleCommandTimeout() time.Duration {
+	calculated := c.HeartbeatInterval * time.Duration(c.StaleMultiplier)
+	if calculated < c.StaleMinimum {
+		return c.StaleMinimum
+	}
+	return calculated
 }
 
 func getEnv(key, defaultValue string) string {

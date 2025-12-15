@@ -46,7 +46,7 @@ func New(cfg *Config, db *sql.DB, log zerolog.Logger) *Server {
 		log.Warn().Err(err).Msg("failed to initialize log store, logs will not be persisted")
 	}
 
-	hub := NewHub(log, db)
+	hub := NewHub(log, db, cfg)
 	hub.logStore = logStore // Pass log store to hub for output logging
 
 	// Create hub context - used for graceful shutdown
