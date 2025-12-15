@@ -348,24 +348,46 @@ func (a *Agent) buildPullCommand() (*exec.Cmd, error) {
 }
 
 func (a *Agent) buildSwitchCommand() (*exec.Cmd, error) {
-	var args []string
+	var cmd *exec.Cmd
 
 	if runtime.GOOS == "darwin" {
 		// macOS: home-manager switch
-		args = []string{
-			"home-manager", "switch",
-			"--flake", a.cfg.RepoDir + "#" + a.cfg.Hostname,
+		//
+		// CRITICAL: home-manager switch calls "launchctl bootout" which kills THIS agent.
+		// If the switch process is in our process group, it dies too.
+		//
+		// Solution: Run in a NEW SESSION (Setsid) so it:
+		// 1. Gets its own process group (survives when launchd kills our group)
+		// 2. Becomes session leader (survives when we die)
+		// 3. Still runs as our child (we can still stream stdout/stderr)
+		//
+		// The switch will continue even after launchd kills us, and the new agent
+		// will reconnect once the switch completes.
+		//
+		flakeRef := a.cfg.RepoDir + "#" + a.cfg.Hostname
+		cmd = exec.Command("home-manager", "switch", "--flake", flakeRef)
+		cmd.Dir = a.cfg.RepoDir
+
+		// Create new session - this is the key to surviving agent death
+		cmd.SysProcAttr = &syscall.SysProcAttr{
+			Setsid: true, // Create new session, become session leader
 		}
+
+		a.log.Info().
+			Str("flake", flakeRef).
+			Msg("starting switch with new session (survives agent restart)")
+
 	} else {
 		// NixOS: sudo nixos-rebuild switch
-		args = []string{
+		// This runs as root in a separate session, so it survives agent restart
+		args := []string{
 			"sudo", "nixos-rebuild", "switch",
 			"--flake", a.cfg.RepoDir + "#" + a.cfg.Hostname,
 		}
+		cmd = exec.CommandContext(a.ctx, args[0], args[1:]...)
+		cmd.Dir = a.cfg.RepoDir
 	}
 
-	cmd := exec.CommandContext(a.ctx, args[0], args[1:]...)
-	cmd.Dir = a.cfg.RepoDir
 	return cmd, nil
 }
 
