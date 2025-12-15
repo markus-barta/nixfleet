@@ -100,6 +100,31 @@ NixFleet is a fleet management system for NixOS and macOS hosts. It enables cent
 - Agent survives configuration switch (doesn't die mid-operation)
 - macOS agent restarts reliably after home-manager switch
 
+### US-7: Update Status (P5000)
+
+> As a fleet operator, I want to see at a glance which hosts need updates, so I can keep my fleet current.
+
+**Acceptance Criteria:**
+
+- Three-compartment indicator shows Git, Lock, and System status
+- Git: Compare agent's deployed generation with latest from GitHub Pages
+- Lock: Show days since last flake.lock update, indicate pending PR
+- System: Compare running system with what current config would build
+- Click compartment to refresh that specific check
+- Bulk actions: Update All, Pull All, Switch All, Test All
+
+### US-8: Automated Flake Updates (P5300)
+
+> As a fleet operator, I want NixFleet to handle flake.lock updates automatically, so I stay current without manual PR management.
+
+**Acceptance Criteria:**
+
+- Detect pending update PRs via GitHub API
+- One-click "Merge & Deploy" to merge PR and switch all hosts
+- Optional: Full automation (auto-merge + deploy)
+- Rollback on failure
+- Per-host inclusion/exclusion settings
+
 ---
 
 ## Functional Requirements
@@ -121,6 +146,9 @@ NixFleet is a fleet management system for NixOS and macOS hosts. It enables cent
 | FR-1.11 | Track command PID for stop capability                       | Must     |
 | FR-1.12 | Work on NixOS (systemd) and macOS (launchd)                 | Must     |
 | FR-1.13 | Report heartbeat interval on registration                   | Must     |
+| FR-1.14 | Report flake.lock last-modified date                        | Should   |
+| FR-1.15 | Detect if system needs rebuild (compare derivations)        | Should   |
+| FR-1.16 | Support `flakePath` config for status checks                | Should   |
 
 ### FR-2: Dashboard Backend
 
@@ -139,22 +167,28 @@ NixFleet is a fleet management system for NixOS and macOS hosts. It enables cent
 | FR-2.11 | CSRF protection on mutations                    | Must     |
 | FR-2.12 | Security headers (HSTS, CSP, X-Frame-Options)   | Must     |
 | FR-2.13 | Clear stale pending_command for offline hosts   | Must     |
+| FR-2.14 | Fetch nixcfg version from GitHub Pages          | Should   |
+| FR-2.15 | Compare agent generation with latest version    | Should   |
+| FR-2.16 | Store update status per host                    | Should   |
 
 **FR-2.13 Detail**: Stale command detection uses a multiplier-based threshold following industry patterns (Kubernetes, etcd). Default: `120 × heartbeat_interval` with a 5-minute floor. With 5s heartbeat = 10 minutes. This prevents indefinitely stale UI badges when hosts go offline during commands.
 
 ### FR-3: Dashboard Frontend
 
-| ID     | Requirement                                      | Priority |
-| ------ | ------------------------------------------------ | -------- |
-| FR-3.1 | Display host list with status                    | Must     |
-| FR-3.2 | Show real-time updates via WebSocket             | Must     |
-| FR-3.3 | Action buttons: Pull, Switch, Test               | Must     |
-| FR-3.4 | Show command output in expandable log viewer     | Must     |
-| FR-3.5 | Show command progress (building X/Y)             | Should   |
-| FR-3.6 | Disable buttons while command running            | Must     |
-| FR-3.7 | Show host metrics (CPU, RAM)                     | Should   |
-| FR-3.8 | Responsive design (mobile-friendly)              | Should   |
-| FR-3.9 | Accessible (keyboard navigation, screen readers) | Should   |
+| ID      | Requirement                                      | Priority |
+| ------- | ------------------------------------------------ | -------- |
+| FR-3.1  | Display host list with status                    | Must     |
+| FR-3.2  | Show real-time updates via WebSocket             | Must     |
+| FR-3.3  | Action buttons: Pull, Switch, Test               | Must     |
+| FR-3.4  | Show command output in expandable log viewer     | Must     |
+| FR-3.5  | Show command progress (building X/Y)             | Should   |
+| FR-3.6  | Disable buttons while command running            | Must     |
+| FR-3.7  | Show host metrics (CPU, RAM)                     | Should   |
+| FR-3.8  | Responsive design (mobile-friendly)              | Should   |
+| FR-3.9  | Accessible (keyboard navigation, screen readers) | Should   |
+| FR-3.10 | Three-compartment update status indicator        | Should   |
+| FR-3.11 | Bulk actions: Update All, Pull All, Switch All   | Should   |
+| FR-3.12 | Settings page for configurable intervals         | Could    |
 
 ---
 
@@ -275,6 +309,7 @@ NixFleet is a fleet management system for NixOS and macOS hosts. It enables cent
 - Host grouping/tags
 - Audit logging to external system
 - High availability (single instance)
+- nix-darwin support (macOS Home Manager only for now — see P5400)
 
 ---
 
@@ -288,9 +323,14 @@ NixFleet is a fleet management system for NixOS and macOS hosts. It enables cent
 
 ## Changelog
 
-| Date       | Version | Changes                                                             |
-| ---------- | ------- | ------------------------------------------------------------------- |
-| 2025-12-15 | 1.1     | FR-1.2: Fixed heartbeat from 30s to 5s (matching implementation)    |
-|            |         | FR-1.13: Added heartbeat interval reporting requirement             |
-|            |         | FR-2.13: Added stale command cleanup requirement (multiplier-based) |
-| 2025-12-14 | 1.0     | Initial PRD for v2.0 rewrite                                        |
+| Date       | Version | Changes                                                                |
+| ---------- | ------- | ---------------------------------------------------------------------- |
+| 2025-12-15 | 1.2     | US-7, US-8: Added Update Status and Automated Flake Updates stories    |
+|            |         | FR-1.14-16: Agent update status checks (flakePath, derivation compare) |
+|            |         | FR-2.14-16: Dashboard GitHub Pages integration for version compare     |
+|            |         | FR-3.10-12: Update status UI, bulk actions, settings page              |
+|            |         | Added nix-darwin to Out of Scope (P5400 for future)                    |
+| 2025-12-15 | 1.1     | FR-1.2: Fixed heartbeat from 30s to 5s (matching implementation)       |
+|            |         | FR-1.13: Added heartbeat interval reporting requirement                |
+|            |         | FR-2.13: Added stale command cleanup requirement (multiplier-based)    |
+| 2025-12-14 | 1.0     | Initial PRD for v2.0 rewrite                                           |

@@ -3,6 +3,7 @@
 **Priority**: Medium  
 **Status**: Pending  
 **Effort**: Medium  
+**Updated**: 2025-12-15  
 **References**: `+pm/legacy/v1.0/dashboard.html` (lines 468-568)
 
 ## Problem

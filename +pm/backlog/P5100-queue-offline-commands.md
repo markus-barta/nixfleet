@@ -1,8 +1,9 @@
-# Queue Commands for Offline Hosts
+# P5100 - Queue Commands for Offline Hosts
 
-**Created**: 2025-12-14
-**Priority**: P5100 (Medium)
-**Status**: Backlog
+**Created**: 2025-12-14  
+**Updated**: 2025-12-15  
+**Priority**: P5100 (Medium)  
+**Status**: Backlog  
 **Depends on**: P4000-P4400 (Core rewrite)
 
 ---
@@ -55,3 +56,5 @@ Order: pull → switch → test
 ## Related
 
 - Post-MVP feature
+- **P5000**: Update status shows last known state for offline hosts
+- **P5300**: Automated updates may queue for offline hosts

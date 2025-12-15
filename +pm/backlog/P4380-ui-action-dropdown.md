@@ -3,6 +3,7 @@
 **Priority**: Medium  
 **Status**: Pending  
 **Effort**: Medium  
+**Updated**: 2025-12-15  
 **References**: `+pm/legacy/v1.0/dashboard.html` (lines 886-970, 1650-1692)
 
 ## Problem
@@ -138,6 +139,7 @@ if (data.test_running && testBtn && !stopBtn) {
 
 ## Related
 
-- P4350 (Icons) - Needs icon system
+- P4350 (Icons) - Icon system _(historical reference, may be completed)_
 - P4390 (Modals) - Confirmation for Remove Host
-- P4395 (Stop Command) - Stop implementation
+- P4395 (Stop Command) - Stop implementation _(historical reference)_
+- **P5000** (Update Status) - Bulk actions design (Update All, Pull All, etc.)

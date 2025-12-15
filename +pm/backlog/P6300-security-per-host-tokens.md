@@ -1,7 +1,9 @@
-# P4342 - Security: Per-Host Agent Tokens
+# P6300 - Security: Per-Host Agent Tokens
 
-**Priority**: TBD  
-**Status**: Pending  
+**Created**: 2025-12-14  
+**Updated**: 2025-12-15  
+**Priority**: P6300 (Low)  
+**Status**: Backlog  
 **Effort**: Medium  
 **References**: NFR-3.3, T01 (Agent Connection)
 
@@ -12,9 +14,10 @@ Currently all agents share the same token (`NIXFLEET_API_TOKEN`). This means:
 - Compromised agent can impersonate any host
 - Cannot revoke access for single host
 - No audit trail per host
-- TODO: Discuss with user! is this a trade-off we want to allow for simple setups or is this something we have to enforce? Maybe we can have both options.
 
-PRD NFR-3.3: "Agent tokens - Per-host, hashed in DB" - **Required**
+**Decision**: Per-host tokens are **optional**. Shared token works for simple setups; per-host tokens recommended for production.
+
+PRD NFR-3.3: "Agent tokens - Per-host, hashed in DB" - **Optional enhancement**
 
 ## Current State
 

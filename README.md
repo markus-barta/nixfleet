@@ -105,7 +105,62 @@
 }
 ```
 
-### 3. Deploy the Dashboard
+### 3. Enable Version Tracking (Recommended)
+
+For the dashboard to detect outdated hosts, your nixcfg repo needs to publish its version to GitHub Pages.
+
+**Add this workflow to your nixcfg repo** (`.github/workflows/version-pages.yml`):
+
+```yaml
+name: Publish Version to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate version.json
+        run: |
+          mkdir -p _site
+          cat > _site/version.json << EOF
+          {
+            "gitCommit": "${{ github.sha }}",
+            "message": $(git log -1 --format='%s' | jq -Rs .),
+            "branch": "${{ github.ref_name }}",
+            "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          }
+          EOF
+      - uses: actions/configure-pages@v4
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: "_site"
+
+  deploy:
+    environment:
+      name: github-pages
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/deploy-pages@v4
+```
+
+**Enable GitHub Pages** in your nixcfg repo:
+
+1. Go to **Settings** → **Pages**
+2. Set Source to **GitHub Actions**
+
+The dashboard will fetch from `https://<user>.github.io/<repo>/version.json` to compare against each host's deployed generation.
+
+### 4. Deploy the Dashboard
 
 ```bash
 # Clone the repo

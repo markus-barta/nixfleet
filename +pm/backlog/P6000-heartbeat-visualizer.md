@@ -1,8 +1,9 @@
-# Heartbeat & Communication Visualizer
+# P6000 - Heartbeat & Communication Visualizer
 
-**Created**: 2025-12-14
-**Priority**: P6000 (Low)
-**Status**: Backlog
+**Created**: 2025-12-14  
+**Updated**: 2025-12-15  
+**Priority**: P6000 (Low)  
+**Status**: Backlog  
 **Depends on**: P4000-P4400 (Core rewrite)
 
 ---

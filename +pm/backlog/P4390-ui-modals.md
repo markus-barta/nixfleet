@@ -3,6 +3,7 @@
 **Priority**: Medium  
 **Status**: Pending  
 **Effort**: Medium  
+**Updated**: 2025-12-15  
 **References**: `+pm/legacy/v1.0/dashboard.html` (lines 972-1103, 1705-1776)
 
 ## Problem
@@ -151,4 +152,4 @@ v2 has no modals. v1 had:
 ## Related
 
 - P4380 (Dropdown) - Remove Host triggered from dropdown
-- P4355 (Header) - Add Host triggered from Actions menu
+- P4355 (Header) - Add Host triggered from Actions menu _(historical reference)_

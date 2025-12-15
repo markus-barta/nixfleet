@@ -1,8 +1,9 @@
-# Quality Improvements
+# P6100 - Quality Improvements
 
-**Created**: 2025-12-14
-**Priority**: P6100 (Low)
-**Status**: Backlog
+**Created**: 2025-12-14  
+**Updated**: 2025-12-15  
+**Priority**: P6100 (Low)  
+**Status**: Backlog  
 **Depends on**: P4000-P4400 (Core rewrite)
 
 ---

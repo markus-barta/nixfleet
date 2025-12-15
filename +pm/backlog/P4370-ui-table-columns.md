@@ -1,8 +1,9 @@
 # P4370 - UI: Complete Table Columns
 
 **Priority**: High  
-**Status**: Complete (Config hash still BLOCKED)  
+**Status**: Complete (Update Status column → see P5000)  
 **Effort**: Large  
+**Updated**: 2025-12-15  
 **References**: `+pm/legacy/v1.0/dashboard.html`
 
 ## Problem
@@ -12,7 +13,7 @@ v2 table is missing several columns from v1:
 - Location (Loc) - cloud/home/work
 - Device Type - server/desktop/laptop/gaming
 - Metrics - CPU/RAM with visual indicators
-- Config hash - with outdated indicator
+- Update status - three-compartment indicator (Git/Lock/System)
 - Tests - progress during test, results after
 
 Also missing:
@@ -25,18 +26,18 @@ Also missing:
 
 ### Full Column Set
 
-| Column    | Width | Content                         |
-| --------- | ----- | ------------------------------- |
-| Host      | 100px | Status dot/ripple + hostname    |
-| OS        | 60px  | Icon + version (5 chars)        |
-| Loc       | 40px  | Location icon                   |
-| Type      | 40px  | Device type icon                |
-| Last Seen | 70px  | Relative time, full on hover    |
-| Metrics   | 60px  | CPU + RAM with icons            |
-| Config    | 60px  | Hash badge + ↓/✓ indicator      |
-| Tests     | 50px  | Progress or results             |
-| Status    | 100px | Papertrail (expandable history) |
-| Actions   | 160px | Buttons + dropdown              |
+| Column    | Width | Content                          |
+| --------- | ----- | -------------------------------- |
+| Host      | 100px | Status dot/ripple + hostname     |
+| OS        | 60px  | Icon + version (5 chars)         |
+| Loc       | 40px  | Location icon                    |
+| Type      | 40px  | Device type icon                 |
+| Last Seen | 70px  | Relative time, full on hover     |
+| Metrics   | 60px  | CPU + RAM with icons             |
+| Update    | 80px  | Three-compartment status (P5000) |
+| Tests     | 50px  | Progress or results              |
+| Status    | 100px | Papertrail (expandable history)  |
+| Actions   | 160px | Buttons + dropdown               |
 
 - "Last Seen" shows time since last heartbeat in relative terms (e.g., "3h ago", "12m ago").
 - If offline ≥ 1 day, show days (e.g., "2") in a calendar SVG icon (normal color) beside the relative time.
@@ -75,14 +76,28 @@ Offline hosts get static dot:
 </span>
 ```
 
-### Config Cell
+### Update Status Cell
+
+**See P5000** for full specification. Three compartments:
 
 ```html
-<code class="hash-badge {{ 'outdated' if outdated else 'current' }}">
-  {{ hash[:7] }}
-</code>
-<span class="update-indicator">{{ '↓' if outdated else '✓' }}</span>
+<div class="update-status">
+  <span class="update-compartment" title="Git: Up to date">
+    <svg class="icon-git-branch">...</svg>
+  </span>
+  <span class="update-compartment" title="Lock: 5 days ago">
+    <svg class="icon-lock">...</svg>
+  </span>
+  <span class="update-compartment" title="System: Current">
+    <svg class="icon-nixos">...</svg>
+    <!-- or icon-home for macOS -->
+  </span>
+</div>
 ```
+
+- Icons: Git branch, Lock, NixOS snowflake (or House for macOS)
+- States: Calm (gray), Glowing (needs attention), Error (red)
+- Click compartment to refresh that check
 
 ### Tests Cell
 
@@ -116,7 +131,7 @@ tr[data-online="false"] td::before {
 - [x] Add Location column with icons (home/work/cloud)
 - [x] Add Device Type column with icons (server/desktop/laptop/gaming)
 - [x] Add Metrics column with CPU/RAM
-- [ ] Add Config column with hash badge (BLOCKED: no config hash in agent data)
+- [ ] Add Update Status column with three compartments (see P5000)
 - [x] Add Tests column with progress/results
 - [x] Implement heartbeat ripple animation
 - [x] Add 50% overlay for offline hosts
@@ -140,6 +155,7 @@ Default values: `location = "home"`, `deviceType = "desktop"`.
 
 ## Related
 
-- P4350 (Icons) - Needs icon system
-- P4365 (Theme Colors) - Icons inherit color
+- P4350 (Icons) - Icon system _(historical reference, may be completed)_
+- P4365 (Theme Colors) - Icons inherit color _(historical reference)_
 - T02 (Heartbeat) - Metrics data source
+- **P5000** (Host Update Status) - Three-compartment update status indicator
