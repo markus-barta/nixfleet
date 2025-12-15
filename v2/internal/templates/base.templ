@@ -279,6 +279,14 @@ templ Base(title string, csrfToken string) {
 				letter-spacing: 0.05em;
 			}
 
+			/* Column alignment classes */
+			.col-center { text-align: center; }
+			.col-right { text-align: right; }
+			.col-hosts { white-space: nowrap; }
+
+			/* Online count highlight */
+			.stat-online-positive { color: var(--green); }
+
 			.host-table tr:hover {
 				background: var(--bg-highlight);
 			}
@@ -789,10 +797,11 @@ templ Base(title string, csrfToken string) {
 			}
 
 			.btn-more {
-				padding: 0.5rem;
+				padding: 0.4rem;
 				margin-left: 10px;
-				min-width: 36px;
-				min-height: 36px;
+				min-width: 30px;
+				min-height: 30px;
+				height: 30px;
 				display: flex;
 				align-items: center;
 				justify-content: center;

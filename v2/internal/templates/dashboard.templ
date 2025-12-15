@@ -127,15 +127,17 @@ templ Dashboard(data DashboardData) {
 		<table class="host-table" id="host-table">
 			<thead>
 				<tr>
-					<th title="Online / Total Hosts"><span id="stat-online">{ fmt.Sprint(data.Stats.Online) }</span>/{ fmt.Sprint(data.Stats.Total) }</th>
-					<th>Name</th>
-					<th title="Location">Loc</th>
-					<th title="Device Type">Dev</th>
-					<th title="Host Type">Type</th>
+					<th class="col-hosts" title="Online / Total Hosts">
+						<span class="status-dot status-online" style="margin-right: 6px;"></span>
+						<span class={ templ.KV("stat-online-positive", data.Stats.Online > 0) } id="stat-online">{ fmt.Sprint(data.Stats.Online) }</span>/{ fmt.Sprint(data.Stats.Total) } Hosts
+					</th>
+					<th class="col-center" title="Location">Loc</th>
+					<th class="col-center" title="Device Type">Dev</th>
+					<th class="col-center" title="Host Type">Type</th>
 					<th>Metrics</th>
 					<th title="Update Status (Git/Lock/System)">Update</th>
-					<th>Tests</th>
-					<th>Last Seen</th>
+					<th class="col-center">Tests</th>
+					<th class="col-right">Last Seen</th>
 					<th>Actions</th>
 				</tr>
 			</thead>
@@ -1052,17 +1054,15 @@ templ HostRow(host Host, csrfToken string) {
 		<td class="status-cell-with-badge">
 			<span class="status-wrapper">
 				@StatusIndicator(host)
+				<span style={ hostColorStyle(host) }>{ host.Hostname }</span>
 				if host.PendingCommand != "" {
 					<span class="progress-badge-mini">{ host.PendingCommand }</span>
 				}
 			</span>
 		</td>
-		<td>
-			<span style={ hostColorStyle(host) }>{ host.Hostname }</span>
-		</td>
-		<td title={ host.Location }>@locationIcon(host.Location)</td>
-		<td title={ host.DeviceType }>@deviceTypeIcon(host.DeviceType)</td>
-		<td>@osTypeIcon(host.HostType)</td>
+		<td class="col-center" title={ host.Location }>@locationIcon(host.Location)</td>
+		<td class="col-center" title={ host.DeviceType }>@deviceTypeIcon(host.DeviceType)</td>
+		<td class="col-center">@osTypeIcon(host.HostType)</td>
 		<td class="metrics-cell" data-cell="metrics">
 			if host.Metrics != nil {
 				<span class={ metricsClass("cpu", host.Metrics.CPU) } data-metric="cpu" title={ "CPU: " + formatPercent(host.Metrics.CPU) }>
@@ -1078,10 +1078,10 @@ templ HostRow(host Host, csrfToken string) {
 		<td class="update-cell" data-cell="update">
 			@UpdateStatusCell(host)
 		</td>
-		<td class="tests-cell" data-cell="tests">
+		<td class="tests-cell col-center" data-cell="tests">
 			@TestsCell(host.TestProgress)
 		</td>
-		<td data-cell="last-seen" data-timestamp={ host.LastSeen }>{ valueOrDash(host.LastSeen) }</td>
+		<td class="col-right" data-cell="last-seen" data-timestamp={ host.LastSeen }>{ valueOrDash(host.LastSeen) }</td>
 		<td class="actions-cell">
 			<div class="action-buttons">
 				@CommandButton(host.ID, "pull", "", "btn", host.Online && host.PendingCommand == "")
