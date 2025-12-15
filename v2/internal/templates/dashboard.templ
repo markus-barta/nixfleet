@@ -493,9 +493,37 @@ templ Dashboard(data DashboardData) {
 
 			function applyButtonStates(container) {
 				const pending = container.dataset.pendingCommand;
+				const hostId = container.dataset.hostId;
 				const btns = container.querySelectorAll('button[data-command]');
+				
 				btns.forEach(btn => {
-					btn.disabled = !!pending;
+					const cmd = btn.dataset.command;
+					
+					if (cmd === 'test') {
+						// Swap Test button with Stop button when command is running
+						if (pending) {
+							btn.dataset.command = 'stop';
+							btn.onclick = function() { sendCommand(hostId, 'stop'); };
+							btn.disabled = false; // Stop is always enabled
+							btn.classList.add('btn-danger');
+							btn.innerHTML = '<svg class="icon"><use href="#icon-stop"></use></svg>' + 
+								(btn.textContent.includes('Test') ? ' Stop' : '');
+						}
+					} else if (cmd === 'stop') {
+						// Swap Stop button back to Test when no command running
+						if (!pending) {
+							btn.dataset.command = 'test';
+							btn.onclick = function() { sendCommand(hostId, 'test'); };
+							btn.classList.remove('btn-danger');
+							btn.innerHTML = '<svg class="icon"><use href="#icon-flask"></use></svg>' + 
+								(btn.textContent.includes('Stop') ? ' Test' : '');
+						}
+						// Stop button always enabled
+						btn.disabled = false;
+					} else {
+						// All other buttons disabled when pending
+						btn.disabled = !!pending;
+					}
 				});
 
 				// Update progress badge (mini version next to status dot)
@@ -811,6 +839,8 @@ templ commandIcon(command string) {
 			<svg class="icon"><use href="#icon-refresh"></use></svg>
 		case "test":
 			<svg class="icon"><use href="#icon-flask"></use></svg>
+		case "stop":
+			<svg class="icon"><use href="#icon-stop"></use></svg>
 		default:
 			// No icon for unknown commands
 	}

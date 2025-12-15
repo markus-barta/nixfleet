@@ -6,13 +6,32 @@ import (
 	"os/exec"
 	"runtime"
 	"syscall"
+	"time"
 
 	"github.com/markus-barta/nixfleet/v2/internal/protocol"
 )
 
+// timeAfter returns a channel that receives after n seconds.
+// Helper to avoid importing time in multiple places.
+func timeAfter(seconds int) <-chan time.Time {
+	return time.After(time.Duration(seconds) * time.Second)
+}
+
 // handleCommand processes an incoming command.
 func (a *Agent) handleCommand(command string) {
 	a.log.Info().Str("command", command).Msg("received command")
+
+	// Special commands that work even when busy
+	switch command {
+	case "stop":
+		// Stop MUST work when busy - that's the whole point!
+		a.handleStop()
+		return
+	case "restart":
+		// Restart also works anytime
+		a.handleRestart()
+		return
+	}
 
 	// Check if already busy (T02: reject concurrent commands)
 	if a.IsBusy() {
@@ -40,16 +59,6 @@ func (a *Agent) handleCommand(command string) {
 		if err := a.ws.SendMessage(protocol.TypeRejected, payload); err != nil {
 			a.log.Debug().Err(err).Msg("failed to send rejection")
 		}
-		return
-	}
-
-	// Handle special commands
-	switch command {
-	case "stop":
-		a.handleStop()
-		return
-	case "restart":
-		a.handleRestart()
 		return
 	}
 
@@ -237,28 +246,69 @@ func (a *Agent) sendStatus(status, command string, exitCode int, message string)
 }
 
 // handleStop kills the currently running command.
+// Sends SIGTERM to process group, with SIGKILL fallback after 3 seconds.
 func (a *Agent) handleStop() {
 	a.mu.RLock()
 	pid := a.commandPID
+	currentCmd := a.pendingCommand
 	a.mu.RUnlock()
 
 	if pid == nil {
 		a.log.Warn().Msg("stop requested but no command running")
+		// Still send status so UI updates
+		a.sendStatus("error", "stop", 1, "no command running")
 		return
 	}
 
-	process, err := os.FindProcess(*pid)
+	processID := *pid
+	cmdName := "unknown"
+	if currentCmd != nil {
+		cmdName = *currentCmd
+	}
+
+	a.log.Info().Int("pid", processID).Str("command", cmdName).Msg("stopping command")
+
+	// Send SIGTERM to process group (negative PID kills all children too)
+	// On macOS/Linux, this kills the entire process tree
+	pgid, err := syscall.Getpgid(processID)
 	if err != nil {
-		a.log.Error().Err(err).Int("pid", *pid).Msg("failed to find process")
-		return
+		// Fallback to just the process
+		pgid = processID
 	}
 
-	if err := process.Signal(syscall.SIGTERM); err != nil {
-		a.log.Error().Err(err).Int("pid", *pid).Msg("failed to send SIGTERM")
-		return
+	// Try graceful termination first (SIGTERM to process group)
+	if err := syscall.Kill(-pgid, syscall.SIGTERM); err != nil {
+		// If process group kill fails, try direct kill
+		if err := syscall.Kill(processID, syscall.SIGTERM); err != nil {
+			a.log.Error().Err(err).Int("pid", processID).Msg("failed to send SIGTERM")
+			a.sendStatus("error", "stop", 1, "failed to terminate: "+err.Error())
+			return
+		}
 	}
 
-	a.log.Info().Int("pid", *pid).Msg("sent SIGTERM to process")
+	a.log.Info().Int("pid", processID).Int("pgid", pgid).Msg("sent SIGTERM to process group")
+
+	// Start goroutine to SIGKILL if process doesn't die in 3 seconds
+	go func() {
+		select {
+		case <-a.ctx.Done():
+			return
+		case <-timeAfter(3):
+			a.mu.RLock()
+			stillRunning := a.commandPID != nil && *a.commandPID == processID
+			a.mu.RUnlock()
+
+			if stillRunning {
+				a.log.Warn().Int("pid", processID).Msg("process didn't respond to SIGTERM, sending SIGKILL")
+				_ = syscall.Kill(-pgid, syscall.SIGKILL)
+				_ = syscall.Kill(processID, syscall.SIGKILL)
+			}
+		}
+	}()
+
+	// Send status - the actual command completion will send its own status
+	// when it detects it was killed (exit code will be non-zero)
+	a.sendStatus("stopped", cmdName, 130, "terminated by user")
 }
 
 // handleRestart exits the agent (systemd/launchd will restart it).
