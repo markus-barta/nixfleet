@@ -45,10 +45,11 @@ type Stats struct {
 
 // DashboardData contains all data needed to render the dashboard
 type DashboardData struct {
-	Hosts     []Host
-	Stats     Stats
-	CSRFToken string
-	Version   string
+	Hosts             []Host
+	Stats             Stats
+	CSRFToken         string
+	Version           string
+	HeartbeatInterval int // in seconds, for last-seen display
 }
 
 // Dashboard renders the main dashboard page

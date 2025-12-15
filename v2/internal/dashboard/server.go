@@ -1,6 +1,7 @@
 package dashboard
 
 import (
+	"context"
 	"database/sql"
 	"net/http"
 
@@ -20,6 +21,11 @@ type Server struct {
 	logStore   *LogStore
 	router     *chi.Mux
 	wsUpgrader *websocket.Upgrader
+	httpServer *http.Server
+
+	// Context for hub lifecycle (created in New, canceled in Shutdown)
+	hubCtx    context.Context
+	hubCancel context.CancelFunc
 }
 
 // New creates a new dashboard server.
@@ -43,19 +49,24 @@ func New(cfg *Config, db *sql.DB, log zerolog.Logger) *Server {
 	hub := NewHub(log, db)
 	hub.logStore = logStore // Pass log store to hub for output logging
 
+	// Create hub context - used for graceful shutdown
+	hubCtx, hubCancel := context.WithCancel(context.Background())
+
 	s := &Server{
-		cfg:      cfg,
-		db:       db,
-		log:      log.With().Str("component", "dashboard").Logger(),
-		auth:     NewAuthService(cfg, db),
-		hub:      hub,
-		logStore: logStore,
+		cfg:       cfg,
+		db:        db,
+		log:       log.With().Str("component", "dashboard").Logger(),
+		auth:      NewAuthService(cfg, db),
+		hub:       hub,
+		logStore:  logStore,
+		hubCtx:    hubCtx,
+		hubCancel: hubCancel,
 	}
 
 	s.setupRouter()
 
-	// Start hub immediately (for testing and normal use)
-	go s.hub.Run()
+	// Start hub immediately (auto-recovery enabled, graceful shutdown via hubCtx)
+	go s.hub.Run(hubCtx)
 
 	return s
 }
@@ -161,14 +172,35 @@ func (s *Server) requireCSRF(next http.Handler) http.Handler {
 	})
 }
 
-// Run starts the server.
+// Run starts the server with graceful shutdown support.
+// Note: The hub is already running (started in New()).
 func (s *Server) Run() error {
+	s.httpServer = &http.Server{
+		Addr:    s.cfg.ListenAddr,
+		Handler: s.router,
+	}
+
 	s.log.Info().Str("addr", s.cfg.ListenAddr).Msg("starting dashboard server")
-	return http.ListenAndServe(s.cfg.ListenAddr, s.router)
+	return s.httpServer.ListenAndServe()
+}
+
+// Shutdown gracefully shuts down the server and hub.
+func (s *Server) Shutdown(ctx context.Context) error {
+	s.log.Info().Msg("shutting down server...")
+
+	// Cancel hub context first (stops hub goroutines)
+	if s.hubCancel != nil {
+		s.hubCancel()
+	}
+
+	// Shutdown HTTP server
+	if s.httpServer != nil {
+		return s.httpServer.Shutdown(ctx)
+	}
+	return nil
 }
 
 // Router returns the HTTP router (for testing).
 func (s *Server) Router() http.Handler {
 	return s.router
 }
-

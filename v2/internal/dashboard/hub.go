@@ -1,9 +1,13 @@
 package dashboard
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
+	"runtime/debug"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -23,6 +27,12 @@ const (
 
 	// Maximum message size allowed from peer.
 	maxMessageSize = 512 * 1024 // 512KB for logs
+
+	// Broadcast queue size - large enough to buffer bursts
+	broadcastQueueSize = 1024
+
+	// Panic recovery delay before restarting
+	panicRecoveryDelay = 100 * time.Millisecond
 )
 
 // Client represents a WebSocket connection (agent or browser).
@@ -33,6 +43,34 @@ type Client struct {
 	send       chan []byte
 	hub        *Hub
 	server     *Server
+
+	// Safe close handling - prevents send-on-closed-channel panics
+	closeOnce sync.Once
+	closed    atomic.Bool
+}
+
+// SafeSend sends data to the client without panicking on closed channel.
+// Returns true if sent successfully, false if channel closed or buffer full.
+func (c *Client) SafeSend(data []byte) bool {
+	if c.closed.Load() {
+		return false
+	}
+	select {
+	case c.send <- data:
+		return true
+	default:
+		// Buffer full, drop message
+		return false
+	}
+}
+
+// Close safely closes the send channel exactly once.
+// Uses sync.Once to prevent double-close panics.
+func (c *Client) Close() {
+	c.closeOnce.Do(func() {
+		c.closed.Store(true)
+		close(c.send)
+	})
 }
 
 // Hub maintains active connections and broadcasts messages.
@@ -56,6 +94,9 @@ type Hub struct {
 	// Channel for messages from agents
 	agentMessages chan *agentMessage
 
+	// Async broadcast queue - decouples state changes from notifications
+	broadcasts chan []byte
+
 	// Log storage for command output
 	logStore *LogStore
 
@@ -78,49 +119,47 @@ func NewHub(log zerolog.Logger, db *sql.DB) *Hub {
 		register:      make(chan *Client),
 		unregister:    make(chan *Client),
 		agentMessages: make(chan *agentMessage, 256),
+		broadcasts:    make(chan []byte, broadcastQueueSize),
 	}
 }
 
-// Run starts the hub's main loop.
-func (h *Hub) Run() {
+// Run starts the hub's main loop with panic recovery and context support.
+// It will automatically recover from panics and restart the loop.
+func (h *Hub) Run(ctx context.Context) {
+	// Start broadcast loop in separate goroutine
+	go h.broadcastLoop(ctx)
+
+	// Main loop with panic recovery
+	for {
+		if err := h.runLoop(ctx); err != nil {
+			if err == context.Canceled || err == context.DeadlineExceeded {
+				h.log.Info().Msg("hub shutting down gracefully")
+				return
+			}
+			h.log.Error().Err(err).Msg("hub loop crashed, restarting...")
+			time.Sleep(panicRecoveryDelay)
+		}
+	}
+}
+
+// runLoop is the main processing loop with panic recovery.
+func (h *Hub) runLoop(ctx context.Context) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("hub panic: %v\n%s", r, debug.Stack())
+		}
+	}()
+
 	for {
 		select {
+		case <-ctx.Done():
+			return ctx.Err()
+
 		case client := <-h.register:
-			h.mu.Lock()
-			h.clients[client] = true
-			if client.clientType == "browser" {
-				h.browsers[client] = true
-			}
-			h.mu.Unlock()
-			h.log.Debug().
-				Str("type", client.clientType).
-				Str("id", client.clientID).
-				Msg("client registered")
+			h.handleRegister(client)
 
 		case client := <-h.unregister:
-			h.mu.Lock()
-			if _, ok := h.clients[client]; ok {
-				delete(h.clients, client)
-				delete(h.browsers, client)
-				if client.clientType == "agent" && client.clientID != "" {
-					if h.agents[client.clientID] == client {
-						delete(h.agents, client.clientID)
-						// Mark host as offline in database
-						_, err := h.db.Exec(`UPDATE hosts SET status = 'offline' WHERE hostname = ?`, client.clientID)
-						if err != nil {
-							h.log.Error().Err(err).Str("host", client.clientID).Msg("failed to mark host offline")
-						}
-						// Broadcast offline status to browsers
-						h.broadcastHostOffline(client.clientID)
-					}
-				}
-				close(client.send)
-			}
-			h.mu.Unlock()
-			h.log.Debug().
-				Str("type", client.clientType).
-				Str("id", client.clientID).
-				Msg("client unregistered")
+			h.handleUnregister(client)
 
 		case msg := <-h.agentMessages:
 			h.handleAgentMessage(msg)
@@ -128,41 +167,144 @@ func (h *Hub) Run() {
 	}
 }
 
+// handleRegister processes client registration.
+func (h *Hub) handleRegister(client *Client) {
+	h.mu.Lock()
+	h.clients[client] = true
+	if client.clientType == "browser" {
+		h.browsers[client] = true
+	}
+	h.mu.Unlock()
+
+	h.log.Debug().
+		Str("type", client.clientType).
+		Str("id", client.clientID).
+		Msg("client registered")
+}
+
+// handleUnregister processes client unregistration.
+// CRITICAL: All external operations happen OUTSIDE the mutex lock to prevent deadlocks.
+func (h *Hub) handleUnregister(client *Client) {
+	var (
+		shouldNotify bool
+		hostID       string
+		wasKnown     bool
+	)
+
+	// Phase 1: State changes under lock (fast, no external calls)
+	h.mu.Lock()
+	if _, ok := h.clients[client]; ok {
+		wasKnown = true
+		delete(h.clients, client)
+		delete(h.browsers, client)
+		if client.clientType == "agent" && client.clientID != "" {
+			if h.agents[client.clientID] == client {
+				delete(h.agents, client.clientID)
+				shouldNotify = true
+				hostID = client.clientID
+			}
+		}
+	}
+	h.mu.Unlock()
+
+	// Phase 2: External operations OUTSIDE lock (prevents deadlock)
+	if wasKnown {
+		// Close channel safely (uses sync.Once)
+		client.Close()
+	}
+
+	if hostID != "" {
+		// Database update outside lock
+		_, err := h.db.Exec(`UPDATE hosts SET status = 'offline' WHERE hostname = ?`, hostID)
+		if err != nil {
+			h.log.Error().Err(err).Str("host", hostID).Msg("failed to mark host offline")
+		}
+	}
+
+	if shouldNotify {
+		// Broadcast outside lock (queued, non-blocking)
+		h.queueBroadcast(map[string]any{
+			"type": "host_update",
+			"payload": map[string]any{
+				"host_id": hostID,
+				"online":  false,
+				"status":  "offline",
+			},
+		})
+	}
+
+	h.log.Debug().
+		Str("type", client.clientType).
+		Str("id", client.clientID).
+		Msg("client unregistered")
+}
+
+// broadcastLoop runs in a separate goroutine and handles all browser broadcasts.
+// This decouples broadcasts from the main hub loop, preventing blocking.
+func (h *Hub) broadcastLoop(ctx context.Context) {
+	defer func() {
+		if r := recover(); r != nil {
+			h.log.Error().
+				Interface("panic", r).
+				Str("stack", string(debug.Stack())).
+				Msg("broadcast loop crashed, restarting...")
+			// Restart the broadcast loop
+			go h.broadcastLoop(ctx)
+		}
+	}()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case data := <-h.broadcasts:
+			h.doBroadcast(data)
+		}
+	}
+}
+
+// doBroadcast sends data to all connected browsers.
+func (h *Hub) doBroadcast(data []byte) {
+	h.mu.RLock()
+	browsers := make([]*Client, 0, len(h.browsers))
+	for client := range h.browsers {
+		browsers = append(browsers, client)
+	}
+	h.mu.RUnlock()
+
+	for _, client := range browsers {
+		client.SafeSend(data) // Never panics
+	}
+}
+
+// queueBroadcast queues a message for async broadcast to all browsers.
+// Non-blocking: drops message with warning if queue is full.
+func (h *Hub) queueBroadcast(msg map[string]any) {
+	data, err := json.Marshal(msg)
+	if err != nil {
+		h.log.Error().Err(err).Msg("failed to marshal broadcast message")
+		return
+	}
+
+	select {
+	case h.broadcasts <- data:
+		// Queued successfully
+	default:
+		h.log.Warn().Msg("broadcast queue full, dropping message")
+	}
+}
+
+// BroadcastToBrowsers queues a message for broadcast to all connected browsers.
+// This is the public API - internally uses the async queue.
+func (h *Hub) BroadcastToBrowsers(msg map[string]any) {
+	h.queueBroadcast(msg)
+}
+
 // handleAgentMessage processes messages from agents.
 func (h *Hub) handleAgentMessage(msg *agentMessage) {
 	switch msg.message.Type {
 	case protocol.TypeRegister:
-		var payload protocol.RegisterPayload
-		if err := msg.message.ParsePayload(&payload); err != nil {
-			h.log.Error().Err(err).Msg("failed to parse register payload")
-			return
-		}
-
-		h.mu.Lock()
-		// Check for duplicate hostname
-		if existing, ok := h.agents[payload.Hostname]; ok && existing != msg.client {
-			// Close old connection
-			close(existing.send)
-			h.log.Warn().Str("hostname", payload.Hostname).Msg("replaced duplicate agent")
-		}
-		msg.client.clientID = payload.Hostname
-		h.agents[payload.Hostname] = msg.client
-		h.mu.Unlock()
-
-		// Update host in database
-		h.updateHost(payload)
-
-		// Send registered response
-		resp, _ := protocol.NewMessage(protocol.TypeRegistered, protocol.RegisteredPayload{
-			HostID: payload.Hostname,
-		})
-		respData, _ := json.Marshal(resp)
-		msg.client.send <- respData
-
-		h.log.Info().
-			Str("hostname", payload.Hostname).
-			Str("agent_version", payload.AgentVersion).
-			Msg("agent registered")
+		h.handleAgentRegister(msg)
 
 	case protocol.TypeHeartbeat:
 		var payload protocol.HeartbeatPayload
@@ -170,7 +312,6 @@ func (h *Hub) handleAgentMessage(msg *agentMessage) {
 			h.log.Error().Err(err).Msg("failed to parse heartbeat payload")
 			return
 		}
-
 		h.handleHeartbeat(msg.client.clientID, payload)
 
 	case protocol.TypeOutput:
@@ -200,7 +341,6 @@ func (h *Hub) handleAgentMessage(msg *agentMessage) {
 		if err := msg.message.ParsePayload(&payload); err != nil {
 			return
 		}
-
 		h.handleStatus(msg.client.clientID, payload)
 
 	case protocol.TypeTestProgress:
@@ -222,6 +362,48 @@ func (h *Hub) handleAgentMessage(msg *agentMessage) {
 			},
 		})
 	}
+}
+
+// handleAgentRegister processes agent registration.
+// CRITICAL: External operations happen OUTSIDE the mutex lock.
+func (h *Hub) handleAgentRegister(msg *agentMessage) {
+	var payload protocol.RegisterPayload
+	if err := msg.message.ParsePayload(&payload); err != nil {
+		h.log.Error().Err(err).Msg("failed to parse register payload")
+		return
+	}
+
+	var oldClient *Client
+
+	// Phase 1: State changes under lock
+	h.mu.Lock()
+	if existing, ok := h.agents[payload.Hostname]; ok && existing != msg.client {
+		oldClient = existing
+		h.log.Warn().Str("hostname", payload.Hostname).Msg("replaced duplicate agent")
+	}
+	msg.client.clientID = payload.Hostname
+	h.agents[payload.Hostname] = msg.client
+	h.mu.Unlock()
+
+	// Phase 2: External operations OUTSIDE lock
+	if oldClient != nil {
+		oldClient.Close() // Safe close
+	}
+
+	// Update host in database
+	h.updateHost(payload)
+
+	// Send registered response (uses SafeSend)
+	resp, _ := protocol.NewMessage(protocol.TypeRegistered, protocol.RegisteredPayload{
+		HostID: payload.Hostname,
+	})
+	respData, _ := json.Marshal(resp)
+	msg.client.SafeSend(respData)
+
+	h.log.Info().
+		Str("hostname", payload.Hostname).
+		Str("agent_version", payload.AgentVersion).
+		Msg("agent registered")
 }
 
 func (h *Hub) updateHost(payload protocol.RegisterPayload) {
@@ -365,41 +547,6 @@ func (h *Hub) GetAgent(hostID string) *Client {
 	return h.agents[hostID]
 }
 
-// BroadcastToBrowsers sends a message to all connected browsers.
-func (h *Hub) BroadcastToBrowsers(msg map[string]any) {
-	data, err := json.Marshal(msg)
-	if err != nil {
-		return
-	}
-
-	h.mu.RLock()
-	browsers := make([]*Client, 0, len(h.browsers))
-	for client := range h.browsers {
-		browsers = append(browsers, client)
-	}
-	h.mu.RUnlock()
-
-	for _, client := range browsers {
-		select {
-		case client.send <- data:
-		default:
-			// Client send buffer full, skip
-		}
-	}
-}
-
-// broadcastHostOffline notifies browsers that a host went offline.
-func (h *Hub) broadcastHostOffline(hostID string) {
-	h.BroadcastToBrowsers(map[string]any{
-		"type": "host_update",
-		"payload": map[string]any{
-			"host_id": hostID,
-			"online":  false,
-			"status":  "offline",
-		},
-	})
-}
-
 // readPump reads messages from the WebSocket connection.
 func (c *Client) readPump() {
 	defer func() {
@@ -496,4 +643,3 @@ func (c *Client) handleBrowserMessage(data []byte) {
 		c.hub.log.Debug().Str("browser", c.clientID).Msg("browser unsubscribed")
 	}
 }
-
