@@ -51,7 +51,16 @@ type Client struct {
 
 // SafeSend sends data to the client without panicking on closed channel.
 // Returns true if sent successfully, false if channel closed or buffer full.
-func (c *Client) SafeSend(data []byte) bool {
+func (c *Client) SafeSend(data []byte) (sent bool) {
+	// Recover from send-on-closed-channel panic
+	// This is necessary because there's a race between checking c.closed
+	// and actually sending - Close() could run between those two operations.
+	defer func() {
+		if r := recover(); r != nil {
+			sent = false
+		}
+	}()
+
 	if c.closed.Load() {
 		return false
 	}
@@ -248,8 +257,10 @@ func (h *Hub) broadcastLoop(ctx context.Context) {
 				Interface("panic", r).
 				Str("stack", string(debug.Stack())).
 				Msg("broadcast loop crashed, restarting...")
-			// Restart the broadcast loop
-			go h.broadcastLoop(ctx)
+			// Only restart if context is still active
+			if ctx.Err() == nil {
+				go h.broadcastLoop(ctx)
+			}
 		}
 	}()
 
