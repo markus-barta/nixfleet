@@ -39,7 +39,7 @@ type Config struct {
 func DefaultConfig() *Config {
 	return &Config{
 		Branch:            "main",
-		HeartbeatInterval: 10 * time.Second,
+		HeartbeatInterval: 5 * time.Second, // Match Nix module default (PRD FR-1.2)
 		LogLevel:          "info",
 		Hostname:          getStableHostname(),
 	}

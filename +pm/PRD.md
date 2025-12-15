@@ -109,7 +109,7 @@ NixFleet is a fleet management system for NixOS and macOS hosts. It enables cent
 | ID      | Requirement                                                 | Priority |
 | ------- | ----------------------------------------------------------- | -------- |
 | FR-1.1  | Connect to dashboard via WebSocket                          | Must     |
-| FR-1.2  | Send heartbeat every 30s (configurable)                     | Must     |
+| FR-1.2  | Send heartbeat every 5s (configurable, range 1-3600s)       | Must     |
 | FR-1.3  | Continue heartbeats during command execution                | Must     |
 | FR-1.4  | Execute commands: pull, switch, test, stop, restart, update | Must     |
 | FR-1.5  | Stream command output to dashboard in real-time             | Must     |
@@ -120,6 +120,7 @@ NixFleet is a fleet management system for NixOS and macOS hosts. It enables cent
 | FR-1.10 | Support SSH key for git operations                          | Should   |
 | FR-1.11 | Track command PID for stop capability                       | Must     |
 | FR-1.12 | Work on NixOS (systemd) and macOS (launchd)                 | Must     |
+| FR-1.13 | Report heartbeat interval on registration                   | Must     |
 
 ### FR-2: Dashboard Backend
 
@@ -137,6 +138,9 @@ NixFleet is a fleet management system for NixOS and macOS hosts. It enables cent
 | FR-2.10 | Rate limit login attempts                       | Must     |
 | FR-2.11 | CSRF protection on mutations                    | Must     |
 | FR-2.12 | Security headers (HSTS, CSP, X-Frame-Options)   | Must     |
+| FR-2.13 | Clear stale pending_command for offline hosts   | Must     |
+
+**FR-2.13 Detail**: Stale command detection uses a multiplier-based threshold following industry patterns (Kubernetes, etcd). Default: `120 × heartbeat_interval` with a 5-minute floor. With 5s heartbeat = 10 minutes. This prevents indefinitely stale UI badges when hosts go offline during commands.
 
 ### FR-3: Dashboard Frontend
 
@@ -284,6 +288,9 @@ NixFleet is a fleet management system for NixOS and macOS hosts. It enables cent
 
 ## Changelog
 
-| Date       | Version | Changes                      |
-| ---------- | ------- | ---------------------------- |
-| 2025-12-14 | 1.0     | Initial PRD for v2.0 rewrite |
+| Date       | Version | Changes                                                             |
+| ---------- | ------- | ------------------------------------------------------------------- |
+| 2025-12-15 | 1.1     | FR-1.2: Fixed heartbeat from 30s to 5s (matching implementation)    |
+|            |         | FR-1.13: Added heartbeat interval reporting requirement             |
+|            |         | FR-2.13: Added stale command cleanup requirement (multiplier-based) |
+| 2025-12-14 | 1.0     | Initial PRD for v2.0 rewrite                                        |

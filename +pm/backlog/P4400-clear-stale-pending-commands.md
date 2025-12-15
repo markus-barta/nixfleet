@@ -1,9 +1,9 @@
 # P4400 - Clear Stale Pending Commands for Offline Hosts
 
-**Priority**: Medium (downgraded from High)
+**Priority**: Medium
 **Status**: Pending
 **Effort**: Small
-**References**: Analysis 2025-12-15, P2000 (Hub Resilience)
+**References**: PRD FR-2.13, P2000 (Hub Resilience)
 
 ## Problem
 
@@ -17,55 +17,88 @@ When a host goes offline with a `pending_command` set, that command badge persis
 
 The system correctly clears `pending_command` when hosts are **online**:
 
-1. **On Registration** (line 445 in hub.go):
-
-   ```go
-   ON CONFLICT(hostname) DO UPDATE SET
-       ...
-       pending_command = NULL
-   ```
-
-2. **On Heartbeat** (line 494 in hub.go):
-
-   ```go
-   pending_command = ?,  // Agent reports its actual state
-   ```
-
-3. **On Command Completion** (line 531 in hub.go):
-   ```go
-   UPDATE hosts SET pending_command = NULL WHERE hostname = ?
-   ```
+1. **On Registration** (hub.go): `pending_command = NULL`
+2. **On Heartbeat** (hub.go): Agent reports its actual state
+3. **On Command Completion** (hub.go): `pending_command = NULL`
 
 ### The Narrow Problem
 
 Only **OFFLINE hosts** have stale commands because they can't communicate to clear them.
 
-**Example** (2025-12-15):
+## Solution: Multiplier-Based Stale Detection
+
+Following industry patterns (Kubernetes liveness probes, etcd, AWS ALB), use a **heartbeat multiplier** with a floor:
 
 ```
-hostname | status  | pending_command | last_seen
----------|---------|-----------------|-------------------
-csb0     | online  | NULL            | 2025-12-15 13:45  ✅ Cleared on reconnect
-csb1     | online  | NULL            | 2025-12-15 13:45  ✅ Cleared on reconnect
-gpc0     | offline | switch          | 2025-12-14 20:56  ❌ Still stale (host offline)
+stale_threshold = max(heartbeat_interval × multiplier, minimum_floor)
 ```
 
-## Solution
+### Configuration
 
-### Option A: Timeout-Based Cleanup (Recommended)
+| Parameter                   | Default | Description                                |
+| --------------------------- | ------- | ------------------------------------------ |
+| `NIXFLEET_STALE_MULTIPLIER` | 120     | Number of missed heartbeats                |
+| `NIXFLEET_STALE_MINIMUM`    | 5m      | Floor to prevent overly aggressive cleanup |
 
-Add a background job that clears `pending_command` for hosts that have been offline for a configurable duration (e.g., 10 minutes).
+### Effective Timeouts
 
-**Rationale**: If a host has been offline for 10+ minutes, any "pending" command is certainly not running anymore. The agent either crashed, was rebooted, or the network is down.
+| Heartbeat    | Multiplier | Calculated | Floor | **Effective** |
+| ------------ | ---------- | ---------- | ----- | ------------- |
+| 5s           | 120        | 10 min     | 5 min | **10 min**    |
+| 10s          | 120        | 20 min     | 5 min | **20 min**    |
+| 30s          | 120        | 60 min     | 5 min | **60 min**    |
+| 1s (testing) | 120        | 2 min      | 5 min | **5 min**     |
+
+### Why This Approach
+
+1. **Industry standard**: Kubernetes, etcd, Consul all use multiplier-based health detection
+2. **Self-adjusting**: Automatically scales with heartbeat interval changes
+3. **Semantic clarity**: "Stale after 120 missed heartbeats" is intuitive
+4. **Safe floor**: Prevents aggressive cleanup during testing (1s heartbeat)
+
+## Implementation
+
+### 1. Add Configuration (dashboard config)
 
 ```go
-func (h *Hub) startStaleCommandCleanup(ctx context.Context) {
-    ticker := time.NewTicker(1 * time.Minute)
+// In internal/dashboard/config.go or hub.go
+type HubConfig struct {
+    // Existing fields...
+
+    // Stale command detection
+    HeartbeatInterval    time.Duration // Reference: 5s default
+    StaleMultiplier      int           // Default: 120
+    StaleMinimum         time.Duration // Default: 5 minutes
+    CleanupCheckInterval time.Duration // Default: 1 minute
+}
+
+func (c *HubConfig) StaleCommandTimeout() time.Duration {
+    calculated := c.HeartbeatInterval * time.Duration(c.StaleMultiplier)
+    if calculated < c.StaleMinimum {
+        return c.StaleMinimum
+    }
+    return calculated
+}
+```
+
+### 2. Add Cleanup Goroutine (hub.go)
+
+```go
+func (h *Hub) Run(ctx context.Context) {
+    // Start cleanup loop
+    go h.staleCommandCleanupLoop(ctx)
+
+    // Existing run loop...
+}
+
+func (h *Hub) staleCommandCleanupLoop(ctx context.Context) {
+    ticker := time.NewTicker(h.cfg.CleanupCheckInterval) // 1 minute
     defer ticker.Stop()
 
     for {
         select {
         case <-ctx.Done():
+            h.log.Info().Msg("stale command cleanup loop shutting down")
             return
         case <-ticker.C:
             h.cleanupStaleCommands()
@@ -74,64 +107,79 @@ func (h *Hub) startStaleCommandCleanup(ctx context.Context) {
 }
 
 func (h *Hub) cleanupStaleCommands() {
+    timeout := h.cfg.StaleCommandTimeout()
+    thresholdMinutes := int(timeout.Minutes())
+
     result, err := h.db.Exec(`
         UPDATE hosts
         SET pending_command = NULL
         WHERE pending_command IS NOT NULL
         AND status = 'offline'
-        AND last_seen < datetime('now', '-10 minutes')
-    `)
+        AND last_seen < datetime('now', '-' || ? || ' minutes')
+    `, thresholdMinutes)
+
     if err != nil {
         h.log.Error().Err(err).Msg("failed to cleanup stale commands")
         return
     }
 
     if rows, _ := result.RowsAffected(); rows > 0 {
-        h.log.Info().Int64("count", rows).Msg("cleared stale commands for offline hosts")
-        // Optionally broadcast updates to browsers
+        h.log.Info().
+            Int64("count", rows).
+            Dur("threshold", timeout).
+            Msg("cleared stale commands for offline hosts")
+
+        // Broadcast to refresh browser UI
+        h.broadcastStaleCommandsCleared()
+    }
+}
+
+func (h *Hub) broadcastStaleCommandsCleared() {
+    // Query which hosts were affected and broadcast updates
+    rows, err := h.db.Query(`
+        SELECT hostname FROM hosts
+        WHERE status = 'offline' AND pending_command IS NULL
+    `)
+    if err != nil {
+        return
+    }
+    defer rows.Close()
+
+    for rows.Next() {
+        var hostname string
+        if err := rows.Scan(&hostname); err != nil {
+            continue
+        }
+        h.queueBroadcast(map[string]any{
+            "type": "host_update",
+            "payload": map[string]any{
+                "host_id":         hostname,
+                "pending_command": nil,
+            },
+        })
     }
 }
 ```
 
-### Option B: Clear on Offline Transition
+### 3. Environment Variables
 
-When a host transitions to offline (disconnect detected), optionally clear `pending_command` after a grace period.
+```bash
+# docker-compose.yml / nixfleet.env
+NIXFLEET_STALE_MULTIPLIER=120      # 120 missed heartbeats
+NIXFLEET_STALE_MINIMUM=5m          # Minimum 5 minutes
+NIXFLEET_CLEANUP_INTERVAL=1m       # Check every minute
+```
 
-**Downside**: May clear commands that could resume if the host quickly reconnects.
+## Requirements Checklist
 
-### Option C: Visual Indication (No DB Change)
-
-Instead of clearing the command, show it with a "stale" indicator in the UI after X minutes.
-
-**Downside**: Command remains in DB, button stays disabled.
-
-## Recommended Implementation
-
-**Option A only** - simple, effective, low risk:
-
-1. Add `startStaleCommandCleanup()` goroutine in `hub.Run()`
-2. Run every 1 minute, clear commands for hosts offline > 10 minutes
-3. Log when commands are cleared (for debugging)
-
-This is the **minimum viable fix** that solves the actual problem without over-engineering.
-
-## Why NOT the Original Three-Option Approach
-
-The original P4400 proposed:
-
-- Option A: Clear on reconnect → **Already implemented!**
-- Option B: Timeout cleanup → **Still needed for offline hosts**
-- Option C: Heartbeat sync → **Already implemented!**
-
-Two of three options were already working. Only the timeout for offline hosts is needed.
-
-## Requirements
-
-- [ ] Add `cleanupStaleCommands()` function
-- [ ] Start cleanup goroutine in `hub.Run()`
-- [ ] Make timeout configurable (default 10 minutes)
+- [ ] Add stale detection config to Hub
+- [ ] Implement `StaleCommandTimeout()` with multiplier + floor
+- [ ] Add `staleCommandCleanupLoop()` goroutine
+- [ ] Add `cleanupStaleCommands()` with proper SQL
+- [ ] Broadcast `host_update` when commands cleared
+- [ ] Add env var parsing for configuration
 - [ ] Log when stale commands are cleared
-- [ ] Consider broadcasting `host_update` to refresh UI
+- [ ] Write integration test
 
 ## Test Scenarios
 
@@ -139,15 +187,17 @@ Two of three options were already working. Only the timeout for offline hosts is
 
 **Preconditions:**
 
-- Dashboard running
-- At least one host with stale `pending_command` that is offline
+- Dashboard running with `NIXFLEET_STALE_MINIMUM=1m` (for faster testing)
+- At least one host that can go offline
 
 **Steps:**
 
-1. Verify an offline host shows a command badge (e.g., "switch")
-2. Ensure the host has been offline > 10 minutes
-3. Wait for cleanup job to run (check logs for "cleared stale commands")
-4. Refresh dashboard
+1. Send a command to an online host (e.g., "switch")
+2. Stop the agent or disconnect the host before command completes
+3. Verify dashboard shows host as offline with command badge
+4. Wait for cleanup interval + stale threshold (e.g., 2 minutes with 1m minimum)
+5. Check dashboard logs for "cleared stale commands"
+6. Verify badge is removed in UI
 
 **Expected:** Badge is cleared for the offline host
 
@@ -155,10 +205,7 @@ Two of three options were already working. Only the timeout for offline hosts is
 
 ```bash
 #!/bin/bash
-# Test that cleanup job clears stale commands for offline hosts
-
-# This test verifies the cleanup logic by checking DB after the job runs
-# Requires: access to the nixfleet database
+set -e
 
 PASS=0
 FAIL=0
@@ -172,54 +219,113 @@ else
     ((FAIL++))
 fi
 
-# Check cleanup is started in Run()
-if grep -q "startStaleCommandCleanup\|cleanupStaleCommands" v2/internal/dashboard/hub.go | grep -q "go "; then
-    echo "[PASS] Cleanup goroutine started"
+# Check cleanup loop exists
+if grep -q "staleCommandCleanupLoop" v2/internal/dashboard/hub.go; then
+    echo "[PASS] staleCommandCleanupLoop exists"
     ((PASS++))
 else
-    echo "[WARN] Cleanup goroutine not clearly started (check manually)"
+    echo "[FAIL] staleCommandCleanupLoop NOT FOUND"
+    ((FAIL++))
+fi
+
+# Check multiplier-based calculation
+if grep -q "StaleMultiplier\|StaleCommandTimeout" v2/internal/dashboard/hub.go; then
+    echo "[PASS] Multiplier-based timeout calculation exists"
+    ((PASS++))
+else
+    echo "[FAIL] Multiplier-based timeout NOT FOUND"
+    ((FAIL++))
+fi
+
+# Check SQL targets offline hosts only
+if grep -q "status = 'offline'" v2/internal/dashboard/hub.go | grep -q "pending_command"; then
+    echo "[PASS] Cleanup targets offline hosts only"
+    ((PASS++))
+else
+    echo "[WARN] Check cleanup SQL manually"
 fi
 
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
+[ $FAIL -eq 0 ] && exit 0 || exit 1
 ```
 
 ### Integration Test: TestHub_CleansStaleOfflineCommands
 
 ```go
 func TestHub_CleansStaleOfflineCommands(t *testing.T) {
-    // Setup: Create offline host with stale command
+    db := setupTestDB(t)
+    defer db.Close()
+
+    hub := NewHub(db, zerolog.Nop(), &HubConfig{
+        HeartbeatInterval: 1 * time.Second,
+        StaleMultiplier:   3,  // 3 seconds
+        StaleMinimum:      0,  // No floor for testing
+    })
+
+    // Insert offline host with stale command (5 seconds ago)
     _, err := db.Exec(`
         INSERT INTO hosts (id, hostname, host_type, status, pending_command, last_seen)
-        VALUES ('test', 'test', 'nixos', 'offline', 'switch', datetime('now', '-15 minutes'))
+        VALUES ('test', 'test', 'nixos', 'offline', 'switch', datetime('now', '-5 seconds'))
     `)
     require.NoError(t, err)
 
-    // Act: Run cleanup
+    // Run cleanup
     hub.cleanupStaleCommands()
 
-    // Assert: pending_command should be cleared
+    // Verify pending_command is cleared
     var pending sql.NullString
     err = db.QueryRow(`SELECT pending_command FROM hosts WHERE hostname = 'test'`).Scan(&pending)
     require.NoError(t, err)
-
     assert.False(t, pending.Valid, "expected pending_command to be NULL")
+}
+
+func TestHub_DoesNotClearOnlineHostCommands(t *testing.T) {
+    db := setupTestDB(t)
+    defer db.Close()
+
+    hub := NewHub(db, zerolog.Nop(), &HubConfig{
+        HeartbeatInterval: 1 * time.Second,
+        StaleMultiplier:   3,
+        StaleMinimum:      0,
+    })
+
+    // Insert ONLINE host with pending command
+    _, err := db.Exec(`
+        INSERT INTO hosts (id, hostname, host_type, status, pending_command, last_seen)
+        VALUES ('test', 'test', 'nixos', 'online', 'switch', datetime('now', '-5 seconds'))
+    `)
+    require.NoError(t, err)
+
+    // Run cleanup
+    hub.cleanupStaleCommands()
+
+    // Verify pending_command is NOT cleared (host is online)
+    var pending sql.NullString
+    err = db.QueryRow(`SELECT pending_command FROM hosts WHERE hostname = 'test'`).Scan(&pending)
+    require.NoError(t, err)
+    assert.True(t, pending.Valid, "expected pending_command to remain for online host")
+    assert.Equal(t, "switch", pending.String)
 }
 ```
 
 ## Edge Cases
 
-1. **Host comes online during cleanup**: No issue - next heartbeat will set correct state
-2. **Short offline period**: 10-minute threshold prevents premature clearing
-3. **Legitimate long-running command**: If a switch takes 15 minutes and host stays online, heartbeats keep `pending_command` set correctly
+1. **Host comes online during cleanup**: No issue - registration clears command anyway
+2. **Very short heartbeat (1s testing)**: Floor of 5 min prevents aggressive cleanup
+3. **Legitimate long command on online host**: Agent heartbeats keep it "online", cleanup doesn't touch it
+4. **Dashboard restart**: Cleanup loop starts fresh, uses DB timestamps
 
 ## Files to Modify
 
-| File                           | Changes         |
-| ------------------------------ | --------------- |
-| `v2/internal/dashboard/hub.go` | Add cleanup job |
+| File                              | Changes                                         |
+| --------------------------------- | ----------------------------------------------- |
+| `v2/internal/dashboard/hub.go`    | Add cleanup goroutine, config, cleanup function |
+| `v2/internal/dashboard/server.go` | Pass config to Hub                              |
+| `v2/tests/integration/`           | Add integration tests                           |
 
 ## Related
 
-- P2000 (Hub Resilience) - Context/graceful shutdown patterns to follow
-- P4395 (Stop Command) - Stop already clears pending_command correctly
+- **PRD FR-2.13**: Stale command cleanup requirement
+- **P2000** (Hub Resilience): Context/graceful shutdown patterns to follow
+- **P4395** (Stop Command): Stop already clears pending_command correctly
