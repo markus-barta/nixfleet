@@ -2,7 +2,7 @@
 
 **Priority:** CRITICAL  
 **Date:** 2025-12-15  
-**Status:** Ready for implementation  
+**Status:** ✅ IMPLEMENTED & DEPLOYED  
 **Subsumes:** P3000 (Switch Commands Not Delivered)
 
 ---
@@ -279,24 +279,24 @@ func (h *Hub) QueueBroadcast(msg map[string]any) {
 
 ## Acceptance Criteria
 
-### Phase 1 (Critical)
+### Phase 1 (Critical) ✅
 
-- [ ] Hub no longer deadlocks when agent disconnects
-- [ ] Hub automatically recovers from panics with logging
-- [ ] Context cancellation enables graceful shutdown
-- [ ] All external calls (DB, broadcast) happen outside mutex locks
+- [x] Hub no longer deadlocks when agent disconnects
+- [x] Hub automatically recovers from panics with logging
+- [x] Context cancellation enables graceful shutdown
+- [x] All external calls (DB, broadcast) happen outside mutex locks
 
-### Phase 2 (Important)
+### Phase 2 (Important) ✅
 
-- [ ] `SafeSend` prevents send-on-closed-channel panics
-- [ ] `Client.Close()` uses `sync.Once` to prevent double-close
-- [ ] No panics possible in broadcast path
+- [x] `SafeSend` prevents send-on-closed-channel panics
+- [x] `Client.Close()` uses `sync.Once` to prevent double-close
+- [x] No panics possible in broadcast path
 
-### Phase 3 (Resilience)
+### Phase 3 (Resilience) ✅
 
-- [ ] Broadcasts run in separate goroutine
-- [ ] State changes cannot be blocked by slow broadcasts
-- [ ] Broadcast queue has backpressure (drops with warning if full)
+- [x] Broadcasts run in separate goroutine
+- [x] State changes cannot be blocked by slow broadcasts
+- [x] Broadcast queue has backpressure (drops with warning if full)
 
 ---
 
@@ -369,6 +369,7 @@ func TestHub_AgentDisconnectWhileBroadcasting(t *testing.T) {
 
 ## Changelog
 
-| Date       | Change                                             |
-| ---------- | -------------------------------------------------- |
-| 2025-12-15 | Created, subsuming P3000 after root cause analysis |
+| Date       | Change                                                   |
+| ---------- | -------------------------------------------------------- |
+| 2025-12-15 | Created, subsuming P3000 after root cause analysis       |
+| 2025-12-15 | ✅ IMPLEMENTED: All 3 phases, deployed to csb1, verified |
