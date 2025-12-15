@@ -106,6 +106,7 @@ func (s *Server) setupRouter() {
 			r.Use(s.requireCSRF)
 
 			r.Get("/hosts", s.handleGetHosts)
+			r.Post("/hosts", s.handleAddHost)
 			r.Post("/hosts/{hostID}/command", s.handleCommand)
 			r.Delete("/hosts/{hostID}", s.handleDeleteHost)
 			r.Get("/hosts/{hostID}/logs", s.handleGetLogs)

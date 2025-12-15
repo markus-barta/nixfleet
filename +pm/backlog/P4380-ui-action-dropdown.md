@@ -14,6 +14,7 @@ v2 only has inline action buttons. v1 had a "More" dropdown per host with:
 - Restart Agent
 - Download Logs
 - Remove Host (dangerous, requires confirmation)
+- ... and more
 
 Also missing: Stop button that replaces Test during test execution.
 

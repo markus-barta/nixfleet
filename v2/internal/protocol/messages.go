@@ -115,3 +115,17 @@ type TestProgressPayload struct {
 	Result  string `json:"result"`  // summary result when done
 }
 
+// UpdateStatus contains the three-compartment update status.
+type UpdateStatus struct {
+	Git    StatusCheck `json:"git"`
+	Lock   StatusCheck `json:"lock"`
+	System StatusCheck `json:"system"`
+}
+
+// StatusCheck represents a single status check result.
+type StatusCheck struct {
+	Status    string `json:"status"`     // "ok", "outdated", "error", "unknown"
+	Message   string `json:"message"`    // Human-readable detail
+	CheckedAt string `json:"checked_at"` // ISO timestamp
+}
+

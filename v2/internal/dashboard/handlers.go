@@ -448,6 +448,63 @@ func (s *Server) handleCommand(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// handleAddHost manually adds a host to the database.
+func (s *Server) handleAddHost(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Hostname   string `json:"hostname"`
+		HostType   string `json:"host_type"`
+		Location   string `json:"location"`
+		DeviceType string `json:"device_type"`
+		ThemeColor string `json:"theme_color"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Bad Request", http.StatusBadRequest)
+		return
+	}
+
+	// Validate hostname
+	if req.Hostname == "" {
+		http.Error(w, "Hostname required", http.StatusBadRequest)
+		return
+	}
+
+	// Set defaults
+	if req.HostType == "" {
+		req.HostType = "nixos"
+	}
+	if req.Location == "" {
+		req.Location = "home"
+	}
+	if req.DeviceType == "" {
+		req.DeviceType = "desktop"
+	}
+	if req.ThemeColor == "" {
+		req.ThemeColor = "#7aa2f7"
+	}
+
+	// Insert host
+	hostID := req.Hostname
+	_, err := s.db.Exec(`
+		INSERT INTO hosts (id, hostname, host_type, status, location, device_type, theme_color)
+		VALUES (?, ?, ?, 'offline', ?, ?, ?)
+		ON CONFLICT(hostname) DO UPDATE SET
+			host_type = excluded.host_type,
+			location = excluded.location,
+			device_type = excluded.device_type,
+			theme_color = excluded.theme_color
+	`, hostID, req.Hostname, req.HostType, req.Location, req.DeviceType, req.ThemeColor)
+	if err != nil {
+		s.log.Error().Err(err).Str("hostname", req.Hostname).Msg("failed to add host")
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+
+	s.log.Info().Str("host_id", hostID).Msg("host added manually")
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]any{"status": "created", "host_id": hostID})
+}
+
 // handleDeleteHost removes a host from the database.
 func (s *Server) handleDeleteHost(w http.ResponseWriter, r *http.Request) {
 	hostID := chi.URLParam(r, "hostID")
