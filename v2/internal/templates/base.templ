@@ -340,12 +340,14 @@ templ Base(title string, csrfToken string) {
 
 			/* Status indicators */
 			.status-dot {
-				width: 10px;
-				height: 10px;
-				min-width: 10px;
-				min-height: 10px;
+				width: 12px;
+				height: 12px;
+				min-width: 12px;
+				min-height: 12px;
 				border-radius: 50%;
-				display: inline-block;
+				display: inline-flex;
+				align-items: center;
+				justify-content: center;
 				vertical-align: middle;
 				flex-shrink: 0;
 			}
@@ -489,21 +491,20 @@ templ Base(title string, csrfToken string) {
 				gap: 0.25rem;
 			}
 
-			/* For table cells: use a wrapper inside instead of flexing the td */
+			/* For table cells: use flexbox for consistent status + badge alignment */
 			td.status-cell-with-badge {
 				vertical-align: middle;
 			}
 
-			td.status-cell-with-badge > * {
-				vertical-align: middle;
-			}
-
-			td.status-cell-with-badge .status-dot {
-				display: inline-block;
+			td.status-cell-with-badge .status-wrapper {
+				display: inline-flex;
+				align-items: center;
+				gap: 0.5rem;
 			}
 
 			.progress-badge-mini {
-				display: inline-block;
+				display: inline-flex;
+				align-items: center;
 				padding: 0.15rem 0.3rem;
 				background: rgba(224, 175, 104, 0.15);
 				border: 1px solid var(--yellow);
@@ -513,7 +514,6 @@ templ Base(title string, csrfToken string) {
 				line-height: 1;
 				text-transform: uppercase;
 				font-weight: 600;
-				margin-left: 15px;
 			}
 
 			/* Footer */

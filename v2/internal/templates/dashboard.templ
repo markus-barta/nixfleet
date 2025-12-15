@@ -377,15 +377,16 @@ templ Dashboard(data DashboardData) {
 			}
 
 			function updateProgressBadge(container, command) {
-				const statusCell = container.querySelector('td:first-child') || container.querySelector('.status-with-badge');
-				if (!statusCell) return;
+				// Find the wrapper element (for table rows: .status-wrapper, for cards: .status-with-badge)
+				const wrapper = container.querySelector('.status-wrapper') || container.querySelector('.status-with-badge');
+				if (!wrapper) return;
 				
-				let badge = statusCell.querySelector('.progress-badge-mini');
+				let badge = wrapper.querySelector('.progress-badge-mini');
 				if (command) {
 					if (!badge) {
 						badge = document.createElement('span');
 						badge.className = 'progress-badge-mini';
-						statusCell.appendChild(badge);
+						wrapper.appendChild(badge);
 					}
 					badge.textContent = command;
 				} else if (badge) {
@@ -394,10 +395,11 @@ templ Dashboard(data DashboardData) {
 			}
 
 			function updateStatusIndicator(container, host) {
-				const statusCell = container.querySelector('td:first-child') || container.querySelector('.host-name');
-				if (!statusCell) return;
+				// Find the wrapper or host-name (for mobile cards)
+				const wrapper = container.querySelector('.status-wrapper') || container.querySelector('.status-with-badge');
+				if (!wrapper) return;
 
-				const existing = statusCell.querySelector('.status-ripple, .status-dot');
+				const existing = wrapper.querySelector('.status-ripple, .status-dot');
 
 				if (host.online && !host.pending_command) {
 					// Online idle - static green with heartbeat animation on update
@@ -542,19 +544,19 @@ templ Dashboard(data DashboardData) {
 				});
 
 				// Update progress badge (mini version next to status dot)
-				const badge = container.querySelector('.progress-badge-mini');
-				if (badge) {
-					badge.textContent = pending || '';
-					badge.style.display = pending ? 'inline' : 'none';
-				} else if (pending) {
-					// Create badge if doesn't exist
-					const statusCell = container.querySelector('.status-cell-with-badge, .status-with-badge');
-					if (statusCell) {
-						const newBadge = document.createElement('span');
-						newBadge.className = 'progress-badge-mini';
-						newBadge.textContent = pending;
-						statusCell.appendChild(newBadge);
+				const wrapper = container.querySelector('.status-wrapper') || container.querySelector('.status-with-badge');
+				if (!wrapper) return;
+				
+				let badge = wrapper.querySelector('.progress-badge-mini');
+				if (pending) {
+					if (!badge) {
+						badge = document.createElement('span');
+						badge.className = 'progress-badge-mini';
+						wrapper.appendChild(badge);
 					}
+					badge.textContent = pending;
+				} else if (badge) {
+					badge.remove();
 				}
 			}
 
@@ -793,10 +795,12 @@ templ HostCard(host Host, csrfToken string) {
 templ HostRow(host Host, csrfToken string) {
 	<tr data-host-id={ host.ID } class={ templ.KV("host-offline", !host.Online) }>
 		<td class="status-cell-with-badge">
-			@StatusIndicator(host)
-			if host.PendingCommand != "" {
-				<span class="progress-badge-mini">{ host.PendingCommand }</span>
-			}
+			<span class="status-wrapper">
+				@StatusIndicator(host)
+				if host.PendingCommand != "" {
+					<span class="progress-badge-mini">{ host.PendingCommand }</span>
+				}
+			</span>
 		</td>
 		<td>
 			<span style={ hostColorStyle(host) }>{ host.Hostname }</span>
