@@ -86,8 +86,8 @@ templ Dashboard(data DashboardData) {
 			</div>
 			<div class="header-actions">
 				<div class="dropdown bulk-actions-dropdown">
-					<button class="btn" onclick="toggleBulkMenu(event)">
-						<svg class="icon"><use href="#icon-menu"></use></svg>
+					<button class="btn btn-header" onclick="toggleBulkMenu(event)">
+						<svg class="icon"><use href="#icon-fleet"></use></svg>
 						Bulk Actions
 					</button>
 					<div class="dropdown-menu" id="bulk-actions-menu">
@@ -109,9 +109,9 @@ templ Dashboard(data DashboardData) {
 						</button>
 					</div>
 				</div>
-				<form method="POST" action="/logout" style="display: inline;">
+				<form method="POST" action="/logout" style="display: inline-flex; align-items: center;">
 					<input type="hidden" name="csrf_token" value={ data.CSRFToken }/>
-					<button type="submit" class="btn btn-danger">Logout</button>
+					<button type="submit" class="btn btn-danger btn-header">Logout</button>
 				</form>
 			</div>
 		</header>
@@ -128,7 +128,6 @@ templ Dashboard(data DashboardData) {
 			<thead>
 				<tr>
 					<th class="col-hosts" title="Online / Total Hosts">
-						<span class="status-dot status-online" style="margin-right: 6px;"></span>
 						<span class={ templ.KV("stat-online-positive", data.Stats.Online > 0) } id="stat-online">{ fmt.Sprint(data.Stats.Online) }</span>/{ fmt.Sprint(data.Stats.Total) } Hosts
 					</th>
 					<th class="col-center" title="Location">Loc</th>

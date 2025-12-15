@@ -160,6 +160,15 @@ templ Base(title string, csrfToken string) {
 				background: rgba(247, 118, 142, 0.1);
 			}
 
+			/* Header action buttons - consistent sizing */
+			.btn-header {
+				height: 36px;
+				padding: 0.5rem 1rem;
+				display: inline-flex;
+				align-items: center;
+				gap: 0.5rem;
+			}
+
 			.btn:disabled {
 				opacity: 0.5;
 				cursor: not-allowed;
@@ -287,12 +296,32 @@ templ Base(title string, csrfToken string) {
 			/* Online count highlight */
 			.stat-online-positive { color: var(--green); }
 
+			.host-table tbody tr {
+				background: rgba(26, 27, 38, 0.6);
+			}
+
 			.host-table tr:hover {
 				background: var(--bg-highlight);
 			}
 
 			.host-table tr:last-child td {
 				border-bottom: none;
+			}
+
+			/* Offline host row overlay */
+			.host-table tr.host-offline {
+				position: relative;
+			}
+
+			.host-table tr.host-offline::after {
+				content: '';
+				position: absolute;
+				top: 0;
+				left: 0;
+				right: 0;
+				bottom: 0;
+				background: rgba(0, 0, 0, 0.2);
+				pointer-events: none;
 			}
 
 			/* Location, Device Type, and Host Type icons */
@@ -311,6 +340,7 @@ templ Base(title string, csrfToken string) {
 			/* Tests cell */
 			.tests-cell {
 				font-size: 0.85rem;
+				text-align: center;
 			}
 
 			.test-progress {
@@ -636,9 +666,16 @@ templ Base(title string, csrfToken string) {
 			.connection-indicator {
 				display: inline-flex;
 				align-items: center;
-				gap: 0.3rem;
+				gap: 0.25rem;
 				font-size: 0.75rem;
 				color: var(--fg-dark);
+			}
+
+			.connection-indicator .status-dot {
+				width: 6px;
+				height: 6px;
+				min-width: 6px;
+				min-height: 6px;
 			}
 
 			.connection-indicator.connected {
@@ -1073,6 +1110,13 @@ templ Base(title string, csrfToken string) {
 			<symbol id="icon-more" viewBox="0 0 24 24">
 				<path fill="currentColor" d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
 			</symbol>
+			<!-- Fleet/grid icon for bulk actions -->
+			<symbol id="icon-fleet" viewBox="0 0 24 24">
+				<rect x="3" y="3" width="7" height="7" rx="1" fill="currentColor"/>
+				<rect x="14" y="3" width="7" height="7" rx="1" fill="currentColor"/>
+				<rect x="3" y="14" width="7" height="7" rx="1" fill="currentColor"/>
+				<rect x="14" y="14" width="7" height="7" rx="1" fill="currentColor"/>
+			</symbol>
 			<symbol id="icon-check" viewBox="0 0 24 24">
 				<path fill="currentColor" d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
 			</symbol>
@@ -1083,8 +1127,12 @@ templ Base(title string, csrfToken string) {
 				<path fill="currentColor" d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/>
 			</symbol>
 			<!-- Update Status Icons (P5000) -->
+			<!-- Git icon - simple merge/fork shape -->
 			<symbol id="icon-git-branch" viewBox="0 0 24 24">
-				<path fill="currentColor" d="M6 3a3 3 0 1 0 0 6 3 3 0 0 0 0-6zM6 5a1 1 0 1 1 0 2 1 1 0 0 1 0-2zm12 0a3 3 0 1 0 0 6 3 3 0 0 0 0-6zm0 2a1 1 0 1 1 0 2 1 1 0 0 1 0-2zM6 15a3 3 0 1 0 0 6 3 3 0 0 0 0-6zm0 2a1 1 0 1 1 0 2 1 1 0 0 1 0-2zM7 8v8H5V8h2zm10-1a1 1 0 0 1 1 1v4.17A3.001 3.001 0 0 1 18 18a3 3 0 0 1-3-3 3.001 3.001 0 0 1 2-2.83V8a1 1 0 0 1 1-1zm0 7a1 1 0 1 0 0 2 1 1 0 0 0 0-2z"/>
+				<circle cx="7" cy="5" r="2" stroke="currentColor" stroke-width="2" fill="none"/>
+				<circle cx="7" cy="19" r="2" stroke="currentColor" stroke-width="2" fill="none"/>
+				<circle cx="17" cy="9" r="2" stroke="currentColor" stroke-width="2" fill="none"/>
+				<path stroke="currentColor" stroke-width="2" fill="none" d="M7 7v10M15 9h-4c-1.1 0-2 .9-2 2v2"/>
 			</symbol>
 			<symbol id="icon-lock" viewBox="0 0 24 24">
 				<path fill="currentColor" d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/>
