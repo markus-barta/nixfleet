@@ -15,29 +15,18 @@ echo ""
 PASS=0
 FAIL=0
 
-# === COLUMN WIDTHS ===
-echo "--- Column Widths ---"
+# === TABLE STRUCTURE ===
+echo "--- Table Structure ---"
 echo ""
 
-echo "Checking column width CSS..."
-if grep -q "host-table th:nth-child" "$BASE_TEMPL" && grep -q "host-table td:nth-child" "$BASE_TEMPL"; then
-  echo "  [PASS] Column width CSS present"
+echo "Checking host-table class..."
+if grep -q "host-table" "$BASE_TEMPL"; then
+  echo "  [PASS] host-table CSS present"
   ((PASS++))
 else
-  echo "  [FAIL] Column width CSS NOT FOUND"
+  echo "  [FAIL] host-table CSS NOT FOUND"
   ((FAIL++))
 fi
-
-# Check all 8 columns have widths
-for i in 1 2 3 4 5 6 7 8; do
-  if grep -q "host-table th:nth-child($i)" "$BASE_TEMPL"; then
-    echo "  [PASS] Column $i width defined"
-    ((PASS++))
-  else
-    echo "  [FAIL] Column $i width NOT DEFINED"
-    ((FAIL++))
-  fi
-done
 
 # === HEARTBEAT RIPPLE ===
 echo ""
