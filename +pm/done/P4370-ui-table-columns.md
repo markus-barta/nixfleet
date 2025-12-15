@@ -1,7 +1,7 @@
 # P4370 - UI: Complete Table Columns
 
 **Priority**: High  
-**Status**: Partially Complete (Blocked on Agent Changes)  
+**Status**: Complete (Config hash still BLOCKED)  
 **Effort**: Large  
 **References**: `+pm/legacy/v1.0/dashboard.html`
 
@@ -113,16 +113,30 @@ tr[data-online="false"] td::before {
 
 ### Requirements
 
-- [ ] Add Location column with icons (BLOCKED: requires agent changes)
-- [ ] Add Device Type column with icons (BLOCKED: requires agent changes)
+- [x] Add Location column with icons (home/work/cloud)
+- [x] Add Device Type column with icons (server/desktop/laptop/gaming)
 - [x] Add Metrics column with CPU/RAM
 - [ ] Add Config column with hash badge (BLOCKED: no config hash in agent data)
-- [ ] Add Tests column with progress/results (BLOCKED: requires agent changes)
+- [x] Add Tests column with progress/results
 - [x] Implement heartbeat ripple animation
 - [x] Add 50% overlay for offline hosts
 - [x] Set proper column widths
 - [x] Add hover titles for full info (metrics)
 - [x] Add OS type icons (NixOS/macOS) to Type column
+
+### Implementation Notes (2025-12-15)
+
+Full-stack implementation completed:
+
+1. **Nix module** (`modules/shared.nix`): Added `location` and `deviceType` options
+2. **Agent config** (`config.go`): Parse env vars with defaults
+3. **Protocol** (`messages.go`): Added to `RegisterPayload`
+4. **Database** (`database.go`): Added columns with migrations
+5. **UI** (`dashboard.templ`): Added Loc, Dev, Tests columns with icons
+6. **CSS** (`base.templ`): Styled icons and test progress/results
+
+Hosts need to be configured with `location` and `deviceType` in their nixfleet config.
+Default values: `location = "home"`, `deviceType = "desktop"`.
 
 ## Related
 
