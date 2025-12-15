@@ -78,12 +78,12 @@ When button clicked:
 
 ### Requirements
 
-- [ ] Track pendingCommand in row dataset
-- [ ] Apply disabled state on click (immediate)
-- [ ] Clear on WebSocket status update
-- [ ] Clear on API error
-- [ ] Add disabled CSS styling
-- [ ] Keep Stop enabled during tests
+- [x] Track pendingCommand in row dataset
+- [x] Apply disabled state on click (immediate)
+- [x] Clear on WebSocket status update
+- [x] Clear on API error
+- [x] Add disabled CSS styling
+- [x] Keep Stop enabled during tests
 
 ## Related
 
