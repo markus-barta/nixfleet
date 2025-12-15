@@ -52,6 +52,8 @@ type RegisterPayload struct {
 	Generation        string `json:"generation"`   // git commit hash
 	ThemeColor        string `json:"theme_color"`  // hex color like #7aa2f7
 	HeartbeatInterval int    `json:"heartbeat_interval"`
+	Location          string `json:"location"`    // home, work, cloud
+	DeviceType        string `json:"device_type"` // server, desktop, laptop, gaming
 }
 
 // RegisteredPayload is sent by the dashboard to confirm registration.

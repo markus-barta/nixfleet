@@ -93,6 +93,12 @@ func createTables(db *sql.DB) error {
 	migrations := []string{
 		// Add metrics_json column if not exists (v2.1.0)
 		`ALTER TABLE hosts ADD COLUMN metrics_json TEXT`,
+		// Add location column (v2.2.0 - P4370)
+		`ALTER TABLE hosts ADD COLUMN location TEXT DEFAULT 'home'`,
+		// Add device_type column (v2.2.0 - P4370)
+		`ALTER TABLE hosts ADD COLUMN device_type TEXT DEFAULT 'desktop'`,
+		// Add test_progress column for test results (v2.2.0 - P4370)
+		`ALTER TABLE hosts ADD COLUMN test_progress TEXT`,
 	}
 
 	for _, m := range migrations {

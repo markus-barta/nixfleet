@@ -294,6 +294,50 @@ templ Base(title string, csrfToken string) {
 				vertical-align: middle;
 			}
 
+			/* Location and Device Type icons */
+			.location-icon, .device-icon {
+				width: 16px;
+				height: 16px;
+				color: var(--fg-dark);
+				opacity: 0.8;
+			}
+
+			.location-icon:hover, .device-icon:hover {
+				opacity: 1;
+				color: var(--fg);
+			}
+
+			/* Tests cell */
+			.tests-cell {
+				font-size: 0.85rem;
+			}
+
+			.test-progress {
+				color: var(--yellow);
+				font-weight: 500;
+			}
+
+			.test-result {
+				font-weight: 500;
+				padding: 2px 6px;
+				border-radius: 4px;
+			}
+
+			.test-result.pass {
+				color: var(--green);
+				background: rgba(158, 206, 106, 0.15);
+			}
+
+			.test-result.fail {
+				color: var(--red);
+				background: rgba(247, 118, 142, 0.15);
+			}
+
+			.tests-na {
+				color: var(--fg-dark);
+				opacity: 0.5;
+			}
+
 			/* Status indicators */
 			.status-dot {
 				width: 10px;

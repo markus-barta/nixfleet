@@ -214,7 +214,8 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 func (s *Server) getHosts() ([]templates.Host, error) {
 	rows, err := s.db.Query(`
 		SELECT id, hostname, host_type, agent_version, os_version, 
-		       nixpkgs_version, generation, last_seen, status, pending_command, theme_color, metrics_json
+		       nixpkgs_version, generation, last_seen, status, pending_command, 
+		       theme_color, metrics_json, location, device_type, test_progress
 		FROM hosts ORDER BY hostname
 	`)
 	if err != nil {
@@ -225,15 +226,18 @@ func (s *Server) getHosts() ([]templates.Host, error) {
 	var hosts []templates.Host
 	for rows.Next() {
 		var h struct {
-			ID, Hostname, HostType                                  string
-			AgentVersion, OSVersion, NixpkgsVersion, Generation     *string
-			LastSeen                                                *string
-			Status                                                  string
-			PendingCommand, ThemeColor, MetricsJSON                 *string
+			ID, Hostname, HostType                              string
+			AgentVersion, OSVersion, NixpkgsVersion, Generation *string
+			LastSeen                                            *string
+			Status                                              string
+			PendingCommand, ThemeColor, MetricsJSON             *string
+			Location, DeviceType, TestProgressJSON              *string
 		}
 		if err := rows.Scan(&h.ID, &h.Hostname, &h.HostType, &h.AgentVersion,
 			&h.OSVersion, &h.NixpkgsVersion, &h.Generation, &h.LastSeen,
-			&h.Status, &h.PendingCommand, &h.ThemeColor, &h.MetricsJSON); err != nil {
+			&h.Status, &h.PendingCommand, &h.ThemeColor, &h.MetricsJSON,
+			&h.Location, &h.DeviceType, &h.TestProgressJSON); err != nil {
+			s.log.Debug().Err(err).Msg("failed to scan host row")
 			continue
 		}
 
@@ -266,6 +270,22 @@ func (s *Server) getHosts() ([]templates.Host, error) {
 			var metrics templates.Metrics
 			if err := json.Unmarshal([]byte(*h.MetricsJSON), &metrics); err == nil {
 				host.Metrics = &metrics
+			}
+		}
+		if h.Location != nil {
+			host.Location = *h.Location
+		} else {
+			host.Location = "home"
+		}
+		if h.DeviceType != nil {
+			host.DeviceType = *h.DeviceType
+		} else {
+			host.DeviceType = "desktop"
+		}
+		if h.TestProgressJSON != nil {
+			var testProgress templates.TestProgress
+			if err := json.Unmarshal([]byte(*h.TestProgressJSON), &testProgress); err == nil {
+				host.TestProgress = &testProgress
 			}
 		}
 		hosts = append(hosts, host)

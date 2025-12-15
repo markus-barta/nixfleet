@@ -19,6 +19,9 @@ type Host struct {
 	PendingCommand string
 	ThemeColor     string
 	Metrics        *Metrics
+	Location       string       // home, work, cloud
+	DeviceType     string       // server, desktop, laptop, gaming
+	TestProgress   *TestProgress // current test progress, nil if not running
 }
 
 // Metrics contains system metrics from StaSysMo
@@ -27,6 +30,15 @@ type Metrics struct {
 	RAM  float64 `json:"ram"`  // percentage 0-100
 	Swap float64 `json:"swap"` // percentage 0-100
 	Load float64 `json:"load"` // 1-minute load average
+}
+
+// TestProgress contains current test execution state
+type TestProgress struct {
+	Current int    `json:"current"` // current test number (1-based)
+	Total   int    `json:"total"`   // total tests
+	Passed  int    `json:"passed"`  // passed so far
+	Running bool   `json:"running"` // true if still running
+	Result  string `json:"result"`  // summary when done (e.g., "8/10")
 }
 
 // Stats represents dashboard statistics
@@ -94,8 +106,11 @@ templ Dashboard(data DashboardData) {
 				<tr>
 					<th>Status</th>
 					<th>Host</th>
+					<th title="Location">Loc</th>
+					<th title="Device Type">Dev</th>
 					<th>Type</th>
 					<th>Metrics</th>
+					<th>Tests</th>
 					<th>Version</th>
 					<th>Generation</th>
 					<th>Last Seen</th>
@@ -713,7 +728,24 @@ templ HostCard(host Host, csrfToken string) {
 		<div class="host-card-body" x-show="expanded" x-collapse>
 			<div class="host-card-row">
 				<span class="host-card-label">Type</span>
-				<span>{ host.HostType }</span>
+				<span style="display: flex; align-items: center; gap: 0.5rem;">
+					@osTypeIcon(host.HostType)
+					{ host.HostType }
+				</span>
+			</div>
+			<div class="host-card-row">
+				<span class="host-card-label">Location</span>
+				<span style="display: flex; align-items: center; gap: 0.5rem;">
+					@locationIcon(host.Location)
+					{ host.Location }
+				</span>
+			</div>
+			<div class="host-card-row">
+				<span class="host-card-label">Device</span>
+				<span style="display: flex; align-items: center; gap: 0.5rem;">
+					@deviceTypeIcon(host.DeviceType)
+					{ host.DeviceType }
+				</span>
 			</div>
 			if host.Metrics != nil {
 				<div class="host-card-row">
@@ -723,6 +755,12 @@ templ HostCard(host Host, csrfToken string) {
 						<span class={ metricsClass("ram", host.Metrics.RAM) }><svg class="metric-icon"><use href="#icon-ram"></use></svg><span class="metric-val">{ formatPercent(host.Metrics.RAM) }</span></span>
 						<span class="metric"><span class="metric-val">{ formatLoad(host.Metrics.Load) }</span></span>
 					</span>
+				</div>
+			}
+			if host.TestProgress != nil {
+				<div class="host-card-row">
+					<span class="host-card-label">Tests</span>
+					@TestsCell(host.TestProgress)
 				</div>
 			}
 			<div class="host-card-row">
@@ -763,6 +801,8 @@ templ HostRow(host Host, csrfToken string) {
 		<td>
 			<span style={ hostColorStyle(host) }>{ host.Hostname }</span>
 		</td>
+		<td title={ host.Location }>@locationIcon(host.Location)</td>
+		<td title={ host.DeviceType }>@deviceTypeIcon(host.DeviceType)</td>
 		<td>@osTypeIcon(host.HostType)</td>
 		<td class="metrics-cell" data-cell="metrics">
 			if host.Metrics != nil {
@@ -775,6 +815,9 @@ templ HostRow(host Host, csrfToken string) {
 			} else {
 				<span class="metrics-na">—</span>
 			}
+		</td>
+		<td class="tests-cell" data-cell="tests">
+			@TestsCell(host.TestProgress)
 		</td>
 		<td data-cell="os-version">{ valueOrDash(host.OSVersion) }</td>
 		<td data-cell="generation">{ valueOrDash(host.Generation) }</td>
@@ -855,6 +898,55 @@ templ osTypeIcon(hostType string) {
 			<svg class="os-type-icon" title="macOS"><use href="#icon-apple"></use></svg>
 		default:
 			<span>{ hostType }</span>
+	}
+}
+
+// locationIcon renders the location icon
+templ locationIcon(location string) {
+	switch location {
+		case "home":
+			<svg class="icon location-icon" title="Home"><use href="#icon-home"></use></svg>
+		case "work":
+			<svg class="icon location-icon" title="Work"><use href="#icon-office"></use></svg>
+		case "cloud":
+			<svg class="icon location-icon" title="Cloud"><use href="#icon-cloud"></use></svg>
+		default:
+			<svg class="icon location-icon" title="Home"><use href="#icon-home"></use></svg>
+	}
+}
+
+// deviceTypeIcon renders the device type icon
+templ deviceTypeIcon(deviceType string) {
+	switch deviceType {
+		case "server":
+			<svg class="icon device-icon" title="Server"><use href="#icon-server"></use></svg>
+		case "desktop":
+			<svg class="icon device-icon" title="Desktop"><use href="#icon-desktop"></use></svg>
+		case "laptop":
+			<svg class="icon device-icon" title="Laptop"><use href="#icon-laptop"></use></svg>
+		case "gaming":
+			<svg class="icon device-icon" title="Gaming"><use href="#icon-game"></use></svg>
+		default:
+			<svg class="icon device-icon" title="Desktop"><use href="#icon-desktop"></use></svg>
+	}
+}
+
+// TestsCell renders the test progress/results cell
+templ TestsCell(progress *TestProgress) {
+	if progress != nil {
+		if progress.Running {
+			<span class="test-progress">{ strconv.Itoa(progress.Current) }/{ strconv.Itoa(progress.Total) }</span>
+		} else if progress.Result != "" {
+			if progress.Passed == progress.Total {
+				<span class="test-result pass">{ progress.Result }</span>
+			} else {
+				<span class="test-result fail">{ progress.Result }</span>
+			}
+		} else {
+			<span class="tests-na">—</span>
+		}
+	} else {
+		<span class="tests-na">—</span>
 	}
 }
 

@@ -553,11 +553,21 @@ func (h *Hub) updateHost(payload protocol.RegisterPayload) {
 		}
 	}
 
+	// Use defaults for location and device_type if not provided
+	location := payload.Location
+	if location == "" {
+		location = "home"
+	}
+	deviceType := payload.DeviceType
+	if deviceType == "" {
+		deviceType = "desktop"
+	}
+
 	// Upsert host record
 	// On re-registration (after switch/restart), clear pending_command and set online
 	_, err := h.db.Exec(`
-		INSERT INTO hosts (id, hostname, host_type, agent_version, os_version, nixpkgs_version, generation, theme_color, last_seen, status, pending_command)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), 'online', NULL)
+		INSERT INTO hosts (id, hostname, host_type, agent_version, os_version, nixpkgs_version, generation, theme_color, location, device_type, last_seen, status, pending_command)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), 'online', NULL)
 		ON CONFLICT(hostname) DO UPDATE SET
 			host_type = excluded.host_type,
 			agent_version = excluded.agent_version,
@@ -565,11 +575,13 @@ func (h *Hub) updateHost(payload protocol.RegisterPayload) {
 			nixpkgs_version = excluded.nixpkgs_version,
 			generation = excluded.generation,
 			theme_color = excluded.theme_color,
+			location = excluded.location,
+			device_type = excluded.device_type,
 			last_seen = datetime('now'),
 			status = 'online',
 			pending_command = NULL
 	`, payload.Hostname, payload.Hostname, payload.HostType, payload.AgentVersion,
-		payload.OSVersion, payload.NixpkgsVersion, payload.Generation, themeColor)
+		payload.OSVersion, payload.NixpkgsVersion, payload.Generation, themeColor, location, deviceType)
 
 	if err != nil {
 		h.log.Error().Err(err).Str("hostname", payload.Hostname).Msg("failed to upsert host")

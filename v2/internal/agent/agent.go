@@ -106,6 +106,8 @@ func (a *Agent) OnConnected() {
 		Generation:        a.generation,
 		ThemeColor:        a.cfg.ThemeColor,
 		HeartbeatInterval: int(a.cfg.HeartbeatInterval.Seconds()),
+		Location:          a.cfg.Location,
+		DeviceType:        a.cfg.DeviceType,
 	}
 
 	if err := a.ws.SendMessage(protocol.TypeRegister, payload); err != nil {

@@ -33,6 +33,8 @@ type Config struct {
 	// System info (can be overridden via env)
 	NixpkgsVersion string // nixpkgs version from environment
 	ThemeColor     string // Host theme color (hex like #7aa2f7)
+	Location       string // Location: home, work, cloud
+	DeviceType     string // Device type: server, desktop, laptop, gaming
 }
 
 // DefaultConfig returns a config with default values.
@@ -122,7 +124,18 @@ func LoadFromEnv() (*Config, error) {
 	// Theme color for dashboard
 	cfg.ThemeColor = os.Getenv("NIXFLEET_THEME_COLOR")
 
+	// Location and device type (with defaults)
+	cfg.Location = getEnvOrDefault("NIXFLEET_LOCATION", "home")
+	cfg.DeviceType = getEnvOrDefault("NIXFLEET_DEVICE_TYPE", "desktop")
+
 	return cfg, nil
+}
+
+func getEnvOrDefault(key, defaultVal string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return defaultVal
 }
 
 // Validate checks that the configuration is valid.

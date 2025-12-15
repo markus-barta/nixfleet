@@ -106,6 +106,34 @@ let
       '';
       example = "#f7768e";
     };
+
+    location = lib.mkOption {
+      type = lib.types.enum [
+        "home"
+        "work"
+        "cloud"
+      ];
+      default = "home";
+      description = ''
+        Physical/logical location of this host.
+        Used for grouping and filtering in the dashboard.
+      '';
+      example = "work";
+    };
+
+    deviceType = lib.mkOption {
+      type = lib.types.enum [
+        "server"
+        "desktop"
+        "laptop"
+        "gaming"
+      ];
+      default = "desktop";
+      description = ''
+        Type of device. Used for icon display in the dashboard.
+      '';
+      example = "laptop";
+    };
   };
 
   # Build the Go agent package
@@ -125,7 +153,13 @@ let
     }
     // lib.optionalAttrs (cfg.hostname != "") { NIXFLEET_HOSTNAME = cfg.hostname; }
     // lib.optionalAttrs (cfg.nixpkgsVersion != "") { NIXFLEET_NIXPKGS_VERSION = cfg.nixpkgsVersion; }
-    // lib.optionalAttrs (cfg.themeColor != "") { NIXFLEET_THEME_COLOR = cfg.themeColor; };
+    // lib.optionalAttrs (cfg.themeColor != "") { NIXFLEET_THEME_COLOR = cfg.themeColor; }
+    // {
+      NIXFLEET_LOCATION = cfg.location;
+    }
+    // {
+      NIXFLEET_DEVICE_TYPE = cfg.deviceType;
+    };
 in
 {
   inherit mkCommonOptions mkAgentScript mkEnvironment;
