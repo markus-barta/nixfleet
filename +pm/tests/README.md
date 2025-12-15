@@ -33,9 +33,12 @@ cd +pm/tests/automated
 
 ## Test Coverage
 
-| Feature ID | Feature Name    | Manual | Automated | Status |
-| ---------- | --------------- | ------ | --------- | ------ |
-| P4350      | SVG Icon System | ✓      | ✓         | Pass   |
-| P4385      | Button States   | ✓      | ✓         | Pass   |
-| P4395      | Stop Command    | ✓      | ✓         | Pass   |
-| P2000      | Hub Resilience  | ✓      | ✓         | Pass   |
+| Feature ID | Feature Name    | Manual | Automated | Checks | Status |
+| ---------- | --------------- | ------ | --------- | ------ | ------ |
+| P2000      | Hub Resilience  | ✓      | ✓         | 12     | Pass   |
+| P4350      | SVG Icon System | ✓      | ✓         | 30     | Pass   |
+| P4370      | Table Columns   | ✓      | ✓         | 19     | Pass   |
+| P4385      | Button States   | ✓      | ✓         | 7      | Pass   |
+| P4395      | Stop Command    | ✓      | ✓         | 9      | Pass   |
+
+**Total: 77 automated checks across 5 features**

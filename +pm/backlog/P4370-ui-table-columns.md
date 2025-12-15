@@ -1,7 +1,7 @@
 # P4370 - UI: Complete Table Columns
 
 **Priority**: High  
-**Status**: Pending  
+**Status**: Partially Complete (Blocked on Agent Changes)  
 **Effort**: Large  
 **References**: `+pm/legacy/v1.0/dashboard.html`
 
@@ -113,15 +113,16 @@ tr[data-online="false"] td::before {
 
 ### Requirements
 
-- [ ] Add Location column with icons (requires agent changes)
-- [ ] Add Device Type column with icons (requires agent changes)
+- [ ] Add Location column with icons (BLOCKED: requires agent changes)
+- [ ] Add Device Type column with icons (BLOCKED: requires agent changes)
 - [x] Add Metrics column with CPU/RAM
-- [x] Add Config column with hash badge
-- [ ] Add Tests column with progress/results
+- [ ] Add Config column with hash badge (BLOCKED: no config hash in agent data)
+- [ ] Add Tests column with progress/results (BLOCKED: requires agent changes)
 - [x] Implement heartbeat ripple animation
 - [x] Add 50% overlay for offline hosts
-- [ ] Set proper column widths
+- [x] Set proper column widths
 - [x] Add hover titles for full info (metrics)
+- [x] Add OS type icons (NixOS/macOS) to Type column
 
 ## Related
 

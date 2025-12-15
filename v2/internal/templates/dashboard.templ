@@ -763,7 +763,7 @@ templ HostRow(host Host, csrfToken string) {
 		<td>
 			<span style={ hostColorStyle(host) }>{ host.Hostname }</span>
 		</td>
-		<td>{ host.HostType }</td>
+		<td>@osTypeIcon(host.HostType)</td>
 		<td class="metrics-cell" data-cell="metrics">
 			if host.Metrics != nil {
 				<span class={ metricsClass("cpu", host.Metrics.CPU) } data-metric="cpu" title={ "CPU: " + formatPercent(host.Metrics.CPU) }>
@@ -843,6 +843,18 @@ templ commandIcon(command string) {
 			<svg class="icon"><use href="#icon-stop"></use></svg>
 		default:
 			// No icon for unknown commands
+	}
+}
+
+// osTypeIcon renders the OS type icon (NixOS or macOS)
+templ osTypeIcon(hostType string) {
+	switch hostType {
+		case "nixos":
+			<svg class="os-type-icon" title="NixOS"><use href="#icon-nixos"></use></svg>
+		case "macos":
+			<svg class="os-type-icon" title="macOS"><use href="#icon-apple"></use></svg>
+		default:
+			<span>{ hostType }</span>
 	}
 }
 
