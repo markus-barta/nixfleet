@@ -267,6 +267,7 @@ templ Base(title string, csrfToken string) {
 				text-align: left;
 				border-bottom: 1px solid var(--border);
 				font-size: 13px;
+				vertical-align: middle;
 			}
 
 			.host-table th {
@@ -286,23 +287,15 @@ templ Base(title string, csrfToken string) {
 				border-bottom: none;
 			}
 
-			/* OS Type icon */
-			.os-type-icon {
-				width: 18px;
-				height: 18px;
-				display: inline-block;
-				vertical-align: middle;
-			}
-
-			/* Location and Device Type icons */
-			.location-icon, .device-icon {
+			/* Location, Device Type, and Host Type icons */
+			.location-icon, .device-icon, .type-icon {
 				width: 16px;
 				height: 16px;
 				color: var(--fg-dark);
 				opacity: 0.8;
 			}
 
-			.location-icon:hover, .device-icon:hover {
+			.location-icon:hover, .device-icon:hover, .type-icon:hover {
 				opacity: 1;
 				color: var(--fg);
 			}
@@ -353,7 +346,14 @@ templ Base(title string, csrfToken string) {
 			}
 
 			.status-online { background: var(--green); box-shadow: 0 0 6px var(--green); }
-			.status-offline { background: #f7768e; box-shadow: 0 0 4px rgba(247, 118, 142, 0.5); }
+			.status-offline { 
+				width: 6px;
+				height: 6px;
+				min-width: 6px;
+				min-height: 6px;
+				background: #c75a6a;
+				box-shadow: none;
+			}
 			.status-running { background: var(--yellow); animation: pulse 1.5s infinite; box-shadow: 0 0 4px var(--yellow); }
 			.status-error { background: var(--red); }
 
@@ -789,7 +789,13 @@ templ Base(title string, csrfToken string) {
 			}
 
 			.btn-more {
-				padding: 0.4rem 0.5rem;
+				padding: 0.5rem;
+				margin-left: 10px;
+				min-width: 36px;
+				min-height: 36px;
+				display: flex;
+				align-items: center;
+				justify-content: center;
 			}
 
 			.dropdown-menu {
@@ -806,8 +812,19 @@ templ Base(title string, csrfToken string) {
 				z-index: 9999;
 			}
 
-			.dropdown.open .dropdown-menu {
+			.dropdown.open .dropdown-menu,
+			.dropdown-menu.open {
 				display: block;
+			}
+
+			/* Bulk Actions dropdown in header */
+			.bulk-actions-dropdown {
+				position: relative;
+			}
+
+			.bulk-actions-dropdown .dropdown-menu {
+				right: auto;
+				left: 0;
 			}
 
 			.dropdown-item {

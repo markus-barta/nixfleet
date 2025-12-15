@@ -85,23 +85,29 @@ templ Dashboard(data DashboardData) {
 				<div class="subtitle">Simple, unified fleet management for NixOS and macOS</div>
 			</div>
 			<div class="header-actions">
-				<div class="bulk-actions">
-					<button class="btn bulk-btn" onclick="bulkCommand('update')" title="Pull + Switch all online hosts">
-						<svg class="icon"><use href="#icon-refresh"></use></svg>
-						Update All
+				<div class="dropdown bulk-actions-dropdown">
+					<button class="btn" onclick="toggleBulkMenu(event)">
+						<svg class="icon"><use href="#icon-menu"></use></svg>
+						Bulk Actions
 					</button>
-					<button class="btn bulk-btn" onclick="bulkCommand('pull')" title="Pull all online hosts">
-						<svg class="icon"><use href="#icon-download"></use></svg>
-						Pull All
-					</button>
-					<button class="btn bulk-btn" onclick="bulkCommand('switch')" title="Switch all online hosts">
-						<svg class="icon"><use href="#icon-refresh"></use></svg>
-						Switch All
-					</button>
-					<button class="btn bulk-btn" onclick="bulkCommand('test')" title="Test all online hosts">
-						<svg class="icon"><use href="#icon-flask"></use></svg>
-						Test All
-					</button>
+					<div class="dropdown-menu" id="bulk-actions-menu">
+						<button class="dropdown-item" onclick="bulkCommand('update'); closeBulkMenu()">
+							<svg class="icon"><use href="#icon-refresh"></use></svg>
+							Update All
+						</button>
+						<button class="dropdown-item" onclick="bulkCommand('pull'); closeBulkMenu()">
+							<svg class="icon"><use href="#icon-download"></use></svg>
+							Pull All
+						</button>
+						<button class="dropdown-item" onclick="bulkCommand('switch'); closeBulkMenu()">
+							<svg class="icon"><use href="#icon-refresh"></use></svg>
+							Switch All
+						</button>
+						<button class="dropdown-item" onclick="bulkCommand('test'); closeBulkMenu()">
+							<svg class="icon"><use href="#icon-flask"></use></svg>
+							Test All
+						</button>
+					</div>
 				</div>
 				<form method="POST" action="/logout" style="display: inline;">
 					<input type="hidden" name="csrf_token" value={ data.CSRFToken }/>
@@ -109,22 +115,6 @@ templ Dashboard(data DashboardData) {
 				</form>
 			</div>
 		</header>
-
-		<!-- Stats Bar -->
-		<div class="stats-bar">
-			<div class="stat">
-				<span>Hosts:</span>
-				<span class="stat-value">{ fmt.Sprint(data.Stats.Total) }</span>
-			</div>
-			<div class="stat">
-				<span>Online:</span>
-				<span class="stat-value online" id="stat-online">{ fmt.Sprint(data.Stats.Online) }</span>
-			</div>
-			<div class="stat">
-				<span>Offline:</span>
-				<span class="stat-value offline" id="stat-offline">{ fmt.Sprint(data.Stats.Total - data.Stats.Online) }</span>
-			</div>
-		</div>
 
 		<!-- Mobile: Card View -->
 		<div class="host-grid" id="host-cards">
@@ -137,11 +127,11 @@ templ Dashboard(data DashboardData) {
 		<table class="host-table" id="host-table">
 			<thead>
 				<tr>
-					<th>Status</th>
-					<th>Host</th>
+					<th title="Online / Total Hosts"><span id="stat-online">{ fmt.Sprint(data.Stats.Online) }</span>/{ fmt.Sprint(data.Stats.Total) }</th>
+					<th>Name</th>
 					<th title="Location">Loc</th>
 					<th title="Device Type">Dev</th>
-					<th>Type</th>
+					<th title="Host Type">Type</th>
 					<th>Metrics</th>
 					<th title="Update Status (Git/Lock/System)">Update</th>
 					<th>Tests</th>
@@ -829,6 +819,26 @@ templ Dashboard(data DashboardData) {
 				if (e.key === 'Escape') {
 					document.querySelectorAll('.dropdown.open').forEach(d => d.classList.remove('open'));
 					document.querySelectorAll('.modal-overlay.open').forEach(m => m.classList.remove('open'));
+					closeBulkMenu();
+				}
+			});
+
+			// ===== Bulk Actions Menu =====
+			function toggleBulkMenu(e) {
+				e.stopPropagation();
+				const menu = document.getElementById('bulk-actions-menu');
+				menu.classList.toggle('open');
+			}
+
+			function closeBulkMenu() {
+				const menu = document.getElementById('bulk-actions-menu');
+				if (menu) menu.classList.remove('open');
+			}
+
+			// Close bulk menu when clicking outside
+			document.addEventListener('click', (e) => {
+				if (!e.target.closest('.bulk-actions-dropdown')) {
+					closeBulkMenu();
 				}
 			});
 
@@ -1028,7 +1038,7 @@ templ HostCard(host Host, csrfToken string) {
 			</div>
 			<div class="host-card-actions">
 				@CommandButton(host.ID, "pull", "Pull", "btn", host.Online && host.PendingCommand == "")
-				@CommandButton(host.ID, "switch", "Switch", "btn btn-primary", host.Online && host.PendingCommand == "")
+				@CommandButton(host.ID, "switch", "Switch", "btn", host.Online && host.PendingCommand == "")
 				@CommandButton(host.ID, "test", "Test", "btn", host.Online && host.PendingCommand == "")
 				@DeleteButton(host.ID, !host.Online)
 			</div>
@@ -1075,7 +1085,7 @@ templ HostRow(host Host, csrfToken string) {
 		<td class="actions-cell">
 			<div class="action-buttons">
 				@CommandButton(host.ID, "pull", "", "btn", host.Online && host.PendingCommand == "")
-				@CommandButton(host.ID, "switch", "", "btn btn-primary", host.Online && host.PendingCommand == "")
+				@CommandButton(host.ID, "switch", "", "btn", host.Online && host.PendingCommand == "")
 				@CommandButton(host.ID, "test", "", "btn", host.Online && host.PendingCommand == "")
 				@ActionDropdown(host)
 			</div>
@@ -1143,9 +1153,9 @@ templ commandIcon(command string) {
 templ osTypeIcon(hostType string) {
 	switch hostType {
 		case "nixos":
-			<svg class="os-type-icon" title="NixOS"><use href="#icon-nixos"></use></svg>
+			<svg class="icon type-icon" title="NixOS"><use href="#icon-nixos"></use></svg>
 		case "macos":
-			<svg class="os-type-icon" title="macOS"><use href="#icon-apple"></use></svg>
+			<svg class="icon type-icon" title="macOS"><use href="#icon-apple"></use></svg>
 		default:
 			<span>{ hostType }</span>
 	}
