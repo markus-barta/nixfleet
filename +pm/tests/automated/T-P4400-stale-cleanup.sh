@@ -64,13 +64,13 @@ else
   ((FAIL++))
 fi
 
-# Test 4: Cleanup targets ONLY offline hosts
-echo "[TEST] Cleanup targets ONLY offline hosts"
-if grep -q "status = 'offline'" v2/internal/dashboard/hub.go; then
-  echo "  [PASS] Cleanup SQL filters by offline status"
+# Test 4: Cleanup targets stale hosts (not connected)
+echo "[TEST] Cleanup targets stale hosts (not connected)"
+if grep -q "connectedAgents\[hostname\]" v2/internal/dashboard/hub.go; then
+  echo "  [PASS] Cleanup skips currently connected agents"
   ((PASS++))
 else
-  echo "  [FAIL] Cleanup SQL does NOT filter by offline status"
+  echo "  [FAIL] Cleanup does NOT check for connected agents"
   ((FAIL++))
 fi
 

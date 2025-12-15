@@ -328,18 +328,28 @@ func (h *Hub) staleCommandCleanupLoop(ctx context.Context) {
 	}
 }
 
-// cleanupStaleCommands clears pending_command for offline hosts that have been
-// offline longer than the stale threshold. Only affects OFFLINE hosts.
+// cleanupStaleCommands clears pending_command for hosts that have been
+// unresponsive longer than the stale threshold. This handles:
+// - Offline hosts that went down during a command
+// - "Running" hosts where the agent died mid-command without sending status
+// Any host with a pending_command and stale last_seen is cleaned up.
 func (h *Hub) cleanupStaleCommands() {
 	timeout := h.cfg.StaleCommandTimeout()
 	thresholdMinutes := int(timeout.Minutes())
 
 	// First, query which hosts will be affected (for broadcasting)
+	// Check if host is currently connected - don't cleanup active agents
+	h.mu.RLock()
+	connectedAgents := make(map[string]bool)
+	for hostname := range h.agents {
+		connectedAgents[hostname] = true
+	}
+	h.mu.RUnlock()
+
 	rows, err := h.db.Query(`
-		SELECT hostname, pending_command
+		SELECT hostname, pending_command, status
 		FROM hosts
 		WHERE pending_command IS NOT NULL
-		AND status = 'offline'
 		AND last_seen < datetime('now', '-' || ? || ' minutes')
 	`, thresholdMinutes)
 	if err != nil {
@@ -349,16 +359,21 @@ func (h *Hub) cleanupStaleCommands() {
 
 	var hostsToUpdate []string
 	for rows.Next() {
-		var hostname, pendingCommand string
-		if err := rows.Scan(&hostname, &pendingCommand); err != nil {
+		var hostname, pendingCommand, status string
+		if err := rows.Scan(&hostname, &pendingCommand, &status); err != nil {
+			continue
+		}
+		// Skip if agent is currently connected (heartbeats will handle it)
+		if connectedAgents[hostname] {
 			continue
 		}
 		hostsToUpdate = append(hostsToUpdate, hostname)
 		h.log.Info().
 			Str("host", hostname).
 			Str("command", pendingCommand).
+			Str("status", status).
 			Dur("threshold", timeout).
-			Msg("clearing stale pending_command for offline host")
+			Msg("clearing stale pending_command for unresponsive host")
 	}
 	rows.Close()
 
@@ -366,35 +381,35 @@ func (h *Hub) cleanupStaleCommands() {
 		return
 	}
 
-	// Update the database
-	result, err := h.db.Exec(`
-		UPDATE hosts
-		SET pending_command = NULL
-		WHERE pending_command IS NOT NULL
-		AND status = 'offline'
-		AND last_seen < datetime('now', '-' || ? || ' minutes')
-	`, thresholdMinutes)
-	if err != nil {
-		h.log.Error().Err(err).Msg("failed to cleanup stale commands")
-		return
+	// Update the database - also set status to 'offline' since host is clearly not running
+	for _, hostname := range hostsToUpdate {
+		_, err := h.db.Exec(`
+			UPDATE hosts
+			SET pending_command = NULL, status = 'offline'
+			WHERE hostname = ?
+		`, hostname)
+		if err != nil {
+			h.log.Error().Err(err).Str("host", hostname).Msg("failed to cleanup stale command")
+			continue
+		}
 	}
 
-	if affected, _ := result.RowsAffected(); affected > 0 {
-		h.log.Info().
-			Int64("count", affected).
-			Dur("threshold", timeout).
-			Msg("cleared stale commands for offline hosts")
+	h.log.Info().
+		Int("count", len(hostsToUpdate)).
+		Dur("threshold", timeout).
+		Msg("cleared stale commands for unresponsive hosts")
 
-		// Broadcast updates to browsers so UI refreshes
-		for _, hostname := range hostsToUpdate {
-			h.queueBroadcast(map[string]any{
-				"type": "host_update",
-				"payload": map[string]any{
-					"host_id":         hostname,
-					"pending_command": nil,
-				},
-			})
-		}
+	// Broadcast updates to browsers so UI refreshes
+	for _, hostname := range hostsToUpdate {
+		h.queueBroadcast(map[string]any{
+			"type": "host_update",
+			"payload": map[string]any{
+				"host_id":         hostname,
+				"pending_command": nil,
+				"online":          false,
+				"status":          "offline",
+			},
+		})
 	}
 }
 
