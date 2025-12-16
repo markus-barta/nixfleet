@@ -45,14 +45,24 @@ func (s *StatusChecker) GetStatus(ctx context.Context) *protocol.UpdateStatus {
 
 	// Check lock status if expired
 	if now.Sub(s.lastLockCheck) > s.lockInterval {
+		s.a.log.Debug().Msg("running lock status check")
 		s.lockStatus = s.checkLockStatus(ctx)
 		s.lastLockCheck = now
+		s.a.log.Debug().
+			Str("status", s.lockStatus.Status).
+			Str("message", s.lockStatus.Message).
+			Msg("lock status check completed")
 	}
 
 	// Check system status if expired
 	if now.Sub(s.lastSystemCheck) > s.systemInterval {
+		s.a.log.Debug().Msg("running system status check")
 		s.systemStatus = s.checkSystemStatus(ctx)
 		s.lastSystemCheck = now
+		s.a.log.Debug().
+			Str("status", s.systemStatus.Status).
+			Str("message", s.systemStatus.Message).
+			Msg("system status check completed")
 	}
 
 	return &protocol.UpdateStatus{
@@ -170,8 +180,8 @@ func (s *StatusChecker) checkSystemStatus(ctx context.Context) protocol.StatusCh
 
 // checkNixOSSystemStatus checks NixOS system status by comparing derivations.
 func (s *StatusChecker) checkNixOSSystemStatus(ctx context.Context, repoDir, hostname string) protocol.StatusCheck {
-	// Get current system derivation
-	currentLink, err := os.Readlink("/run/current-system")
+	// Get current system derivation (resolve symlink to store path)
+	currentPath, err := filepath.EvalSymlinks("/run/current-system")
 	if err != nil {
 		return protocol.StatusCheck{
 			Status:    "error",
@@ -199,7 +209,7 @@ func (s *StatusChecker) checkNixOSSystemStatus(ctx context.Context, repoDir, hos
 	// Parse the JSON output to get the derivation path
 	// Output format: [{"drvPath": "...", "outputs": {"out": "/nix/store/..."}}]
 	outStr := string(output)
-	if strings.Contains(outStr, currentLink) {
+	if strings.Contains(outStr, currentPath) {
 		return protocol.StatusCheck{
 			Status:    "ok",
 			Message:   "System is current",
@@ -228,7 +238,10 @@ func (s *StatusChecker) checkMacOSSystemStatus(ctx context.Context, repoDir, hos
 	}
 
 	currentGen := filepath.Join(homeDir, ".local/state/nix/profiles/home-manager")
-	currentLink, err := os.Readlink(currentGen)
+
+	// Resolve symlink chain to get final store path
+	// home-manager -> home-manager-37-link -> /nix/store/xxx-home-manager-generation
+	currentPath, err := filepath.EvalSymlinks(currentGen)
 	if err != nil {
 		return protocol.StatusCheck{
 			Status:    "unknown",
@@ -252,9 +265,10 @@ func (s *StatusChecker) checkMacOSSystemStatus(ctx context.Context, repoDir, hos
 		}
 	}
 
-	// Check if current matches what would be built
+	// Check if current store path matches what would be built
+	// The output contains paths like /nix/store/xxx-home-manager-generation
 	outStr := string(output)
-	if strings.Contains(outStr, currentLink) || strings.Contains(outStr, filepath.Base(currentLink)) {
+	if strings.Contains(outStr, currentPath) {
 		return protocol.StatusCheck{
 			Status:    "ok",
 			Message:   "Home Manager is current",
