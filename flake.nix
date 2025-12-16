@@ -89,6 +89,7 @@
             go
             gopls
             golangci-lint
+            templ # Template code generator for Go
 
             # Agent dependencies
             curl
@@ -104,6 +105,7 @@
             echo "🚀 NixFleet v2 development shell"
             echo ""
             echo "Commands:"
+            echo "  cd v2 && templ generate                     # Generate template code"
             echo "  cd v2 && go build ./cmd/nixfleet-agent      # Build agent"
             echo "  cd v2 && go build ./cmd/nixfleet-dashboard  # Build dashboard"
             echo "  cd v2 && go test ./tests/integration/...    # Run tests"
