@@ -130,6 +130,13 @@ templ Base(title string, csrfToken string) {
 				color: var(--fg-muted);
 			}
 
+			.target-icon {
+				width: 12px;
+				height: 12px;
+				fill: var(--cyan);
+				opacity: 0.7;
+			}
+
 			.target-commit {
 				font-family: 'JetBrains Mono', 'Fira Code', monospace;
 				font-size: 0.7rem;
@@ -898,17 +905,17 @@ templ Base(title string, csrfToken string) {
 				color: #6b7280;
 			}
 
-			/* Agent outdated - 4th compartment with fading red "A" */
+			/* Agent outdated - 4th compartment with regular bg, red "A" */
 			.update-compartment.agent-outdated {
-				background: linear-gradient(135deg, #991b1b, #7f1d1d);
-				border-color: #dc2626;
+				background: linear-gradient(135deg, #166534, #14532d);
+				border-color: #22c55e;
 			}
 
 			.update-compartment.agent-outdated .agent-letter {
 				font-family: 'JetBrains Mono', 'Fira Code', monospace;
 				font-size: 0.65rem;
 				font-weight: 700;
-				color: #fca5a5;
+				color: #f87171;
 				animation: agent-pulse 2s ease-in-out infinite;
 			}
 

@@ -991,8 +991,9 @@ templ FleetTargetLine(target FleetTarget) {
 	<div class="fleet-target">
 		if target.HasData {
 			<span class="target-label">Target:</span>
+			<svg class="target-icon"><use href="#icon-git-branch"></use></svg>
 			<a
-				href={ templ.SafeURL(target.RepoURL + "/commit/" + target.GitFull) }
+				href={ templ.SafeURL("https://github.com/" + target.RepoURL + "/commit/" + target.GitFull) }
 				target="_blank"
 				rel="noopener"
 				class="target-commit"
@@ -1002,7 +1003,7 @@ templ FleetTargetLine(target FleetTarget) {
 			</a>
 			<span class="target-branch">({ target.Branch }, { target.TimeAgo })</span>
 			<span class="target-separator">•</span>
-			<span class="target-agent" title="Expected agent version">Agent { target.AgentVer }</span>
+			<span class="target-agent" title={ "Expected agent version: " + target.AgentVer }>{ target.AgentVer }</span>
 		} else {
 			<span class="target-label">Target:</span>
 			<span class="target-unavailable">Version tracking not configured</span>
