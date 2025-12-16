@@ -160,13 +160,32 @@ templ Base(title string, csrfToken string) {
 				background: rgba(247, 118, 142, 0.1);
 			}
 
+			/* Header actions container */
+			.header-actions {
+				display: flex;
+				align-items: center;
+				gap: 0;
+			}
+
 			/* Header action buttons - consistent sizing */
 			.btn-header {
 				height: 36px;
 				padding: 0.5rem 1rem;
 				display: inline-flex;
 				align-items: center;
+				justify-content: center;
 				gap: 0.5rem;
+				box-sizing: border-box;
+			}
+
+			.bulk-actions-dropdown {
+				margin-right: 10px;
+			}
+
+			.header-actions form {
+				display: inline-flex;
+				align-items: center;
+				margin: 0;
 			}
 
 			.btn:disabled {

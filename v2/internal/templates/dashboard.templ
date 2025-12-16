@@ -109,7 +109,7 @@ templ Dashboard(data DashboardData) {
 						</button>
 					</div>
 				</div>
-				<form method="POST" action="/logout" style="display: inline-flex; align-items: center;">
+				<form method="POST" action="/logout">
 					<input type="hidden" name="csrf_token" value={ data.CSRFToken }/>
 					<button type="submit" class="btn btn-danger btn-header">Logout</button>
 				</form>
