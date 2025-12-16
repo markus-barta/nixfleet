@@ -106,6 +106,15 @@ func createTables(db *sql.DB) error {
 		_, _ = db.Exec(m)
 	}
 
+	// Add repo_url and repo_dir columns (v2.3.0 - P5500)
+	repoMigrations := []string{
+		`ALTER TABLE hosts ADD COLUMN repo_url TEXT`,
+		`ALTER TABLE hosts ADD COLUMN repo_dir TEXT`,
+	}
+	for _, m := range repoMigrations {
+		_, _ = db.Exec(m)
+	}
+
 	return nil
 }
 

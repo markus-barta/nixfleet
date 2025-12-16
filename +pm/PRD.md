@@ -143,12 +143,28 @@ NixFleet is a fleet management system for NixOS and macOS hosts. It enables cent
 | FR-1.8  | Auto-reconnect with exponential backoff                     | Must     |
 | FR-1.9  | Support isolated repo mode (agent-managed git clone)        | Must     |
 | FR-1.10 | Support SSH key for git operations                          | Should   |
-| FR-1.11 | Track command PID for stop capability                       | Must     |
-| FR-1.12 | Work on NixOS (systemd) and macOS (launchd)                 | Must     |
-| FR-1.13 | Report heartbeat interval on registration                   | Must     |
-| FR-1.14 | Report flake.lock last-modified date                        | Should   |
-| FR-1.15 | Detect if system needs rebuild (compare derivations)        | Should   |
-| FR-1.16 | Support `flakePath` config for status checks                | Should   |
+
+**FR-1.9 Detail: Isolated Repo Mode**
+
+The agent must maintain its own dedicated repository clone, separate from any user-managed repositories:
+
+| Platform                     | Default Isolated Path                |
+| ---------------------------- | ------------------------------------ |
+| NixOS (systemd)              | `/var/lib/nixfleet-agent/repo`       |
+| macOS (launchd/Home Manager) | `~/.local/state/nixfleet-agent/repo` |
+
+Behavior:
+
+1. **Auto-clone**: If `NIXFLEET_REPO_URL` is set and repo doesn't exist, clone it automatically
+2. **Clean slate**: Pull command does `git fetch` + `git reset --hard origin/<branch>` + `git clean -fd` (no merge conflicts)
+3. **Exclusive access**: Directory owned by agent, mode 0700
+4. **Override**: `NIXFLEET_REPO_DIR` can override default path for backward compatibility
+   | FR-1.11 | Track command PID for stop capability | Must |
+   | FR-1.12 | Work on NixOS (systemd) and macOS (launchd) | Must |
+   | FR-1.13 | Report heartbeat interval on registration | Must |
+   | FR-1.14 | Report flake.lock last-modified date | Should |
+   | FR-1.15 | Detect if system needs rebuild (compare derivations) | Should |
+   | FR-1.16 | Support `flakePath` config for status checks | Should |
 
 ### FR-2: Dashboard Backend
 
@@ -325,6 +341,8 @@ NixFleet is a fleet management system for NixOS and macOS hosts. It enables cent
 
 | Date       | Version | Changes                                                                |
 | ---------- | ------- | ---------------------------------------------------------------------- |
+| 2025-12-16 | 1.3     | FR-1.9: Added detailed isolated repo mode spec (P5500)                 |
+|            |         | Specified default paths, auto-clone, clean-slate behavior              |
 | 2025-12-15 | 1.2     | US-7, US-8: Added Update Status and Automated Flake Updates stories    |
 |            |         | FR-1.14-16: Agent update status checks (flakePath, derivation compare) |
 |            |         | FR-2.14-16: Dashboard GitHub Pages integration for version compare     |

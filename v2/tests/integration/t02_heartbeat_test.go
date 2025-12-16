@@ -18,6 +18,12 @@ import (
 // When: 5 seconds pass
 // Then: at least 5 heartbeats received (including immediate first)
 func TestAgentHeartbeat_Regular(t *testing.T) {
+	// Create a temp git repo for the agent
+	tmpDir := t.TempDir()
+	if err := initTestGitRepo(tmpDir); err != nil {
+		t.Skipf("git not available: %v", err)
+	}
+
 	// Start mock dashboard
 	dashboard := NewMockDashboard(t)
 	defer dashboard.Close()
@@ -26,7 +32,7 @@ func TestAgentHeartbeat_Regular(t *testing.T) {
 	cfg := &config.Config{
 		DashboardURL:      dashboard.URL(),
 		Token:             "test-token",
-		RepoDir:           "/tmp/nixfleet-test",
+		RepoDir:           tmpDir,
 		HeartbeatInterval: 1 * time.Second,
 		Hostname:          "test-host",
 		LogLevel:          "debug",
@@ -79,6 +85,12 @@ func TestAgentHeartbeat_Regular(t *testing.T) {
 // TestAgentHeartbeat_DuringCommand tests Scenario 2: Heartbeat During Command Execution
 // This is the CRITICAL test for v2.0 - heartbeats must continue during commands
 func TestAgentHeartbeat_DuringCommand(t *testing.T) {
+	// Create a temp git repo for the agent
+	tmpDir := t.TempDir()
+	if err := initTestGitRepo(tmpDir); err != nil {
+		t.Skipf("git not available: %v", err)
+	}
+
 	// Start mock dashboard
 	dashboard := NewMockDashboard(t)
 	defer dashboard.Close()
@@ -87,7 +99,7 @@ func TestAgentHeartbeat_DuringCommand(t *testing.T) {
 	cfg := &config.Config{
 		DashboardURL:      dashboard.URL(),
 		Token:             "test-token",
-		RepoDir:           "/tmp/nixfleet-test",
+		RepoDir:           tmpDir,
 		HeartbeatInterval: 1 * time.Second,
 		Hostname:          "test-host",
 		LogLevel:          "debug",
@@ -154,6 +166,12 @@ func TestAgentHeartbeat_WithoutMetrics(t *testing.T) {
 	// This test relies on StaSysMo not being available on the test host
 	// (which is typically true in CI environments)
 
+	// Create a temp git repo for the agent
+	tmpDir := t.TempDir()
+	if err := initTestGitRepo(tmpDir); err != nil {
+		t.Skipf("git not available: %v", err)
+	}
+
 	// Start mock dashboard
 	dashboard := NewMockDashboard(t)
 	defer dashboard.Close()
@@ -162,7 +180,7 @@ func TestAgentHeartbeat_WithoutMetrics(t *testing.T) {
 	cfg := &config.Config{
 		DashboardURL:      dashboard.URL(),
 		Token:             "test-token",
-		RepoDir:           "/tmp/nixfleet-test",
+		RepoDir:           tmpDir,
 		HeartbeatInterval: 1 * time.Second,
 		Hostname:          "test-host",
 		LogLevel:          "debug",
@@ -215,6 +233,12 @@ func TestAgentHeartbeat_WithoutMetrics(t *testing.T) {
 // When: dashboard sends another command
 // Then: agent rejects with "command already running"
 func TestAgentHeartbeat_ConcurrentCommandRejection(t *testing.T) {
+	// Create a temp git repo for the agent
+	tmpDir := t.TempDir()
+	if err := initTestGitRepo(tmpDir); err != nil {
+		t.Skipf("git not available: %v", err)
+	}
+
 	// Start mock dashboard
 	dashboard := NewMockDashboard(t)
 	defer dashboard.Close()
@@ -223,7 +247,7 @@ func TestAgentHeartbeat_ConcurrentCommandRejection(t *testing.T) {
 	cfg := &config.Config{
 		DashboardURL:      dashboard.URL(),
 		Token:             "test-token",
-		RepoDir:           "/tmp/nixfleet-test",
+		RepoDir:           tmpDir,
 		HeartbeatInterval: 1 * time.Second,
 		Hostname:          "test-host",
 		LogLevel:          "debug",
@@ -288,6 +312,12 @@ func TestAgentHeartbeat_ConcurrentCommandRejection(t *testing.T) {
 // TestAgentHeartbeat_ImmediateFirst tests that first heartbeat is sent immediately
 // after registration, not after waiting for interval
 func TestAgentHeartbeat_ImmediateFirst(t *testing.T) {
+	// Create a temp git repo for the agent
+	tmpDir := t.TempDir()
+	if err := initTestGitRepo(tmpDir); err != nil {
+		t.Skipf("git not available: %v", err)
+	}
+
 	// Start mock dashboard
 	dashboard := NewMockDashboard(t)
 	defer dashboard.Close()
@@ -296,7 +326,7 @@ func TestAgentHeartbeat_ImmediateFirst(t *testing.T) {
 	cfg := &config.Config{
 		DashboardURL:      dashboard.URL(),
 		Token:             "test-token",
-		RepoDir:           "/tmp/nixfleet-test",
+		RepoDir:           tmpDir,
 		HeartbeatInterval: 10 * time.Second, // Long interval
 		Hostname:          "test-host",
 		LogLevel:          "debug",

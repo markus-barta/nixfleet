@@ -54,6 +54,8 @@ type RegisterPayload struct {
 	HeartbeatInterval int    `json:"heartbeat_interval"`
 	Location          string `json:"location"`    // home, work, cloud
 	DeviceType        string `json:"device_type"` // server, desktop, laptop, gaming
+	RepoURL           string `json:"repo_url"`    // git repo URL (isolated mode)
+	RepoDir           string `json:"repo_dir"`    // local repo path
 }
 
 // RegisteredPayload is sent by the dashboard to confirm registration.

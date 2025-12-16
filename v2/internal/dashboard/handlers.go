@@ -215,7 +215,8 @@ func (s *Server) getHosts() ([]templates.Host, error) {
 	rows, err := s.db.Query(`
 		SELECT id, hostname, host_type, agent_version, os_version, 
 		       nixpkgs_version, generation, last_seen, status, pending_command, 
-		       theme_color, metrics_json, location, device_type, test_progress
+		       theme_color, metrics_json, location, device_type, test_progress,
+		       repo_url, repo_dir
 		FROM hosts ORDER BY hostname
 	`)
 	if err != nil {
@@ -232,11 +233,13 @@ func (s *Server) getHosts() ([]templates.Host, error) {
 			Status                                              string
 			PendingCommand, ThemeColor, MetricsJSON             *string
 			Location, DeviceType, TestProgressJSON              *string
+			RepoURL, RepoDir                                    *string
 		}
 		if err := rows.Scan(&h.ID, &h.Hostname, &h.HostType, &h.AgentVersion,
 			&h.OSVersion, &h.NixpkgsVersion, &h.Generation, &h.LastSeen,
 			&h.Status, &h.PendingCommand, &h.ThemeColor, &h.MetricsJSON,
-			&h.Location, &h.DeviceType, &h.TestProgressJSON); err != nil {
+			&h.Location, &h.DeviceType, &h.TestProgressJSON,
+			&h.RepoURL, &h.RepoDir); err != nil {
 			s.log.Debug().Err(err).Msg("failed to scan host row")
 			continue
 		}
@@ -282,6 +285,12 @@ func (s *Server) getHosts() ([]templates.Host, error) {
 		} else {
 			host.DeviceType = "desktop"
 		}
+		if h.RepoURL != nil {
+			host.RepoURL = *h.RepoURL
+		}
+		if h.RepoDir != nil {
+			host.RepoDir = *h.RepoDir
+		}
 		if h.TestProgressJSON != nil {
 			var testProgress templates.TestProgress
 			if err := json.Unmarshal([]byte(*h.TestProgressJSON), &testProgress); err == nil {
@@ -290,7 +299,7 @@ func (s *Server) getHosts() ([]templates.Host, error) {
 		}
 
 		// Populate Update Status (P5000 - Git check)
-		host.UpdateStatus = s.getUpdateStatus(host.Generation)
+		host.UpdateStatus = s.getUpdateStatus(host.Generation, host.RepoURL, host.RepoDir)
 
 		hosts = append(hosts, host)
 	}
@@ -298,8 +307,11 @@ func (s *Server) getHosts() ([]templates.Host, error) {
 }
 
 // getUpdateStatus returns the update status for a host based on its generation.
-func (s *Server) getUpdateStatus(generation string) *templates.UpdateStatus {
-	status := &templates.UpdateStatus{}
+func (s *Server) getUpdateStatus(generation, repoURL, repoDir string) *templates.UpdateStatus {
+	status := &templates.UpdateStatus{
+		RepoURL: repoURL,
+		RepoDir: repoDir,
+	}
 
 	// Git status (from GitHub Pages)
 	if s.versionFetcher != nil {

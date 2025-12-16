@@ -18,6 +18,12 @@ import (
 // When: agent starts
 // Then: agent connects, sends register message, dashboard acknowledges
 func TestAgentConnection_Success(t *testing.T) {
+	// Create a temp git repo for the agent
+	tmpDir := t.TempDir()
+	if err := initTestGitRepo(tmpDir); err != nil {
+		t.Skipf("git not available: %v", err)
+	}
+
 	// Start mock dashboard
 	dashboard := NewMockDashboard(t)
 	defer dashboard.Close()
@@ -26,7 +32,7 @@ func TestAgentConnection_Success(t *testing.T) {
 	cfg := &config.Config{
 		DashboardURL:      dashboard.URL(),
 		Token:             "test-token",
-		RepoDir:           "/tmp/nixfleet-test",
+		RepoDir:           tmpDir,
 		HeartbeatInterval: 1 * time.Second,
 		Hostname:          "test-host",
 		LogLevel:          "debug",
@@ -79,6 +85,12 @@ func TestAgentConnection_Success(t *testing.T) {
 // When: agent attempts to connect
 // Then: connection rejected with 401, agent retries with backoff
 func TestAgentConnection_InvalidToken(t *testing.T) {
+	// Create a temp git repo for the agent
+	tmpDir := t.TempDir()
+	if err := initTestGitRepo(tmpDir); err != nil {
+		t.Skipf("git not available: %v", err)
+	}
+
 	// Start mock dashboard
 	dashboard := NewMockDashboard(t)
 	dashboard.SetAuthToken("correct-token") // Agent will use wrong token
@@ -88,7 +100,7 @@ func TestAgentConnection_InvalidToken(t *testing.T) {
 	cfg := &config.Config{
 		DashboardURL:      dashboard.URL(),
 		Token:             "wrong-token", // Wrong token!
-		RepoDir:           "/tmp/nixfleet-test",
+		RepoDir:           tmpDir,
 		HeartbeatInterval: 1 * time.Second,
 		Hostname:          "test-host",
 		LogLevel:          "debug",
@@ -129,6 +141,12 @@ func TestAgentConnection_InvalidToken(t *testing.T) {
 // When: dashboard closes connection
 // Then: agent detects disconnect, reconnects with backoff
 func TestAgentConnection_Reconnect(t *testing.T) {
+	// Create a temp git repo for the agent
+	tmpDir := t.TempDir()
+	if err := initTestGitRepo(tmpDir); err != nil {
+		t.Skipf("git not available: %v", err)
+	}
+
 	// Start mock dashboard
 	dashboard := NewMockDashboard(t)
 
@@ -136,7 +154,7 @@ func TestAgentConnection_Reconnect(t *testing.T) {
 	cfg := &config.Config{
 		DashboardURL:      dashboard.URL(),
 		Token:             "test-token",
-		RepoDir:           "/tmp/nixfleet-test",
+		RepoDir:           tmpDir,
 		HeartbeatInterval: 1 * time.Second,
 		Hostname:          "test-host",
 		LogLevel:          "debug",
@@ -187,6 +205,12 @@ func TestAgentConnection_Reconnect(t *testing.T) {
 // When: dashboard sends malformed JSON
 // Then: agent logs error, continues operating
 func TestAgentConnection_MalformedMessage(t *testing.T) {
+	// Create a temp git repo for the agent
+	tmpDir := t.TempDir()
+	if err := initTestGitRepo(tmpDir); err != nil {
+		t.Skipf("git not available: %v", err)
+	}
+
 	// Start mock dashboard
 	dashboard := NewMockDashboard(t)
 	defer dashboard.Close()
@@ -195,7 +219,7 @@ func TestAgentConnection_MalformedMessage(t *testing.T) {
 	cfg := &config.Config{
 		DashboardURL:      dashboard.URL(),
 		Token:             "test-token",
-		RepoDir:           "/tmp/nixfleet-test",
+		RepoDir:           tmpDir,
 		HeartbeatInterval: 1 * time.Second,
 		Hostname:          "test-host",
 		LogLevel:          "debug",

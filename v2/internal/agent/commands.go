@@ -85,14 +85,31 @@ func (a *Agent) executeCommand(command string) {
 
 	switch command {
 	case "pull":
+		if a.cfg.RepoURL != "" {
+			// Isolated mode: fetch + reset --hard (clean slate)
+			if err := a.runIsolatedPull(); err != nil {
+				a.sendStatus("error", command, 1, err.Error())
+				return
+			}
+			a.sendStatus("ok", command, 0, "")
+			return
+		}
 		cmd, err = a.buildPullCommand()
 	case "switch":
 		cmd, err = a.buildSwitchCommand()
 	case "pull-switch":
 		// Pull first
-		if err := a.runCommandWithOutput("pull", a.buildPullCommandArgs()); err != nil {
-			a.sendStatus("error", command, 1, err.Error())
-			return
+		if a.cfg.RepoURL != "" {
+			// Isolated mode: fetch + reset --hard (clean slate)
+			if err := a.runIsolatedPull(); err != nil {
+				a.sendStatus("error", command, 1, err.Error())
+				return
+			}
+		} else {
+			if err := a.runCommandWithOutput("pull", a.buildPullCommandArgs()); err != nil {
+				a.sendStatus("error", command, 1, err.Error())
+				return
+			}
 		}
 		// Then switch
 		cmd, err = a.buildSwitchCommand()
@@ -320,15 +337,73 @@ func (a *Agent) handleRestart() {
 
 // Command builders
 
-func (a *Agent) buildPullCommandArgs() []string {
-	if a.cfg.RepoURL != "" {
-		// Isolated mode: git fetch + reset
-		return []string{
-			"git", "-C", a.cfg.RepoDir,
-			"fetch", "origin", a.cfg.Branch,
-		}
+// runIsolatedPull performs a clean-slate pull for isolated mode:
+// git fetch + git reset --hard + git clean -fd
+func (a *Agent) runIsolatedPull() error {
+	a.log.Info().Msg("running isolated pull (fetch + reset --hard)")
+
+	// Step 1: git fetch origin <branch>
+	fetchArgs := []string{"git", "-C", a.cfg.RepoDir, "fetch", "origin", a.cfg.Branch}
+	fetchCmd := exec.CommandContext(a.ctx, fetchArgs[0], fetchArgs[1:]...)
+
+	// Set SSH key if configured
+	if a.cfg.SSHKey != "" {
+		fetchCmd.Env = append(os.Environ(),
+			"GIT_SSH_COMMAND=ssh -i "+a.cfg.SSHKey+" -o StrictHostKeyChecking=no",
+		)
 	}
-	// Legacy mode: git pull
+
+	if err := a.runCmdWithStreaming(fetchCmd, "fetch"); err != nil {
+		return err
+	}
+
+	// Step 2: git reset --hard origin/<branch>
+	resetArgs := []string{"git", "-C", a.cfg.RepoDir, "reset", "--hard", "origin/" + a.cfg.Branch}
+	resetCmd := exec.CommandContext(a.ctx, resetArgs[0], resetArgs[1:]...)
+	if err := a.runCmdWithStreaming(resetCmd, "reset"); err != nil {
+		return err
+	}
+
+	// Step 3: git clean -fd (remove untracked files)
+	cleanArgs := []string{"git", "-C", a.cfg.RepoDir, "clean", "-fd"}
+	cleanCmd := exec.CommandContext(a.ctx, cleanArgs[0], cleanArgs[1:]...)
+	if err := a.runCmdWithStreaming(cleanCmd, "clean"); err != nil {
+		// Clean is optional, just log warning
+		a.log.Warn().Err(err).Msg("git clean failed (non-fatal)")
+	}
+
+	a.log.Info().Msg("isolated pull completed successfully")
+	return nil
+}
+
+// runCmdWithStreaming runs a command and streams output to the dashboard.
+func (a *Agent) runCmdWithStreaming(cmd *exec.Cmd, label string) error {
+	stdout, _ := cmd.StdoutPipe()
+	stderr, _ := cmd.StderrPipe()
+
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+
+	go func() {
+		scanner := bufio.NewScanner(stdout)
+		for scanner.Scan() {
+			a.sendOutput(scanner.Text(), "stdout")
+		}
+	}()
+
+	go func() {
+		scanner := bufio.NewScanner(stderr)
+		for scanner.Scan() {
+			a.sendOutput(scanner.Text(), "stderr")
+		}
+	}()
+
+	return cmd.Wait()
+}
+
+func (a *Agent) buildPullCommandArgs() []string {
+	// Legacy mode: git pull (only used when RepoURL is not set)
 	return []string{"git", "-C", a.cfg.RepoDir, "pull"}
 }
 

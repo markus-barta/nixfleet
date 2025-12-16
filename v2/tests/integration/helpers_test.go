@@ -6,6 +6,9 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -225,11 +228,12 @@ func (m *MockDashboard) handleWS(w http.ResponseWriter, r *http.Request) {
 }
 
 // MakeTestConfig creates a test configuration.
-func MakeTestConfig(dashboardURL string) map[string]string {
+// Note: Caller must provide a valid repoDir (use t.TempDir() + initTestGitRepo)
+func MakeTestConfig(dashboardURL, repoDir string) map[string]string {
 	return map[string]string{
 		"NIXFLEET_URL":      dashboardURL,
 		"NIXFLEET_TOKEN":    "test-token",
-		"NIXFLEET_REPO_DIR": "/tmp/nixfleet-test",
+		"NIXFLEET_REPO_DIR": repoDir,
 		"NIXFLEET_INTERVAL": "1", // 1 second for faster tests
 		"NIXFLEET_HOSTNAME": "test-host",
 	}
@@ -275,5 +279,48 @@ func envSet(key, value string) {
 
 func envUnset(key string) {
 	unsetEnv(key)
+}
+
+// initTestGitRepo initializes a git repo for testing.
+// Creates a repo with at least one commit so generation detection works.
+func initTestGitRepo(dir string) error {
+	// Create main branch explicitly
+	cmds := [][]string{
+		{"git", "init", "--initial-branch=main"},
+		{"git", "config", "user.email", "test@test.com"},
+		{"git", "config", "user.name", "Test"},
+	}
+	for _, args := range cmds {
+		cmd := exec.Command(args[0], args[1:]...)
+		cmd.Dir = dir
+		if err := cmd.Run(); err != nil {
+			// Try without --initial-branch for older git
+			if args[0] == "git" && args[1] == "init" {
+				cmd = exec.Command("git", "init")
+				cmd.Dir = dir
+				if err := cmd.Run(); err != nil {
+					return err
+				}
+				// Rename master to main if needed
+				_ = exec.Command("git", "-C", dir, "branch", "-m", "master", "main").Run()
+				continue
+			}
+			return err
+		}
+	}
+
+	// Create test file and commit
+	testFile := filepath.Join(dir, "test.txt")
+	if err := os.WriteFile(testFile, []byte("test content\n"), 0644); err != nil {
+		return err
+	}
+	if err := exec.Command("git", "-C", dir, "add", ".").Run(); err != nil {
+		return err
+	}
+	if err := exec.Command("git", "-C", dir, "commit", "-m", "initial commit").Run(); err != nil {
+		return err
+	}
+
+	return nil
 }
 

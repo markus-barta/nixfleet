@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -83,13 +84,19 @@ func LoadFromEnv() (*Config, error) {
 		return nil, errors.New("NIXFLEET_TOKEN is required")
 	}
 
-	// Repository (one of these patterns is required)
+	// Repository configuration
+	// Priority: REPO_DIR > NIXCFG (legacy) > default isolated path (if REPO_URL set)
 	cfg.RepoURL = os.Getenv("NIXFLEET_REPO_URL")
 	cfg.RepoDir = os.Getenv("NIXFLEET_REPO_DIR")
-	if cfg.RepoURL == "" && cfg.RepoDir == "" {
+	if cfg.RepoDir == "" {
 		// Check legacy variable
 		cfg.RepoDir = os.Getenv("NIXFLEET_NIXCFG")
-		if cfg.RepoDir == "" {
+	}
+	if cfg.RepoDir == "" {
+		if cfg.RepoURL != "" {
+			// Isolated mode: use platform-specific default path
+			cfg.RepoDir = getDefaultRepoDir()
+		} else {
 			return nil, errors.New("NIXFLEET_REPO_URL or NIXFLEET_REPO_DIR is required")
 		}
 	}
@@ -136,6 +143,18 @@ func getEnvOrDefault(key, defaultVal string) string {
 		return v
 	}
 	return defaultVal
+}
+
+// getDefaultRepoDir returns the platform-specific default isolated repo path.
+// These paths match what the Nix modules configure.
+func getDefaultRepoDir() string {
+	if runtime.GOOS == "darwin" {
+		// macOS: ~/.local/state/nixfleet-agent/repo (matches home-manager module)
+		home, _ := os.UserHomeDir()
+		return filepath.Join(home, ".local", "state", "nixfleet-agent", "repo")
+	}
+	// NixOS: /var/lib/nixfleet-agent/repo (matches nixos module StateDirectory)
+	return "/var/lib/nixfleet-agent/repo"
 }
 
 // Validate checks that the configuration is valid.

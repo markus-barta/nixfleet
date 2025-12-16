@@ -23,13 +23,17 @@ type Host struct {
 	DeviceType     string        // server, desktop, laptop, gaming
 	TestProgress   *TestProgress // current test progress, nil if not running
 	UpdateStatus   *UpdateStatus // three-compartment status (Git/Lock/System)
+	RepoURL        string        // git repo URL (isolated mode)
+	RepoDir        string        // local repo path
 }
 
 // UpdateStatus contains the three-compartment update status.
 type UpdateStatus struct {
-	Git    StatusCheck `json:"git"`
-	Lock   StatusCheck `json:"lock"`
-	System StatusCheck `json:"system"`
+	Git     StatusCheck `json:"git"`
+	Lock    StatusCheck `json:"lock"`
+	System  StatusCheck `json:"system"`
+	RepoURL string      `json:"repo_url"` // git repo URL (for Git tooltip)
+	RepoDir string      `json:"repo_dir"` // local repo path (for Git tooltip)
 }
 
 // StatusCheck represents a single status check result.
@@ -1373,6 +1377,30 @@ func updateCompartmentTitle(status *UpdateStatus, compartment string, hostType s
 	case "git":
 		check = status.Git
 		label = "Git"
+		// Build Git-specific tooltip with repo info
+		tooltip := label
+		if check.Message != "" {
+			tooltip += ": " + check.Message
+		} else {
+			switch check.Status {
+			case "ok":
+				tooltip += ": Up to date"
+			case "outdated":
+				tooltip += ": Needs attention"
+			case "error":
+				tooltip += ": Error"
+			default:
+				tooltip += ": Checking..."
+			}
+		}
+		// Add repo paths
+		if status.RepoURL != "" {
+			tooltip += " | Remote: " + status.RepoURL
+		}
+		if status.RepoDir != "" {
+			tooltip += " | Local: " + status.RepoDir
+		}
+		return tooltip
 	case "lock":
 		check = status.Lock
 		label = "Lock"

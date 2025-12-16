@@ -46,7 +46,15 @@ func (a *Agent) Run() error {
 	a.log.Info().
 		Str("hostname", a.cfg.Hostname).
 		Str("url", a.cfg.DashboardURL).
+		Str("repo_dir", a.cfg.RepoDir).
+		Bool("isolated_mode", a.cfg.RepoURL != "").
 		Msg("starting agent")
+
+	// Ensure repository exists (auto-clone in isolated mode)
+	if err := a.ensureRepoExists(); err != nil {
+		a.log.Error().Err(err).Msg("failed to ensure repository exists")
+		return err
+	}
 
 	// Detect system info
 	a.detectSystemInfo()
@@ -108,6 +116,8 @@ func (a *Agent) OnConnected() {
 		HeartbeatInterval: int(a.cfg.HeartbeatInterval.Seconds()),
 		Location:          a.cfg.Location,
 		DeviceType:        a.cfg.DeviceType,
+		RepoURL:           a.cfg.RepoURL,
+		RepoDir:           a.cfg.RepoDir,
 	}
 
 	if err := a.ws.SendMessage(protocol.TypeRegister, payload); err != nil {
