@@ -1,8 +1,9 @@
 # P4370 - UI: Complete Table Columns
 
 **Priority**: High  
-**Status**: Complete (Config hash still BLOCKED)  
+**Status**: Done  
 **Effort**: Large  
+**Updated**: 2025-12-16  
 **References**: `+pm/legacy/v1.0/dashboard.html`
 
 ## Problem
@@ -116,13 +117,17 @@ tr[data-online="false"] td::before {
 - [x] Add Location column with icons (home/work/cloud)
 - [x] Add Device Type column with icons (server/desktop/laptop/gaming)
 - [x] Add Metrics column with CPU/RAM
-- [ ] Add Config column with hash badge (BLOCKED: no config hash in agent data)
+- [x] Add Update Status column with three compartments (see P5000)
 - [x] Add Tests column with progress/results
 - [x] Implement heartbeat ripple animation
 - [x] Add 50% overlay for offline hosts
 - [x] Set proper column widths
 - [x] Add hover titles for full info (metrics)
 - [x] Add OS type icons (NixOS/macOS) to Type column
+
+### Completion Notes (2025-12-16)
+
+All table columns implemented. Config hash replaced with three-compartment Update Status indicator (P5000). Git compartment working via GitHub Pages version comparison. Lock and System compartments show placeholder status pending agent-side implementation.
 
 ### Implementation Notes (2025-12-15)
 

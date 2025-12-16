@@ -1,11 +1,11 @@
 # P5000 - Host Update Status (Three-Compartment Indicator)
 
 **Created**: 2025-12-14  
-**Updated**: 2025-12-15  
+**Updated**: 2025-12-16  
 **Priority**: P5000 (Medium)  
-**Status**: Backlog  
-**Depends on**: P4370 (Table Columns)  
-**Unblocks**: P4370 Config column
+**Status**: Partial (UI done, Git done, Lock/System pending)  
+**Depends on**: P4370 (Table Columns) ✅  
+**Unblocks**: P4370 Config column ✅
 
 ---
 
@@ -83,36 +83,39 @@ Display three compartments with icons for each host:
 
 ### UI
 
-- [ ] New "Update" column with three-compartment indicator
-- [ ] Each compartment has an **SVG icon** (no emojis per NFR-2):
+- [x] New "Update" column with three-compartment indicator
+- [x] Each compartment has an **SVG icon** (no emojis per NFR-2):
   - **Git**: Branch icon (git-branch)
   - **Lock**: Padlock icon (lock-closed)
   - **System**: OS-specific icon:
     - NixOS → Snowflake (NixOS logo)
     - macOS → House (Home Manager concept)
-- [ ] Each compartment has tooltip explaining its meaning:
+- [x] Each compartment has tooltip explaining its meaning:
   - Git: "Up to date with remote" / "Behind remote by N commits"
   - Lock: "Dependencies current" / "Updates available"
   - System: "System current" / "Needs rebuild"
-- [ ] States:
+- [x] States:
   - Current: Gray background (`#374151`), dark icon (`#1f2937`), static
   - Outdated: Gray background, icon glows white (pulse 30%→100%→30%, 2s cycle)
   - Error: Red tint (`#7f1d1d`), static
   - Unknown: Transparent background, dim icon (`opacity: 0.4`)
-- [ ] Optional: Click compartment to trigger action (Pull, Update, Switch)
+- [x] Optional: Click compartment to trigger action (Pull, Update, Switch)
 
 ### Agent Detection
 
-- [ ] Agent detects OS type (NixOS vs macOS/Home Manager)
-- [ ] Agent runs safe, read-only commands only
-- [ ] Agent reports all three statuses in heartbeat
+- [x] Agent detects OS type (NixOS vs macOS/Home Manager)
+- [x] Agent runs safe, read-only commands only
+- [ ] Agent reports Lock status in heartbeat (days since flake.lock update)
+- [ ] Agent reports System status in heartbeat (dry-run comparison)
 - [ ] Results cached with reasonable TTL (e.g., 5 minutes)
 
 ### Backend
 
-- [ ] Protocol includes `UpdateStatus` in heartbeat
-- [ ] Dashboard stores and displays status
-- [ ] Status ages gracefully (show "checking..." during refresh)
+- [x] Protocol includes `UpdateStatus` type
+- [x] Dashboard stores and displays status
+- [x] Git status computed dashboard-side from GitHub Pages version.json
+- [ ] Lock/System status from agent heartbeat
+- [x] Status ages gracefully (show "checking..." during refresh)
 
 ---
 
@@ -393,14 +396,31 @@ Use inline SVGs for colorability. Suggested sources:
 ## Implementation Order
 
 1. ✅ **nixcfg**: GitHub Pages workflow already publishes `version.json`
-2. **Dashboard**: Fetch GitHub Pages version + compare with agent's `generation`
-3. **Dashboard**: Display three-compartment UI with CSS
-4. ✅ **Git compartment**: Working (no agent changes needed!)
-5. **Agent**: Add `flakePath` config option to nixfleet module
-6. **Agent**: Report flake.lock last-modified date in heartbeat
-7. **Dashboard**: Lock compartment shows "X days ago" badge
-8. **Agent**: Implement system status check (compare derivations)
-9. **Protocol**: Add `UpdateStatus` to heartbeat (for System status)
+2. ✅ **Dashboard**: Fetch GitHub Pages version + compare with agent's `generation`
+3. ✅ **Dashboard**: Display three-compartment UI with CSS
+4. ✅ **Git compartment**: Working (dashboard-side comparison)
+5. ✅ **Tooltips**: Show RepoDir and RepoURL in Git compartment
+6. **Agent**: Add `flakePath` config option to nixfleet module
+7. **Agent**: Report flake.lock last-modified date in heartbeat
+8. **Dashboard**: Lock compartment shows "X days ago" badge
+9. **Agent**: Implement system status check (compare derivations)
+10. **Protocol**: Add `UpdateStatus` to heartbeat (for System status)
+
+### Progress Notes (2025-12-16)
+
+**Completed:**
+
+- Full UI implementation with three compartments
+- Git status check via GitHub Pages version.json
+- Tooltips showing local repo path and remote URL
+- CSS styling for all states (ok, outdated, error, unknown)
+- Click-to-refresh interaction (placeholder for now)
+
+**Remaining:**
+
+- Lock status: Agent needs to report days since flake.lock update
+- System status: Agent needs to do dry-run comparison
+- Both require agent-side implementation and protocol update
 
 **Note**: Lock automation (merge PR, deploy) is in P5300, not here.
 

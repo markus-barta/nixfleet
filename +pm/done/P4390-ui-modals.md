@@ -1,9 +1,9 @@
 # P4390 - UI: Modals (Add Host, Remove Host)
 
 **Priority**: Medium  
-**Status**: Pending  
+**Status**: Done  
 **Effort**: Medium  
-**Updated**: 2025-12-15  
+**Updated**: 2025-12-16  
 **References**: `+pm/legacy/v1.0/dashboard.html` (lines 972-1103, 1705-1776)
 
 ## Problem
@@ -140,14 +140,18 @@ v2 has no modals. v1 had:
 
 ### Requirements
 
-- [ ] Create modal overlay component
-- [ ] Implement Remove Host modal with confirmation
-- [ ] Implement Add Host modal with form
-- [ ] Close on Escape key
-- [ ] Close on overlay click
-- [ ] Create API endpoints
-- [ ] Validate hostname pattern
-- [ ] Reload page after add/remove
+- [x] Create modal overlay component
+- [x] Implement Remove Host modal with confirmation
+- [x] Implement Add Host modal with form
+- [x] Close on Escape key
+- [x] Close on overlay click
+- [x] Create API endpoints
+- [x] Validate hostname pattern
+- [x] Reload page after add/remove
+
+### Completion Notes (2025-12-16)
+
+Both modals (Remove Host and Add Host) implemented with proper confirmation flows, form validation, and API integration. Validated via browser testing on fleet.barta.cm.
 
 ## Related
 

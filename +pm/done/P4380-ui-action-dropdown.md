@@ -1,9 +1,9 @@
 # P4380 - UI: Per-Host Action Dropdown
 
 **Priority**: Medium  
-**Status**: Pending  
+**Status**: Done  
 **Effort**: Medium  
-**Updated**: 2025-12-15  
+**Updated**: 2025-12-16  
 **References**: `+pm/legacy/v1.0/dashboard.html` (lines 886-970, 1650-1692)
 
 ## Problem
@@ -128,15 +128,19 @@ if (data.test_running && testBtn && !stopBtn) {
 
 ### Requirements
 
-- [ ] Create dropdown component
-- [ ] Add "More" button to actions
-- [ ] Implement Unlock actions (clears local busy state)
-- [ ] Implement Restart Agent command
-- [ ] Implement Download Logs
-- [ ] Implement Remove Host with confirmation modal
-- [ ] Close dropdown on click outside
-- [ ] Close dropdown on Escape key
-- [ ] Dynamic Stop/Test button swap
+- [x] Create dropdown component
+- [x] Add "More" button to actions
+- [x] Implement Unlock actions (clears local busy state)
+- [x] Implement Restart Agent command
+- [x] Implement Download Logs
+- [x] Implement Remove Host with confirmation modal
+- [x] Close dropdown on click outside
+- [x] Close dropdown on Escape key
+- [x] Dynamic Stop/Test button swap
+
+### Completion Notes (2025-12-16)
+
+All requirements implemented and validated via browser testing on fleet.barta.cm.
 
 ## Related
 
