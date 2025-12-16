@@ -115,6 +115,15 @@ func createTables(db *sql.DB) error {
 		_, _ = db.Exec(m)
 	}
 
+	// Add update_status columns (v2.4.0 - P5000)
+	statusMigrations := []string{
+		`ALTER TABLE hosts ADD COLUMN lock_status_json TEXT`,
+		`ALTER TABLE hosts ADD COLUMN system_status_json TEXT`,
+	}
+	for _, m := range statusMigrations {
+		_, _ = db.Exec(m)
+	}
+
 	return nil
 }
 

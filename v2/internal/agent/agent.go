@@ -28,17 +28,22 @@ type Agent struct {
 	generation     string
 	nixpkgsVersion string
 	osVersion      string
+
+	// Update status checker
+	statusChecker *StatusChecker
 }
 
 // New creates a new agent with the given configuration.
 func New(cfg *config.Config, log zerolog.Logger) *Agent {
 	ctx, cancel := context.WithCancel(context.Background())
-	return &Agent{
+	a := &Agent{
 		cfg:    cfg,
 		log:    log.With().Str("component", "agent").Logger(),
 		ctx:    ctx,
 		cancel: cancel,
 	}
+	a.statusChecker = NewStatusChecker(a)
+	return a
 }
 
 // Run starts the agent and blocks until shutdown.

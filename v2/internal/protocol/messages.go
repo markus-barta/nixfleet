@@ -65,11 +65,12 @@ type RegisteredPayload struct {
 
 // HeartbeatPayload is sent periodically by the agent.
 type HeartbeatPayload struct {
-	Generation      string   `json:"generation"`
-	NixpkgsVersion  string   `json:"nixpkgs_version"`
-	PendingCommand  *string  `json:"pending_command"` // nil if no command running
-	CommandPID      *int     `json:"command_pid"`     // nil if no command running
-	Metrics         *Metrics `json:"metrics"`         // nil if StaSysMo not available
+	Generation      string        `json:"generation"`
+	NixpkgsVersion  string        `json:"nixpkgs_version"`
+	PendingCommand  *string       `json:"pending_command"`  // nil if no command running
+	CommandPID      *int          `json:"command_pid"`      // nil if no command running
+	Metrics         *Metrics      `json:"metrics"`          // nil if StaSysMo not available
+	UpdateStatus    *UpdateStatus `json:"update_status"`    // Lock and System status from agent
 }
 
 // Metrics contains system metrics from StaSysMo.

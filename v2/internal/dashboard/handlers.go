@@ -216,7 +216,7 @@ func (s *Server) getHosts() ([]templates.Host, error) {
 		SELECT id, hostname, host_type, agent_version, os_version, 
 		       nixpkgs_version, generation, last_seen, status, pending_command, 
 		       theme_color, metrics_json, location, device_type, test_progress,
-		       repo_url, repo_dir
+		       repo_url, repo_dir, lock_status_json, system_status_json
 		FROM hosts ORDER BY hostname
 	`)
 	if err != nil {
@@ -234,12 +234,13 @@ func (s *Server) getHosts() ([]templates.Host, error) {
 			PendingCommand, ThemeColor, MetricsJSON             *string
 			Location, DeviceType, TestProgressJSON              *string
 			RepoURL, RepoDir                                    *string
+			LockStatusJSON, SystemStatusJSON                    *string
 		}
 		if err := rows.Scan(&h.ID, &h.Hostname, &h.HostType, &h.AgentVersion,
 			&h.OSVersion, &h.NixpkgsVersion, &h.Generation, &h.LastSeen,
 			&h.Status, &h.PendingCommand, &h.ThemeColor, &h.MetricsJSON,
 			&h.Location, &h.DeviceType, &h.TestProgressJSON,
-			&h.RepoURL, &h.RepoDir); err != nil {
+			&h.RepoURL, &h.RepoDir, &h.LockStatusJSON, &h.SystemStatusJSON); err != nil {
 			s.log.Debug().Err(err).Msg("failed to scan host row")
 			continue
 		}
@@ -298,8 +299,23 @@ func (s *Server) getHosts() ([]templates.Host, error) {
 			}
 		}
 
-		// Populate Update Status (P5000 - Git check)
-		host.UpdateStatus = s.getUpdateStatus(host.Generation, host.RepoURL, host.RepoDir)
+		// Parse lock and system status from database
+		var lockStatus, systemStatus *templates.StatusCheck
+		if h.LockStatusJSON != nil {
+			var ls templates.StatusCheck
+			if err := json.Unmarshal([]byte(*h.LockStatusJSON), &ls); err == nil {
+				lockStatus = &ls
+			}
+		}
+		if h.SystemStatusJSON != nil {
+			var ss templates.StatusCheck
+			if err := json.Unmarshal([]byte(*h.SystemStatusJSON), &ss); err == nil {
+				systemStatus = &ss
+			}
+		}
+
+		// Populate Update Status (P5000)
+		host.UpdateStatus = s.getUpdateStatus(host.Generation, host.RepoURL, host.RepoDir, lockStatus, systemStatus)
 
 		hosts = append(hosts, host)
 	}
@@ -307,7 +323,7 @@ func (s *Server) getHosts() ([]templates.Host, error) {
 }
 
 // getUpdateStatus returns the update status for a host based on its generation.
-func (s *Server) getUpdateStatus(generation, repoURL, repoDir string) *templates.UpdateStatus {
+func (s *Server) getUpdateStatus(generation, repoURL, repoDir string, lockStatus, systemStatus *templates.StatusCheck) *templates.UpdateStatus {
 	status := &templates.UpdateStatus{
 		RepoURL: repoURL,
 		RepoDir: repoDir,
@@ -329,18 +345,26 @@ func (s *Server) getUpdateStatus(generation, repoURL, repoDir string) *templates
 		}
 	}
 
-	// Lock status (placeholder - requires agent-side implementation)
-	status.Lock = templates.StatusCheck{
-		Status:    "unknown",
-		Message:   "Lock status requires agent update",
-		CheckedAt: "",
+	// Lock status (from agent heartbeat)
+	if lockStatus != nil {
+		status.Lock = *lockStatus
+	} else {
+		status.Lock = templates.StatusCheck{
+			Status:    "unknown",
+			Message:   "Waiting for agent heartbeat",
+			CheckedAt: "",
+		}
 	}
 
-	// System status (placeholder - requires agent-side implementation)
-	status.System = templates.StatusCheck{
-		Status:    "unknown",
-		Message:   "System status requires agent update",
-		CheckedAt: "",
+	// System status (from agent heartbeat)
+	if systemStatus != nil {
+		status.System = *systemStatus
+	} else {
+		status.System = templates.StatusCheck{
+			Status:    "unknown",
+			Message:   "Waiting for agent heartbeat",
+			CheckedAt: "",
+		}
 	}
 
 	return status

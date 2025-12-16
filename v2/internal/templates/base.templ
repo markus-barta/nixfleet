@@ -815,10 +815,14 @@ templ Base(title string, csrfToken string) {
 				width: 14px;
 				height: 14px;
 				fill: #1f2937;
+				stroke: #1f2937;
+				color: #1f2937;
 			}
 
 			.update-compartment.needs-update .update-icon {
 				fill: #f9fafb;
+				stroke: #f9fafb;
+				color: #f9fafb;
 				animation: pulse-glow 2s ease-in-out infinite;
 			}
 
@@ -828,11 +832,19 @@ templ Base(title string, csrfToken string) {
 
 			.update-compartment.error .update-icon {
 				fill: #fca5a5;
+				stroke: #fca5a5;
+				color: #fca5a5;
 			}
 
 			.update-compartment.unknown {
 				background: transparent;
 				opacity: 0.4;
+			}
+
+			.update-compartment.unknown .update-icon {
+				fill: #6b7280;
+				stroke: #6b7280;
+				color: #6b7280;
 			}
 
 			@keyframes pulse-glow {

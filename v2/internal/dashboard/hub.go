@@ -624,6 +624,19 @@ func (h *Hub) handleHeartbeat(hostID string, payload protocol.HeartbeatPayload) 
 		}
 	}
 
+	// Serialize update status to JSON if available
+	var lockStatusJSON, systemStatusJSON *string
+	if payload.UpdateStatus != nil {
+		if data, err := json.Marshal(payload.UpdateStatus.Lock); err == nil {
+			s := string(data)
+			lockStatusJSON = &s
+		}
+		if data, err := json.Marshal(payload.UpdateStatus.System); err == nil {
+			s := string(data)
+			systemStatusJSON = &s
+		}
+	}
+
 	// Update host last_seen and status in database
 	_, err := h.db.Exec(`
 		UPDATE hosts SET 
@@ -632,9 +645,11 @@ func (h *Hub) handleHeartbeat(hostID string, payload protocol.HeartbeatPayload) 
 			generation = ?,
 			nixpkgs_version = ?,
 			pending_command = ?,
-			metrics_json = ?
+			metrics_json = ?,
+			lock_status_json = ?,
+			system_status_json = ?
 		WHERE hostname = ?
-	`, payload.Generation, payload.NixpkgsVersion, payload.PendingCommand, metricsJSON, hostID)
+	`, payload.Generation, payload.NixpkgsVersion, payload.PendingCommand, metricsJSON, lockStatusJSON, systemStatusJSON, hostID)
 
 	if err != nil {
 		h.log.Error().Err(err).Str("host", hostID).Msg("failed to update heartbeat")
@@ -656,6 +671,7 @@ func (h *Hub) handleHeartbeat(hostID string, payload protocol.HeartbeatPayload) 
 			"nixpkgs_version": payload.NixpkgsVersion,
 			"pending_command": payload.PendingCommand,
 			"metrics":         payload.Metrics,
+			"update_status":   payload.UpdateStatus,
 		},
 	})
 }

@@ -39,12 +39,19 @@ func (a *Agent) sendHeartbeat() {
 	// Refresh generation (may have changed after switch)
 	a.generation = a.detectGeneration()
 
+	// Get update status (Lock and System - Git is computed dashboard-side)
+	var updateStatus *protocol.UpdateStatus
+	if a.statusChecker != nil {
+		updateStatus = a.statusChecker.GetStatus(a.ctx)
+	}
+
 	payload := protocol.HeartbeatPayload{
 		Generation:     a.generation,
 		NixpkgsVersion: a.nixpkgsVersion,
 		PendingCommand: pendingCommand,
 		CommandPID:     commandPID,
 		Metrics:        a.readMetrics(),
+		UpdateStatus:   updateStatus,
 	}
 
 	if err := a.ws.SendMessage(protocol.TypeHeartbeat, payload); err != nil {
