@@ -25,6 +25,7 @@ type Host struct {
 	UpdateStatus   *UpdateStatus // three-compartment status (Git/Lock/System)
 	RepoURL        string        // git repo URL (isolated mode)
 	RepoDir        string        // local repo path
+	AgentOutdated  bool          // true if agent version doesn't match dashboard version
 }
 
 // UpdateStatus contains the three-compartment update status.
@@ -66,6 +67,18 @@ type Stats struct {
 	Total  int
 }
 
+// FleetTarget represents the "gold standard" versions all hosts should match
+type FleetTarget struct {
+	GitCommit   string // Short git hash (e.g., "abc1234")
+	GitFull     string // Full git hash for comparison
+	Branch      string // e.g., "main"
+	TimeAgo     string // e.g., "2h ago"
+	Message     string // Commit message for tooltip
+	RepoURL     string // For linking to GitHub
+	AgentVer    string // Expected agent version (dashboard version)
+	HasData     bool   // Whether we have version tracking data
+}
+
 // DashboardData contains all data needed to render the dashboard
 type DashboardData struct {
 	Hosts             []Host
@@ -73,6 +86,7 @@ type DashboardData struct {
 	CSRFToken         string
 	Version           string
 	HeartbeatInterval int // in seconds, for last-seen display
+	FleetTarget       FleetTarget
 }
 
 // Dashboard renders the main dashboard page
@@ -83,10 +97,10 @@ templ Dashboard(data DashboardData) {
 		<header>
 			<div class="brand">
 				<h1>
-					<img src="/static/nixfleet_fade_1k.png" alt="" class="brand-logo"/>
+					<img src="/static/nixfleet_favicon.png" alt="" class="brand-logo"/>
 					NixFleet
 				</h1>
-				<div class="subtitle">Simple, unified fleet management for NixOS and macOS</div>
+				@FleetTargetLine(data.FleetTarget)
 			</div>
 			<div class="header-actions">
 				<div class="dropdown bulk-actions-dropdown">
@@ -972,6 +986,30 @@ templ Dashboard(data DashboardData) {
 	}
 }
 
+// FleetTargetLine renders the fleet target info in the header
+templ FleetTargetLine(target FleetTarget) {
+	<div class="fleet-target">
+		if target.HasData {
+			<span class="target-label">Target:</span>
+			<a
+				href={ templ.SafeURL(target.RepoURL + "/commit/" + target.GitFull) }
+				target="_blank"
+				rel="noopener"
+				class="target-commit"
+				title={ "Latest commit: " + target.Message }
+			>
+				{ target.GitCommit }
+			</a>
+			<span class="target-branch">({ target.Branch }, { target.TimeAgo })</span>
+			<span class="target-separator">•</span>
+			<span class="target-agent" title="Expected agent version">Agent { target.AgentVer }</span>
+		} else {
+			<span class="target-label">Target:</span>
+			<span class="target-unavailable">Version tracking not configured</span>
+		}
+	</div>
+}
+
 // HostCard renders a host as a card (mobile view)
 templ HostCard(host Host, csrfToken string) {
 	<div class={ "host-card", templ.KV("host-offline", !host.Online) } data-host-id={ host.ID } x-data="{ expanded: false }">
@@ -1213,7 +1251,7 @@ templ TestsCell(progress *TestProgress) {
 	}
 }
 
-// UpdateStatusCell renders the three-compartment update status indicator
+// UpdateStatusCell renders the update status indicator (3 compartments + optional Agent)
 templ UpdateStatusCell(host Host) {
 	<div class="update-status" data-host-id={ host.ID }>
 		<!-- Git compartment -->
@@ -1232,6 +1270,12 @@ templ UpdateStatusCell(host Host) {
 				<svg class="update-icon"><use href="#icon-nixos"></use></svg>
 			}
 		</span>
+		<!-- Agent compartment (only shown when outdated) -->
+		if host.AgentOutdated {
+			<span class="update-compartment agent-outdated" title={ "Agent version " + host.AgentVersion + " is outdated" }>
+				<span class="agent-letter">A</span>
+			</span>
+		}
 	</div>
 }
 

@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/gorilla/websocket"
@@ -195,6 +197,34 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Build fleet target from version fetcher
+	fleetTarget := templates.FleetTarget{
+		AgentVer: Version, // Dashboard version = expected agent version
+	}
+	if s.versionFetcher != nil {
+		if latest := s.versionFetcher.GetLatest(); latest != nil {
+			fleetTarget.HasData = true
+			fleetTarget.GitFull = latest.GitCommit
+			fleetTarget.Branch = latest.Branch
+			fleetTarget.Message = latest.Message
+			fleetTarget.RepoURL = latest.Repo
+
+			// Short hash for display
+			if len(latest.GitCommit) >= 7 {
+				fleetTarget.GitCommit = latest.GitCommit[:7]
+			} else {
+				fleetTarget.GitCommit = latest.GitCommit
+			}
+
+			// Calculate time ago from timestamp
+			if latest.Timestamp != "" {
+				if ts, err := time.Parse(time.RFC3339, latest.Timestamp); err == nil {
+					fleetTarget.TimeAgo = formatTimeAgo(ts)
+				}
+			}
+		}
+	}
+
 	data := templates.DashboardData{
 		Hosts: hosts,
 		Stats: templates.Stats{
@@ -204,6 +234,7 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 		CSRFToken:         session.CSRFToken,
 		Version:           VersionInfo(),
 		HeartbeatInterval: 5, // Matches host configs (5s heartbeat)
+		FleetTarget:       fleetTarget,
 	}
 
 	w.Header().Set("Content-Type", "text/html")
@@ -316,6 +347,11 @@ func (s *Server) getHosts() ([]templates.Host, error) {
 
 		// Populate Update Status (P5000)
 		host.UpdateStatus = s.getUpdateStatus(host.Generation, host.RepoURL, host.RepoDir, lockStatus, systemStatus)
+
+		// Check if agent version is outdated (compare with dashboard version)
+		if host.AgentVersion != "" && host.AgentVersion != Version {
+			host.AgentOutdated = true
+		}
 
 		hosts = append(hosts, host)
 	}
@@ -665,5 +701,32 @@ func (s *Server) handleGetLogs(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]any{"logs": logs})
+}
+
+// formatTimeAgo returns a human-readable "X ago" string
+func formatTimeAgo(t time.Time) string {
+	d := time.Since(t)
+	switch {
+	case d < time.Minute:
+		return "just now"
+	case d < time.Hour:
+		m := int(d.Minutes())
+		if m == 1 {
+			return "1m ago"
+		}
+		return strconv.Itoa(m) + "m ago"
+	case d < 24*time.Hour:
+		h := int(d.Hours())
+		if h == 1 {
+			return "1h ago"
+		}
+		return strconv.Itoa(h) + "h ago"
+	default:
+		days := int(d.Hours() / 24)
+		if days == 1 {
+			return "1d ago"
+		}
+		return strconv.Itoa(days) + "d ago"
+	}
 }
 

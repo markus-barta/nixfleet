@@ -27,14 +27,14 @@ A simple guide to the different "versions" in a NixOS flake setup.
 │                            │                                │
 │  Changed by: git pull      │  Changed by: nix flake update  │
 └─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
+                             │
+                             ▼
                     ┌─────────────────┐
                     │  nix build /    │
                     │  nixos-rebuild  │
                     └─────────────────┘
-                              │
-                              ▼
+                             │
+                             ▼
 ┌─────────────────────────────────────────────────────────────┐
 │  DEPLOYED SYSTEM                                            │
 │  ───────────────                                            │
