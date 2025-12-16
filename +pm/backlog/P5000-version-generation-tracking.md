@@ -3,7 +3,7 @@
 **Created**: 2025-12-14  
 **Updated**: 2025-12-16  
 **Priority**: P5000 (Medium)  
-**Status**: Partial (UI done, Git done, Lock/System pending)  
+**Status**: Done (pending dashboard deployment)  
 **Depends on**: P4370 (Table Columns) ✅  
 **Unblocks**: P4370 Config column ✅
 
@@ -105,16 +105,16 @@ Display three compartments with icons for each host:
 
 - [x] Agent detects OS type (NixOS vs macOS/Home Manager)
 - [x] Agent runs safe, read-only commands only
-- [ ] Agent reports Lock status in heartbeat (days since flake.lock update)
-- [ ] Agent reports System status in heartbeat (dry-run comparison)
-- [ ] Results cached with reasonable TTL (e.g., 5 minutes)
+- [x] Agent reports Lock status in heartbeat (days since flake.lock update)
+- [x] Agent reports System status in heartbeat (dry-run comparison)
+- [x] Results cached with reasonable TTL (5 minutes)
 
 ### Backend
 
-- [x] Protocol includes `UpdateStatus` type
-- [x] Dashboard stores and displays status
+- [x] Protocol includes `UpdateStatus` type in heartbeat
+- [x] Dashboard stores lock_status_json and system_status_json in DB
 - [x] Git status computed dashboard-side from GitHub Pages version.json
-- [ ] Lock/System status from agent heartbeat
+- [x] Lock/System status from agent heartbeat
 - [x] Status ages gracefully (show "checking..." during refresh)
 
 ---
@@ -414,13 +414,18 @@ Use inline SVGs for colorability. Suggested sources:
 - Git status check via GitHub Pages version.json
 - Tooltips showing local repo path and remote URL
 - CSS styling for all states (ok, outdated, error, unknown)
-- Click-to-refresh interaction (placeholder for now)
+- Fixed icon color: dark/black for "ok" state, white for "needs-update"
+- Agent StatusChecker with Lock and System checks
+- Lock status: Reports days since flake.lock update (ok ≤7d, outdated >7d)
+- System status: Compares current vs would-be-built derivation
+- Protocol updated: HeartbeatPayload includes UpdateStatus
+- Dashboard stores lock/system status JSON in database
+- Dashboard displays agent-provided status
 
-**Remaining:**
+**Deployment Required:**
 
-- Lock status: Agent needs to report days since flake.lock update
-- System status: Agent needs to do dry-run comparison
-- Both require agent-side implementation and protocol update
+- Push to GitHub and deploy dashboard on csb1
+- Agent update on hosts (will auto-update with next Home Manager switch)
 
 **Note**: Lock automation (merge PR, deploy) is in P5300, not here.
 
