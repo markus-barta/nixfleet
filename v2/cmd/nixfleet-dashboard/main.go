@@ -24,6 +24,11 @@ func main() {
 		log.Fatal().Err(err).Msg("failed to load configuration")
 	}
 
+	// Log configuration warnings
+	for _, warning := range cfg.Warnings() {
+		log.Warn().Msg(warning)
+	}
+
 	// Initialize database
 	db, err := dashboard.InitDatabase(cfg.DatabasePath)
 	if err != nil {

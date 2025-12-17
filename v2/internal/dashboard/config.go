@@ -116,6 +116,27 @@ func (c *Config) validate() error {
 	return nil
 }
 
+// Warnings returns non-fatal configuration warnings.
+// Call this after loading config and log the results.
+func (c *Config) Warnings() []string {
+	var warnings []string
+
+	// GitHub integration requires both token and repo
+	if c.GitHubToken != "" && c.GitHubRepo == "" {
+		warnings = append(warnings, "NIXFLEET_GITHUB_TOKEN is set but NIXFLEET_GITHUB_REPO is missing; GitHub integration disabled")
+	}
+	if c.GitHubRepo != "" && c.GitHubToken == "" {
+		warnings = append(warnings, "NIXFLEET_GITHUB_REPO is set but NIXFLEET_GITHUB_TOKEN is missing; GitHub integration disabled")
+	}
+
+	// Version tracking without URL
+	if c.VersionURL == "" {
+		warnings = append(warnings, "NIXFLEET_VERSION_URL not set; Git status tracking disabled")
+	}
+
+	return warnings
+}
+
 // HasTOTP returns true if TOTP is configured.
 func (c *Config) HasTOTP() bool {
 	return c.TOTPSecret != ""

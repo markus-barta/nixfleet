@@ -35,6 +35,12 @@ const (
 	panicRecoveryDelay = 100 * time.Millisecond
 )
 
+// flakeUpdateGetter provides access to pending PR info for browser connections.
+// This interface avoids circular dependencies between Hub and FlakeUpdateService.
+type flakeUpdateGetter interface {
+	GetPendingPR() *PendingPRInfo
+}
+
 // Client represents a WebSocket connection (agent or browser).
 type Client struct {
 	conn       *websocket.Conn
@@ -88,6 +94,7 @@ type Hub struct {
 	db             *sql.DB
 	cfg            *Config          // Dashboard config for stale command cleanup
 	versionFetcher *VersionFetcher  // For Git status in heartbeat broadcasts
+	flakeUpdates   flakeUpdateGetter // For PR status on browser connect (P5300)
 
 	// Registered clients
 	clients map[*Client]bool
@@ -134,6 +141,12 @@ func NewHub(log zerolog.Logger, db *sql.DB, cfg *Config, vf *VersionFetcher) *Hu
 		agentMessages:  make(chan *agentMessage, 256),
 		broadcasts:     make(chan []byte, broadcastQueueSize),
 	}
+}
+
+// SetFlakeUpdates sets the flake update service reference.
+// Called after FlakeUpdateService is created to avoid circular dependencies.
+func (h *Hub) SetFlakeUpdates(fu flakeUpdateGetter) {
+	h.flakeUpdates = fu
 }
 
 // Run starts the hub's main loop with panic recovery and context support.
@@ -196,6 +209,18 @@ func (h *Hub) handleRegister(client *Client) {
 		Str("type", client.clientType).
 		Str("id", client.clientID).
 		Msg("client registered")
+
+	// Send pending PR status to newly connected browsers (P5300)
+	if client.clientType == "browser" && h.flakeUpdates != nil {
+		pr := h.flakeUpdates.GetPendingPR()
+		msg, _ := json.Marshal(map[string]any{
+			"type": "flake_update_pr",
+			"payload": map[string]any{
+				"pending_pr": pr,
+			},
+		})
+		client.SafeSend(msg)
+	}
 }
 
 // handleUnregister processes client unregistration.

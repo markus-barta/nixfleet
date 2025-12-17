@@ -1,7 +1,25 @@
 // Package github provides a client for interacting with the GitHub API.
 package github
 
-import "time"
+import (
+	"strings"
+	"time"
+)
+
+// Labels that indicate a flake.lock update PR.
+const (
+	LabelAutomated    = "automated"
+	LabelDependencies = "dependencies"
+)
+
+// Title patterns that indicate a flake.lock update PR.
+// These match common naming conventions from nix-community/flake-checker
+// and GitHub Actions like DeterminateSystems/update-flake-lock.
+var flakeLockTitlePatterns = []string{
+	"flake.lock",
+	"Update flake",
+	"Bump flake",
+}
 
 // PullRequest represents a GitHub pull request.
 type PullRequest struct {
@@ -68,22 +86,17 @@ type BranchInfo struct {
 }
 
 // IsFlakeLockUpdate checks if this PR is a flake.lock update PR.
-// Looks for "automated" label or "flake.lock" in title.
+// Looks for known labels (automated, dependencies) or flake.lock in title.
 func (pr *PullRequest) IsFlakeLockUpdate() bool {
 	// Check labels
 	for _, label := range pr.Labels {
-		if label.Name == "automated" || label.Name == "dependencies" {
+		if label.Name == LabelAutomated || label.Name == LabelDependencies {
 			return true
 		}
 	}
 
-	// Check title patterns (from nix-community/flake-checker action)
-	titlePatterns := []string{
-		"flake.lock",
-		"Update flake",
-		"Bump flake",
-	}
-	for _, pattern := range titlePatterns {
+	// Check title patterns
+	for _, pattern := range flakeLockTitlePatterns {
 		if containsIgnoreCase(pr.Title, pattern) {
 			return true
 		}
@@ -106,38 +119,8 @@ func (pr *PullRequest) IsMergeable() bool {
 	return pr.MergeableState == "mergeable" || pr.MergeableState == ""
 }
 
+// containsIgnoreCase checks if s contains substr, ignoring case.
 func containsIgnoreCase(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr ||
-		(len(s) > 0 && len(substr) > 0 &&
-			(s[0]|32) >= 'a' && (s[0]|32) <= 'z' &&
-			containsIgnoreCaseSlow(s, substr)))
-}
-
-func containsIgnoreCaseSlow(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if matchIgnoreCase(s[i:i+len(substr)], substr) {
-			return true
-		}
-	}
-	return false
-}
-
-func matchIgnoreCase(a, b string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := 0; i < len(a); i++ {
-		ca, cb := a[i], b[i]
-		if ca >= 'A' && ca <= 'Z' {
-			ca += 32
-		}
-		if cb >= 'A' && cb <= 'Z' {
-			cb += 32
-		}
-		if ca != cb {
-			return false
-		}
-	}
-	return true
+	return strings.Contains(strings.ToLower(s), strings.ToLower(substr))
 }
 

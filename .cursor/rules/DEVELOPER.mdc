@@ -105,6 +105,108 @@ When you change code:
 
 ---
 
+## Code Review Mode
+
+When the user says **"do a code review for this"** or **"review this code"**, switch to rigorous review mode.
+
+### Review Checklist
+
+Work through each category systematically:
+
+#### 1. Architecture & Design
+
+- [ ] **Single Responsibility**: Each package/file/function does ONE thing well
+- [ ] **Dependency Direction**: Dependencies flow inward (handlers → services → domain)
+- [ ] **Interface Segregation**: Small, focused interfaces over large ones
+- [ ] **No Circular Dependencies**: Clean dependency graph
+- [ ] **Appropriate Abstraction Level**: Not over-engineered, not under-engineered
+
+#### 2. Code Quality
+
+- [ ] **DRY (Don't Repeat Yourself)**: No copy-paste code; extract common patterns
+- [ ] **Naming**: Clear, intention-revealing names (not `x`, `temp`, `data`)
+- [ ] **Function Size**: Functions are small and focused (~30 lines max, exceptions for tables/switch)
+- [ ] **Error Handling**: Errors are handled explicitly, not swallowed
+- [ ] **No Magic Values**: Constants are named and documented
+- [ ] **Comments**: Code is self-documenting; comments explain *why*, not *what*
+
+#### 3. Go-Specific (v2)
+
+- [ ] **Error Wrapping**: Use `fmt.Errorf("context: %w", err)` for stack traces
+- [ ] **Context Propagation**: `context.Context` passed through call chains
+- [ ] **Goroutine Safety**: No data races; proper synchronization
+- [ ] **Resource Cleanup**: `defer` for cleanup; no leaks
+- [ ] **Idiomatic Go**: Follow effective Go patterns
+
+#### 4. Testing & Reliability
+
+- [ ] **Testability**: Code is structured for easy testing (dependency injection)
+- [ ] **Edge Cases**: Handles nil, empty, timeout, error states
+- [ ] **Graceful Degradation**: Fails safely, doesn't crash the system
+- [ ] **Logging**: Appropriate log levels; structured logging
+
+#### 5. Documentation
+
+- [ ] **Package Docs**: Each package has a doc.go or clear README
+- [ ] **Public API Docs**: Exported functions have godoc comments
+- [ ] **Configuration Docs**: All env vars documented with defaults
+- [ ] **Architecture Docs**: High-level flow is documented
+
+#### 6. Security
+
+- [ ] **No Hardcoded Secrets**: All secrets from environment
+- [ ] **Input Validation**: External input is validated
+- [ ] **Auth Checks**: Protected endpoints verify authentication
+- [ ] **Safe Defaults**: Secure by default, not opt-in security
+
+### Review Output Format
+
+When reviewing, produce a structured report:
+
+```markdown
+## Code Review: [Feature/PR Name]
+
+### Summary
+[1-2 sentence overview of what was reviewed]
+
+### Findings
+
+#### Critical (Must Fix)
+- [ ] Issue description → Suggested fix
+
+#### Important (Should Fix)
+- [ ] Issue description → Suggested fix
+
+#### Minor (Nice to Have)
+- [ ] Issue description → Suggested fix
+
+### Architecture Assessment
+[Is the overall design sound? Any structural concerns?]
+
+### What's Done Well
+[Call out good patterns to reinforce them]
+
+### Recommendations
+[Prioritized list of improvements]
+```
+
+### Standards
+
+This is a **hobby project**, but we maintain **senior-level standards**:
+
+- ✅ Clean, readable code over clever code
+- ✅ Explicit over implicit
+- ✅ Composition over inheritance
+- ✅ Small, focused changes over big rewrites
+- ✅ Working software over perfect architecture
+- ❌ No shortcuts that create tech debt
+- ❌ No "we'll fix it later" (we won't)
+- ❌ No copy-paste without understanding
+
+> **The Rule**: If you wouldn't be proud to show this code in an interview, it's not ready.
+
+---
+
 ## Architecture Overview (Legacy: v0.x, v1.0)
 
 ```text
@@ -154,17 +256,20 @@ When you change code:
 **The agent binary is built and pinned via Nix flakes.** After modifying agent code:
 
 1. **Build locally** to verify:
+
    ```bash
    cd nixfleet/v2 && go build ./...
    ```
 
 2. **Update the nixcfg flake lock** to pick up your changes:
+
    ```bash
    cd nixcfg
    nix flake update nixfleet  # Updates flake.lock to latest nixfleet
    ```
 
 3. **Switch the machine** to deploy the new agent:
+
    ```bash
    # macOS (Home Manager)
    home-manager switch --flake .#<hostname>

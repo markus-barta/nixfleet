@@ -225,6 +225,20 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Get pending PR if flake updates are enabled
+	var pendingPR *templates.PendingPR
+	if s.flakeUpdates != nil {
+		if pr := s.flakeUpdates.GetPendingPR(); pr != nil {
+			pendingPR = &templates.PendingPR{
+				Number:    pr.Number,
+				Title:     pr.Title,
+				URL:       pr.URL,
+				CreatedAt: pr.CreatedAt,
+				Mergeable: pr.Mergeable,
+			}
+		}
+	}
+
 	data := templates.DashboardData{
 		Hosts: hosts,
 		Stats: templates.Stats{
@@ -233,8 +247,10 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 		},
 		CSRFToken:         session.CSRFToken,
 		Version:           VersionInfo(),
-		HeartbeatInterval: 5, // Matches host configs (5s heartbeat)
+		DashboardVersion:  Version, // For agent version comparison
+		HeartbeatInterval: 5,       // Matches host configs (5s heartbeat)
 		FleetTarget:       fleetTarget,
+		PendingPR:         pendingPR,
 	}
 
 	w.Header().Set("Content-Type", "text/html")

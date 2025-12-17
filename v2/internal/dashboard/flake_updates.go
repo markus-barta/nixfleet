@@ -2,6 +2,7 @@ package dashboard
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
@@ -101,11 +102,13 @@ func (s *FlakeUpdateService) CheckForUpdates(ctx context.Context) {
 	}
 
 	// Find flake.lock update PRs
+	// Note: GitHub API returns PRs sorted by created_at DESC (newest first).
+	// We take the first match, which is the most recently created update PR.
 	var updatePR *github.PullRequest
 	for i := range prs {
 		if prs[i].IsFlakeLockUpdate() {
 			updatePR = &prs[i]
-			break // Take the first (oldest) one
+			break
 		}
 	}
 
@@ -175,7 +178,7 @@ func (s *FlakeUpdateService) MergeAndDeploy(ctx context.Context, prNumber int, h
 
 	// Create new job
 	s.deployJobID++
-	jobID := time.Now().Format("20060102-150405") + "-" + string(rune('0'+s.deployJobID%10))
+	jobID := fmt.Sprintf("%s-%d", time.Now().Format("20060102-150405"), s.deployJobID)
 
 	job := &DeployJob{
 		ID:        jobID,
@@ -249,16 +252,24 @@ func (s *FlakeUpdateService) runDeploy(ctx context.Context, job *DeployJob, host
 	job.TotalHosts = len(hosts)
 
 	// 4. Pull on all hosts
+	// TODO(P5300b): Implement proper command completion tracking via WebSocket.
+	// Currently we use time-based waits which are unreliable for slow networks.
+	// The proper solution would track command_complete messages for each host.
 	s.updateJobState(job, "pulling", "Pulling updates...")
 	for _, hostID := range hosts {
 		s.log.Debug().Str("host", hostID).Msg("sending pull command")
 		s.hub.SendCommand(hostID, "pull")
 	}
 
-	// Wait for pulls to complete (simplified - in production would wait for command_result)
-	time.Sleep(10 * time.Second)
+	// LIMITATION: Fixed wait instead of actual completion tracking.
+	// This may be too short for slow networks or too long for fast ones.
+	// See TODO above for proper solution.
+	time.Sleep(15 * time.Second)
 
 	// 5. Switch on all hosts
+	// LIMITATION: Commands are sent sequentially but we don't wait for each
+	// to complete before sending the next. This means we can't detect failures
+	// early and abort remaining hosts. See TODO(P5300b) for proper solution.
 	s.updateJobState(job, "switching", "Switching configurations...")
 	for _, hostID := range hosts {
 		s.log.Debug().Str("host", hostID).Msg("sending switch command")

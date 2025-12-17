@@ -67,6 +67,7 @@ func New(cfg *Config, db *sql.DB, log zerolog.Logger) *Server {
 	var flakeUpdates *FlakeUpdateService
 	if cfg.HasGitHubIntegration() {
 		flakeUpdates = NewFlakeUpdateService(cfg, hub, log)
+		hub.SetFlakeUpdates(flakeUpdates) // Enable PR status on browser connect
 		log.Info().Str("repo", cfg.GitHubRepo).Msg("GitHub flake updates enabled")
 	}
 

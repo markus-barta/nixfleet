@@ -80,14 +80,25 @@ type FleetTarget struct {
 	HasData     bool   // Whether we have version tracking data
 }
 
+// PendingPR represents a pending flake.lock update PR (P5300).
+type PendingPR struct {
+	Number    int    `json:"number"`
+	Title     string `json:"title"`
+	URL       string `json:"url"`
+	CreatedAt string `json:"created_at"`
+	Mergeable bool   `json:"mergeable"`
+}
+
 // DashboardData contains all data needed to render the dashboard
 type DashboardData struct {
 	Hosts             []Host
 	Stats             Stats
 	CSRFToken         string
 	Version           string
-	HeartbeatInterval int // in seconds, for last-seen display
+	DashboardVersion  string    // For agent version comparison
+	HeartbeatInterval int       // in seconds, for last-seen display
 	FleetTarget       FleetTarget
+	PendingPR         *PendingPR // Pending flake update PR (P5300)
 }
 
 // Dashboard renders the main dashboard page
@@ -136,7 +147,13 @@ templ Dashboard(data DashboardData) {
 		</header>
 
 		<!-- Flake Update Banner (P5300) -->
-		<div id="flake-update-banner" class="flake-update-banner" style="display: none;"></div>
+		if data.PendingPR != nil {
+			<div id="flake-update-banner" class="flake-update-banner">
+				@FlakeUpdateBanner(data.PendingPR, data.CSRFToken)
+			</div>
+		} else {
+			<div id="flake-update-banner" class="flake-update-banner" style="display: none;"></div>
+		}
 
 		<!-- Mobile: Card View -->
 		<div class="host-grid" id="host-cards">
@@ -365,17 +382,38 @@ templ Dashboard(data DashboardData) {
 				const banner = document.getElementById('flake-update-banner');
 				if (!banner) return;
 
+				// Update all Lock compartments to show pr-pending state
+				document.querySelectorAll('.update-compartment').forEach(comp => {
+					// Check if this is a Lock compartment (has icon-lock)
+					const icon = comp.querySelector('use[href="#icon-lock"]');
+					if (icon) {
+						if (payload.pending_pr) {
+							comp.classList.add('pr-pending');
+						} else {
+							comp.classList.remove('pr-pending');
+						}
+					}
+				});
+
 				if (payload.pending_pr) {
+					const mergeBtn = payload.pending_pr.mergeable 
+						? `<button class="btn btn-primary btn-sm" onclick="mergeAndDeploy(${payload.pending_pr.number})">
+							<svg class="icon" style="width:12px;height:12px;margin-right:4px;"><use href="#icon-check"></use></svg>
+							Merge & Deploy
+						</button>`
+						: `<button class="btn btn-secondary btn-sm" disabled title="PR has conflicts or is not mergeable">
+							<svg class="icon" style="width:12px;height:12px;margin-right:4px;"><use href="#icon-alert"></use></svg>
+							Not Mergeable
+						</button>`;
+					
 					banner.innerHTML = `
 						<div class="flake-update-content">
-							<span class="flake-update-icon">🔄</span>
+							<svg class="flake-update-icon" style="width:20px;height:20px;fill:#60a5fa;"><use href="#icon-refresh"></use></svg>
 							<span class="flake-update-text">
 								Update available: <a href="${payload.pending_pr.url}" target="_blank" rel="noopener">#${payload.pending_pr.number}</a>
 								— ${payload.pending_pr.title}
 							</span>
-							<button class="btn btn-primary btn-sm" onclick="mergeAndDeploy(${payload.pending_pr.number})">
-								Merge & Deploy
-							</button>
+							${mergeBtn}
 							<button class="btn btn-secondary btn-sm" onclick="dismissFlakeUpdate()">
 								Dismiss
 							</button>
@@ -393,9 +431,14 @@ templ Dashboard(data DashboardData) {
 				if (!banner) return;
 
 				if (job.state === 'completed') {
+					// Clear pr-pending from all Lock compartments
+					document.querySelectorAll('.update-compartment.pr-pending').forEach(comp => {
+						comp.classList.remove('pr-pending');
+					});
+					
 					banner.innerHTML = `
 						<div class="flake-update-content flake-update-success">
-							<span class="flake-update-icon">✓</span>
+							<svg class="flake-update-icon" style="width:20px;height:20px;fill:#22c55e;"><use href="#icon-check"></use></svg>
 							<span class="flake-update-text">${job.message || 'Deployment complete!'}</span>
 							<button class="btn btn-secondary btn-sm" onclick="dismissFlakeUpdate()">Dismiss</button>
 						</div>
@@ -404,7 +447,7 @@ templ Dashboard(data DashboardData) {
 				} else if (job.state === 'failed') {
 					banner.innerHTML = `
 						<div class="flake-update-content flake-update-error">
-							<span class="flake-update-icon">✗</span>
+							<svg class="flake-update-icon" style="width:20px;height:20px;fill:#ef4444;"><use href="#icon-alert"></use></svg>
 							<span class="flake-update-text">${job.message || 'Deployment failed'}</span>
 							<button class="btn btn-secondary btn-sm" onclick="dismissFlakeUpdate()">Dismiss</button>
 						</div>
@@ -412,7 +455,7 @@ templ Dashboard(data DashboardData) {
 				} else {
 					banner.innerHTML = `
 						<div class="flake-update-content flake-update-progress">
-							<span class="flake-update-icon">⏳</span>
+							<svg class="flake-update-icon flake-update-spinner" style="width:20px;height:20px;fill:#60a5fa;"><use href="#icon-refresh"></use></svg>
 							<span class="flake-update-text">${job.message || 'Deploying...'} (${job.completed_hosts}/${job.total_hosts})</span>
 						</div>
 					`;
@@ -1223,12 +1266,46 @@ templ Dashboard(data DashboardData) {
 			function refreshStatus(compartment, statusType) {
 				const hostId = compartment.closest('.update-status').dataset.hostId;
 				console.log(`Refreshing ${statusType} status for ${hostId}`);
-				// TODO: Implement API call to refresh specific status check
-				// For now, just show visual feedback
+				
+				// For Lock compartment, also check for flake update PRs (P5300)
+				if (statusType === 'lock') {
+					checkForUpdates();
+				}
+				
+				// Show visual feedback
 				compartment.classList.add('unknown');
 				setTimeout(() => {
 					compartment.classList.remove('unknown');
 				}, 2000);
+			}
+
+			// ===== Check for Flake Updates (P5300) =====
+			function checkForUpdates() {
+				fetch('/api/flake-updates/check', {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+						'X-CSRF-Token': window.csrfToken
+					}
+				})
+				.then(resp => {
+					if (!resp.ok) {
+						if (resp.status === 501) {
+							console.log('GitHub integration not configured');
+							return null;
+						}
+						throw new Error('Failed to check for updates');
+					}
+					return resp.json();
+				})
+				.then(data => {
+					if (data && data.pending_pr) {
+						handleFlakeUpdatePR({ pending_pr: data.pending_pr });
+					}
+				})
+				.catch(err => {
+					console.error('Check for updates failed:', err);
+				});
 			}
 
 			// Initialize page
@@ -1261,6 +1338,34 @@ templ FleetTargetLine(target FleetTarget) {
 			<span class="target-label">Target:</span>
 			<span class="target-unavailable">Version tracking not configured</span>
 		}
+	</div>
+}
+
+// FlakeUpdateBanner renders the pending PR banner (P5300)
+templ FlakeUpdateBanner(pr *PendingPR, csrfToken string) {
+	<div class="flake-update-content" data-pr-number={ strconv.Itoa(pr.Number) }>
+		<svg class="flake-update-icon"><use href="#icon-refresh"></use></svg>
+		<span class="flake-update-text">
+			Update available:
+			<a href={ templ.SafeURL(pr.URL) } target="_blank" rel="noopener">
+				#{ strconv.Itoa(pr.Number) }
+			</a>
+			— { pr.Title }
+		</span>
+		if pr.Mergeable {
+			<button class="btn btn-primary btn-sm" onclick={ templ.ComponentScript{Call: fmt.Sprintf("mergeAndDeploy(%d)", pr.Number)} }>
+				<svg class="icon"><use href="#icon-check"></use></svg>
+				Merge & Deploy
+			</button>
+		} else {
+			<button class="btn btn-secondary btn-sm" disabled title="PR has conflicts or is not mergeable">
+				<svg class="icon"><use href="#icon-alert"></use></svg>
+				Not Mergeable
+			</button>
+		}
+		<button class="btn btn-secondary btn-sm" onclick="dismissFlakeUpdate()">
+			Dismiss
+		</button>
 	</div>
 }
 
@@ -1543,6 +1648,10 @@ templ ActionDropdown(host Host) {
 			<button class="dropdown-item" onclick="unlockActions(this)" data-host-id={ host.ID }>
 				<svg class="icon"><use href="#icon-refresh"></use></svg>
 				Unlock actions
+			</button>
+			<button class="dropdown-item" onclick="checkForUpdates()" title="Check GitHub for flake.lock update PRs">
+				<svg class="icon"><use href="#icon-lock"></use></svg>
+				Check for Updates
 			</button>
 			if host.Online {
 				<button class="dropdown-item" onclick="sendCommand(this.dataset.hostId, 'restart')" data-host-id={ host.ID }>

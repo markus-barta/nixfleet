@@ -147,22 +147,22 @@ func (c *HTTPClient) doRequest(req *http.Request, result interface{}) error {
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return err
+		return fmt.Errorf("request %s: %w", req.URL.Path, err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return fmt.Errorf("read response: %w", err)
+		return fmt.Errorf("read response from %s: %w", req.URL.Path, err)
 	}
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Errorf("API error (status %d): %s", resp.StatusCode, string(body))
+		return fmt.Errorf("GitHub API %s (status %d): %s", req.URL.Path, resp.StatusCode, string(body))
 	}
 
 	if result != nil {
 		if err := json.Unmarshal(body, result); err != nil {
-			return fmt.Errorf("parse response: %w", err)
+			return fmt.Errorf("parse response from %s: %w", req.URL.Path, err)
 		}
 	}
 
