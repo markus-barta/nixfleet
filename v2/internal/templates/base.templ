@@ -854,6 +854,7 @@ templ Base(title string, csrfToken string) {
 			}
 
 			.update-compartment {
+				position: relative;
 				display: inline-flex;
 				align-items: center;
 				justify-content: center;
@@ -927,6 +928,58 @@ templ Base(title string, csrfToken string) {
 			@keyframes agent-pulse {
 				0%, 100% { opacity: 0.4; }
 				50% { opacity: 1; }
+			}
+
+			/* Compartment Status Indicator (P5010) */
+			.compartment-indicator {
+				position: absolute;
+				bottom: 1px;
+				right: 1px;
+				width: 4px;
+				height: 4px;
+				border-radius: 50%;
+				pointer-events: none;
+			}
+
+			/* OK state (green) - 3D gradient */
+			.compartment-indicator--ok {
+				background: linear-gradient(
+					to bottom,
+					hsl(142, 71%, 55%),
+					hsl(142, 71%, 35%)
+				);
+				box-shadow: 0 0 1px hsla(142, 71%, 45%, 0.5);
+			}
+
+			/* Warning/outdated state (yellow) - 3D gradient */
+			.compartment-indicator--warning {
+				background: linear-gradient(
+					to bottom,
+					hsl(45, 90%, 60%),
+					hsl(45, 90%, 40%)
+				);
+				box-shadow: 0 0 1px hsla(45, 90%, 50%, 0.5);
+			}
+
+			/* Error state (red) - 3D gradient */
+			.compartment-indicator--error {
+				background: linear-gradient(
+					to bottom,
+					hsl(0, 70%, 60%),
+					hsl(0, 70%, 40%)
+				);
+				box-shadow: 0 0 1px hsla(0, 70%, 50%, 0.5);
+			}
+
+			/* Unknown state (gray) - subtle */
+			.compartment-indicator--unknown {
+				background: linear-gradient(
+					to bottom,
+					hsl(220, 10%, 50%),
+					hsl(220, 10%, 35%)
+				);
+				box-shadow: 0 0 1px hsla(220, 10%, 40%, 0.3);
+				opacity: 0.6;
 			}
 
 			/* Action Dropdown (P4380) */

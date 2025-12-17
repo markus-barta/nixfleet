@@ -1258,10 +1258,12 @@ templ UpdateStatusCell(host Host) {
 		<!-- Git compartment -->
 		<span class={ updateCompartmentClass(host.UpdateStatus, "git") } title={ updateCompartmentTitle(host.UpdateStatus, "git", host.HostType) } onclick="refreshStatus(this, 'git')">
 			<svg class="update-icon"><use href="#icon-git-branch"></use></svg>
+			<span class={ compartmentIndicatorClass(host.UpdateStatus, "git") }></span>
 		</span>
 		<!-- Lock compartment -->
 		<span class={ updateCompartmentClass(host.UpdateStatus, "lock") } title={ updateCompartmentTitle(host.UpdateStatus, "lock", host.HostType) } onclick="refreshStatus(this, 'lock')">
 			<svg class="update-icon"><use href="#icon-lock"></use></svg>
+			<span class={ compartmentIndicatorClass(host.UpdateStatus, "lock") }></span>
 		</span>
 		<!-- System compartment (NixOS snowflake or macOS home) -->
 		<span class={ updateCompartmentClass(host.UpdateStatus, "system") } title={ updateCompartmentTitle(host.UpdateStatus, "system", host.HostType) } onclick="refreshStatus(this, 'system')">
@@ -1270,11 +1272,13 @@ templ UpdateStatusCell(host Host) {
 			} else {
 				<svg class="update-icon"><use href="#icon-nixos"></use></svg>
 			}
+			<span class={ compartmentIndicatorClass(host.UpdateStatus, "system") }></span>
 		</span>
 		<!-- Agent compartment (only shown when outdated) -->
 		if host.AgentOutdated {
 			<span class="update-compartment agent-outdated" title={ "Agent version " + host.AgentVersion + " is outdated" }>
 				<span class="agent-letter">A</span>
+				<span class="compartment-indicator compartment-indicator--error"></span>
 			</span>
 		}
 	</div>
@@ -1396,6 +1400,35 @@ func updateCompartmentClass(status *UpdateStatus, compartment string) string {
 		return base + " error"
 	default:
 		return base + " unknown"
+	}
+}
+
+// compartmentIndicatorClass returns CSS classes for the status indicator dot (P5010)
+func compartmentIndicatorClass(status *UpdateStatus, compartment string) string {
+	base := "compartment-indicator"
+	if status == nil {
+		return base + " compartment-indicator--unknown"
+	}
+	
+	var check StatusCheck
+	switch compartment {
+	case "git":
+		check = status.Git
+	case "lock":
+		check = status.Lock
+	case "system":
+		check = status.System
+	}
+	
+	switch check.Status {
+	case "ok":
+		return base + " compartment-indicator--ok"
+	case "outdated":
+		return base + " compartment-indicator--warning"
+	case "error":
+		return base + " compartment-indicator--error"
+	default:
+		return base + " compartment-indicator--unknown"
 	}
 }
 
