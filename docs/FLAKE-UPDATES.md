@@ -161,3 +161,57 @@ This means all packages will be built from the newer nixpkgs snapshot, potential
 - New package versions
 - Bug fixes
 - Breaking changes (rare but possible)
+
+---
+
+## The Fundamental Question: Who Runs the Update?
+
+**Someone has to run `nix flake update`.** This command fetches the latest versions of all inputs and writes them to `flake.lock`.
+
+There are two options for WHO does this:
+
+| Option            | Who runs `nix flake update`? | How it gets to all hosts            |
+| ----------------- | ---------------------------- | ----------------------------------- |
+| **GitHub-driven** | GitHub Action (CI)           | Creates PR → merge → hosts pull     |
+| **Host-driven**   | One of your hosts            | Commits → pushes → other hosts pull |
+
+### Option C: GitHub-Driven (Current Plan - P5300)
+
+```
+GitHub Action  ──→  PR  ──→  NixFleet detects  ──→  Merge & Deploy
+```
+
+**Why this approach:**
+
+- It's the existing workflow (from pbek/hokage) — we change as little as possible
+- GitHub Actions is already set up and running weekly
+- CI can run checks before you merge
+- Clear audit trail in git history
+
+**P5300 just makes it smoother** — instead of manually reviewing PRs on GitHub, NixFleet shows "update available" and offers one-click merge + deploy.
+
+### Option A: Host-Driven (Future Feature)
+
+```
+Dashboard "Update Inputs" button  ──→  One host runs update  ──→  Push  ──→  Deploy all
+```
+
+**Why this might be added later:**
+
+- Simpler for users who don't want/need the GitHub PR workflow
+- Fewer moving parts
+- Works without GitHub Actions configured
+
+**This will be a toggle in the Settings page** — choose your preferred update strategy.
+
+---
+
+## Summary: Current vs Future
+
+| Feature            | Current (P5300)       | Future (Settings) |
+| ------------------ | --------------------- | ----------------- |
+| Who updates        | GitHub Action         | Dashboard/Agent   |
+| Uses PRs           | Yes                   | No                |
+| Needs GitHub API   | Yes (to merge)        | Yes (to push)     |
+| Review step        | Optional (auto-merge) | None              |
+| For users who want | Full CI/PR workflow   | Quick updates     |
