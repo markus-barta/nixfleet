@@ -16,11 +16,12 @@ RUN apk add --no-cache git ca-certificates tzdata
 WORKDIR /app
 
 # Copy go mod files first (better caching)
-COPY go.mod go.sum ./
+# Context is repo root, so prefix with v2/
+COPY v2/go.mod v2/go.sum ./
 RUN go mod download
 
-# Copy source
-COPY . .
+# Copy source (v2/ contains Go code, assets/ contains static files)
+COPY v2/ ./
 
 # Build arguments for version injection
 ARG VERSION=dev
@@ -61,8 +62,8 @@ RUN mkdir -p /data && chown nixfleet:nixfleet /data
 # Copy binary from builder
 COPY --from=builder /nixfleet-dashboard /usr/local/bin/nixfleet-dashboard
 
-# Copy static files
-COPY --from=builder /app/static /static
+# Copy static files from assets/ in repo root
+COPY assets /static
 
 # Switch to non-root user
 USER nixfleet
