@@ -2,7 +2,7 @@
 
 **Created**: 2025-12-17  
 **Priority**: P4010 (Critical - Blocking)  
-**Status**: Backlog  
+**Status**: ✅ COMPLETE  
 **Depends on**: None  
 **Blocks**: Everything else - this is the foundation
 
@@ -190,13 +190,14 @@ fi
 | ------------- | ---------- | ---------- | ----------- | ------------- | --------- | ----------- | ----------- | ---------- |
 | hsb0          | ✅         | ✅         | ✅          | ✅            | ✅        | ✅          | Claude      | 2025-12-17 |
 | hsb1          | ✅         | ✅         | ✅          | ✅            | ✅        | ✅          | Claude      | 2025-12-17 |
-| hsb8          | ⬜         | ⬜         | ⬜          | ⬜            | ⬜        | ⬜          | (offsite)   |            |
 | csb0          | ✅         | ✅         | ✅          | ✅            | ✅        | ✅          | Claude      | 2025-12-17 |
 | csb1          | ✅         | ✅         | ✅          | ✅            | ✅        | ✅          | Claude      | 2025-12-17 |
-| gpc0          | ✅         | ✅         | ✅          | ✅            | ⬜        | ⬜          | Claude      | 2025-12-17 |
+| gpc0          | ✅         | ✅         | ✅          | ✅            | ✅        | ✅          | Claude      | 2025-12-17 |
 | imac0         | ✅         | ✅         | ✅          | ✅            | ✅        | ✅          | Claude      | 2025-12-17 |
-| mba-mbp-work  | ⬜         | ⬜         | ⬜          | ⬜            | ⬜        | ⬜          |             |            |
+| mba-mbp-work  | ✅         | ✅         | ✅          | ✅            | ✅        | ✅          | Claude      | 2025-12-17 |
 | mba-imac-work | ✅         | ✅         | ✅          | ✅            | ✅        | ✅          | Markus      | 2025-12-17 |
+
+_Note: hsb8 removed from list - offsite and has no NixFleet installed_
 
 **Legend:** ⬜ = Not verified, ✅ = Passed, ❌ = Failed
 
