@@ -1,12 +1,12 @@
 # NixFleet
 
 <p align="center">
-  <img src="app/static/nixfleet_fade.png" alt="NixFleet" width="60%">
+  <img src="app/static/nixfleet_badge.png" alt="NixFleet" width="60%">
 </p>
 
 <p align="center">
-  <strong>Unified fleet management for your NixOS and macOS infrastructure.</strong><br>
-  Deploy, monitor, and control all your hosts from a single dashboard.
+  <strong>Unified fleet management for your NixOS (and macOS) infrastructure.</strong><br>
+  Deploy, monitor, and control all your hosts from a comfortable dashboard with a single click.
 </p>
 
 ---
