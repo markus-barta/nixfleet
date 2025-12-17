@@ -1,7 +1,7 @@
 # NixFleet
 
 <p align="center">
-  <img src="app/static/nixfleet_badge.png" alt="NixFleet" width="60%">
+  <img src="assets/nixfleet_badge.png" alt="NixFleet" width="60%">
 </p>
 
 <p align="center">
