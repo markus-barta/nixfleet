@@ -206,6 +206,69 @@ Dashboard "Update Inputs" button  ──→  One host runs update  ──→  Pu
 
 ---
 
+## Agent Version Tracking
+
+The NixFleet agent has its own versioning, **separate** from your `flake.lock`:
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│  flake.lock   = which version of nixpkgs/home-manager you use   │
+│  agent        = which version of the NixFleet agent is running  │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+### How It Works
+
+1. **Dashboard knows** its own version (compiled in at build time)
+2. **Agents report** their version in every heartbeat
+3. **If they differ** → Agent is outdated
+
+### Visual Indicator
+
+When an agent is outdated, a **red pulsing "A"** appears in the top-right corner of the **Lock compartment**:
+
+```
+┌──────────┬──────────┬──────────┐
+│   Git    │  Lock  A │  System  │  ← "A" badge means agent is outdated
+└──────────┴──────────┴──────────┘
+```
+
+The Lock compartment's tooltip includes agent version info:
+
+```
+Flake Lock
+──────────
+Status: ✓ Up to date
+Checked: 2025-12-17T10:30
+
+Agent Version
+─────────────
+Installed: v2.3.0
+⚠ Agent outdated!
+```
+
+### Why on Lock? (Not a 4th Compartment)
+
+The agent version is tied to your `flake.lock` because:
+
+- The agent is defined as a Nix input in `flake.nix`
+- Updating `flake.lock` (via `nix flake update`) bumps the agent input
+- Running `switch` deploys the new agent
+
+So **updating the Lock** → **updates the Agent**. They're conceptually linked.
+
+### Potential Issues: Browser Caching
+
+⚠️ The dashboard's version comes from its compiled code. If your browser caches an old dashboard version, it might show false positives ("agent outdated" when it isn't).
+
+**If you see unexpected "A" badges:**
+
+1. Hard refresh: `Cmd+Shift+R` (Mac) or `Ctrl+Shift+R` (Windows/Linux)
+2. Clear browser cache for the dashboard URL
+3. Verify the dashboard container restarted after deploy
+
+---
+
 ## Summary: Current vs Future
 
 | Feature            | Current (P5300)       | Future (Settings) |

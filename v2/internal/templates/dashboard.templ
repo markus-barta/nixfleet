@@ -3,6 +3,7 @@ package templates
 import (
 	"fmt"
 	"strconv"
+	"strings"
 )
 
 // Host represents a host in the dashboard
@@ -406,12 +407,12 @@ templ Dashboard(data DashboardData) {
 
 				// Update status compartments (P5010 fix)
 				if (host.update_status) {
-					updateStatusCompartments(row, host.update_status);
+					updateStatusCompartments(row, host.update_status, host);
 				}
 			}
 
 			// Update the three status compartments (Git, Lock, System) based on new status data
-			function updateStatusCompartments(row, updateStatus) {
+			function updateStatusCompartments(row, updateStatus, host) {
 				const container = row.querySelector('.update-status');
 				if (!container) return;
 
@@ -432,9 +433,47 @@ templ Dashboard(data DashboardData) {
 						indicator.className = getIndicatorClass(status.status);
 					}
 
-					// Update tooltip
-					compartment.title = getCompartmentTooltip(type, status);
+					// Update tooltip with nice formatting
+					compartment.title = getCompartmentTooltip(type, status, updateStatus, host);
+					
+					// Handle agent badge on Lock compartment
+					if (type === 'lock') {
+						updateAgentBadge(compartment, host);
+					}
 				});
+			}
+
+			// Toggle agent badge visibility on Lock compartment
+			function updateAgentBadge(compartment, host) {
+				let badge = compartment.querySelector('.agent-badge');
+				const isOutdated = host && host.agent_outdated;
+				
+				if (isOutdated && !badge) {
+					// Add badge
+					badge = document.createElement('span');
+					badge.className = 'agent-badge';
+					badge.textContent = 'A';
+					badge.title = formatAgentTooltip(host);
+					compartment.appendChild(badge);
+				} else if (!isOutdated && badge) {
+					// Remove badge
+					badge.remove();
+				} else if (badge && host) {
+					// Update badge tooltip
+					badge.title = formatAgentTooltip(host);
+				}
+			}
+
+			function formatAgentTooltip(host) {
+				if (!host) return 'Agent status unknown';
+				return [
+					'Agent Outdated!',
+					'───────────────',
+					'Installed: ' + (host.agent_version || 'unknown'),
+					'',
+					'Update via "switch" or',
+					'"update-agent" command'
+				].join('\n');
 			}
 
 			function getCompartmentClass(status) {
@@ -457,18 +496,69 @@ templ Dashboard(data DashboardData) {
 				}
 			}
 
-			function getCompartmentTooltip(type, status) {
-				const labels = { git: 'Git', lock: 'Lock', system: 'System' };
-				const label = labels[type] || type;
-				if (status.message) {
-					return label + ': ' + status.message;
+			function getCompartmentTooltip(type, status, updateStatus, host) {
+				const formatStatus = (s) => {
+					switch (s) {
+						case 'ok': return '✓ Up to date';
+						case 'outdated': return '⚠ Needs update';
+						case 'error': return '✗ Error';
+						default: return '? Unknown';
+					}
+				};
+
+				const formatTime = (ts) => ts && ts.length > 19 ? ts.slice(0, 19) : (ts || '');
+
+				if (type === 'git') {
+					const lines = [
+						'Git Repository',
+						'─────────────',
+						'Status: ' + formatStatus(status.status)
+					];
+					if (status.message) lines.push('Detail: ' + status.message);
+					if (updateStatus.repo_url) lines.push('Remote: ' + updateStatus.repo_url);
+					if (updateStatus.repo_dir) lines.push('Local: ' + updateStatus.repo_dir);
+					if (status.checked_at) lines.push('Checked: ' + formatTime(status.checked_at));
+					return lines.join('\n');
 				}
-				switch (status.status) {
-					case 'ok': return label + ': Up to date';
-					case 'outdated': return label + ': Needs attention';
-					case 'error': return label + ': Error';
-					default: return label + ': Unknown';
+
+				if (type === 'lock') {
+					const lines = [
+						'Flake Lock',
+						'──────────',
+						'Status: ' + formatStatus(status.status)
+					];
+					if (status.message) lines.push('Detail: ' + status.message);
+					if (status.checked_at) lines.push('Checked: ' + formatTime(status.checked_at));
+					lines.push('');
+					lines.push('Agent Version');
+					lines.push('─────────────');
+					if (host && host.agent_version) {
+						lines.push('Installed: ' + host.agent_version);
+					}
+					if (host && host.agent_outdated) {
+						lines.push('⚠ Agent outdated!');
+					} else {
+						lines.push('✓ Agent up to date');
+					}
+					return lines.join('\n');
 				}
+
+				if (type === 'system') {
+					const label = (host && host.host_type === 'macos') ? 'Home Manager' : 'System (NixOS)';
+					const divider = '─'.repeat(label.length);
+					const lines = [
+						label,
+						divider,
+						'Status: ' + formatStatus(status.status)
+					];
+					if (status.message) lines.push('Detail: ' + status.message);
+					if (host && host.generation) lines.push('Generation: ' + host.generation);
+					if (status.checked_at) lines.push('Checked: ' + formatTime(status.checked_at));
+					return lines.join('\n');
+				}
+
+				// Fallback
+				return type + ': ' + formatStatus(status.status);
 			}
 
 			function updateMetrics(cell, metrics) {
@@ -1318,21 +1408,24 @@ templ TestsCell(progress *TestProgress) {
 	}
 }
 
-// UpdateStatusCell renders the update status indicator (3 compartments + optional Agent)
+// UpdateStatusCell renders the update status indicator (3 compartments with agent badge overlay on Lock)
 templ UpdateStatusCell(host Host) {
 	<div class="update-status" data-host-id={ host.ID }>
 		<!-- Git compartment -->
-		<span class={ updateCompartmentClass(host.UpdateStatus, "git") } title={ updateCompartmentTitle(host.UpdateStatus, "git", host.HostType) } onclick="refreshStatus(this, 'git')">
+		<span class={ updateCompartmentClass(host.UpdateStatus, "git") } title={ gitTooltip(host) } onclick="refreshStatus(this, 'git')">
 			<svg class="update-icon"><use href="#icon-git-branch"></use></svg>
 			<span class={ compartmentIndicatorClass(host.UpdateStatus, "git") }></span>
 		</span>
-		<!-- Lock compartment -->
-		<span class={ updateCompartmentClass(host.UpdateStatus, "lock") } title={ updateCompartmentTitle(host.UpdateStatus, "lock", host.HostType) } onclick="refreshStatus(this, 'lock')">
+		<!-- Lock compartment (with agent badge overlay when outdated) -->
+		<span class={ updateCompartmentClass(host.UpdateStatus, "lock") } title={ lockTooltip(host) } onclick="refreshStatus(this, 'lock')">
 			<svg class="update-icon"><use href="#icon-lock"></use></svg>
 			<span class={ compartmentIndicatorClass(host.UpdateStatus, "lock") }></span>
+			if host.AgentOutdated {
+				<span class="agent-badge" title={ agentTooltip(host) }>A</span>
+			}
 		</span>
 		<!-- System compartment (NixOS snowflake or macOS home) -->
-		<span class={ updateCompartmentClass(host.UpdateStatus, "system") } title={ updateCompartmentTitle(host.UpdateStatus, "system", host.HostType) } onclick="refreshStatus(this, 'system')">
+		<span class={ updateCompartmentClass(host.UpdateStatus, "system") } title={ systemTooltip(host) } onclick="refreshStatus(this, 'system')">
 			if host.HostType == "macos" {
 				<svg class="update-icon"><use href="#icon-home"></use></svg>
 			} else {
@@ -1340,13 +1433,6 @@ templ UpdateStatusCell(host Host) {
 			}
 			<span class={ compartmentIndicatorClass(host.UpdateStatus, "system") }></span>
 		</span>
-		<!-- Agent compartment (only shown when outdated) -->
-		if host.AgentOutdated {
-			<span class="update-compartment agent-outdated" title={ "Agent version " + host.AgentVersion + " is outdated" }>
-				<span class="agent-letter">A</span>
-				<span class="compartment-indicator compartment-indicator--error"></span>
-			</span>
-		}
 	</div>
 }
 
@@ -1498,7 +1584,151 @@ func compartmentIndicatorClass(status *UpdateStatus, compartment string) string 
 	}
 }
 
-// updateCompartmentTitle returns the tooltip for an update status compartment
+// gitTooltip returns a nicely formatted tooltip for the Git compartment
+func gitTooltip(host Host) string {
+	status := host.UpdateStatus
+	if status == nil {
+		return "Git Repository\n─────────────\nStatus: Checking..."
+	}
+	
+	check := status.Git
+	statusText := formatStatus(check.Status)
+	
+	lines := []string{
+		"Git Repository",
+		"─────────────",
+		"Status: " + statusText,
+	}
+	
+	if check.Message != "" && check.Message != statusText {
+		lines = append(lines, "Detail: "+check.Message)
+	}
+	
+	if status.RepoURL != "" {
+		lines = append(lines, "Remote: "+status.RepoURL)
+	}
+	if status.RepoDir != "" {
+		lines = append(lines, "Local: "+status.RepoDir)
+	}
+	if check.CheckedAt != "" {
+		lines = append(lines, "Checked: "+formatTimestamp(check.CheckedAt))
+	}
+	
+	return strings.Join(lines, "\n")
+}
+
+// lockTooltip returns a nicely formatted tooltip for the Lock compartment
+func lockTooltip(host Host) string {
+	status := host.UpdateStatus
+	if status == nil {
+		return "Flake Lock\n──────────\nStatus: Checking..."
+	}
+	
+	check := status.Lock
+	statusText := formatStatus(check.Status)
+	
+	lines := []string{
+		"Flake Lock",
+		"──────────",
+		"Status: " + statusText,
+	}
+	
+	if check.Message != "" && check.Message != statusText {
+		lines = append(lines, "Detail: "+check.Message)
+	}
+	if check.CheckedAt != "" {
+		lines = append(lines, "Checked: "+formatTimestamp(check.CheckedAt))
+	}
+	
+	// Add agent version info
+	lines = append(lines, "")
+	lines = append(lines, "Agent Version")
+	lines = append(lines, "─────────────")
+	if host.AgentVersion != "" {
+		lines = append(lines, "Installed: "+host.AgentVersion)
+	}
+	if host.AgentOutdated {
+		lines = append(lines, "⚠ Agent outdated!")
+	} else {
+		lines = append(lines, "✓ Agent up to date")
+	}
+	
+	return strings.Join(lines, "\n")
+}
+
+// agentTooltip returns a tooltip for the agent badge overlay
+func agentTooltip(host Host) string {
+	lines := []string{
+		"Agent Outdated!",
+		"───────────────",
+		"Installed: " + host.AgentVersion,
+		"",
+		"Update via 'switch' or",
+		"'update-agent' command",
+	}
+	return strings.Join(lines, "\n")
+}
+
+// systemTooltip returns a nicely formatted tooltip for the System compartment
+func systemTooltip(host Host) string {
+	status := host.UpdateStatus
+	label := "System (NixOS)"
+	if host.HostType == "macos" {
+		label = "Home Manager"
+	}
+	
+	divider := strings.Repeat("─", len(label))
+	
+	if status == nil {
+		return label + "\n" + divider + "\nStatus: Checking..."
+	}
+	
+	check := status.System
+	statusText := formatStatus(check.Status)
+	
+	lines := []string{
+		label,
+		divider,
+		"Status: " + statusText,
+	}
+	
+	if check.Message != "" && check.Message != statusText {
+		lines = append(lines, "Detail: "+check.Message)
+	}
+	if host.Generation != "" {
+		lines = append(lines, "Generation: "+host.Generation)
+	}
+	if check.CheckedAt != "" {
+		lines = append(lines, "Checked: "+formatTimestamp(check.CheckedAt))
+	}
+	
+	return strings.Join(lines, "\n")
+}
+
+// formatStatus converts status codes to human-readable text
+func formatStatus(status string) string {
+	switch status {
+	case "ok":
+		return "✓ Up to date"
+	case "outdated":
+		return "⚠ Needs update"
+	case "error":
+		return "✗ Error"
+	default:
+		return "? Unknown"
+	}
+}
+
+// formatTimestamp formats an ISO timestamp for display
+func formatTimestamp(ts string) string {
+	// Just return as-is for now; can be enhanced later
+	if len(ts) > 19 {
+		return ts[:19] // Trim to "2024-12-17T10:30:00"
+	}
+	return ts
+}
+
+// updateCompartmentTitle returns the tooltip for an update status compartment (legacy, kept for JS)
 func updateCompartmentTitle(status *UpdateStatus, compartment string, hostType string) string {
 	if status == nil {
 		switch compartment {
@@ -1521,30 +1751,6 @@ func updateCompartmentTitle(status *UpdateStatus, compartment string, hostType s
 	case "git":
 		check = status.Git
 		label = "Git"
-		// Build Git-specific tooltip with repo info
-		tooltip := label
-		if check.Message != "" {
-			tooltip += ": " + check.Message
-		} else {
-			switch check.Status {
-			case "ok":
-				tooltip += ": Up to date"
-			case "outdated":
-				tooltip += ": Needs attention"
-			case "error":
-				tooltip += ": Error"
-			default:
-				tooltip += ": Checking..."
-			}
-		}
-		// Add repo paths
-		if status.RepoURL != "" {
-			tooltip += " | Remote: " + status.RepoURL
-		}
-		if status.RepoDir != "" {
-			tooltip += " | Local: " + status.RepoDir
-		}
-		return tooltip
 	case "lock":
 		check = status.Lock
 		label = "Lock"
