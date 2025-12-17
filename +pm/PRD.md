@@ -30,6 +30,116 @@ NixFleet is a fleet management system for NixOS and macOS hosts. It enables cent
 
 ---
 
+## Critical Requirement: Agent Resilience
+
+> **This is the #1 requirement of NixFleet. Without resilient agents, the entire system is useless.**
+
+NixFleet's core value proposition is remote fleet management. If the agent dies, goes offline, or fails to restart after updates, the operator loses visibility and control. **This is unacceptable.**
+
+### The Fundamental Promise
+
+**After any operation — switch, pull, reboot, crash, network outage, power failure — the most recent working agent MUST be running and connected to the dashboard within 60 seconds of the host being reachable.**
+
+No exceptions. No "it works most of the time." No manual intervention required.
+
+### Why This Matters
+
+We have repeatedly "fixed" agent issues across the fleet, only to discover they weren't actually fixed. This has happened 10+ times. Each time:
+
+- "Now it's fixed for all hosts" → Still broken on some
+- "The agent survives switch now" → Agent runs old binary after switch
+- "macOS launchd restarts it" → Agent dead after home-manager switch
+
+This cycle ends now. The requirements below are non-negotiable.
+
+### Resilience Requirements
+
+| ID        | Requirement                            | Acceptance Criteria                                                                                                                                  |
+| --------- | -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **RES-1** | Agent survives its own switch          | Agent continues running during `nixos-rebuild switch` or `home-manager switch`. It does NOT get killed by systemd/launchd during the switch process. |
+| **RES-2** | Agent restarts after successful switch | After switch completes (exit 0), agent automatically restarts to run the NEW binary. The old binary does not continue running indefinitely.          |
+| **RES-3** | Agent survives reboot                  | After system reboot, agent starts automatically and connects to dashboard.                                                                           |
+| **RES-4** | Agent survives crash                   | If agent crashes or is killed (SIGKILL, OOM), systemd/launchd restarts it within 30 seconds.                                                         |
+| **RES-5** | Agent survives network outage          | Agent reconnects automatically when network returns. Uses exponential backoff (1s → 2s → 4s → ... → 60s max).                                        |
+| **RES-6** | Agent survives dashboard restart       | Agent reconnects automatically when dashboard comes back online.                                                                                     |
+| **RES-7** | Agent reports correct generation       | After switch + restart, the agent reports the NEW generation hash, not the old one. Dashboard shows accurate status.                                 |
+| **RES-8** | Isolated repo stays clean              | `git pull` via dashboard always succeeds. Uses `reset --hard` to avoid merge conflicts.                                                              |
+
+### Implementation Details
+
+#### NixOS (systemd)
+
+```nix
+systemd.services.nixfleet-agent = {
+  # CRITICAL: Don't stop/restart during switch - agent is running the switch!
+  restartIfChanged = false;
+  stopIfChanged = false;
+
+  serviceConfig = {
+    Restart = "always";
+    RestartSec = 3;
+    # Exit code 101 = agent requests restart (after successful switch)
+    RestartForceExitStatus = "101";
+  };
+};
+```
+
+**Agent behavior after successful switch:**
+
+1. Send success status to dashboard
+2. Wait 500ms for message delivery
+3. Exit with code 101
+4. systemd restarts with new binary
+
+#### macOS (launchd)
+
+```nix
+launchd.agents.nixfleet-agent = {
+  config = {
+    KeepAlive = true;  # Restart on any exit
+    RunAtLoad = true;  # Start on login
+  };
+};
+```
+
+**Agent behavior during home-manager switch:**
+
+1. Run `home-manager switch` in a **new session** (`Setsid: true`)
+2. This prevents the agent from being killed when launchd reloads
+3. After switch, agent exits and launchd restarts with new binary
+
+### Verification Checklist
+
+Before claiming "agent resilience is fixed," verify ALL of these on EVERY host:
+
+- [ ] **Fresh reboot test**: Reboot host → agent connects within 60s
+- [ ] **Switch test**: Click Switch in dashboard → agent survives → agent restarts with new binary
+- [ ] **Pull test**: Click Pull → repo updated to origin/main (verify with `git log -1`)
+- [ ] **Kill test**: `sudo kill -9 $(pgrep nixfleet-agent)` → agent restarts within 30s
+- [ ] **Network test**: Disconnect network 60s → reconnect → agent reconnects
+- [ ] **Generation test**: After switch, dashboard shows NEW generation hash
+
+### Known Failure Modes
+
+| Failure                              | Root Cause                                        | Fix                                              |
+| ------------------------------------ | ------------------------------------------------- | ------------------------------------------------ |
+| Agent runs old binary after switch   | `restartIfChanged=false` prevents systemd restart | Agent self-restarts with exit code 101           |
+| Agent dead after home-manager switch | launchd kills agent when reloading plist          | Run switch in new session with `Setsid: true`    |
+| Pull doesn't update repo             | Regular `git pull` fails with merge conflicts     | Use `git fetch` + `git reset --hard origin/main` |
+| Agent shows old generation           | Agent didn't restart after switch                 | Verify exit code 101 triggers restart            |
+| Isolated repo on wrong branch/commit | Repo was manually modified or diverged            | `git reset --hard origin/main` + `git clean -fd` |
+
+### Monitoring
+
+The dashboard should make agent health obvious:
+
+1. **Online/Offline indicator** - Green dot = connected, Red = disconnected
+2. **Last seen timestamp** - How long since last heartbeat
+3. **Generation mismatch** - Yellow "G" indicator if behind target
+4. **Agent version mismatch** - Red "A" indicator if agent binary is outdated
+
+---
+
 ## User Stories
 
 ### US-1: Fleet Overview
@@ -341,6 +451,11 @@ Behavior:
 
 | Date       | Version | Changes                                                                |
 | ---------- | ------- | ---------------------------------------------------------------------- |
+| 2025-12-17 | 1.4     | **CRITICAL**: Added Agent Resilience section as #1 requirement         |
+|            |         | RES-1 through RES-8: Non-negotiable resilience requirements            |
+|            |         | Added verification checklist for agent fixes                           |
+|            |         | Documented known failure modes and fixes                               |
+|            |         | Added monitoring requirements for agent health                         |
 | 2025-12-16 | 1.3     | FR-1.9: Added detailed isolated repo mode spec (P5500)                 |
 |            |         | Specified default paths, auto-clone, clean-slate behavior              |
 | 2025-12-15 | 1.2     | US-7, US-8: Added Update Status and Automated Flake Updates stories    |
