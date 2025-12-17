@@ -13,35 +13,44 @@
 
 **Part of the [nixcfg](https://github.com/markus-barta/nixcfg) ecosystem** — manage your Nix fleet with confidence.
 
+## Why NixFleet? 🚀
+
+Managing multiple Nix machines can be a hassle. You've got servers in the cloud, desktops at home, laptops on the go — and they all need to stay in sync with your configuration. NixFleet gives you a single place to see everything, push updates, and know exactly which hosts need attention.
+
+No more SSH-ing into each machine one by one. Just open your dashboard, see who's online, and hit "Switch" to deploy your latest config. It's that simple!
+
 ## Features
 
-### Dashboard
+### Dashboard 🖥️
 
-- **Real-time WebSocket Updates**: Live host status, no page refresh needed
-- **Fleet Target Display**: Shows the Git commit all hosts should be on
-- **Three-Compartment Status**: Git (behind/current), Lock (freshness), System (rebuild needed)
-- **Agent Version Tracking**: Alerts when agents are outdated vs dashboard
-- **Per-Host Actions**: Pull, Switch, Pull+Switch, Test, Stop, Remove
-- **Bulk Actions**: Apply commands to all online hosts at once
-- **Add/Remove Hosts**: Manage your fleet directly from the UI
+Your command center for the entire fleet! Everything updates in real-time via WebSockets, so you'll always see the current state without refreshing.
 
-### Agent
+- **Real-time Updates**: Hosts appear the moment they connect, status changes instantly
+- **Fleet Target**: See which Git commit everyone should be on at a glance
+- **Smart Status Indicators**: Know immediately if a host is behind, needs a rebuild, or has a stale lock file
+- **One-Click Actions**: Pull, Switch, or Test any host with a single click
+- **Bulk Operations**: Update your entire fleet at once when you're feeling confident
 
-- **Isolated Repository Mode**: Agent maintains its own clone, no shared repo conflicts
-- **Clean-Slate Pull**: `git fetch` + `git reset --hard` ensures repo matches origin
-- **Unified Pattern**: Same Go agent for NixOS (`nixos-rebuild`) and macOS (`home-manager`)
-- **Survives Restarts**: Uses detached process on macOS to survive `home-manager switch`
-- **Automatic Registration**: Agents register on first connect, show up in dashboard
+### Agent 🤖
 
-### Security
+A tiny Go binary that runs on each host. It connects to the dashboard, reports its status, and executes commands when you click buttons.
 
-- **Password + TOTP**: Optional 2FA via authenticator apps
-- **Signed Session Cookies**: Rotation-ready secret management
-- **Per-Host Agent Tokens**: Each host can have its own token (hashed in DB)
-- **CSRF Protection**: All forms protected against cross-site attacks
-- **Rate Limiting**: Login, registration, and poll endpoints
+- **Isolated Repository Mode**: Each agent keeps its own clone of your config — no conflicts with your working directory!
+- **Clean-Slate Pull**: When you click "Pull", it does a proper `git fetch` + `git reset --hard` so you always get exactly what's on origin
+- **Works Everywhere**: Same agent for NixOS (uses `nixos-rebuild`) and macOS (uses `home-manager`)
+- **Survives Restarts**: On macOS, the agent cleverly detaches before running `home-manager switch` so it doesn't kill itself
 
-## Architecture
+### Security 🔒
+
+We take security seriously. Your fleet is your infrastructure, after all!
+
+- **Password + TOTP**: Add two-factor authentication for extra peace of mind
+- **Signed Cookies**: Sessions are cryptographically signed and support key rotation
+- **Per-Host Tokens**: Each machine can have its own unique token (hashed in the database)
+- **CSRF Protection**: All forms are protected against cross-site request forgery
+- **Rate Limiting**: Brute-force protection on login and registration endpoints
+
+## How It Works
 
 ```text
 ┌─────────────────────────────────────────────────────────────────────────┐
@@ -50,13 +59,13 @@
 │                     https://fleet.example.com                           │
 │                                                                         │
 │  ┌──────────────────────────────────────────────────────────────────┐   │
-│  │  Fleet Target: abc1234 (main) • Agent v2.0.0                     │   │
+│  │  Fleet Target: abc1234 (main) - Agent v2.0.0                     │   │
 │  ├──────────────────────────────────────────────────────────────────┤   │
-│  │  HOST       │ STATUS │ UPDATE      │ ACTIONS                     │   │
-│  │  ─────────────────────────────────────────────────────────────── │   │
-│  │  hsb1       │ ● 🟢   │ [G][L][S]   │ [Pull] [Switch] [Test] [⋮]  │   │
-│  │  csb0       │ ● 🟢   │ [G][L][S]   │ [Pull] [Switch] [Test] [⋮]  │   │
-│  │  imac0      │ ● 🟢   │ [G][L][S][A]│ [Pull] [Switch] [Test] [⋮]  │   │
+│  │  HOST           │ STATUS │ UPDATE      │ ACTIONS                 │   │
+│  │  ──────────────────────────────────────────────────────────────  │   │
+│  │  web-server     │ Online │ [G][L][S]   │ [Pull] [Switch] [Test]  │   │
+│  │  home-nas       │ Online │ [G][L][S]   │ [Pull] [Switch] [Test]  │   │
+│  │  macbook-pro    │ Online │ [G][L][S][A]│ [Pull] [Switch] [Test]  │   │
 │  └──────────────────────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────────────────────┘
                               │ WebSocket
@@ -75,18 +84,26 @@
         └──────────┘    └──────────┘    └──────────┘
 ```
 
-**Update Status Compartments:**
+### Understanding the Status Indicators
 
-| Icon  | Meaning | Status                                                  |
-| ----- | ------- | ------------------------------------------------------- |
-| **G** | Git     | Green = current, Yellow = behind target                 |
-| **L** | Lock    | Green = fresh, Yellow = stale flake.lock                |
-| **S** | System  | Green = running matches config, Yellow = rebuild needed |
-| **A** | Agent   | Red = agent version outdated vs dashboard               |
+The dashboard shows a compact status for each host using letter codes. Here's what they mean:
+
+| Icon  | What It Checks | Green Means                      | Yellow/Red Means                   |
+| ----- | -------------- | -------------------------------- | ---------------------------------- |
+| **G** | Git status     | Host is on the target commit     | Host is behind, needs a pull       |
+| **L** | Lock freshness | flake.lock was updated recently  | Lock file is getting stale         |
+| **S** | System state   | Running config matches the flake | A rebuild would change something   |
+| **A** | Agent version  | (not shown when current)         | Agent is outdated, update the host |
+
+When everything is green, you're golden! ✨
 
 ## Quick Start
 
-### 1. Add to Your Flake
+Ready to get going? Here's how to set up NixFleet in just a few steps.
+
+### Step 1: Add NixFleet to Your Flake
+
+First, add NixFleet as an input to your `flake.nix`. This gives you access to the agent modules.
 
 ```nix
 {
@@ -97,66 +114,70 @@
   };
 
   outputs = { nixpkgs, nixfleet, ... }: {
-    # NixOS
-    nixosConfigurations.myhost = nixpkgs.lib.nixosSystem {
+    # For NixOS machines
+    nixosConfigurations.my-server = nixpkgs.lib.nixosSystem {
       modules = [
         nixfleet.nixosModules.nixfleet-agent
-        ./configuration.nix
+        ./hosts/my-server/configuration.nix
       ];
     };
 
-    # Home Manager (standalone)
-    homeConfigurations.myuser = home-manager.lib.homeManagerConfiguration {
+    # For macOS machines (using Home Manager standalone)
+    homeConfigurations.my-macbook = home-manager.lib.homeManagerConfiguration {
       modules = [
         nixfleet.homeManagerModules.nixfleet-agent
-        ./home.nix
+        ./hosts/my-macbook/home.nix
       ];
     };
   };
 }
 ```
 
-### 2. Configure the Agent
+### Step 2: Configure the Agent
 
-**NixOS** (`configuration.nix`):
+Now tell each host how to connect to your dashboard.
+
+**For NixOS hosts** — add this to your `configuration.nix`:
 
 ```nix
 { config, ... }:
 {
-  # Load the secret (using agenix, sops-nix, etc.)
+  # Store your token securely (we recommend agenix or sops-nix)
   age.secrets.nixfleet-token.file = ./secrets/nixfleet-token.age;
 
   services.nixfleet-agent = {
     enable = true;
-    url = "wss://fleet.example.com";  # Note: wss:// for WebSocket
+    url = "wss://fleet.example.com";      # Your dashboard URL (note: wss:// not https://)
     tokenFile = config.age.secrets.nixfleet-token.path;
-    isolatedRepoMode = true;  # Recommended: agent manages its own repo clone
-    location = "cloud";       # cloud | home | work | other
-    deviceType = "server";    # server | desktop | laptop | gaming | other
+    isolatedRepoMode = true;              # Highly recommended!
+    location = "cloud";                   # Where is this machine? (cloud, home, work, other)
+    deviceType = "server";                # What kind of machine? (server, desktop, laptop, gaming, other)
   };
 }
 ```
 
-**Home Manager / macOS** (`home.nix`):
+**For macOS hosts** — add this to your `home.nix`:
 
 ```nix
 {
   services.nixfleet-agent = {
     enable = true;
     url = "wss://fleet.example.com";
-    tokenFile = "/Users/myuser/.config/nixfleet/token";
+    tokenFile = "/Users/yourname/.config/nixfleet/token";  # Store your token here
     isolatedRepoMode = true;
     location = "home";
-    deviceType = "desktop";
+    deviceType = "laptop";
   };
 }
 ```
 
-### 3. Enable Version Tracking (Recommended)
+**Pro tip:** The `isolatedRepoMode` option is a game-changer! It means the agent keeps its own separate clone of your config repo. No more conflicts with the repo you're actively editing. 🎉
 
-For the dashboard to detect outdated hosts, your nixcfg repo needs to publish its version to GitHub Pages.
+### Step 3: Enable Version Tracking (Recommended)
 
-**Add this workflow to your nixcfg repo** (`.github/workflows/version-pages.yml`):
+Want the dashboard to show you which hosts are behind? Set up a simple GitHub Action that publishes your current commit to GitHub Pages.
+
+Create `.github/workflows/version-pages.yml` in your config repo:
 
 ```yaml
 name: Publish Version to GitHub Pages
@@ -201,136 +222,119 @@ jobs:
       - uses: actions/deploy-pages@v4
 ```
 
-**Enable GitHub Pages** in your nixcfg repo:
+Then enable GitHub Pages in your repo settings (Settings → Pages → Source: GitHub Actions).
 
-1. Go to **Settings** → **Pages**
-2. Set Source to **GitHub Actions**
+Now every time you push to main, your dashboard will know the latest commit and can tell you which hosts need updating! 📡
 
-The dashboard fetches from `https://<user>.github.io/<repo>/version.json` to compare against each host's deployed generation.
+### Step 4: Deploy the Dashboard
 
-### 4. Deploy the Dashboard
+The dashboard runs as a Docker container. Here's the quick setup:
 
 ```bash
 # Clone the repo
 git clone https://github.com/markus-barta/nixfleet.git
 cd nixfleet
 
-# Generate credentials
-python3 -c "import bcrypt; print(bcrypt.hashpw(b'your-password', bcrypt.gensalt()).decode())"
-openssl rand -hex 32  # NIXFLEET_SESSION_SECRET
-openssl rand -hex 32  # NIXFLEET_AGENT_TOKEN
+# Generate your credentials
+# 1. Create a password hash
+python3 -c "import bcrypt; print(bcrypt.hashpw(b'your-secure-password', bcrypt.gensalt()).decode())"
 
-# Create .env file
+# 2. Generate random secrets
+openssl rand -hex 32  # For NIXFLEET_SESSION_SECRET
+openssl rand -hex 32  # For NIXFLEET_AGENT_TOKEN
+
+# Create your .env file with the generated values
 cat > .env << EOF
-NIXFLEET_PASSWORD_HASH=\$2b\$12\$...your-hash...
-NIXFLEET_SESSION_SECRET=hexsecret
-NIXFLEET_AGENT_TOKEN=your-agent-token
+NIXFLEET_PASSWORD_HASH=\$2b\$12\$...paste-your-hash-here...
+NIXFLEET_SESSION_SECRET=your-generated-hex-secret
+NIXFLEET_AGENT_TOKEN=your-generated-agent-token
 EOF
 
-# Start the container
+# Fire it up!
 docker compose up -d
 ```
 
-## Module Options
+That's it! Open your browser, log in, and watch your hosts appear as they connect. 🎊
 
-### NixOS Module (`services.nixfleet-agent`)
+## Configuration Reference
 
-| Option             | Type   | Required | Description                                      |
-| ------------------ | ------ | -------- | ------------------------------------------------ |
-| `enable`           | bool   | -        | Enable the agent                                 |
-| `url`              | string | **Yes**  | Dashboard WebSocket URL (`wss://...`)            |
-| `tokenFile`        | path   | **Yes**  | Path to API token file                           |
-| `isolatedRepoMode` | bool   | No       | Agent manages its own repo clone (default: true) |
-| `repoUrl`          | string | No       | Git URL for isolated mode (auto-detected)        |
-| `interval`         | int    | No       | Heartbeat interval in seconds (default: 30)      |
-| `location`         | enum   | No       | Location category (default: "other")             |
-| `deviceType`       | enum   | No       | Device type (default: "server")                  |
-| `themeColor`       | string | No       | Hex color for dashboard (default: "#769ff0")     |
+### Agent Options
 
-### Home Manager Module
+These options are available for both NixOS and Home Manager modules:
 
-Same options as NixOS module.
+| Option             | Type   | Required | Description                                       |
+| ------------------ | ------ | -------- | ------------------------------------------------- |
+| `enable`           | bool   | -        | Enable the agent                                  |
+| `url`              | string | Yes      | Dashboard WebSocket URL (use `wss://`)            |
+| `tokenFile`        | path   | Yes      | Path to your API token file                       |
+| `isolatedRepoMode` | bool   | No       | Agent manages its own repo clone (default: true)  |
+| `repoUrl`          | string | No       | Git URL for isolated mode (usually auto-detected) |
+| `interval`         | int    | No       | Heartbeat interval in seconds (default: 30)       |
+| `location`         | enum   | No       | Location category (default: "other")              |
+| `deviceType`       | enum   | No       | Device type (default: "server")                   |
+| `themeColor`       | string | No       | Hex color for dashboard row (default: "#769ff0")  |
 
-## Dashboard Commands
+### Dashboard Commands
 
-| Command       | Description                                         |
-| ------------- | --------------------------------------------------- |
-| `pull`        | Git pull (isolated mode: fetch + reset --hard)      |
-| `switch`      | Run `nixos-rebuild switch` or `home-manager switch` |
-| `pull-switch` | Run both in sequence                                |
-| `test`        | Run host test suite (`hosts/<host>/tests/T*.sh`)    |
-| `stop`        | Stop currently running command                      |
+These are the actions you can trigger from the UI:
 
-## API Endpoints
+| Command       | What It Does                                           |
+| ------------- | ------------------------------------------------------ |
+| `pull`        | Updates the repo (fetch + reset in isolated mode)      |
+| `switch`      | Runs `nixos-rebuild switch` or `home-manager switch`   |
+| `pull-switch` | Does both in sequence — the "update everything" button |
+| `test`        | Runs your test scripts from `hosts/<host>/tests/T*.sh` |
+| `stop`        | Cancels a currently running command                    |
 
-| Endpoint                  | Method   | Auth    | Description                |
-| ------------------------- | -------- | ------- | -------------------------- |
-| `/`                       | GET      | Session | Dashboard UI               |
-| `/login`                  | GET/POST | -       | Login page                 |
-| `/health`                 | GET      | -       | Health check               |
-| `/ws`                     | GET      | Token   | Agent WebSocket connection |
-| `/api/hosts`              | GET      | Session | List all hosts             |
-| `/api/hosts`              | POST     | Session | Add a new host             |
-| `/api/hosts/{id}`         | DELETE   | Session | Remove a host              |
-| `/api/hosts/{id}/command` | POST     | Session | Queue a command            |
+### Environment Variables
 
-## Environment Variables
+Configure these when running the dashboard container:
 
-| Variable                  | Required | Description                           |
-| ------------------------- | -------- | ------------------------------------- |
-| `NIXFLEET_PASSWORD_HASH`  | Yes      | bcrypt hash of admin password         |
-| `NIXFLEET_SESSION_SECRET` | Yes      | Secret for signed session cookies     |
-| `NIXFLEET_AGENT_TOKEN`    | Yes      | Shared agent authentication token     |
-| `NIXFLEET_TOTP_SECRET`    | No       | Base32 TOTP secret for 2FA            |
-| `NIXFLEET_LOG_LEVEL`      | No       | Log level (debug, info, warn, error)  |
-| `NIXFLEET_VERSION_URL`    | No       | URL to version.json for Git status    |
-| `NIXFLEET_DATA_DIR`       | No       | Database directory (default: `/data`) |
+| Variable                  | Required | What It's For                                  |
+| ------------------------- | -------- | ---------------------------------------------- |
+| `NIXFLEET_PASSWORD_HASH`  | Yes      | bcrypt hash of your admin password             |
+| `NIXFLEET_SESSION_SECRET` | Yes      | Secret for signing session cookies             |
+| `NIXFLEET_AGENT_TOKEN`    | Yes      | Shared token that agents use to auth           |
+| `NIXFLEET_TOTP_SECRET`    | No       | Base32 secret if you want 2FA                  |
+| `NIXFLEET_LOG_LEVEL`      | No       | How verbose? (debug, info, warn, error)        |
+| `NIXFLEET_VERSION_URL`    | No       | URL to your version.json for Git status        |
+| `NIXFLEET_DATA_DIR`       | No       | Where to store the database (default: `/data`) |
 
-## Operations
+## Day-to-Day Operations
 
-### Deploying Dashboard Updates
+### Updating Your Fleet
 
-The v2 dashboard runs on **csb1** as part of the main docker-compose stack.
+The typical workflow looks like this:
 
-```bash
-# 1. SSH to csb1
-ssh mba@cs1.barta.cm -p 2222
+1. **Make changes** to your Nix config and push to GitHub
+2. **Open the dashboard** — you'll see hosts showing "behind" status (yellow G indicator)
+3. **Click "Pull"** on a host to fetch the latest changes
+4. **Click "Switch"** to apply the new configuration
+5. Watch the status turn green! ✅
 
-# 2. Pull latest nixfleet code
-cd ~/docker/nixfleet && git pull
+For brave souls, there's also **"Bulk Actions"** to update all hosts at once. Use with confidence (after testing on one host first 😉).
 
-# 3. Rebuild and restart
-cd ~/docker
-docker compose build --no-cache nixfleet
-docker compose up -d nixfleet
+### When Things Go Wrong
 
-# 4. Verify
-docker logs nixfleet --tail 20
-curl -s https://fleet.barta.cm/health
-```
+If a host shows a red "A" indicator, it means the agent itself needs updating. This happens when you've updated NixFleet but the host's `flake.lock` still points to an old version.
 
-### Updating Agents on Hosts
-
-After pushing nixfleet changes, update the flake lock and deploy:
+To fix it:
 
 ```bash
-# From dashboard UI (recommended):
-# 1. Click "Pull" on host → updates repo
-# 2. Click "Switch" on host → rebuilds system
-
-# Or manually:
-cd ~/Code/nixcfg
+# SSH to the host and update the lock file
+cd /path/to/your/nixcfg
 nix flake update nixfleet
-git add flake.lock && git commit -m "chore: Update nixfleet" && git push
+git add flake.lock && git commit -m "Update nixfleet"
 
-# Then deploy via dashboard or SSH
+# Then rebuild
+sudo nixos-rebuild switch --flake .#hostname  # NixOS
+# or
+home-manager switch --flake .#hostname        # macOS
 ```
 
 ### Restarting Agents
 
-Use the dashboard UI: **⋮ menu → actions**
-
-Or manually:
+Usually you won't need to do this, but if an agent gets stuck:
 
 ```bash
 # NixOS
@@ -342,21 +346,31 @@ launchctl kickstart -k gui/$(id -u)/com.nixfleet.agent
 
 ## Development
 
+Want to hack on NixFleet? Welcome aboard! 🛠️
+
 ```bash
-# Enter dev environment
+# Enter the dev environment
 cd v2
 nix develop
 
-# Run dashboard locally
+# Run the dashboard locally
 go run ./cmd/nixfleet-dashboard
 
-# Run agent locally
+# Run the agent locally
 go run ./cmd/nixfleet-agent
 
-# Run tests
+# Run the test suite
 go test ./tests/...
 ```
+
+The codebase uses Go with `templ` for type-safe HTML templates and `htmx` for interactive updates. It's a joy to work with!
 
 ## License
 
 GNU AGPL v3.0 — See [LICENSE](LICENSE) for details.
+
+---
+
+<p align="center">
+  Made with ❤️ for the Nix community
+</p>
