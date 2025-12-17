@@ -187,235 +187,26 @@ func (s *Server) runMergeAndDeploy(ctx context.Context, jobID string, prNumber i
 
 ---
 
-## End-to-End Test Strategy
+## Testing Strategy
 
-### The Challenge
+### Live Testing (Primary)
 
-E2E testing this feature is tricky because it involves:
+Test with **real GitHub PRs** from the weekly `nix flake update` Action:
 
-1. GitHub API (external service)
-2. Multiple agents responding to commands
-3. Time-sensitive operations (polling, waiting for completion)
-4. Rollback scenarios
+1. Wait for next PR from `.github/workflows/update-flake-lock.yml`
+2. Verify Lock compartment shows "PR pending"
+3. Click "Merge & Deploy"
+4. Watch the deployment happen
+5. Verify all hosts update successfully
 
-### Test Architecture
+### Unit Tests
 
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│                         TEST HARNESS                             │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                  │
-│   ┌──────────────┐    ┌──────────────┐    ┌──────────────┐     │
-│   │ MockGitHub   │    │  Dashboard   │    │ MockAgent(s) │     │
-│   │   Server     │◄───│   (real)     │◄───│   (test)     │     │
-│   └──────────────┘    └──────────────┘    └──────────────┘     │
-│         ▲                    ▲                    ▲              │
-│         │                    │                    │              │
-│   ┌─────┴────────────────────┴────────────────────┴─────┐       │
-│   │                    Test Driver                       │       │
-│   │  1. Setup mock GitHub with pending PR                │       │
-│   │  2. Start dashboard + mock agents                    │       │
-│   │  3. Verify Lock compartment shows PR pending         │       │
-│   │  4. Trigger "Merge & Deploy" via API                 │       │
-│   │  5. Verify mock GitHub received merge call           │       │
-│   │  6. Verify agents received pull + switch             │       │
-│   │  7. Verify success broadcast to browsers             │       │
-│   └──────────────────────────────────────────────────────┘       │
-│                                                                  │
-└─────────────────────────────────────────────────────────────────┘
-```
+- `github/client_test.go` - Test API response parsing
+- `flake_updates_test.go` - Test service logic (with stubbed client)
 
-### Test File: `t13_flake_updates_test.go`
+### E2E Tests (Future)
 
-```go
-package integration
-
-import (
-    "context"
-    "encoding/json"
-    "net/http"
-    "net/http/httptest"
-    "testing"
-    "time"
-)
-
-// MockGitHubAPI simulates GitHub API for testing
-type MockGitHubAPI struct {
-    t           *testing.T
-    server      *httptest.Server
-    pendingPRs  []MockPR
-    mergedPRs   []int
-    mu          sync.Mutex
-}
-
-type MockPR struct {
-    Number int
-    Title  string
-    Labels []string
-    State  string
-}
-
-func NewMockGitHubAPI(t *testing.T) *MockGitHubAPI {
-    m := &MockGitHubAPI{t: t}
-    m.server = httptest.NewServer(http.HandlerFunc(m.handleRequest))
-    return m
-}
-
-func (m *MockGitHubAPI) AddPendingPR(number int, title string, labels []string) {
-    m.mu.Lock()
-    defer m.mu.Unlock()
-    m.pendingPRs = append(m.pendingPRs, MockPR{
-        Number: number,
-        Title:  title,
-        Labels: labels,
-        State:  "open",
-    })
-}
-
-func (m *MockGitHubAPI) WasMerged(number int) bool {
-    m.mu.Lock()
-    defer m.mu.Unlock()
-    for _, n := range m.mergedPRs {
-        if n == number {
-            return true
-        }
-    }
-    return false
-}
-
-func (m *MockGitHubAPI) handleRequest(w http.ResponseWriter, r *http.Request) {
-    // Handle GET /repos/{owner}/{repo}/pulls - list PRs
-    // Handle PUT /repos/{owner}/{repo}/pulls/{number}/merge - merge PR
-    // etc.
-}
-
-// TestFlakeUpdate_E2E_MergeAndDeploy tests the full flow
-func TestFlakeUpdate_E2E_MergeAndDeploy(t *testing.T) {
-    // 1. Setup mock GitHub
-    mockGH := NewMockGitHubAPI(t)
-    defer mockGH.Close()
-    mockGH.AddPendingPR(42, "Update flake.lock", []string{"automated"})
-
-    // 2. Setup mock dashboard with GitHub URL override
-    // (dashboard needs to point to mockGH.URL() instead of api.github.com)
-
-    // 3. Setup mock agents (3 of them)
-    agent1 := NewMockAgent(t, "host-1")
-    agent2 := NewMockAgent(t, "host-2")
-    agent3 := NewMockAgent(t, "host-3")
-    defer agent1.Close()
-    defer agent2.Close()
-    defer agent3.Close()
-
-    // 4. Wait for agents to register
-    time.Sleep(2 * time.Second)
-
-    // 5. Trigger PR check
-    resp, err := http.Post(dashboardURL+"/api/flake-updates/check", "", nil)
-    require.NoError(t, err)
-    require.Equal(t, http.StatusOK, resp.StatusCode)
-
-    // 6. Verify Lock compartment shows PR pending
-    hosts, err := getHosts(dashboardURL)
-    require.NoError(t, err)
-    require.NotNil(t, hosts[0].UpdateStatus.PendingPR)
-    require.Equal(t, 42, hosts[0].UpdateStatus.PendingPR.Number)
-
-    // 7. Trigger Merge & Deploy
-    resp, err = http.Post(dashboardURL+"/api/flake-updates/merge-and-deploy",
-        "application/json",
-        strings.NewReader(`{"pr_number": 42}`))
-    require.NoError(t, err)
-    require.Equal(t, http.StatusOK, resp.StatusCode)
-
-    // 8. Wait for deployment to complete (with timeout)
-    ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-    defer cancel()
-
-    // 9. Verify GitHub merge was called
-    require.Eventually(t, func() bool {
-        return mockGH.WasMerged(42)
-    }, 10*time.Second, 100*time.Millisecond)
-
-    // 10. Verify all agents received pull command
-    require.Eventually(t, func() bool {
-        return agent1.ReceivedCommand("pull") &&
-               agent2.ReceivedCommand("pull") &&
-               agent3.ReceivedCommand("pull")
-    }, 30*time.Second, 100*time.Millisecond)
-
-    // 11. Simulate agents completing pull
-    agent1.SendCommandResult("pull", "ok", "")
-    agent2.SendCommandResult("pull", "ok", "")
-    agent3.SendCommandResult("pull", "ok", "")
-
-    // 12. Verify all agents received switch command
-    require.Eventually(t, func() bool {
-        return agent1.ReceivedCommand("switch") &&
-               agent2.ReceivedCommand("switch") &&
-               agent3.ReceivedCommand("switch")
-    }, 30*time.Second, 100*time.Millisecond)
-
-    // 13. Simulate agents completing switch
-    agent1.SendCommandResult("switch", "ok", "")
-    agent2.SendCommandResult("switch", "ok", "")
-    agent3.SendCommandResult("switch", "ok", "")
-
-    // 14. Verify deployment marked complete
-    status, err := getDeploymentStatus(dashboardURL)
-    require.NoError(t, err)
-    require.Equal(t, "completed", status.State)
-}
-
-// TestFlakeUpdate_E2E_RollbackOnFailure tests rollback when a host fails
-func TestFlakeUpdate_E2E_RollbackOnFailure(t *testing.T) {
-    // Similar setup...
-    // But agent2 returns error on switch
-    // Verify rollback is triggered (if enabled)
-}
-
-// TestFlakeUpdate_E2E_PartialDeployment tests when some hosts are offline
-func TestFlakeUpdate_E2E_PartialDeployment(t *testing.T) {
-    // Only agent1 and agent3 are online
-    // Verify deployment only targets online hosts
-}
-```
-
-### Mock Agent Enhancement
-
-Extend the existing `MockDashboard` pattern to create `MockAgent`:
-
-```go
-// MockAgent simulates an agent for testing dashboard flows
-type MockAgent struct {
-    t              *testing.T
-    hostname       string
-    ws             *websocket.Conn
-    receivedCmds   []string
-    mu             sync.Mutex
-}
-
-func NewMockAgent(t *testing.T, hostname string) *MockAgent {
-    // Connect to dashboard WebSocket
-    // Send register message
-    // Handle incoming commands
-}
-
-func (m *MockAgent) ReceivedCommand(cmd string) bool {
-    m.mu.Lock()
-    defer m.mu.Unlock()
-    for _, c := range m.receivedCmds {
-        if c == cmd {
-            return true
-        }
-    }
-    return false
-}
-
-func (m *MockAgent) SendCommandResult(cmd, status, message string) {
-    // Send command_result message to dashboard
-}
-```
+See **P5301 - Flake Updates E2E Test Suite** for comprehensive automated testing with mock infrastructure.
 
 ---
 
@@ -515,11 +306,11 @@ services.nixfleet-agent = {
 
 ### Tests (P5300a-test)
 
-- [ ] Unit tests for GitHub client
-- [ ] Integration test: MockGitHub + MockAgents + real dashboard
-- [ ] E2E test: Full merge-and-deploy flow
-- [ ] E2E test: Failure handling (agent fails switch)
-- [ ] E2E test: Partial deployment (offline hosts)
+- [ ] Unit tests for GitHub client (response parsing)
+- [ ] Unit tests for FlakeUpdateService logic
+- [ ] Manual live test with real GitHub PR
+
+_See P5301 for comprehensive E2E test suite (future)_
 
 ### Pro Features (P5300b)
 
