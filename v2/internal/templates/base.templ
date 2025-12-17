@@ -871,8 +871,11 @@ templ Base(title string, csrfToken string) {
 			}
 
 			.update-compartment .update-icon {
-				width: 14px;
-				height: 14px;
+				position: relative;
+				top: -2px;
+				left: -2px;
+				width: 11px;
+				height: 11px;
 				fill: #1f2937;
 				stroke: #1f2937;
 				color: #1f2937;
@@ -882,7 +885,6 @@ templ Base(title string, csrfToken string) {
 				fill: #f9fafb;
 				stroke: #f9fafb;
 				color: #f9fafb;
-				animation: pulse-glow 2s ease-in-out infinite;
 			}
 
 			.update-compartment.error {
@@ -930,6 +932,11 @@ templ Base(title string, csrfToken string) {
 				50% { opacity: 1; }
 			}
 
+			@keyframes indicator-pulse {
+				0%, 100% { opacity: 0.4; }
+				50% { opacity: 1; }
+			}
+
 			/* Compartment Status Indicator (P5010) */
 			.compartment-indicator {
 				position: absolute;
@@ -951,7 +958,7 @@ templ Base(title string, csrfToken string) {
 				box-shadow: 0 0 1px hsla(142, 71%, 45%, 0.5);
 			}
 
-			/* Warning/outdated state (yellow) - 3D gradient */
+			/* Warning/outdated state (yellow) - 3D gradient + pulse */
 			.compartment-indicator--warning {
 				background: linear-gradient(
 					to bottom,
@@ -959,9 +966,10 @@ templ Base(title string, csrfToken string) {
 					hsl(45, 90%, 40%)
 				);
 				box-shadow: 0 0 1px hsla(45, 90%, 50%, 0.5);
+				animation: indicator-pulse 2s ease-in-out infinite;
 			}
 
-			/* Error state (red) - 3D gradient */
+			/* Error state (red) - 3D gradient + pulse */
 			.compartment-indicator--error {
 				background: linear-gradient(
 					to bottom,
@@ -969,6 +977,7 @@ templ Base(title string, csrfToken string) {
 					hsl(0, 70%, 40%)
 				);
 				box-shadow: 0 0 1px hsla(0, 70%, 50%, 0.5);
+				animation: indicator-pulse 2s ease-in-out infinite;
 			}
 
 			/* Unknown state (gray) - subtle */
