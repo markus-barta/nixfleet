@@ -47,19 +47,20 @@ func New(cfg *Config, db *sql.DB, log zerolog.Logger) *Server {
 		log.Warn().Err(err).Msg("failed to initialize log store, logs will not be persisted")
 	}
 
-	hub := NewHub(log, db, cfg)
-	hub.logStore = logStore // Pass log store to hub for output logging
-
 	// Create hub context - used for graceful shutdown
 	hubCtx, hubCancel := context.WithCancel(context.Background())
 
 	// Create version fetcher if configured (P5000)
+	// Must be created before Hub so it can be passed for Git status in heartbeat broadcasts
 	var versionFetcher *VersionFetcher
 	if cfg.HasVersionTracking() {
 		versionFetcher = NewVersionFetcher(cfg.VersionURL, cfg.VersionFetchTTL)
 		versionFetcher.Start(hubCtx)
 		log.Info().Str("url", cfg.VersionURL).Msg("version tracking enabled")
 	}
+
+	hub := NewHub(log, db, cfg, versionFetcher)
+	hub.logStore = logStore // Pass log store to hub for output logging
 
 	s := &Server{
 		cfg:            cfg,

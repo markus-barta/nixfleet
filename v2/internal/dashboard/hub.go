@@ -84,9 +84,10 @@ func (c *Client) Close() {
 
 // Hub maintains active connections and broadcasts messages.
 type Hub struct {
-	log zerolog.Logger
-	db  *sql.DB
-	cfg *Config // Dashboard config for stale command cleanup
+	log            zerolog.Logger
+	db             *sql.DB
+	cfg            *Config          // Dashboard config for stale command cleanup
+	versionFetcher *VersionFetcher  // For Git status in heartbeat broadcasts
 
 	// Registered clients
 	clients map[*Client]bool
@@ -119,18 +120,19 @@ type agentMessage struct {
 }
 
 // NewHub creates a new Hub.
-func NewHub(log zerolog.Logger, db *sql.DB, cfg *Config) *Hub {
+func NewHub(log zerolog.Logger, db *sql.DB, cfg *Config, vf *VersionFetcher) *Hub {
 	return &Hub{
-		log:           log.With().Str("component", "hub").Logger(),
-		db:            db,
-		cfg:           cfg,
-		clients:       make(map[*Client]bool),
-		agents:        make(map[string]*Client),
-		browsers:      make(map[*Client]bool),
-		register:      make(chan *Client),
-		unregister:    make(chan *Client),
-		agentMessages: make(chan *agentMessage, 256),
-		broadcasts:    make(chan []byte, broadcastQueueSize),
+		log:            log.With().Str("component", "hub").Logger(),
+		db:             db,
+		cfg:            cfg,
+		versionFetcher: vf,
+		clients:        make(map[*Client]bool),
+		agents:         make(map[string]*Client),
+		browsers:       make(map[*Client]bool),
+		register:       make(chan *Client),
+		unregister:     make(chan *Client),
+		agentMessages:  make(chan *agentMessage, 256),
+		broadcasts:     make(chan []byte, broadcastQueueSize),
 	}
 }
 
@@ -660,6 +662,25 @@ func (h *Hub) handleHeartbeat(hostID string, payload protocol.HeartbeatPayload) 
 		Str("generation", payload.Generation).
 		Msg("heartbeat received")
 
+	// Build update status with Git computed dashboard-side
+	updateStatus := map[string]any{}
+	
+	// Add Git status from VersionFetcher (dashboard-side)
+	if h.versionFetcher != nil {
+		gitStatus, gitMsg, gitChecked := h.versionFetcher.GetGitStatus(payload.Generation)
+		updateStatus["git"] = map[string]any{
+			"status":     gitStatus,
+			"message":    gitMsg,
+			"checked_at": gitChecked,
+		}
+	}
+	
+	// Add Lock and System status from agent
+	if payload.UpdateStatus != nil {
+		updateStatus["lock"] = payload.UpdateStatus.Lock
+		updateStatus["system"] = payload.UpdateStatus.System
+	}
+
 	// Broadcast to browsers
 	h.BroadcastToBrowsers(map[string]any{
 		"type": "host_update",
@@ -671,7 +692,7 @@ func (h *Hub) handleHeartbeat(hostID string, payload protocol.HeartbeatPayload) 
 			"nixpkgs_version": payload.NixpkgsVersion,
 			"pending_command": payload.PendingCommand,
 			"metrics":         payload.Metrics,
-			"update_status":   payload.UpdateStatus,
+			"update_status":   updateStatus,
 		},
 	})
 }
