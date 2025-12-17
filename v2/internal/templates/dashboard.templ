@@ -8,25 +8,26 @@ import (
 
 // Host represents a host in the dashboard
 type Host struct {
-	ID             string
-	Hostname       string
-	HostType       string
-	Status         string
-	Online         bool
-	AgentVersion   string
-	OSVersion      string
-	Generation     string
-	LastSeen       string
-	PendingCommand string
-	ThemeColor     string
-	Metrics        *Metrics
-	Location       string        // home, work, cloud
-	DeviceType     string        // server, desktop, laptop, gaming
-	TestProgress   *TestProgress // current test progress, nil if not running
-	UpdateStatus   *UpdateStatus // three-compartment status (Git/Lock/System)
-	RepoURL        string        // git repo URL (isolated mode)
-	RepoDir        string        // local repo path
-	AgentOutdated  bool          // true if agent version doesn't match dashboard version
+	ID                   string
+	Hostname             string
+	HostType             string
+	Status               string
+	Online               bool
+	AgentVersion         string
+	ExpectedAgentVersion string        // Dashboard version for comparison
+	OSVersion            string
+	Generation           string
+	LastSeen             string
+	PendingCommand       string
+	ThemeColor           string
+	Metrics              *Metrics
+	Location             string        // home, work, cloud
+	DeviceType           string        // server, desktop, laptop, gaming
+	TestProgress         *TestProgress // current test progress, nil if not running
+	UpdateStatus         *UpdateStatus // three-compartment status (Git/Lock/System)
+	RepoURL              string        // git repo URL (isolated mode)
+	RepoDir              string        // local repo path
+	AgentOutdated        bool          // true if agent version doesn't match dashboard version
 }
 
 // UpdateStatus contains the three-compartment update status.
@@ -1864,10 +1865,15 @@ func lockTooltip(host Host) string {
 
 // agentTooltip returns a tooltip for the agent badge overlay
 func agentTooltip(host Host) string {
+	expected := host.ExpectedAgentVersion
+	if expected == "" {
+		expected = "unknown"
+	}
 	lines := []string{
 		"Agent Outdated!",
 		"───────────────",
 		"Installed: " + host.AgentVersion,
+		"Expected:  " + expected,
 		"",
 		"Update via 'switch' or",
 		"'update-agent' command",

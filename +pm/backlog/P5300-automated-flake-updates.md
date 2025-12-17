@@ -38,7 +38,7 @@ Turn the manual "review and merge PR" workflow into a one-click (or fully automa
 
 ## Implementation Plan
 
-### Phase 1: GitHub API Client (P5300a-1)
+### Phase 1: GitHub API Client
 
 Create abstracted GitHub client with interface for testing:
 
@@ -71,7 +71,7 @@ Files to create:
 - `v2/internal/github/mock.go` - Mock implementation for tests
 - `v2/internal/github/types.go` - Shared types
 
-### Phase 2: PR Detection Service (P5300a-2)
+### Phase 2: PR Detection Service
 
 Background service that polls GitHub for update PRs:
 
@@ -106,7 +106,7 @@ func (s *FlakeUpdateService) checkForUpdates(ctx context.Context) {
 }
 ```
 
-### Phase 3: Lock Compartment Enhancement (P5300a-3)
+### Phase 3: Lock Compartment Enhancement
 
 Update Lock compartment to show "PR pending" state:
 
@@ -137,7 +137,7 @@ CSS for Lock compartment when PR pending:
 }
 ```
 
-### Phase 4: Merge & Deploy Endpoint (P5300a-4)
+### Phase 4: Merge & Deploy Endpoint
 
 New API endpoint and handler:
 
@@ -292,41 +292,48 @@ services.nixfleet-agent = {
 
 ## Acceptance Criteria
 
-### MVP (P5300a)
+### MVP
 
-- [ ] GitHub API client with interface for testing
-- [ ] PR detection polling (hourly + manual trigger)
-- [ ] Lock compartment shows "PR pending" when update available
-- [ ] API endpoint: `POST /api/flake-updates/check`
-- [ ] API endpoint: `POST /api/flake-updates/merge-and-deploy`
-- [ ] Merge PR via GitHub API
-- [ ] Sequential deploy: pull → switch on all online hosts
-- [ ] WebSocket broadcast of job progress
-- [ ] Basic error handling and status reporting
+- [x] GitHub API client with interface for testing
+- [x] PR detection polling (hourly + manual trigger)
+- [x] Lock compartment shows "PR pending" when update available
+- [x] API endpoint: `POST /api/flake-updates/check`
+- [x] API endpoint: `POST /api/flake-updates/merge-and-deploy`
+- [x] Merge PR via GitHub API
+- [x] Sequential deploy: pull → switch on all online hosts (with proper completion tracking)
+- [x] WebSocket broadcast of job progress
+- [x] Basic error handling and status reporting
 
-### Tests (P5300a-test)
+### Tests
 
-- [ ] Unit tests for GitHub client (response parsing)
-- [ ] Unit tests for FlakeUpdateService logic
+- [x] Unit tests for GitHub client (response parsing) — `types_test.go`
+- [x] Unit tests for FlakeUpdateService logic — `flake_updates_test.go`
 - [ ] Manual live test with real GitHub PR
 
 _See P5301 for comprehensive E2E test suite (future)_
 
-### Pro Features (P5300b)
+---
 
-- [ ] Full automation toggle (auto-merge + deploy)
-- [ ] Configurable delay before auto-merge
-- [ ] Per-host inclusion/exclusion from auto-deploy
-- [ ] Canary deployment (deploy to one host first, wait, then rest)
-- [ ] Rollback on failure (revert merge commit)
-- [ ] Deploy priority ordering
+## Future Enhancements
 
-### Power User (P5300c)
+See separate backlog items:
 
-- [ ] Per-host rollback controls
-- [ ] "Hold" a host from updates
-- [ ] Update history with diff view
-- [ ] Scheduled maintenance windows (only deploy during certain hours)
+- **P5310**: Rollback on failure (revert merge commit, per-host rollback)
+- **P5301**: Flake Updates E2E Test Suite
+
+### Automation Features (Future)
+
+- Full automation toggle (auto-merge + deploy)
+- Configurable delay before auto-merge
+- Per-host inclusion/exclusion from auto-deploy
+- Canary deployment (deploy to one host first, wait, then rest)
+- Deploy priority ordering
+
+### Power User Features (Future)
+
+- "Hold" a host from updates
+- Update history with diff view
+- Scheduled maintenance windows (only deploy during certain hours)
 
 ---
 

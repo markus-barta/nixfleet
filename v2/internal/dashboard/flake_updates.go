@@ -10,10 +10,20 @@ import (
 	"github.com/rs/zerolog"
 )
 
+// FlakeHub defines the Hub methods needed by FlakeUpdateService.
+// This interface enables testing with mock implementations.
+type FlakeHub interface {
+	GetOnlineHosts() []string
+	SendCommand(hostID, command string) bool
+	SubscribeCommandCompletion(hostIDs []string) chan CommandCompletion
+	UnsubscribeCommandCompletion(ch chan CommandCompletion)
+	BroadcastTypedMessage(msgType string, payload interface{})
+}
+
 // FlakeUpdateService monitors GitHub for flake.lock update PRs and manages deployments.
 type FlakeUpdateService struct {
 	client github.Client
-	hub    *Hub
+	hub    FlakeHub
 	log    zerolog.Logger
 	cfg    *Config
 
@@ -195,7 +205,10 @@ func (s *FlakeUpdateService) MergeAndDeploy(ctx context.Context, prNumber int, h
 	return jobID, nil
 }
 
-// runDeploy executes the merge-and-deploy workflow.
+// commandTimeout is the maximum time to wait for a single command to complete.
+const commandTimeout = 10 * time.Minute
+
+// runDeploy executes the merge-and-deploy workflow with proper completion tracking.
 func (s *FlakeUpdateService) runDeploy(ctx context.Context, job *DeployJob, hostIDs []string) {
 	owner, repo := s.cfg.GitHubOwnerRepo()
 
@@ -251,39 +264,116 @@ func (s *FlakeUpdateService) runDeploy(ctx context.Context, job *DeployJob, host
 
 	job.TotalHosts = len(hosts)
 
-	// 4. Pull on all hosts
-	// TODO(P5300b): Implement proper command completion tracking via WebSocket.
-	// Currently we use time-based waits which are unreliable for slow networks.
-	// The proper solution would track command_complete messages for each host.
+	// Subscribe to command completions for all target hosts
+	completions := s.hub.SubscribeCommandCompletion(hosts)
+	defer s.hub.UnsubscribeCommandCompletion(completions)
+
+	// 4. Pull on all hosts with proper completion tracking
 	s.updateJobState(job, "pulling", "Pulling updates...")
-	for _, hostID := range hosts {
-		s.log.Debug().Str("host", hostID).Msg("sending pull command")
-		s.hub.SendCommand(hostID, "pull")
+	pullFailed := s.runCommandPhase(ctx, job, hosts, "pull", completions)
+	if len(pullFailed) > 0 {
+		job.FailedHosts = pullFailed
+		s.updateJobState(job, "failed", fmt.Sprintf("Pull failed on %d host(s): %v", len(pullFailed), pullFailed))
+		return
 	}
 
-	// LIMITATION: Fixed wait instead of actual completion tracking.
-	// This may be too short for slow networks or too long for fast ones.
-	// See TODO above for proper solution.
-	time.Sleep(15 * time.Second)
-
-	// 5. Switch on all hosts
-	// LIMITATION: Commands are sent sequentially but we don't wait for each
-	// to complete before sending the next. This means we can't detect failures
-	// early and abort remaining hosts. See TODO(P5300b) for proper solution.
+	// 5. Switch on all hosts with proper completion tracking
 	s.updateJobState(job, "switching", "Switching configurations...")
-	for _, hostID := range hosts {
-		s.log.Debug().Str("host", hostID).Msg("sending switch command")
-		s.hub.SendCommand(hostID, "switch")
-		job.CompletedHosts++
-		s.broadcastJobStatus(job)
+	switchFailed := s.runCommandPhase(ctx, job, hosts, "switch", completions)
+	if len(switchFailed) > 0 {
+		job.FailedHosts = switchFailed
+		s.updateJobState(job, "failed", fmt.Sprintf("Switch failed on %d host(s): %v", len(switchFailed), switchFailed))
+		return
 	}
 
 	// 6. Done
-	s.updateJobState(job, "completed", "Deployment complete")
+	s.updateJobState(job, "completed", fmt.Sprintf("Deployed to %d host(s)", len(hosts)))
 	s.log.Info().
 		Str("job", job.ID).
 		Int("hosts", len(hosts)).
 		Msg("merge-and-deploy completed")
+}
+
+// runCommandPhase sends a command to all hosts and waits for completion.
+// Returns a list of hosts that failed (non-zero exit or timeout).
+func (s *FlakeUpdateService) runCommandPhase(
+	ctx context.Context,
+	job *DeployJob,
+	hosts []string,
+	command string,
+	completions chan CommandCompletion,
+) []string {
+	// Track pending hosts
+	pending := make(map[string]bool)
+	for _, hostID := range hosts {
+		pending[hostID] = true
+	}
+
+	// Send command to all hosts
+	for _, hostID := range hosts {
+		s.log.Debug().Str("host", hostID).Str("command", command).Msg("sending command")
+		s.hub.SendCommand(hostID, command)
+	}
+
+	// Wait for all completions with timeout
+	var failed []string
+	timeout := time.NewTimer(commandTimeout)
+	defer timeout.Stop()
+
+	for len(pending) > 0 {
+		select {
+		case <-ctx.Done():
+			// Context cancelled - report remaining as failed
+			for hostID := range pending {
+				failed = append(failed, hostID)
+			}
+			return failed
+
+		case <-timeout.C:
+			// Timeout - report remaining as failed
+			s.log.Warn().
+				Int("remaining", len(pending)).
+				Str("command", command).
+				Msg("command phase timed out")
+			for hostID := range pending {
+				failed = append(failed, hostID)
+			}
+			return failed
+
+		case completion := <-completions:
+			// Check if this is for our command (could be a different command)
+			if completion.Command != command {
+				continue
+			}
+
+			// Check if this host is in our pending list
+			if !pending[completion.HostID] {
+				continue
+			}
+
+			delete(pending, completion.HostID)
+
+			if !completion.Success {
+				s.log.Warn().
+					Str("host", completion.HostID).
+					Str("command", command).
+					Int("exit_code", completion.ExitCode).
+					Msg("command failed")
+				failed = append(failed, completion.HostID)
+			} else {
+				s.log.Info().
+					Str("host", completion.HostID).
+					Str("command", command).
+					Msg("command completed successfully")
+			}
+
+			// Update progress
+			job.CompletedHosts = job.TotalHosts - len(pending)
+			s.broadcastJobStatus(job)
+		}
+	}
+
+	return failed
 }
 
 // updateJobState updates the job state and broadcasts to clients.

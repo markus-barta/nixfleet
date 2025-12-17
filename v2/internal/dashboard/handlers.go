@@ -365,6 +365,7 @@ func (s *Server) getHosts() ([]templates.Host, error) {
 		host.UpdateStatus = s.getUpdateStatus(host.Generation, host.RepoURL, host.RepoDir, lockStatus, systemStatus)
 
 		// Check if agent version is outdated (compare with dashboard version)
+		host.ExpectedAgentVersion = Version
 		if host.AgentVersion != "" && host.AgentVersion != Version {
 			host.AgentOutdated = true
 		}

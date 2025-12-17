@@ -118,7 +118,19 @@ type Hub struct {
 	// Log storage for command output
 	logStore *LogStore
 
+	// Command completion subscribers (P5300 - proper deploy tracking)
+	completionSubs   map[string][]chan CommandCompletion
+	completionSubsMu sync.Mutex
+
 	mu sync.RWMutex
+}
+
+// CommandCompletion represents a completed command for subscriber notification.
+type CommandCompletion struct {
+	HostID   string
+	Command  string
+	ExitCode int
+	Success  bool
 }
 
 type agentMessage struct {
@@ -140,6 +152,7 @@ func NewHub(log zerolog.Logger, db *sql.DB, cfg *Config, vf *VersionFetcher) *Hu
 		unregister:     make(chan *Client),
 		agentMessages:  make(chan *agentMessage, 256),
 		broadcasts:     make(chan []byte, broadcastQueueSize),
+		completionSubs: make(map[string][]chan CommandCompletion),
 	}
 }
 
@@ -740,6 +753,9 @@ func (h *Hub) handleStatus(hostID string, payload protocol.StatusPayload) {
 		_ = h.logStore.CompleteCommand(hostID, payload.Command, payload.ExitCode)
 	}
 
+	// Notify completion subscribers (P5300 - deploy tracking)
+	h.notifyCommandCompletion(hostID, payload.Command, payload.ExitCode)
+
 	// Broadcast to browsers
 	h.BroadcastToBrowsers(map[string]any{
 		"type": "command_complete",
@@ -801,6 +817,71 @@ func (h *Hub) SendCommand(hostID, command string) bool {
 	default:
 		h.log.Warn().Str("host", hostID).Msg("agent send buffer full")
 		return false
+	}
+}
+
+// SubscribeCommandCompletion creates a channel that receives command completions for specific hosts.
+// Caller must call UnsubscribeCommandCompletion when done to prevent leaks.
+// The channel is buffered to prevent blocking the hub.
+func (h *Hub) SubscribeCommandCompletion(hostIDs []string) chan CommandCompletion {
+	ch := make(chan CommandCompletion, len(hostIDs)*2) // Buffer for pull + switch per host
+
+	h.completionSubsMu.Lock()
+	defer h.completionSubsMu.Unlock()
+
+	for _, hostID := range hostIDs {
+		h.completionSubs[hostID] = append(h.completionSubs[hostID], ch)
+	}
+
+	return ch
+}
+
+// UnsubscribeCommandCompletion removes a completion channel from all host subscriptions.
+func (h *Hub) UnsubscribeCommandCompletion(ch chan CommandCompletion) {
+	h.completionSubsMu.Lock()
+	defer h.completionSubsMu.Unlock()
+
+	for hostID, subs := range h.completionSubs {
+		filtered := make([]chan CommandCompletion, 0, len(subs))
+		for _, sub := range subs {
+			if sub != ch {
+				filtered = append(filtered, sub)
+			}
+		}
+		if len(filtered) == 0 {
+			delete(h.completionSubs, hostID)
+		} else {
+			h.completionSubs[hostID] = filtered
+		}
+	}
+
+	close(ch)
+}
+
+// notifyCommandCompletion sends completion notification to all subscribers for a host.
+func (h *Hub) notifyCommandCompletion(hostID, command string, exitCode int) {
+	h.completionSubsMu.Lock()
+	defer h.completionSubsMu.Unlock()
+
+	subs := h.completionSubs[hostID]
+	if len(subs) == 0 {
+		return
+	}
+
+	completion := CommandCompletion{
+		HostID:   hostID,
+		Command:  command,
+		ExitCode: exitCode,
+		Success:  exitCode == 0,
+	}
+
+	for _, ch := range subs {
+		select {
+		case ch <- completion:
+		default:
+			// Channel full, subscriber not keeping up - skip to avoid blocking hub
+			h.log.Warn().Str("host", hostID).Msg("completion subscriber not keeping up")
+		}
 	}
 }
 
