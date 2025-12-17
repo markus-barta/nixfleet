@@ -448,7 +448,7 @@ templ Dashboard(data DashboardData) {
 			}
 
 			// Heartbeat interval in seconds (from server config)
-			const HEARTBEAT_INTERVAL = parseInt(document.getElementById('config').dataset.heartbeatInterval) || 30;
+			const HEARTBEAT_INTERVAL = parseInt(document.getElementById('config').dataset.heartbeatInterval) || 5;
 
 			function formatLastSeen(isoString) {
 				if (!isoString) return { text: '—', className: '' };

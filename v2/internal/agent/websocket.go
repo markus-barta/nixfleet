@@ -36,7 +36,7 @@ type WebSocketClient struct {
 
 // Connection parameters (from T01 spec)
 const (
-	pingInterval     = 30 * time.Second
+	pingInterval     = 10 * time.Second
 	pongWait         = 45 * time.Second
 	writeWait        = 10 * time.Second
 	maxBackoff       = 60 * time.Second

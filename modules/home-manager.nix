@@ -147,7 +147,7 @@ in
         Type = "simple";
         ExecStart = "${agentScript}/bin/nixfleet-agent";
         Restart = "always";
-        RestartSec = 30;
+        RestartSec = 3;
         Environment = [
           "NIXFLEET_URL=${cfg.url}"
           "NIXFLEET_NIXCFG=${cfg.configRepo}"

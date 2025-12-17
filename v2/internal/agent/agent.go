@@ -43,6 +43,8 @@ func New(cfg *config.Config, log zerolog.Logger) *Agent {
 		cancel: cancel,
 	}
 	a.statusChecker = NewStatusChecker(a)
+	// Run initial status checks immediately so first heartbeat has data
+	a.statusChecker.ForceRefresh(ctx)
 	return a
 }
 

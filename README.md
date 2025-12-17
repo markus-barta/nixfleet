@@ -273,7 +273,7 @@ These options are available for both NixOS and Home Manager modules:
 | `tokenFile`        | path   | Yes      | Path to your API token file                       |
 | `isolatedRepoMode` | bool   | No       | Agent manages its own repo clone (default: true)  |
 | `repoUrl`          | string | No       | Git URL for isolated mode (usually auto-detected) |
-| `interval`         | int    | No       | Heartbeat interval in seconds (default: 30)       |
+| `interval`         | int    | No       | Heartbeat interval in seconds (default: 5)        |
 | `location`         | enum   | No       | Location category (default: "other")              |
 | `deviceType`       | enum   | No       | Device type (default: "server")                   |
 | `themeColor`       | string | No       | Hex color for dashboard row (default: "#769ff0")  |
