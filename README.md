@@ -1,29 +1,65 @@
 # NixFleet
 
-<img src="app/static/logo.png" alt="NixFleet" width="40%">
+<p align="center">
+  <img src="app/static/nixfleet_fade.png" alt="NixFleet" width="60%">
+</p>
 
-> Unified fleet management for your NixOS and macOS infrastructure. Deploy, monitor, and control all your hosts from a single dashboard. 🚀
+<p align="center">
+  <strong>Unified fleet management for your NixOS and macOS infrastructure.</strong><br>
+  Deploy, monitor, and control all your hosts from a single dashboard.
+</p>
+
+---
 
 **Part of the [nixcfg](https://github.com/markus-barta/nixcfg) ecosystem** — manage your Nix fleet with confidence.
 
 ## Features
 
-- **Web Dashboard**: View all hosts, their status, and trigger updates
-- **Unified Management**: Same agent pattern for NixOS and macOS
-- **Authentication**: Password + optional TOTP (2FA)
-- **Agent-based**: Hosts poll for commands (works through NAT/firewalls)
-- **Real-time Updates**: Server-Sent Events for live dashboard updates
-- **Nix Flake**: Easy integration via flake inputs
+### Dashboard
+
+- **Real-time WebSocket Updates**: Live host status, no page refresh needed
+- **Fleet Target Display**: Shows the Git commit all hosts should be on
+- **Three-Compartment Status**: Git (behind/current), Lock (freshness), System (rebuild needed)
+- **Agent Version Tracking**: Alerts when agents are outdated vs dashboard
+- **Per-Host Actions**: Pull, Switch, Pull+Switch, Test, Stop, Remove
+- **Bulk Actions**: Apply commands to all online hosts at once
+- **Add/Remove Hosts**: Manage your fleet directly from the UI
+
+### Agent
+
+- **Isolated Repository Mode**: Agent maintains its own clone, no shared repo conflicts
+- **Clean-Slate Pull**: `git fetch` + `git reset --hard` ensures repo matches origin
+- **Unified Pattern**: Same Go agent for NixOS (`nixos-rebuild`) and macOS (`home-manager`)
+- **Survives Restarts**: Uses detached process on macOS to survive `home-manager switch`
+- **Automatic Registration**: Agents register on first connect, show up in dashboard
+
+### Security
+
+- **Password + TOTP**: Optional 2FA via authenticator apps
+- **Signed Session Cookies**: Rotation-ready secret management
+- **Per-Host Agent Tokens**: Each host can have its own token (hashed in DB)
+- **CSRF Protection**: All forms protected against cross-site attacks
+- **Rate Limiting**: Login, registration, and poll endpoints
 
 ## Architecture
 
 ```text
-┌─────────────────────────────────────────────────────────────────────┐
-│                        NIXFLEET DASHBOARD                           │
-│                     (Docker container)                              │
-│                     https://fleet.example.com                       │
-└─────────────────────────────────────────────────────────────────────┘
-                              │
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         NIXFLEET DASHBOARD                              │
+│                       (Go + templ + htmx)                               │
+│                     https://fleet.example.com                           │
+│                                                                         │
+│  ┌──────────────────────────────────────────────────────────────────┐   │
+│  │  Fleet Target: abc1234 (main) • Agent v2.0.0                     │   │
+│  ├──────────────────────────────────────────────────────────────────┤   │
+│  │  HOST       │ STATUS │ UPDATE      │ ACTIONS                     │   │
+│  │  ─────────────────────────────────────────────────────────────── │   │
+│  │  hsb1       │ ● 🟢   │ [G][L][S]   │ [Pull] [Switch] [Test] [⋮]  │   │
+│  │  csb0       │ ● 🟢   │ [G][L][S]   │ [Pull] [Switch] [Test] [⋮]  │   │
+│  │  imac0      │ ● 🟢   │ [G][L][S][A]│ [Pull] [Switch] [Test] [⋮]  │   │
+│  └──────────────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────────┘
+                              │ WebSocket
               ┌───────────────┼───────────────┐
               │               │               │
               ▼               ▼               ▼
@@ -31,10 +67,22 @@
         │  NixOS   │    │  NixOS   │    │  macOS   │
         │  Server  │    │  Desktop │    │  Laptop  │
         │          │    │          │    │          │
+        │ Agent    │    │ Agent    │    │ Agent    │
+        │ (Go)     │    │ (Go)     │    │ (Go)     │
+        │          │    │          │    │          │
         │ nixos-   │    │ nixos-   │    │ home-    │
         │ rebuild  │    │ rebuild  │    │ manager  │
         └──────────┘    └──────────┘    └──────────┘
 ```
+
+**Update Status Compartments:**
+
+| Icon  | Meaning | Status                                                  |
+| ----- | ------- | ------------------------------------------------------- |
+| **G** | Git     | Green = current, Yellow = behind target                 |
+| **L** | Lock    | Green = fresh, Yellow = stale flake.lock                |
+| **S** | System  | Green = running matches config, Yellow = rebuild needed |
+| **A** | Agent   | Red = agent version outdated vs dashboard               |
 
 ## Quick Start
 
@@ -44,7 +92,7 @@
 {
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
-    nixfleet.url = "github:your-org/nixfleet";
+    nixfleet.url = "github:markus-barta/nixfleet";
     nixfleet.inputs.nixpkgs.follows = "nixpkgs";
   };
 
@@ -80,12 +128,11 @@
 
   services.nixfleet-agent = {
     enable = true;
-    url = "https://fleet.example.com";
+    url = "wss://fleet.example.com";  # Note: wss:// for WebSocket
     tokenFile = config.age.secrets.nixfleet-token.path;
-    configRepo = "/home/admin/Code/nixcfg";
-    user = "admin";
-    location = "cloud";      # cloud | home | work | other
-    deviceType = "server";   # server | desktop | laptop | gaming | other
+    isolatedRepoMode = true;  # Recommended: agent manages its own repo clone
+    location = "cloud";       # cloud | home | work | other
+    deviceType = "server";    # server | desktop | laptop | gaming | other
   };
 }
 ```
@@ -96,9 +143,9 @@
 {
   services.nixfleet-agent = {
     enable = true;
-    url = "https://fleet.example.com";
+    url = "wss://fleet.example.com";
     tokenFile = "/Users/myuser/.config/nixfleet/token";
-    configRepo = "/Users/myuser/Code/nixcfg";
+    isolatedRepoMode = true;
     location = "home";
     deviceType = "desktop";
   };
@@ -133,6 +180,7 @@ jobs:
           mkdir -p _site
           cat > _site/version.json << EOF
           {
+            "repo": "${{ github.server_url }}/${{ github.repository }}",
             "gitCommit": "${{ github.sha }}",
             "message": $(git log -1 --format='%s' | jq -Rs .),
             "branch": "${{ github.ref_name }}",
@@ -158,27 +206,25 @@ jobs:
 1. Go to **Settings** → **Pages**
 2. Set Source to **GitHub Actions**
 
-The dashboard will fetch from `https://<user>.github.io/<repo>/version.json` to compare against each host's deployed generation.
+The dashboard fetches from `https://<user>.github.io/<repo>/version.json` to compare against each host's deployed generation.
 
 ### 4. Deploy the Dashboard
 
 ```bash
 # Clone the repo
-git clone https://github.com/your-org/nixfleet.git
+git clone https://github.com/markus-barta/nixfleet.git
 cd nixfleet
 
 # Generate credentials
 python3 -c "import bcrypt; print(bcrypt.hashpw(b'your-password', bcrypt.gensalt()).decode())"
-openssl rand -hex 32  # NIXFLEET_SESSION_SECRETS entry (repeat for rotation, comma-separate)
-openssl rand -hex 32  # NIXFLEET_AGENT_TOKEN_HASH_SECRET (hashing key for per-host agent tokens)
-openssl rand -hex 32  # NIXFLEET_API_TOKEN (shared bootstrap token; optional once fully migrated)
+openssl rand -hex 32  # NIXFLEET_SESSION_SECRET
+openssl rand -hex 32  # NIXFLEET_AGENT_TOKEN
 
 # Create .env file
 cat > .env << EOF
 NIXFLEET_PASSWORD_HASH=\$2b\$12\$...your-hash...
-NIXFLEET_SESSION_SECRETS=hexsecret1,hexsecret2
-NIXFLEET_AGENT_TOKEN_HASH_SECRET=hexsecret
-NIXFLEET_API_TOKEN=your-shared-bootstrap-token
+NIXFLEET_SESSION_SECRET=hexsecret
+NIXFLEET_AGENT_TOKEN=your-agent-token
 EOF
 
 # Start the container
@@ -189,92 +235,62 @@ docker compose up -d
 
 ### NixOS Module (`services.nixfleet-agent`)
 
-| Option       | Type   | Required | Description                                  |
-| ------------ | ------ | -------- | -------------------------------------------- |
-| `enable`     | bool   | -        | Enable the agent                             |
-| `url`        | string | **Yes**  | Dashboard URL                                |
-| `tokenFile`  | path   | **Yes**  | Path to API token file                       |
-| `configRepo` | string | **Yes**  | Path to Nix config repo                      |
-| `user`       | string | **Yes**  | User to run agent as                         |
-| `interval`   | int    | No       | Poll interval in seconds (default: 30)       |
-| `location`   | enum   | No       | Location category (default: "other")         |
-| `deviceType` | enum   | No       | Device type (default: "server")              |
-| `themeColor` | string | No       | Hex color for dashboard (default: "#769ff0") |
+| Option             | Type   | Required | Description                                      |
+| ------------------ | ------ | -------- | ------------------------------------------------ |
+| `enable`           | bool   | -        | Enable the agent                                 |
+| `url`              | string | **Yes**  | Dashboard WebSocket URL (`wss://...`)            |
+| `tokenFile`        | path   | **Yes**  | Path to API token file                           |
+| `isolatedRepoMode` | bool   | No       | Agent manages its own repo clone (default: true) |
+| `repoUrl`          | string | No       | Git URL for isolated mode (auto-detected)        |
+| `interval`         | int    | No       | Heartbeat interval in seconds (default: 30)      |
+| `location`         | enum   | No       | Location category (default: "other")             |
+| `deviceType`       | enum   | No       | Device type (default: "server")                  |
+| `themeColor`       | string | No       | Hex color for dashboard (default: "#769ff0")     |
 
 ### Home Manager Module
 
-Same options as NixOS, except `user` is not needed (runs as current user).
+Same options as NixOS module.
 
 ## Dashboard Commands
 
 | Command       | Description                                         |
 | ------------- | --------------------------------------------------- |
-| `pull`        | Run `git pull` in the config repo                   |
+| `pull`        | Git pull (isolated mode: fetch + reset --hard)      |
 | `switch`      | Run `nixos-rebuild switch` or `home-manager switch` |
 | `pull-switch` | Run both in sequence                                |
 | `test`        | Run host test suite (`hosts/<host>/tests/T*.sh`)    |
+| `stop`        | Stop currently running command                      |
 
 ## API Endpoints
 
-| Endpoint                      | Method   | Auth    | Description                                |
-| ----------------------------- | -------- | ------- | ------------------------------------------ |
-| `/`                           | GET      | Session | Dashboard UI                               |
-| `/login`                      | GET/POST | -       | Login page                                 |
-| `/health`                     | GET      | -       | Health check                               |
-| `/api/hosts`                  | GET      | Session | List all hosts                             |
-| `/api/hosts/{id}/register`    | POST     | Token   | Agent registration                         |
-| `/api/hosts/{id}/poll`        | GET      | Token   | Agent polls for commands                   |
-| `/api/hosts/{id}/status`      | POST     | Token   | Agent reports status                       |
-| `/api/hosts/{id}/command`     | POST     | Session | Queue a command                            |
-| `/api/hosts/{id}/agent-token` | POST     | Session | Rotate per-host agent token (returns once) |
-| `/api/events`                 | GET      | Session | SSE stream for live updates                |
-| `/api/metrics`                | GET      | Session | Authenticated metrics snapshot             |
-
-## Security
-
-- **Password**: bcrypt hashed, validated at startup
-- **TOTP**: Optional 2FA via authenticator apps
-- **Sessions**: DB-backed sessions + **signed session cookies** (rotation supported) + CSRF
-- **Agent API**: Bearer token auth with **per-host tokens** (hashed in DB) and optional shared bootstrap token
-- **Rate limiting**: Login, registration, and poll endpoints are rate-limited
-- **Security headers**: HSTS, X-Frame-Options, **CSP with nonces (no `unsafe-inline`)** in production
+| Endpoint                  | Method   | Auth    | Description                |
+| ------------------------- | -------- | ------- | -------------------------- |
+| `/`                       | GET      | Session | Dashboard UI               |
+| `/login`                  | GET/POST | -       | Login page                 |
+| `/health`                 | GET      | -       | Health check               |
+| `/ws`                     | GET      | Token   | Agent WebSocket connection |
+| `/api/hosts`              | GET      | Session | List all hosts             |
+| `/api/hosts`              | POST     | Session | Add a new host             |
+| `/api/hosts/{id}`         | DELETE   | Session | Remove a host              |
+| `/api/hosts/{id}/command` | POST     | Session | Queue a command            |
 
 ## Environment Variables
 
-| Variable                               | Required                         | Description                                                                                  |
-| -------------------------------------- | -------------------------------- | -------------------------------------------------------------------------------------------- |
-| `NIXFLEET_PASSWORD_HASH`               | Yes                              | bcrypt hash of admin password                                                                |
-| `NIXFLEET_SESSION_SECRETS`             | Yes (prod)                       | Comma-separated secrets for signed session cookies (rotation supported)                      |
-| `NIXFLEET_AGENT_TOKEN_HASH_SECRET`     | Yes (when using per-host tokens) | Secret used to hash per-host agent tokens in DB                                              |
-| `NIXFLEET_API_TOKEN`                   | Yes (prod, if shared token mode) | Shared agent token (recommended as bootstrap/migration aid only)                             |
-| `NIXFLEET_ALLOW_SHARED_AGENT_TOKEN`    | No                               | Allow shared token auth for agents (default: true)                                           |
-| `NIXFLEET_AUTO_PROVISION_AGENT_TOKENS` | No                               | Auto-create per-host tokens on first agent contact (default: true)                           |
-| `NIXFLEET_TOTP_SECRET`                 | No                               | Base32-encoded TOTP secret for 2FA                                                           |
-| `NIXFLEET_REQUIRE_TOTP`                | No                               | Set to "true" to enforce 2FA                                                                 |
-| `NIXFLEET_DEV_MODE`                    | No                               | Set to "true" for development                                                                |
-| `NIXFLEET_DATA_DIR`                    | No                               | Database directory (default: `/data`)                                                        |
-| `NIXFLEET_TRUST_PROXY_HEADERS`         | No                               | Trust forwarded headers for client IP (rate limiting/logging behind reverse proxies)         |
-| `NIXFLEET_TRUSTED_PROXY_IPS`           | No                               | Comma-separated proxy IP allowlist (optional; when empty and trust enabled, trust any proxy) |
-| `NIXFLEET_ALLOWED_ORIGINS`             | No                               | Comma-separated allowed origins for WebSocket connections (auto-detects in production)       |
-
-## Development
-
-```bash
-# Run locally
-cd app
-pip install -r requirements.txt
-NIXFLEET_DEV_MODE=true \
-NIXFLEET_PASSWORD_HASH='$2b$12$...' \
-uvicorn main:app --reload
-```
+| Variable                  | Required | Description                           |
+| ------------------------- | -------- | ------------------------------------- |
+| `NIXFLEET_PASSWORD_HASH`  | Yes      | bcrypt hash of admin password         |
+| `NIXFLEET_SESSION_SECRET` | Yes      | Secret for signed session cookies     |
+| `NIXFLEET_AGENT_TOKEN`    | Yes      | Shared agent authentication token     |
+| `NIXFLEET_TOTP_SECRET`    | No       | Base32 TOTP secret for 2FA            |
+| `NIXFLEET_LOG_LEVEL`      | No       | Log level (debug, info, warn, error)  |
+| `NIXFLEET_VERSION_URL`    | No       | URL to version.json for Git status    |
+| `NIXFLEET_DATA_DIR`       | No       | Database directory (default: `/data`) |
 
 ## Operations
 
 ### Deploying Dashboard Updates
 
 The v2 dashboard runs on **csb1** as part of the main docker-compose stack.
-
-### Deployment Steps
 
 ```bash
 # 1. SSH to csb1
@@ -283,7 +299,7 @@ ssh mba@cs1.barta.cm -p 2222
 # 2. Pull latest nixfleet code
 cd ~/docker/nixfleet && git pull
 
-# 3. Rebuild and restart from MAIN docker-compose
+# 3. Rebuild and restart
 cd ~/docker
 docker compose build --no-cache nixfleet
 docker compose up -d nixfleet
@@ -293,52 +309,26 @@ docker logs nixfleet --tail 20
 curl -s https://fleet.barta.cm/health
 ```
 
-### Important Notes
+### Updating Agents on Hosts
 
-- **DO NOT** use `docker/docker-compose.csb1.yml` in the nixfleet repo - it's outdated
-- The main compose is `~/docker/docker-compose.yml` which builds from `./nixfleet/v2/`
-- Environment variables are in `~/secrets/nixfleet.env`
-- Go module path is `github.com/markus-barta/nixfleet` (NOT pbek!)
-
-### Environment Variables (v2)
-
-| Variable                  | Required | Description                          |
-| ------------------------- | -------- | ------------------------------------ |
-| `NIXFLEET_PASSWORD_HASH`  | Yes      | bcrypt hash of admin password        |
-| `NIXFLEET_SESSION_SECRET` | Yes      | Secret for session cookies           |
-| `NIXFLEET_AGENT_TOKEN`    | Yes      | Shared agent authentication token    |
-| `NIXFLEET_TOTP_SECRET`    | No       | TOTP secret for 2FA                  |
-| `NIXFLEET_LOG_LEVEL`      | No       | Log level (debug, info, warn, error) |
-
-### Updating Agent on Hosts
-
-After pushing nixfleet changes, update the flake lock in nixcfg and deploy:
+After pushing nixfleet changes, update the flake lock and deploy:
 
 ```bash
-# 1. Update nixcfg flake lock
+# From dashboard UI (recommended):
+# 1. Click "Pull" on host → updates repo
+# 2. Click "Switch" on host → rebuilds system
+
+# Or manually:
 cd ~/Code/nixcfg
 nix flake update nixfleet
 git add flake.lock && git commit -m "chore: Update nixfleet" && git push
 
-# 2. Deploy to NixOS hosts (example: csb0)
-ssh mba@cs0.barta.cm -p 2222 "cd ~/Code/nixcfg && git pull && sudo nixos-rebuild switch --flake .#csb0"
-
-# 3. For macOS hosts, use home-manager
-# (or trigger via dashboard: Pull → Switch)
+# Then deploy via dashboard or SSH
 ```
-
-### SSH Connections
-
-| Host | SSH Command                    |
-| ---- | ------------------------------ |
-| csb0 | `ssh mba@cs0.barta.cm -p 2222` |
-| csb1 | `ssh mba@cs1.barta.cm -p 2222` |
-
-Fish abbreviations are available for interactive use (e.g., `csb0`, `csb1`).
 
 ### Restarting Agents
 
-Use the dashboard UI: **⋮ menu → Restart Agent**
+Use the dashboard UI: **⋮ menu → actions**
 
 Or manually:
 
@@ -348,6 +338,23 @@ sudo systemctl restart nixfleet-agent
 
 # macOS
 launchctl kickstart -k gui/$(id -u)/com.nixfleet.agent
+```
+
+## Development
+
+```bash
+# Enter dev environment
+cd v2
+nix develop
+
+# Run dashboard locally
+go run ./cmd/nixfleet-dashboard
+
+# Run agent locally
+go run ./cmd/nixfleet-agent
+
+# Run tests
+go test ./tests/...
 ```
 
 ## License
