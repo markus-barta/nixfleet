@@ -403,6 +403,72 @@ templ Dashboard(data DashboardData) {
 						updateMetrics(metricsCell, host.metrics);
 					}
 				}
+
+				// Update status compartments (P5010 fix)
+				if (host.update_status) {
+					updateStatusCompartments(row, host.update_status);
+				}
+			}
+
+			// Update the three status compartments (Git, Lock, System) based on new status data
+			function updateStatusCompartments(row, updateStatus) {
+				const container = row.querySelector('.update-status');
+				if (!container) return;
+
+				const compartments = ['git', 'lock', 'system'];
+				compartments.forEach((type, index) => {
+					const compartment = container.children[index];
+					if (!compartment) return;
+
+					const status = updateStatus[type];
+					if (!status) return;
+
+					// Update compartment class
+					compartment.className = getCompartmentClass(status.status);
+
+					// Update indicator class
+					const indicator = compartment.querySelector('.compartment-indicator');
+					if (indicator) {
+						indicator.className = getIndicatorClass(status.status);
+					}
+
+					// Update tooltip
+					compartment.title = getCompartmentTooltip(type, status);
+				});
+			}
+
+			function getCompartmentClass(status) {
+				const base = 'update-compartment';
+				switch (status) {
+					case 'ok': return base;
+					case 'outdated': return base + ' needs-update';
+					case 'error': return base + ' error';
+					default: return base + ' unknown';
+				}
+			}
+
+			function getIndicatorClass(status) {
+				const base = 'compartment-indicator';
+				switch (status) {
+					case 'ok': return base + ' compartment-indicator--ok';
+					case 'outdated': return base + ' compartment-indicator--warning';
+					case 'error': return base + ' compartment-indicator--error';
+					default: return base + ' compartment-indicator--unknown';
+				}
+			}
+
+			function getCompartmentTooltip(type, status) {
+				const labels = { git: 'Git', lock: 'Lock', system: 'System' };
+				const label = labels[type] || type;
+				if (status.message) {
+					return label + ': ' + status.message;
+				}
+				switch (status.status) {
+					case 'ok': return label + ': Up to date';
+					case 'outdated': return label + ': Needs attention';
+					case 'error': return label + ': Error';
+					default: return label + ': Unknown';
+				}
 			}
 
 			function updateMetrics(cell, metrics) {
