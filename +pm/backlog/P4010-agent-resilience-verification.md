@@ -186,17 +186,17 @@ fi
 
 **Run verification script on each host and update status:**
 
-| Host          | v1 Removed | v2 Running | Correct URL | Isolated Repo | Kill Test | Switch Test | Verified By | Date |
-| ------------- | ---------- | ---------- | ----------- | ------------- | --------- | ----------- | ----------- | ---- |
-| hsb0          | ⬜         | ⬜         | ⬜          | ⬜            | ⬜        | ⬜          |             |      |
-| hsb1          | ⬜         | ⬜         | ⬜          | ⬜            | ⬜        | ⬜          |             |      |
-| hsb8          | ⬜         | ⬜         | ⬜          | ⬜            | ⬜        | ⬜          |             |      |
-| csb0          | ⬜         | ⬜         | ⬜          | ⬜            | ⬜        | ⬜          |             |      |
-| csb1          | ⬜         | ⬜         | ⬜          | ⬜            | ⬜        | ⬜          |             |      |
-| gpc0          | ⬜         | ⬜         | ⬜          | ⬜            | ⬜        | ⬜          |             |      |
-| imac0         | ⬜         | ⬜         | ⬜          | ⬜            | ⬜        | ⬜          |             |      |
-| mba-mbp-work  | ⬜         | ⬜         | ⬜          | ⬜            | ⬜        | ⬜          |             |      |
-| mba-imac-work | ⬜         | ⬜         | ⬜          | ⬜            | ⬜        | ⬜          |             |      |
+| Host          | v1 Removed | v2 Running | Correct URL | Isolated Repo | Kill Test | Switch Test | Verified By | Date       |
+| ------------- | ---------- | ---------- | ----------- | ------------- | --------- | ----------- | ----------- | ---------- |
+| hsb0          | ✅         | ✅         | ✅          | ✅            | ✅        | ✅          | Claude      | 2025-12-17 |
+| hsb1          | ✅         | ✅         | ✅          | ✅            | ✅        | ✅          | Claude      | 2025-12-17 |
+| hsb8          | ⬜         | ⬜         | ⬜          | ⬜            | ⬜        | ⬜          | (offsite)   |            |
+| csb0          | ✅         | ✅         | ✅          | ✅            | ✅        | ✅          | Claude      | 2025-12-17 |
+| csb1          | ✅         | ✅         | ✅          | ✅            | ✅        | ✅          | Claude      | 2025-12-17 |
+| gpc0          | ✅         | ✅         | ✅          | ✅            | ⬜        | ⬜          | Claude      | 2025-12-17 |
+| imac0         | ✅         | ✅         | ✅          | ✅            | ✅        | ✅          | Claude      | 2025-12-17 |
+| mba-mbp-work  | ⬜         | ⬜         | ⬜          | ⬜            | ⬜        | ⬜          |             |            |
+| mba-imac-work | ✅         | ✅         | ✅          | ✅            | ✅        | ✅          | Markus      | 2025-12-17 |
 
 **Legend:** ⬜ = Not verified, ✅ = Passed, ❌ = Failed
 
