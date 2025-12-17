@@ -25,6 +25,10 @@ No more SSH-ing into each machine one by one. Just open your dashboard, see who'
 
 Your command center for the entire fleet! Everything updates in real-time via WebSockets, so you'll always see the current state without refreshing.
 
+<p align="center">
+  <img src="assets/dashboard.png" alt="NixFleet Dashboard" width="100%">
+</p>
+
 - **Real-time Updates**: Hosts appear the moment they connect, status changes instantly
 - **Fleet Target**: See which Git commit everyone should be on at a glance
 - **Smart Status Indicators**: Know immediately if a host is behind, needs a rebuild, or has a stale lock file
