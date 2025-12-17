@@ -44,7 +44,7 @@ NixFleet dashboard checks GitHub API for open PRs:
 
 - Repo: configured via `NIXFLEET_GITHUB_REPO` (e.g., `markus-barta/nixcfg`)
 - Filter: PRs with label `automated` or title containing "flake.lock"
-- Polling: Every 5 minutes (or on dashboard load)
+- Polling: Once a day at e.g. midnight UTC (or via dashboard manual check)
 
 ### 2. Lock Compartment Integration
 
@@ -72,7 +72,7 @@ If enabled, NixFleet automatically:
 2. Waits configurable delay (default: 1 hour) for CI to pass
 3. Merges PR
 4. Deploys to all hosts
-5. Notifies admin of success/failure
+5. Notifies admin of success/failure via apprise notification service (on csb0 or csb1)
 
 ### 5. Rollback on Failure
 
