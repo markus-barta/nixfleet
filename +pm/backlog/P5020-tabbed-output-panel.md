@@ -39,13 +39,28 @@ Implement a tabbed output panel similar to browser tabs:
 
 | ID     | Requirement                                                  |
 | ------ | ------------------------------------------------------------ |
-| FR-1.1 | New tab created when command starts on a host                |
+| FR-1.1 | New tab auto-created on first output for a host              |
 | FR-1.2 | Tab shows hostname as label                                  |
 | FR-1.3 | Tab has X button to close/dismiss                            |
 | FR-1.4 | Clicking tab switches to that host's output                  |
 | FR-1.5 | Tabs persist until explicitly closed by user (NO auto-close) |
 | FR-1.6 | Ellipsis menu has "Show Output" option to open/reopen tab    |
 | FR-1.7 | "Show Output" reopens tab with buffered output history       |
+| FR-1.8 | Tabs ordered by creation time (first command = leftmost)     |
+| FR-1.9 | New command on existing tab appends with visual separator    |
+
+### FR-1.9 Detail: Command Separator
+
+When a new command starts on a host that already has an open tab, insert a visual separator:
+
+```
+...previous output...
+───────────────── switch (19:05:23) ─────────────────
+$ nixos-rebuild switch --flake .#hsb0
+building the system configuration...
+```
+
+The separator shows command name and timestamp.
 
 ### FR-1.5 Critical: No Auto-Close
 
@@ -66,7 +81,8 @@ Implement a tabbed output panel similar to browser tabs:
 | New Output   | Badge/notification dot | Has unread output since last viewed |
 | Completed OK | Green indicator        | Command finished successfully       |
 | Error        | Red indicator          | Command failed                      |
-| Idle         | Dimmed                 | No recent activity                  |
+
+**Note**: Tabs never auto-transition to "idle" or dimmed state. Completed tabs keep their green/red indicator until closed.
 
 ### FR-3: Output Panel Behavior
 
@@ -86,6 +102,24 @@ Implement a tabbed output panel similar to browser tabs:
 | FR-4.2 | Resize panel height by dragging                                       |
 | FR-4.3 | "Close All" button to dismiss all tabs                                |
 | FR-4.4 | Panel state (collapsed/expanded, height) persists across page refresh |
+
+### FR-5: Tab Overflow (Desktop + Mobile)
+
+| ID     | Requirement                                                           |
+| ------ | --------------------------------------------------------------------- |
+| FR-5.1 | When tabs exceed available width, show "more tabs" dropdown           |
+| FR-5.2 | Dropdown lists hidden tabs with hostname and state indicator          |
+| FR-5.3 | Clicking dropdown item switches to that tab (moves to visible area)   |
+| FR-5.4 | On mobile (<640px), only active tab visible + dropdown for all others |
+
+### Session Behavior
+
+**Output is session-only.** On page refresh:
+
+- All tabs are closed
+- Output buffers are cleared
+- Panel collapsed/expanded state persists (via localStorage)
+- Panel height persists (via localStorage)
 
 ## UI Mockup
 
@@ -174,6 +208,8 @@ const outputTabs = {
    - Tab bar with hostname labels
    - Click to switch tabs
    - X button to close
+   - Tab overflow dropdown (required for mobile)
+   - Command separator when new command starts on existing tab
 
 2. **Phase 2: State Indicators**
    - Running/completed/error indicators
@@ -183,11 +219,11 @@ const outputTabs = {
    - Collapse/expand
    - Resize by drag
    - Clear/Copy buttons
+   - LocalStorage persistence for panel state
 
 4. **Phase 4: Polish**
    - Keyboard shortcuts (Ctrl+1-9 for tabs)
-   - Tab overflow handling
-   - Settings for buffer size/max tabs
+   - Settings for buffer size
 
 ## Priority
 
