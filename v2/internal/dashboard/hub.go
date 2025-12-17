@@ -735,6 +735,59 @@ func (h *Hub) GetAgent(hostID string) *Client {
 	return h.agents[hostID]
 }
 
+// GetOnlineHosts returns a list of all currently connected agent host IDs.
+func (h *Hub) GetOnlineHosts() []string {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+
+	hosts := make([]string, 0, len(h.agents))
+	for hostID := range h.agents {
+		hosts = append(hosts, hostID)
+	}
+	return hosts
+}
+
+// SendCommand sends a command to a specific agent by host ID.
+func (h *Hub) SendCommand(hostID, command string) bool {
+	agent := h.GetAgent(hostID)
+	if agent == nil {
+		h.log.Warn().Str("host", hostID).Msg("cannot send command: agent not connected")
+		return false
+	}
+
+	msg, err := protocol.NewMessage(protocol.TypeCommand, protocol.CommandPayload{
+		Command: command,
+	})
+	if err != nil {
+		h.log.Error().Err(err).Msg("failed to create command message")
+		return false
+	}
+
+	data, err := json.Marshal(msg)
+	if err != nil {
+		h.log.Error().Err(err).Msg("failed to marshal command message")
+		return false
+	}
+
+	select {
+	case agent.send <- data:
+		h.log.Debug().Str("host", hostID).Str("command", command).Msg("command sent")
+		return true
+	default:
+		h.log.Warn().Str("host", hostID).Msg("agent send buffer full")
+		return false
+	}
+}
+
+// BroadcastTypedMessage broadcasts a typed message to all browsers.
+// This is a convenience wrapper that creates the standard message format.
+func (h *Hub) BroadcastTypedMessage(msgType string, payload interface{}) {
+	h.queueBroadcast(map[string]any{
+		"type":    msgType,
+		"payload": payload,
+	})
+}
+
 // readPump reads messages from the WebSocket connection.
 func (c *Client) readPump() {
 	defer func() {

@@ -730,3 +730,90 @@ func formatTimeAgo(t time.Time) string {
 	}
 }
 
+// =============================================================================
+// Flake Update Handlers (P5300)
+// =============================================================================
+
+// handleFlakeUpdateStatus returns the current flake update status.
+func (s *Server) handleFlakeUpdateStatus(w http.ResponseWriter, r *http.Request) {
+	if s.flakeUpdates == nil {
+		http.Error(w, "GitHub integration not configured", http.StatusNotImplemented)
+		return
+	}
+
+	status := map[string]any{
+		"enabled":     true,
+		"repo":        s.cfg.GitHubRepo,
+		"pending_pr":  s.flakeUpdates.GetPendingPR(),
+		"last_check":  s.flakeUpdates.GetLastCheck().Format(time.RFC3339),
+		"current_job": s.flakeUpdates.GetCurrentJob(),
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(status)
+}
+
+// handleFlakeUpdateCheck triggers an immediate check for update PRs.
+func (s *Server) handleFlakeUpdateCheck(w http.ResponseWriter, r *http.Request) {
+	if s.flakeUpdates == nil {
+		http.Error(w, "GitHub integration not configured", http.StatusNotImplemented)
+		return
+	}
+
+	// Run check synchronously (it's fast)
+	s.flakeUpdates.CheckForUpdates(r.Context())
+
+	status := map[string]any{
+		"pending_pr": s.flakeUpdates.GetPendingPR(),
+		"checked_at": s.flakeUpdates.GetLastCheck().Format(time.RFC3339),
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(status)
+}
+
+// handleMergeAndDeploy starts a merge-and-deploy operation.
+func (s *Server) handleMergeAndDeploy(w http.ResponseWriter, r *http.Request) {
+	if s.flakeUpdates == nil {
+		http.Error(w, "GitHub integration not configured", http.StatusNotImplemented)
+		return
+	}
+
+	var req struct {
+		PRNumber int      `json:"pr_number"`
+		Hosts    []string `json:"hosts"` // optional: specific hosts, empty = all
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if req.PRNumber == 0 {
+		http.Error(w, "pr_number is required", http.StatusBadRequest)
+		return
+	}
+
+	jobID, err := s.flakeUpdates.MergeAndDeploy(r.Context(), req.PRNumber, req.Hosts)
+	if err != nil {
+		if _, ok := err.(*ErrDeployInProgress); ok {
+			http.Error(w, err.Error(), http.StatusConflict)
+			return
+		}
+		s.log.Error().Err(err).Int("pr", req.PRNumber).Msg("merge-and-deploy failed")
+		http.Error(w, "failed to start deployment: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	s.log.Info().
+		Str("job", jobID).
+		Int("pr", req.PRNumber).
+		Msg("merge-and-deploy started")
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]string{
+		"status": "started",
+		"job_id": jobID,
+	})
+}
+

@@ -38,8 +38,14 @@ type Config struct {
 	AllowedOrigins []string // optional, for WebSocket origin validation
 
 	// Update Status (P5000)
-	VersionURL         string        // URL to fetch version.json from GitHub Pages
-	VersionFetchTTL    time.Duration // How often to fetch version (default: 30s)
+	VersionURL      string        // URL to fetch version.json from GitHub Pages
+	VersionFetchTTL time.Duration // How often to fetch version (default: 30s)
+
+	// GitHub Integration (P5300)
+	GitHubToken   string        // Personal Access Token with repo scope
+	GitHubRepo    string        // owner/repo format (e.g., "markus-barta/nixcfg")
+	GitHubAPIURL  string        // Optional: override API URL (for testing)
+	GitHubPollTTL time.Duration // How often to check for update PRs (default: 1h)
 
 	// Stale command cleanup (PRD FR-2.13)
 	// Uses multiplier × heartbeat_interval with a floor (like Kubernetes liveness probes)
@@ -70,6 +76,12 @@ func LoadConfig() (*Config, error) {
 		// Update Status (P5000)
 		VersionURL:      getEnv("NIXFLEET_VERSION_URL", ""), // e.g., https://user.github.io/nixcfg/version.json
 		VersionFetchTTL: parseDuration("NIXFLEET_VERSION_FETCH_TTL", 30*time.Second),
+
+		// GitHub Integration (P5300)
+		GitHubToken:   os.Getenv("NIXFLEET_GITHUB_TOKEN"),
+		GitHubRepo:    os.Getenv("NIXFLEET_GITHUB_REPO"), // e.g., "markus-barta/nixcfg"
+		GitHubAPIURL:  getEnv("NIXFLEET_GITHUB_API_URL", "https://api.github.com"),
+		GitHubPollTTL: parseDuration("NIXFLEET_GITHUB_POLL_TTL", 1*time.Hour),
 
 		// Stale command cleanup defaults (PRD FR-2.13)
 		HeartbeatInterval:    parseDuration("NIXFLEET_HEARTBEAT_INTERVAL", 5*time.Second),
@@ -112,6 +124,20 @@ func (c *Config) HasTOTP() bool {
 // HasVersionTracking returns true if version URL is configured.
 func (c *Config) HasVersionTracking() bool {
 	return c.VersionURL != ""
+}
+
+// HasGitHubIntegration returns true if GitHub integration is configured.
+func (c *Config) HasGitHubIntegration() bool {
+	return c.GitHubToken != "" && c.GitHubRepo != ""
+}
+
+// GitHubOwnerRepo parses the GitHubRepo into owner and repo parts.
+func (c *Config) GitHubOwnerRepo() (owner, repo string) {
+	parts := strings.SplitN(c.GitHubRepo, "/", 2)
+	if len(parts) == 2 {
+		return parts[0], parts[1]
+	}
+	return "", ""
 }
 
 // StaleCommandTimeout calculates the threshold for stale command cleanup.

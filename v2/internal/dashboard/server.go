@@ -20,6 +20,7 @@ type Server struct {
 	hub            *Hub
 	logStore       *LogStore
 	versionFetcher *VersionFetcher
+	flakeUpdates   *FlakeUpdateService // P5300: Automated flake updates
 	router         *chi.Mux
 	wsUpgrader     *websocket.Upgrader
 	httpServer     *http.Server
@@ -62,6 +63,13 @@ func New(cfg *Config, db *sql.DB, log zerolog.Logger) *Server {
 	hub := NewHub(log, db, cfg, versionFetcher)
 	hub.logStore = logStore // Pass log store to hub for output logging
 
+	// Create flake update service if GitHub is configured (P5300)
+	var flakeUpdates *FlakeUpdateService
+	if cfg.HasGitHubIntegration() {
+		flakeUpdates = NewFlakeUpdateService(cfg, hub, log)
+		log.Info().Str("repo", cfg.GitHubRepo).Msg("GitHub flake updates enabled")
+	}
+
 	s := &Server{
 		cfg:            cfg,
 		db:             db,
@@ -70,6 +78,7 @@ func New(cfg *Config, db *sql.DB, log zerolog.Logger) *Server {
 		hub:            hub,
 		logStore:       logStore,
 		versionFetcher: versionFetcher,
+		flakeUpdates:   flakeUpdates,
 		hubCtx:         hubCtx,
 		hubCancel:      hubCancel,
 	}
@@ -78,6 +87,11 @@ func New(cfg *Config, db *sql.DB, log zerolog.Logger) *Server {
 
 	// Start hub immediately (auto-recovery enabled, graceful shutdown via hubCtx)
 	go s.hub.Run(hubCtx)
+
+	// Start flake update service if configured (P5300)
+	if s.flakeUpdates != nil {
+		go s.flakeUpdates.Start(hubCtx)
+	}
 
 	return s
 }
@@ -121,6 +135,13 @@ func (s *Server) setupRouter() {
 			r.Post("/hosts/{hostID}/command", s.handleCommand)
 			r.Delete("/hosts/{hostID}", s.handleDeleteHost)
 			r.Get("/hosts/{hostID}/logs", s.handleGetLogs)
+
+			// Flake updates (P5300)
+			r.Route("/flake-updates", func(r chi.Router) {
+				r.Get("/status", s.handleFlakeUpdateStatus)
+				r.Post("/check", s.handleFlakeUpdateCheck)
+				r.Post("/merge-and-deploy", s.handleMergeAndDeploy)
+			})
 		})
 	})
 
