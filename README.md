@@ -72,20 +72,20 @@ We take security seriously. Your fleet is your infrastructure, after all!
 │  │  macbook-pro    │ Online │ [G][L][S][A]│ [Pull] [Switch] [Test]  │   │
 │  └──────────────────────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────────────────────┘
-                              │ WebSocket
-              ┌───────────────┼───────────────┐
-              │               │               │
-              ▼               ▼               ▼
-        ┌──────────┐    ┌──────────┐    ┌──────────┐
-        │  NixOS   │    │  NixOS   │    │  macOS   │
-        │  Server  │    │  Desktop │    │  Laptop  │
-        │          │    │          │    │          │
-        │ Agent    │    │ Agent    │    │ Agent    │
-        │ (Go)     │    │ (Go)     │    │ (Go)     │
-        │          │    │          │    │          │
-        │ nixos-   │    │ nixos-   │    │ home-    │
-        │ rebuild  │    │ rebuild  │    │ manager  │
-        └──────────┘    └──────────┘    └──────────┘
+                                 │ WebSocket
+       ┌────────────┬────────────┼────────────┬────────────┬────────────┐
+       │            │            │            │            │            │
+       ▼            ▼            ▼            ▼            ▼            ▼
+  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐     ...
+  │  NixOS   │ │  NixOS   │ │  macOS   │ │ NixOS.   │ │  NixOS   │
+  │  Server  │ │  Desktop │ │  Laptop  │ │ Gaming   │ │  NAS     │
+  │          │ │          │ │          │ │ PC       │ │          │
+  │ Agent    │ │ Agent    │ │ Agent    │ │ Agent    │ │ Agent    │
+  │ (Go)     │ │ (Go)     │ │ (Go)     │ │ (Go)     │ │ (Go)     │
+  │          │ │          │ │          │ │          │ │          │
+  │ nixos-   │ │ nixos-   │ │ home-    │ │ nixos-   │ │ nixos-   │
+  │ rebuild  │ │ rebuild  │ │ manager  │ │ rebuild  │ │ rebuild  │
+  └──────────┘ └──────────┘ └──────────┘ └──────────┘ └──────────┘
 ```
 
 ### Understanding the Status Indicators

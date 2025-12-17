@@ -140,6 +140,16 @@ func (a *Agent) executeCommand(command string) {
 	}
 
 	a.sendStatus(status, command, exitCode, message)
+
+	// Auto-restart after successful switch to pick up new binary
+	// Exit with code 101 which triggers RestartForceExitStatus in systemd
+	if exitCode == 0 && (command == "switch" || command == "pull-switch") {
+		a.log.Info().Msg("switch completed successfully, restarting to pick up new binary")
+		// Give time for the status message to be sent
+		time.Sleep(500 * time.Millisecond)
+		a.Shutdown()
+		os.Exit(101) // Triggers RestartForceExitStatus in systemd
+	}
 }
 
 // runWithStreaming runs a command and streams stdout/stderr.
