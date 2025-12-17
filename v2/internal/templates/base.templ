@@ -935,6 +935,67 @@ templ Base(title string, csrfToken string) {
 				}
 			}
 
+			/* Flake Update Banner (P5300) */
+			.flake-update-banner {
+				background: linear-gradient(135deg, #1e3a5f, #0d1a2d);
+				border: 1px solid #3b82f6;
+				border-radius: 8px;
+				margin: 0 1rem 1rem;
+				padding: 0;
+				box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
+			}
+
+			.flake-update-content {
+				display: flex;
+				align-items: center;
+				gap: 1rem;
+				padding: 0.75rem 1rem;
+				flex-wrap: wrap;
+			}
+
+			.flake-update-icon {
+				font-size: 1.25rem;
+			}
+
+			.flake-update-text {
+				flex: 1;
+				min-width: 200px;
+				color: #e2e8f0;
+			}
+
+			.flake-update-text a {
+				color: #60a5fa;
+				text-decoration: none;
+			}
+
+			.flake-update-text a:hover {
+				text-decoration: underline;
+			}
+
+			.flake-update-success {
+				border-color: #22c55e;
+				background: linear-gradient(135deg, #14532d, #052e16);
+			}
+
+			.flake-update-error {
+				border-color: #ef4444;
+				background: linear-gradient(135deg, #7f1d1d, #450a0a);
+			}
+
+			.flake-update-progress {
+				animation: flake-update-pulse 2s ease-in-out infinite;
+			}
+
+			@keyframes flake-update-pulse {
+				0%, 100% { opacity: 0.9; }
+				50% { opacity: 1; }
+			}
+
+			.btn-sm {
+				padding: 0.35rem 0.75rem;
+				font-size: 0.8rem;
+			}
+
 			@keyframes pulse-glow {
 				0%, 100% { opacity: 0.3; }
 				50% { opacity: 1; }

@@ -143,7 +143,7 @@ Click "Switch" button in the dashboard. The agent:
 nixfleet repo                    nixcfg repo                     Host
 ─────────────                    ───────────                     ────
     │                                 │                            │
-    │ ◄── you push code              │                            │
+    │ ◄── you push code               │                            │
     │                                 │                            │
     │                    flake.lock ──┼── points to nixfleet rev   │
     │                                 │                            │

@@ -135,6 +135,9 @@ templ Dashboard(data DashboardData) {
 			</div>
 		</header>
 
+		<!-- Flake Update Banner (P5300) -->
+		<div id="flake-update-banner" class="flake-update-banner" style="display: none;"></div>
+
 		<!-- Mobile: Card View -->
 		<div class="host-grid" id="host-cards">
 			for _, host := range data.Hosts {
@@ -348,7 +351,101 @@ templ Dashboard(data DashboardData) {
 					case 'command_complete':
 						markCommandComplete(msg.payload);
 						break;
+					case 'flake_update_pr':
+						handleFlakeUpdatePR(msg.payload);
+						break;
+					case 'flake_update_job':
+						handleFlakeUpdateJob(msg.payload);
+						break;
 				}
+			}
+
+			// P5300: Handle pending flake update PR notification
+			function handleFlakeUpdatePR(payload) {
+				const banner = document.getElementById('flake-update-banner');
+				if (!banner) return;
+
+				if (payload.pending_pr) {
+					banner.innerHTML = `
+						<div class="flake-update-content">
+							<span class="flake-update-icon">🔄</span>
+							<span class="flake-update-text">
+								Update available: <a href="${payload.pending_pr.url}" target="_blank" rel="noopener">#${payload.pending_pr.number}</a>
+								— ${payload.pending_pr.title}
+							</span>
+							<button class="btn btn-primary btn-sm" onclick="mergeAndDeploy(${payload.pending_pr.number})">
+								Merge & Deploy
+							</button>
+							<button class="btn btn-secondary btn-sm" onclick="dismissFlakeUpdate()">
+								Dismiss
+							</button>
+						</div>
+					`;
+					banner.style.display = 'block';
+				} else {
+					banner.style.display = 'none';
+				}
+			}
+
+			// P5300: Handle deployment job updates
+			function handleFlakeUpdateJob(job) {
+				const banner = document.getElementById('flake-update-banner');
+				if (!banner) return;
+
+				if (job.state === 'completed') {
+					banner.innerHTML = `
+						<div class="flake-update-content flake-update-success">
+							<span class="flake-update-icon">✓</span>
+							<span class="flake-update-text">${job.message || 'Deployment complete!'}</span>
+							<button class="btn btn-secondary btn-sm" onclick="dismissFlakeUpdate()">Dismiss</button>
+						</div>
+					`;
+					setTimeout(() => { banner.style.display = 'none'; }, 5000);
+				} else if (job.state === 'failed') {
+					banner.innerHTML = `
+						<div class="flake-update-content flake-update-error">
+							<span class="flake-update-icon">✗</span>
+							<span class="flake-update-text">${job.message || 'Deployment failed'}</span>
+							<button class="btn btn-secondary btn-sm" onclick="dismissFlakeUpdate()">Dismiss</button>
+						</div>
+					`;
+				} else {
+					banner.innerHTML = `
+						<div class="flake-update-content flake-update-progress">
+							<span class="flake-update-icon">⏳</span>
+							<span class="flake-update-text">${job.message || 'Deploying...'} (${job.completed_hosts}/${job.total_hosts})</span>
+						</div>
+					`;
+					banner.style.display = 'block';
+				}
+			}
+
+			function mergeAndDeploy(prNumber) {
+				if (!confirm('Merge PR #' + prNumber + ' and deploy to all online hosts?')) return;
+
+				fetch('/api/flake-updates/merge-and-deploy', {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+						'X-CSRF-Token': window.csrfToken
+					},
+					body: JSON.stringify({ pr_number: prNumber })
+				})
+				.then(resp => {
+					if (!resp.ok) throw new Error('Failed to start deployment');
+					return resp.json();
+				})
+				.then(data => {
+					console.log('Deployment started:', data.job_id);
+				})
+				.catch(err => {
+					alert('Failed to start deployment: ' + err.message);
+				});
+			}
+
+			function dismissFlakeUpdate() {
+				const banner = document.getElementById('flake-update-banner');
+				if (banner) banner.style.display = 'none';
 			}
 
 			function updateHost(host) {
