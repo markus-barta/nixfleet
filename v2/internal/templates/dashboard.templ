@@ -1389,6 +1389,7 @@ templ CommandButton(hostID, command, label, classes string, enabled bool) {
 			data-host-id={ hostID }
 			data-command={ command }
 			onclick="sendCommand(this.dataset.hostId, this.dataset.command)"
+			title={ commandTitle(command) }
 		>
 			@commandIcon(command)
 			if label != "" {
@@ -1396,12 +1397,28 @@ templ CommandButton(hostID, command, label, classes string, enabled bool) {
 			}
 		</button>
 	} else {
-		<button class={ classes } disabled>
+		<button class={ classes } disabled title={ commandTitle(command) }>
 			@commandIcon(command)
 			if label != "" {
 				{ label }
 			}
 		</button>
+	}
+}
+
+// commandTitle returns a human-readable title for button tooltips
+func commandTitle(command string) string {
+	switch command {
+	case "pull":
+		return "Pull latest code from Git"
+	case "switch":
+		return "Apply configuration (nixos-rebuild switch)"
+	case "test":
+		return "Test configuration (nixos-rebuild test)"
+	case "stop":
+		return "Stop running command"
+	default:
+		return command
 	}
 }
 
