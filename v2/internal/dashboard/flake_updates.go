@@ -128,18 +128,14 @@ func (s *FlakeUpdateService) CheckForUpdates(ctx context.Context) {
 	s.lastCheck = time.Now()
 	s.mu.Unlock()
 
-	// Log and broadcast if status changed
+	// Log status changes (P7000: no longer broadcast - UI fetches on-demand via refresh)
 	if updatePR != nil && (oldPR == nil || oldPR.Number != updatePR.Number) {
 		s.log.Info().
 			Int("pr", updatePR.Number).
 			Str("title", updatePR.Title).
 			Msg("detected flake update PR")
-
-		// Broadcast to all connected browsers
-		s.broadcastPRStatus()
 	} else if updatePR == nil && oldPR != nil {
 		s.log.Info().Msg("no pending update PRs")
-		s.broadcastPRStatus()
 	}
 }
 
@@ -231,11 +227,10 @@ func (s *FlakeUpdateService) runDeploy(ctx context.Context, job *DeployJob, host
 		Str("sha", result.SHA).
 		Msg("PR merged successfully")
 
-	// Clear pending PR
+	// Clear pending PR (P7000: no longer broadcast - UI fetches on-demand)
 	s.mu.Lock()
 	s.pendingPR = nil
 	s.mu.Unlock()
-	s.broadcastPRStatus()
 
 	// 2. Wait a moment for GitHub to process merge
 	time.Sleep(3 * time.Second)
@@ -386,14 +381,7 @@ func (s *FlakeUpdateService) updateJobState(job *DeployJob, state, message strin
 	s.broadcastJobStatus(job)
 }
 
-// broadcastPRStatus sends pending PR info to all connected browsers.
-func (s *FlakeUpdateService) broadcastPRStatus() {
-	pr := s.GetPendingPR()
-	s.hub.BroadcastTypedMessage("flake_update_pr", map[string]interface{}{
-		"pending_pr": pr,
-		"checked_at": s.GetLastCheck().Format(time.RFC3339),
-	})
-}
+// P7000: broadcastPRStatus removed - PR status now fetched on-demand via refresh
 
 // broadcastJobStatus sends job status to all connected browsers.
 func (s *FlakeUpdateService) broadcastJobStatus(job *DeployJob) {

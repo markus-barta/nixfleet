@@ -1113,6 +1113,51 @@ templ Base(title string, csrfToken string) {
 				justify-content: center;
 			}
 
+			/* P7000: Refresh button - visible on hover */
+			.btn-refresh {
+				padding: 0.25rem;
+				background: transparent;
+				border: none;
+				cursor: pointer;
+				opacity: 0;
+				transition: opacity 0.15s ease;
+			}
+
+			tr:hover .btn-refresh,
+			.host-card:hover .btn-refresh {
+				opacity: 0.6;
+			}
+
+			tr:hover .btn-refresh:hover,
+			.host-card:hover .btn-refresh:hover {
+				opacity: 1;
+			}
+
+			.btn-refresh.loading .icon {
+				animation: spin 1s linear infinite;
+			}
+
+			@keyframes spin {
+				from { transform: rotate(0deg); }
+				to { transform: rotate(360deg); }
+			}
+
+			/* P7000: PR indicator on Lock compartment */
+			.update-compartment.has-pr {
+				position: relative;
+			}
+
+			.update-compartment.has-pr::after {
+				content: "";
+				position: absolute;
+				top: -2px;
+				right: -2px;
+				width: 6px;
+				height: 6px;
+				background: var(--color-blue);
+				border-radius: 50%;
+			}
+
 			.dropdown-menu {
 				display: none;
 				position: absolute;

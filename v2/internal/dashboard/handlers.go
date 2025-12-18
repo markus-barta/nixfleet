@@ -677,6 +677,101 @@ func (s *Server) handleDeleteHost(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(map[string]any{"status": "deleted", "host_id": hostID})
 }
 
+// handleRefreshHost fetches fresh status for a single host (P7000).
+// POST /api/hosts/{hostID}/refresh
+func (s *Server) handleRefreshHost(w http.ResponseWriter, r *http.Request) {
+	hostID := chi.URLParam(r, "hostID")
+
+	// Query host from database
+	var h struct {
+		Hostname         string
+		Generation       *string
+		AgentVersion     *string
+		LockStatusJSON   *string
+		SystemStatusJSON *string
+		RepoURL          *string
+		RepoDir          *string
+		Status           string
+	}
+
+	err := s.db.QueryRow(`
+		SELECT hostname, generation, agent_version, lock_status_json,
+		       system_status_json, repo_url, repo_dir, status
+		FROM hosts WHERE id = ?
+	`, hostID).Scan(
+		&h.Hostname, &h.Generation, &h.AgentVersion,
+		&h.LockStatusJSON, &h.SystemStatusJSON,
+		&h.RepoURL, &h.RepoDir, &h.Status,
+	)
+	if err != nil {
+		http.Error(w, "Host not found", http.StatusNotFound)
+		return
+	}
+
+	// Compute Git status (dashboard-side)
+	var gitStatus, gitMsg, gitChecked string
+	generation := ""
+	if h.Generation != nil {
+		generation = *h.Generation
+	}
+	if s.versionFetcher != nil {
+		gitStatus, gitMsg, gitChecked = s.versionFetcher.GetGitStatus(generation)
+	} else {
+		gitStatus, gitMsg, gitChecked = "unknown", "Version tracking not configured", ""
+	}
+
+	// Parse Lock and System from DB
+	var lockStatus, systemStatus map[string]any
+	if h.LockStatusJSON != nil {
+		_ = json.Unmarshal([]byte(*h.LockStatusJSON), &lockStatus)
+	}
+	if h.SystemStatusJSON != nil {
+		_ = json.Unmarshal([]byte(*h.SystemStatusJSON), &systemStatus)
+	}
+
+	// Check agent version
+	agentVersion := ""
+	if h.AgentVersion != nil {
+		agentVersion = *h.AgentVersion
+	}
+	agentOutdated := agentVersion != "" && agentVersion != Version
+
+	// Check for pending PR
+	var pendingPR any
+	if s.flakeUpdates != nil {
+		pendingPR = s.flakeUpdates.GetPendingPR()
+	}
+
+	// Get repo URL/dir
+	repoURL := ""
+	repoDir := ""
+	if h.RepoURL != nil {
+		repoURL = *h.RepoURL
+	}
+	if h.RepoDir != nil {
+		repoDir = *h.RepoDir
+	}
+
+	resp := map[string]any{
+		"host_id":        hostID,
+		"online":         h.Status == "online" || h.Status == "running",
+		"generation":     generation,
+		"agent_version":  agentVersion,
+		"agent_outdated": agentOutdated,
+		"update_status": map[string]any{
+			"git":      map[string]any{"status": gitStatus, "message": gitMsg, "checked_at": gitChecked},
+			"lock":     lockStatus,
+			"system":   systemStatus,
+			"repo_url": repoURL,
+			"repo_dir": repoDir,
+		},
+		"pending_pr": pendingPR,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(resp)
+}
+
 // handleGetLogs returns command logs for a host.
 func (s *Server) handleGetLogs(w http.ResponseWriter, r *http.Request) {
 	hostID := chi.URLParam(r, "hostID")

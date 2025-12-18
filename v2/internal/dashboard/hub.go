@@ -223,17 +223,8 @@ func (h *Hub) handleRegister(client *Client) {
 		Str("id", client.clientID).
 		Msg("client registered")
 
-	// Send pending PR status to newly connected browsers (P5300)
-	if client.clientType == "browser" && h.flakeUpdates != nil {
-		pr := h.flakeUpdates.GetPendingPR()
-		msg, _ := json.Marshal(map[string]any{
-			"type": "flake_update_pr",
-			"payload": map[string]any{
-				"pending_pr": pr,
-			},
-		})
-		client.SafeSend(msg)
-	}
+	// P7000: PR status is now fetched on-demand via per-host refresh button
+	// No longer pushed on browser connect
 }
 
 // handleUnregister processes client unregistration.
@@ -276,13 +267,11 @@ func (h *Hub) handleUnregister(client *Client) {
 	}
 
 	if shouldNotify {
-		// Broadcast outside lock (queued, non-blocking)
+		// Broadcast outside lock (queued, non-blocking) - P7000: simplified message
 		h.queueBroadcast(map[string]any{
-			"type": "host_update",
+			"type": "host_offline",
 			"payload": map[string]any{
 				"host_id": hostID,
-				"online":  false,
-				"status":  "offline",
 			},
 		})
 	}
@@ -439,15 +428,12 @@ func (h *Hub) cleanupStaleCommands() {
 		Dur("threshold", timeout).
 		Msg("cleared stale commands for unresponsive hosts")
 
-	// Broadcast updates to browsers so UI refreshes
+	// Broadcast updates to browsers so UI refreshes - P7000: use host_offline
 	for _, hostname := range hostsToUpdate {
 		h.queueBroadcast(map[string]any{
-			"type": "host_update",
+			"type": "host_offline",
 			"payload": map[string]any{
-				"host_id":         hostname,
-				"pending_command": nil,
-				"online":          false,
-				"status":          "offline",
+				"host_id": hostname,
 			},
 		})
 	}
@@ -638,17 +624,15 @@ func (h *Hub) updateHost(payload protocol.RegisterPayload) {
 		Str("theme_color", themeColor).
 		Msg("updated host record")
 
-	// Broadcast to browsers that host is now online
+	// Broadcast to browsers that host is now online - P7000: use host_heartbeat
 	// This ensures immediate UI update after agent reconnects (e.g., after switch)
 	h.BroadcastToBrowsers(map[string]any{
-		"type": "host_update",
+		"type": "host_heartbeat",
 		"payload": map[string]any{
-			"host_id":         payload.Hostname,
-			"online":          true,
-			"pending_command": "",
-			"generation":      payload.Generation,
-			"os_version":      payload.OSVersion,
-			"agent_version":   payload.AgentVersion,
+			"host_id":   payload.Hostname,
+			"online":    true,
+			"last_seen": time.Now().Format(time.RFC3339),
+			"metrics":   nil, // Will be populated on next heartbeat
 		},
 	})
 }
@@ -700,37 +684,15 @@ func (h *Hub) handleHeartbeat(hostID string, payload protocol.HeartbeatPayload) 
 		Str("generation", payload.Generation).
 		Msg("heartbeat received")
 
-	// Build update status with Git computed dashboard-side
-	updateStatus := map[string]any{}
-	
-	// Add Git status from VersionFetcher (dashboard-side)
-	if h.versionFetcher != nil {
-		gitStatus, gitMsg, gitChecked := h.versionFetcher.GetGitStatus(payload.Generation)
-		updateStatus["git"] = map[string]any{
-			"status":     gitStatus,
-			"message":    gitMsg,
-			"checked_at": gitChecked,
-		}
-	}
-	
-	// Add Lock and System status from agent
-	if payload.UpdateStatus != nil {
-		updateStatus["lock"] = payload.UpdateStatus.Lock
-		updateStatus["system"] = payload.UpdateStatus.System
-	}
-
-	// Broadcast to browsers
+	// P7000: Broadcast minimal heartbeat to browsers (only realtime data)
+	// Full update status is fetched on-demand via /api/hosts/{id}/refresh
 	h.BroadcastToBrowsers(map[string]any{
-		"type": "host_update",
+		"type": "host_heartbeat",
 		"payload": map[string]any{
-			"host_id":         hostID,
-			"online":          true,
-			"last_seen":       time.Now().Format(time.RFC3339),
-			"generation":      payload.Generation,
-			"nixpkgs_version": payload.NixpkgsVersion,
-			"pending_command": payload.PendingCommand,
-			"metrics":         payload.Metrics,
-			"update_status":   updateStatus,
+			"host_id":   hostID,
+			"online":    true,
+			"last_seen": time.Now().Format(time.RFC3339),
+			"metrics":   payload.Metrics,
 		},
 	})
 }

@@ -1,6 +1,7 @@
 package templates
 
 import (
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -105,8 +106,13 @@ type DashboardData struct {
 // Dashboard renders the main dashboard page
 templ Dashboard(data DashboardData) {
 	@Base("NixFleet Dashboard", data.CSRFToken) {
-		<!-- Config for JavaScript -->
-		<div id="config" data-heartbeat-interval={ strconv.Itoa(data.HeartbeatInterval) } style="display:none;"></div>
+		<!-- Config for JavaScript - P7000: added pending PR data -->
+		<div
+			id="config"
+			data-heartbeat-interval={ strconv.Itoa(data.HeartbeatInterval) }
+			data-pending-pr={ pendingPRJSON(data.PendingPR) }
+			style="display:none;"
+		></div>
 		<header>
 			<div class="brand">
 				<h1>
@@ -121,24 +127,32 @@ templ Dashboard(data DashboardData) {
 						<svg class="icon"><use href="#icon-fleet"></use></svg>
 						Bulk Actions
 					</button>
-					<div class="dropdown-menu" id="bulk-actions-menu">
-						<button class="dropdown-item" onclick="bulkCommand('update'); closeBulkMenu()">
-							<svg class="icon"><use href="#icon-refresh"></use></svg>
-							Update All
+				<div class="dropdown-menu" id="bulk-actions-menu">
+					<!-- P7000: Merge & Deploy moved here from global banner -->
+					if data.PendingPR != nil && data.PendingPR.Mergeable {
+						<button class="dropdown-item" onclick={ templ.ComponentScript{Call: fmt.Sprintf("mergeAndDeploy(%d); closeBulkMenu()", data.PendingPR.Number)} }>
+							<svg class="icon"><use href="#icon-check"></use></svg>
+							Merge & Deploy PR #{ strconv.Itoa(data.PendingPR.Number) }
 						</button>
-						<button class="dropdown-item" onclick="bulkCommand('pull'); closeBulkMenu()">
-							<svg class="icon"><use href="#icon-download"></use></svg>
-							Pull All
-						</button>
-						<button class="dropdown-item" onclick="bulkCommand('switch'); closeBulkMenu()">
-							<svg class="icon"><use href="#icon-refresh"></use></svg>
-							Switch All
-						</button>
-						<button class="dropdown-item" onclick="bulkCommand('test'); closeBulkMenu()">
-							<svg class="icon"><use href="#icon-flask"></use></svg>
-							Test All
-						</button>
-					</div>
+						<div class="dropdown-divider"></div>
+					}
+					<button class="dropdown-item" onclick="bulkCommand('update'); closeBulkMenu()">
+						<svg class="icon"><use href="#icon-refresh"></use></svg>
+						Update All
+					</button>
+					<button class="dropdown-item" onclick="bulkCommand('pull'); closeBulkMenu()">
+						<svg class="icon"><use href="#icon-download"></use></svg>
+						Pull All
+					</button>
+					<button class="dropdown-item" onclick="bulkCommand('switch'); closeBulkMenu()">
+						<svg class="icon"><use href="#icon-refresh"></use></svg>
+						Switch All
+					</button>
+					<button class="dropdown-item" onclick="bulkCommand('test'); closeBulkMenu()">
+						<svg class="icon"><use href="#icon-flask"></use></svg>
+						Test All
+					</button>
+				</div>
 				</div>
 				<form method="POST" action="/logout">
 					<input type="hidden" name="csrf_token" value={ data.CSRFToken }/>
@@ -147,14 +161,7 @@ templ Dashboard(data DashboardData) {
 			</div>
 		</header>
 
-		<!-- Flake Update Banner (P5300) -->
-		if data.PendingPR != nil {
-			<div id="flake-update-banner" class="flake-update-banner">
-				@FlakeUpdateBanner(data.PendingPR, data.CSRFToken)
-			</div>
-		} else {
-			<div id="flake-update-banner" class="flake-update-banner" style="display: none;"></div>
-		}
+		<!-- P7000: Flake Update Banner removed - Merge & Deploy moved to Bulk Actions -->
 
 		<!-- Mobile: Card View -->
 		<div class="host-grid" id="host-cards">
@@ -300,9 +307,401 @@ templ Dashboard(data DashboardData) {
 			</div>
 		</footer>
 
-		<!-- WebSocket and Alpine.js logic -->
+		<!-- WebSocket and Alpine.js logic - P7000 Unified Host State Management -->
 		<script>
-			// WebSocket connection
+			// ═══════════════════════════════════════════════════════════════════════════
+			// CONSTANTS
+			// ═══════════════════════════════════════════════════════════════════════════
+			const HEARTBEAT_INTERVAL = parseInt(document.getElementById('config').dataset.heartbeatInterval) || 5;
+			const CSRF_TOKEN = document.body.dataset.csrfToken;
+
+			// ═══════════════════════════════════════════════════════════════════════════
+			// GLOBAL STATE (non-host-specific)
+			// ═══════════════════════════════════════════════════════════════════════════
+			const globalState = {
+				pendingPR: null, // { number, title, url, mergeable } or null
+				wsConnected: false
+			};
+
+			// Hydrate globalState from config
+			(function hydrateGlobalState() {
+				const prData = document.getElementById('config').dataset.pendingPr;
+				if (prData && prData !== 'null') {
+					try {
+						globalState.pendingPR = JSON.parse(prData);
+					} catch (e) {
+						console.warn('Failed to parse pendingPR:', e);
+					}
+				}
+			})();
+
+			// ═══════════════════════════════════════════════════════════════════════════
+			// HOST STORE (Single Source of Truth) - P7000
+			// ═══════════════════════════════════════════════════════════════════════════
+			const hostStore = {
+				_hosts: new Map(),
+
+				// Initialize store from server-rendered DOM
+				hydrate() {
+					document.querySelectorAll('tr[data-host-id]').forEach((row) => {
+						const id = row.dataset.hostId;
+						if (this._hosts.has(id)) return;
+
+						// Cache element references for O(1) access
+						const card = document.querySelector(`.host-card[data-host-id="${id}"]`);
+
+						this._hosts.set(id, {
+							// Identity
+							id: id,
+							hostname: row.dataset.hostname || id,
+							hostType: row.dataset.hostType || 'nixos',
+							themeColor: row.dataset.themeColor || '#7aa2f7',
+
+							// State
+							online: !row.classList.contains('host-offline'),
+							lastSeen: row.querySelector('[data-cell="last-seen"]')?.dataset.timestamp || null,
+							pendingCommand: row.dataset.pendingCommand || null,
+
+							// Data
+							metrics: this._parseMetrics(row),
+							updateStatus: this._parseUpdateStatus(row),
+							generation: row.dataset.generation || null,
+							agentVersion: row.dataset.agentVersion || null,
+							agentOutdated: row.dataset.agentOutdated === 'true',
+
+							// Cached DOM references
+							_elements: { row, card }
+						});
+					});
+					console.log(`hostStore: hydrated ${this._hosts.size} hosts`);
+				},
+
+				_parseMetrics(row) {
+					const cell = row.querySelector('[data-cell="metrics"]');
+					if (!cell) return null;
+					const cpu = cell.querySelector('[data-metric="cpu"]');
+					const ram = cell.querySelector('[data-metric="ram"]');
+					if (!cpu && !ram) return null;
+					return {
+						cpu: parseFloat(cpu?.dataset.value) || 0,
+						ram: parseFloat(ram?.dataset.value) || 0,
+						swap: parseFloat(ram?.dataset.swap) || 0,
+						load: parseFloat(ram?.dataset.load) || 0
+					};
+				},
+
+				_parseUpdateStatus(row) {
+					const container = row.querySelector('.update-status');
+					if (!container) return null;
+					try {
+						return {
+							git: JSON.parse(container.dataset.git || 'null'),
+							lock: JSON.parse(container.dataset.lock || 'null'),
+							system: JSON.parse(container.dataset.system || 'null'),
+							repoUrl: container.dataset.repoUrl || '',
+							repoDir: container.dataset.repoDir || ''
+						};
+					} catch (e) {
+						console.warn('Failed to parse updateStatus:', e);
+						return null;
+					}
+				},
+
+				get(id) {
+					return this._hosts.get(id);
+				},
+
+				all() {
+					return Array.from(this._hosts.values());
+				},
+
+				// Update host state and trigger render
+				update(id, patch) {
+					const current = this._hosts.get(id);
+					if (!current) {
+						console.warn(`hostStore: unknown host ${id}`);
+						return;
+					}
+
+					// Start with shallow merge
+					const next = { ...current, ...patch };
+
+					// Deep merge for known nested objects
+					if (patch.metrics && current.metrics) {
+						next.metrics = { ...current.metrics, ...patch.metrics };
+					}
+					if (patch.updateStatus && current.updateStatus) {
+						next.updateStatus = { ...current.updateStatus, ...patch.updateStatus };
+					}
+
+					// Preserve cached elements
+					next._elements = current._elements;
+
+					this._hosts.set(id, next);
+					renderHost(id);
+				},
+
+				setOffline(id) {
+					this.update(id, { online: false, pendingCommand: null });
+				}
+			};
+
+			// ═══════════════════════════════════════════════════════════════════════════
+			// RENDER (Single Render Function) - P7000
+			// ═══════════════════════════════════════════════════════════════════════════
+			function renderHost(hostId) {
+				const host = hostStore.get(hostId);
+				if (!host) return;
+
+				// Derived state
+				const isOnline = host.online;
+				const isBusy = !!host.pendingCommand;
+				const buttonsEnabled = isOnline && !isBusy;
+
+				// Use cached element references
+				const { row, card } = host._elements || {};
+
+				[row, card].filter(Boolean).forEach((el) => {
+					// 1. Offline class
+					el.classList.toggle('host-offline', !isOnline);
+
+					// 2. Status indicator (ripple/dot)
+					renderStatusIndicator(el, isOnline, isBusy);
+
+					// 3. Progress badge
+					renderProgressBadge(el, host.pendingCommand);
+
+					// 4. Metrics
+					if (host.metrics) {
+						renderMetrics(el, host.metrics);
+					}
+
+					// 5. Update status compartments
+					if (host.updateStatus) {
+						renderUpdateStatus(el, host);
+					}
+
+					// 6. Button states
+					el.querySelectorAll('button[data-command]').forEach((btn) => {
+						const cmd = btn.dataset.command;
+						if (cmd === 'stop') {
+							btn.disabled = !isBusy;
+							btn.style.display = isBusy ? '' : 'none';
+						} else if (cmd === 'test') {
+							btn.style.display = isBusy ? 'none' : '';
+							btn.disabled = !buttonsEnabled;
+						} else {
+							btn.disabled = !buttonsEnabled;
+						}
+					});
+
+					// 7. Last seen
+					const lastSeenCell = el.querySelector('[data-cell="last-seen"]');
+					if (lastSeenCell && host.lastSeen) {
+						lastSeenCell.dataset.timestamp = host.lastSeen;
+						const result = formatLastSeen(host.lastSeen);
+						lastSeenCell.textContent = result.text;
+						lastSeenCell.className = result.className;
+					}
+				});
+			}
+
+			// Helper: Render status indicator
+			function renderStatusIndicator(el, isOnline, isBusy) {
+				const wrapper = el.querySelector('.status-wrapper') || el.querySelector('.status-with-badge');
+				if (!wrapper) return;
+
+				const existing = wrapper.querySelector('.status-ripple, .status-dot');
+
+				let html;
+				if (isOnline && !isBusy) {
+					if (existing?.classList.contains('status-ripple')) {
+						triggerHeartbeat(existing);
+						return;
+					}
+					html = '<span class="status-ripple"><span class="hb-wave"></span><span class="hb-wave"></span><span class="hb-wave"></span><span class="hb-core"></span></span>';
+				} else if (isBusy) {
+					html = '<span class="status-dot status-running"></span>';
+				} else {
+					html = '<span class="status-dot status-offline"></span>';
+				}
+
+				if (existing) {
+					const temp = document.createElement('div');
+					temp.innerHTML = html;
+					existing.replaceWith(temp.firstChild);
+					if (isOnline && !isBusy) {
+						triggerHeartbeat(wrapper.querySelector('.status-ripple'));
+					}
+				}
+			}
+
+			// Helper: Render progress badge
+			function renderProgressBadge(el, pendingCommand) {
+				const wrapper = el.querySelector('.status-wrapper') || el.querySelector('.status-with-badge');
+				if (!wrapper) return;
+
+				let badge = wrapper.querySelector('.progress-badge-mini');
+				if (pendingCommand) {
+					if (!badge) {
+						badge = document.createElement('span');
+						badge.className = 'progress-badge-mini';
+						wrapper.appendChild(badge);
+					}
+					badge.textContent = pendingCommand;
+				} else if (badge) {
+					badge.remove();
+				}
+			}
+
+			// Helper: Render metrics
+			function renderMetrics(el, metrics) {
+				const cell = el.querySelector('[data-cell="metrics"]');
+				if (!cell) return;
+
+				const cpuEl = cell.querySelector('[data-metric="cpu"]');
+				const ramEl = cell.querySelector('[data-metric="ram"]');
+
+				if (cpuEl) {
+					const val = cpuEl.querySelector('.metric-val');
+					if (val) val.textContent = Math.round(metrics.cpu) + '%';
+					cpuEl.classList.toggle('metric-high', metrics.cpu >= 80);
+					cpuEl.dataset.value = metrics.cpu;
+				}
+
+				if (ramEl) {
+					const val = ramEl.querySelector('.metric-val');
+					if (val) val.textContent = Math.round(metrics.ram) + '%';
+					ramEl.classList.toggle('metric-high', metrics.ram >= 80);
+					ramEl.dataset.value = metrics.ram;
+					ramEl.dataset.swap = metrics.swap;
+					ramEl.dataset.load = metrics.load;
+					ramEl.title = `RAM: ${Math.round(metrics.ram)}%, Swap: ${Math.round(metrics.swap)}%, Load: ${metrics.load.toFixed(2)}`;
+				}
+
+				// Replace "—" placeholder if needed
+				const naSpan = cell.querySelector('.metrics-na');
+				if (naSpan) {
+					cell.innerHTML = `
+						<span class="metric" data-metric="cpu" data-value="${metrics.cpu}">
+							<svg class="metric-icon"><use href="#icon-cpu"></use></svg>
+							<span class="metric-val">${Math.round(metrics.cpu)}%</span>
+						</span>
+						<span class="metric" data-metric="ram" data-value="${metrics.ram}">
+							<svg class="metric-icon"><use href="#icon-ram"></use></svg>
+							<span class="metric-val">${Math.round(metrics.ram)}%</span>
+						</span>
+					`;
+				}
+			}
+
+			// Helper: Render update status compartments
+			function renderUpdateStatus(el, host) {
+				const container = el.querySelector('.update-status');
+				if (!container) return;
+
+				const status = host.updateStatus;
+				if (!status) return;
+
+				const compartments = container.querySelectorAll('.update-compartment');
+
+				['git', 'lock', 'system'].forEach((type, i) => {
+					const comp = compartments[i];
+					if (!comp) return;
+
+					const check = status[type];
+					if (!check) return;
+
+					// Build class list
+					comp.className = 'update-compartment';
+					switch (check.status) {
+						case 'ok': break;
+						case 'outdated': comp.classList.add('needs-update'); break;
+						case 'error': comp.classList.add('error'); break;
+						default: comp.classList.add('unknown');
+					}
+
+					// Update indicator dot
+					const indicator = comp.querySelector('.compartment-indicator');
+					if (indicator) {
+						indicator.className = 'compartment-indicator';
+						indicator.classList.add(`compartment-indicator--${check.status || 'unknown'}`);
+					}
+
+					// Lock-specific: Agent badge and PR indicator
+					if (type === 'lock') {
+						let agentBadge = comp.querySelector('.agent-badge');
+						if (host.agentOutdated && !agentBadge) {
+							agentBadge = document.createElement('span');
+							agentBadge.className = 'agent-badge';
+							agentBadge.textContent = 'A';
+							comp.appendChild(agentBadge);
+						} else if (!host.agentOutdated && agentBadge) {
+							agentBadge.remove();
+						}
+
+						// Pending PR indicator
+						comp.classList.toggle('has-pr', !!globalState.pendingPR);
+					}
+				});
+			}
+
+			// ═══════════════════════════════════════════════════════════════════════════
+			// REFRESH HOST (On-demand API call) - P7000
+			// ═══════════════════════════════════════════════════════════════════════════
+			async function refreshHost(hostId) {
+				const host = hostStore.get(hostId);
+				let btn = host?._elements?.row?.querySelector('.btn-refresh');
+				if (!btn) {
+					btn = document.querySelector(`button.btn-refresh[data-host-id="${hostId}"]`);
+				}
+				if (btn) btn.classList.add('loading');
+
+				try {
+					const resp = await fetch(`/api/hosts/${hostId}/refresh`, {
+						method: 'POST',
+						headers: {
+							'Content-Type': 'application/json',
+							'X-CSRF-Token': CSRF_TOKEN
+						}
+					});
+
+					if (resp.status === 404) {
+						console.warn(`Host ${hostId} not found`);
+						return;
+					}
+
+					if (!resp.ok) {
+						console.error(`Refresh failed: ${resp.status} ${resp.statusText}`);
+						return;
+					}
+
+					const data = await resp.json();
+
+					// Update store with fresh data
+					hostStore.update(hostId, {
+						online: data.online,
+						generation: data.generation,
+						agentVersion: data.agent_version,
+						agentOutdated: data.agent_outdated,
+						updateStatus: data.update_status
+					});
+
+					// Update global PR state if included
+					if (data.pending_pr !== undefined) {
+						globalState.pendingPR = data.pending_pr;
+					}
+
+				} catch (err) {
+					console.error('Refresh failed:', err);
+				} finally {
+					if (btn) btn.classList.remove('loading');
+				}
+			}
+
+			// ═══════════════════════════════════════════════════════════════════════════
+			// WEBSOCKET - P7000 Simplified Messages
+			// ═══════════════════════════════════════════════════════════════════════════
 			let ws = null;
 			let reconnectAttempts = 0;
 			const maxReconnectDelay = 30000;
@@ -338,6 +737,7 @@ templ Dashboard(data DashboardData) {
 			}
 
 			function updateConnectionStatus(connected) {
+				globalState.wsConnected = connected;
 				const el = document.getElementById('ws-status');
 				if (connected) {
 					el.className = 'connection-indicator connected';
@@ -355,113 +755,87 @@ templ Dashboard(data DashboardData) {
 				setTimeout(connectWebSocket, delay);
 			}
 
+			// P7000: Simplified message handler
 			function handleMessage(msg) {
+				if (!msg || !msg.type) {
+					console.warn('Invalid message:', msg);
+					return;
+				}
+
+				const payload = msg.payload || {};
+				const hostId = payload.host_id;
+
 				switch (msg.type) {
-					case 'host_update':
-						updateHost(msg.payload);
+					case 'host_heartbeat':
+						if (!hostId) return;
+						hostStore.update(hostId, {
+							online: true,
+							lastSeen: payload.last_seen,
+							metrics: payload.metrics
+						});
 						break;
-					case 'command_output':
-						appendLog(msg.payload);
+
+					case 'host_offline':
+						if (!hostId) return;
+						hostStore.setOffline(hostId);
 						break;
+
 					case 'command_queued':
-						showLogPanel(msg.payload.host_id);
+						if (!hostId) return;
+						hostStore.update(hostId, {
+							pendingCommand: payload.command
+						});
+						showLogPanel(hostId);
 						break;
+
+					case 'command_output':
+						appendLog(payload);
+						break;
+
 					case 'command_complete':
-						markCommandComplete(msg.payload);
+						if (!hostId) return;
+						hostStore.update(hostId, {
+							pendingCommand: null
+						});
+						window.dispatchEvent(new CustomEvent('log-complete', { detail: payload }));
 						break;
-					case 'flake_update_pr':
-						handleFlakeUpdatePR(msg.payload);
-						break;
+
 					case 'flake_update_job':
-						handleFlakeUpdateJob(msg.payload);
+						// Keep for deployment progress display
+						handleFlakeUpdateJob(payload);
 						break;
+
+					default:
+						console.debug('Unknown WS message type:', msg.type);
 				}
 			}
 
-			// P5300: Handle pending flake update PR notification
-			function handleFlakeUpdatePR(payload) {
-				const banner = document.getElementById('flake-update-banner');
-				if (!banner) return;
+			// ═══════════════════════════════════════════════════════════════════════════
+			// ACTIONS (User-initiated)
+			// ═══════════════════════════════════════════════════════════════════════════
+			function sendCommand(hostId, command) {
+				// Immediate UI feedback
+				hostStore.update(hostId, { pendingCommand: command });
 
-				// Update all Lock compartments to show pr-pending state
-				document.querySelectorAll('.update-compartment').forEach(comp => {
-					// Check if this is a Lock compartment (has icon-lock)
-					const icon = comp.querySelector('use[href="#icon-lock"]');
-					if (icon) {
-						if (payload.pending_pr) {
-							comp.classList.add('pr-pending');
-						} else {
-							comp.classList.remove('pr-pending');
-						}
+				fetch(`/api/hosts/${hostId}/command`, {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+						'X-CSRF-Token': CSRF_TOKEN
+					},
+					body: JSON.stringify({ command })
+				}).then(resp => {
+					if (!resp.ok) {
+						return resp.text().then(text => { throw new Error(text); });
 					}
+					return resp.json();
+				}).then(data => {
+					console.log('Command queued:', data);
+				}).catch(err => {
+					console.error('Command failed:', err);
+					alert('Command failed: ' + err.message);
+					hostStore.update(hostId, { pendingCommand: null });
 				});
-
-				if (payload.pending_pr) {
-					const mergeBtn = payload.pending_pr.mergeable 
-						? `<button class="btn btn-primary btn-sm" onclick="mergeAndDeploy(${payload.pending_pr.number})">
-							<svg class="icon" style="width:12px;height:12px;margin-right:4px;"><use href="#icon-check"></use></svg>
-							Merge & Deploy
-						</button>`
-						: `<button class="btn btn-secondary btn-sm" disabled title="PR has conflicts or is not mergeable">
-							<svg class="icon" style="width:12px;height:12px;margin-right:4px;"><use href="#icon-alert"></use></svg>
-							Not Mergeable
-						</button>`;
-					
-					banner.innerHTML = `
-						<div class="flake-update-content">
-							<svg class="flake-update-icon" style="width:20px;height:20px;fill:#60a5fa;"><use href="#icon-refresh"></use></svg>
-							<span class="flake-update-text">
-								Update available: <a href="${payload.pending_pr.url}" target="_blank" rel="noopener">#${payload.pending_pr.number}</a>
-								— ${payload.pending_pr.title}
-							</span>
-							${mergeBtn}
-							<button class="btn btn-secondary btn-sm" onclick="dismissFlakeUpdate()">
-								Dismiss
-							</button>
-						</div>
-					`;
-					banner.style.display = 'block';
-				} else {
-					banner.style.display = 'none';
-				}
-			}
-
-			// P5300: Handle deployment job updates
-			function handleFlakeUpdateJob(job) {
-				const banner = document.getElementById('flake-update-banner');
-				if (!banner) return;
-
-				if (job.state === 'completed') {
-					// Clear pr-pending from all Lock compartments
-					document.querySelectorAll('.update-compartment.pr-pending').forEach(comp => {
-						comp.classList.remove('pr-pending');
-					});
-					
-					banner.innerHTML = `
-						<div class="flake-update-content flake-update-success">
-							<svg class="flake-update-icon" style="width:20px;height:20px;fill:#22c55e;"><use href="#icon-check"></use></svg>
-							<span class="flake-update-text">${job.message || 'Deployment complete!'}</span>
-							<button class="btn btn-secondary btn-sm" onclick="dismissFlakeUpdate()">Dismiss</button>
-						</div>
-					`;
-					setTimeout(() => { banner.style.display = 'none'; }, 5000);
-				} else if (job.state === 'failed') {
-					banner.innerHTML = `
-						<div class="flake-update-content flake-update-error">
-							<svg class="flake-update-icon" style="width:20px;height:20px;fill:#ef4444;"><use href="#icon-alert"></use></svg>
-							<span class="flake-update-text">${job.message || 'Deployment failed'}</span>
-							<button class="btn btn-secondary btn-sm" onclick="dismissFlakeUpdate()">Dismiss</button>
-						</div>
-					`;
-				} else {
-					banner.innerHTML = `
-						<div class="flake-update-content flake-update-progress">
-							<svg class="flake-update-icon flake-update-spinner" style="width:20px;height:20px;fill:#60a5fa;"><use href="#icon-refresh"></use></svg>
-							<span class="flake-update-text">${job.message || 'Deploying...'} (${job.completed_hosts}/${job.total_hosts})</span>
-						</div>
-					`;
-					banner.style.display = 'block';
-				}
 			}
 
 			function mergeAndDeploy(prNumber) {
@@ -471,7 +845,7 @@ templ Dashboard(data DashboardData) {
 					method: 'POST',
 					headers: {
 						'Content-Type': 'application/json',
-						'X-CSRF-Token': window.csrfToken
+						'X-CSRF-Token': CSRF_TOKEN
 					},
 					body: JSON.stringify({ pr_number: prNumber })
 				})
@@ -487,372 +861,50 @@ templ Dashboard(data DashboardData) {
 				});
 			}
 
-			function dismissFlakeUpdate() {
-				const banner = document.getElementById('flake-update-banner');
-				if (banner) banner.style.display = 'none';
-			}
-
-			function updateHost(host) {
-				// Update table row
-				const row = document.querySelector(`tr[data-host-id="${host.host_id}"]`);
-				if (row) {
-					updateStatusIndicator(row, host);
-					row.classList.toggle('host-offline', !host.online);
-					if (host.pending_command !== undefined) {
-						row.dataset.pendingCommand = host.pending_command || '';
-						applyButtonStates(row);
-						updateProgressBadge(row, host.pending_command);
-					}
-					// Update data cells
-					updateCellData(row, host);
+			function bulkCommand(command) {
+				const onlineHosts = hostStore.all().filter(h => h.online);
+				if (onlineHosts.length === 0) {
+					alert('No online hosts to send command to');
+					return;
 				}
 
-				// Update card
-				const card = document.querySelector(`.host-card[data-host-id="${host.host_id}"]`);
-				if (card) {
-					updateStatusIndicator(card, host);
-					card.classList.toggle('host-offline', !host.online);
-					if (host.pending_command !== undefined) {
-						card.dataset.pendingCommand = host.pending_command || '';
-						applyButtonStates(card);
-						updateProgressBadge(card, host.pending_command);
-					}
-				}
-			}
+				const confirmMsg = `Send "${command}" to ${onlineHosts.length} online host(s)?`;
+				if (!confirm(confirmMsg)) return;
 
-			function updateCellData(row, host) {
-				// Update generation
-				if (host.generation !== undefined) {
-					const genCell = row.querySelector('[data-cell="generation"]');
-					if (genCell) genCell.textContent = host.generation || '—';
-				}
-
-				// Update last seen (format as relative time with color)
-				if (host.last_seen !== undefined) {
-					const lastSeenCell = row.querySelector('[data-cell="last-seen"]');
-					if (lastSeenCell) {
-						lastSeenCell.dataset.timestamp = host.last_seen;
-						const result = formatLastSeen(host.last_seen);
-						lastSeenCell.textContent = result.text;
-						lastSeenCell.className = result.className;
-					}
-				}
-
-				// Update metrics
-				if (host.metrics) {
-					const metricsCell = row.querySelector('[data-cell="metrics"]');
-					if (metricsCell) {
-						updateMetrics(metricsCell, host.metrics);
-					}
-				}
-
-				// Update status compartments (P5010 fix)
-				if (host.update_status) {
-					updateStatusCompartments(row, host.update_status, host);
-				}
-			}
-
-			// Update the three status compartments (Git, Lock, System) based on new status data
-			function updateStatusCompartments(row, updateStatus, host) {
-				const container = row.querySelector('.update-status');
-				if (!container) return;
-
-				const compartments = ['git', 'lock', 'system'];
-				compartments.forEach((type, index) => {
-					const compartment = container.children[index];
-					if (!compartment) return;
-
-					const status = updateStatus[type];
-					if (!status) return;
-
-					// Update compartment class
-					compartment.className = getCompartmentClass(status.status);
-
-					// Update indicator class
-					const indicator = compartment.querySelector('.compartment-indicator');
-					if (indicator) {
-						indicator.className = getIndicatorClass(status.status);
-					}
-
-					// Update tooltip with nice formatting
-					compartment.title = getCompartmentTooltip(type, status, updateStatus, host);
-					
-					// Handle agent badge on Lock compartment
-					if (type === 'lock') {
-						updateAgentBadge(compartment, host);
+				onlineHosts.forEach(host => {
+					if (command === 'update') {
+						sendCommand(host.id, 'pull');
+					} else {
+						sendCommand(host.id, command);
 					}
 				});
 			}
 
-			// Toggle agent badge visibility on Lock compartment
-			function updateAgentBadge(compartment, host) {
-				let badge = compartment.querySelector('.agent-badge');
-				const isOutdated = host && host.agent_outdated;
-				
-				if (isOutdated && !badge) {
-					// Add badge
-					badge = document.createElement('span');
-					badge.className = 'agent-badge';
-					badge.textContent = 'A';
-					badge.title = formatAgentTooltip(host);
-					compartment.appendChild(badge);
-				} else if (!isOutdated && badge) {
-					// Remove badge
-					badge.remove();
-				} else if (badge && host) {
-					// Update badge tooltip
-					badge.title = formatAgentTooltip(host);
+			function deleteHost(hostId) {
+				if (!confirm(`Delete host "${hostId}"? This cannot be undone.`)) {
+					return;
 				}
-			}
-
-			function formatAgentTooltip(host) {
-				if (!host) return 'Agent status unknown';
-				return [
-					'Agent Outdated!',
-					'───────────────',
-					'Installed: ' + (host.agent_version || 'unknown'),
-					'',
-					'Update via "switch" or',
-					'"update-agent" command'
-				].join('\n');
-			}
-
-			function getCompartmentClass(status) {
-				const base = 'update-compartment';
-				switch (status) {
-					case 'ok': return base;
-					case 'outdated': return base + ' needs-update';
-					case 'error': return base + ' error';
-					default: return base + ' unknown';
-				}
-			}
-
-			function getIndicatorClass(status) {
-				const base = 'compartment-indicator';
-				switch (status) {
-					case 'ok': return base + ' compartment-indicator--ok';
-					case 'outdated': return base + ' compartment-indicator--warning';
-					case 'error': return base + ' compartment-indicator--error';
-					default: return base + ' compartment-indicator--unknown';
-				}
-			}
-
-			function getCompartmentTooltip(type, status, updateStatus, host) {
-				const formatStatus = (s) => {
-					switch (s) {
-						case 'ok': return '✓ Up to date';
-						case 'outdated': return '⚠ Needs update';
-						case 'error': return '✗ Error';
-						default: return '? Unknown';
+				fetch(`/api/hosts/${hostId}`, {
+					method: 'DELETE',
+					headers: { 'X-CSRF-Token': CSRF_TOKEN }
+				}).then(resp => {
+					if (!resp.ok) {
+						return resp.text().then(text => { throw new Error(text); });
 					}
-				};
-
-				const formatTime = (ts) => ts && ts.length > 19 ? ts.slice(0, 19) : (ts || '');
-
-				if (type === 'git') {
-					const lines = [
-						'Git Repository',
-						'─────────────',
-						'Status: ' + formatStatus(status.status)
-					];
-					if (status.message) lines.push('Detail: ' + status.message);
-					if (updateStatus.repo_url) lines.push('Remote: ' + updateStatus.repo_url);
-					if (updateStatus.repo_dir) lines.push('Local: ' + updateStatus.repo_dir);
-					if (status.checked_at) lines.push('Checked: ' + formatTime(status.checked_at));
-					return lines.join('\n');
-				}
-
-				if (type === 'lock') {
-					const lines = [
-						'Flake Lock',
-						'──────────',
-						'Status: ' + formatStatus(status.status)
-					];
-					if (status.message) lines.push('Detail: ' + status.message);
-					if (status.checked_at) lines.push('Checked: ' + formatTime(status.checked_at));
-					lines.push('');
-					lines.push('Agent Version');
-					lines.push('─────────────');
-					if (host && host.agent_version) {
-						lines.push('Installed: ' + host.agent_version);
-					}
-					if (host && host.agent_outdated) {
-						lines.push('⚠ Agent outdated!');
-					} else {
-						lines.push('✓ Agent up to date');
-					}
-					return lines.join('\n');
-				}
-
-				if (type === 'system') {
-					const label = (host && host.host_type === 'macos') ? 'Home Manager' : 'System (NixOS)';
-					const divider = '─'.repeat(label.length);
-					const lines = [
-						label,
-						divider,
-						'Status: ' + formatStatus(status.status)
-					];
-					if (status.message) lines.push('Detail: ' + status.message);
-					if (host && host.generation) lines.push('Generation: ' + host.generation);
-					if (status.checked_at) lines.push('Checked: ' + formatTime(status.checked_at));
-					return lines.join('\n');
-				}
-
-				// Fallback
-				return type + ': ' + formatStatus(status.status);
+					return resp.json();
+				}).then(data => {
+					console.log('Host deleted:', data);
+					document.querySelectorAll(`[data-host-id="${hostId}"]`).forEach(el => el.remove());
+				}).catch(err => {
+					console.error('Delete failed:', err);
+					alert('Delete failed: ' + err.message);
+				});
 			}
 
-			function updateMetrics(cell, metrics) {
-				// Update CPU
-				const cpuEl = cell.querySelector('[data-metric="cpu"]');
-				if (cpuEl && metrics.cpu !== undefined) {
-					const val = cpuEl.querySelector('.metric-val');
-					if (val) val.textContent = Math.round(metrics.cpu) + '%';
-					cpuEl.className = getMetricClass('cpu', metrics.cpu);
-					cpuEl.title = 'CPU: ' + Math.round(metrics.cpu) + '%';
-				}
-
-				// Update RAM
-				const ramEl = cell.querySelector('[data-metric="ram"]');
-				if (ramEl && metrics.ram !== undefined) {
-					const val = ramEl.querySelector('.metric-val');
-					if (val) val.textContent = Math.round(metrics.ram) + '%';
-					ramEl.className = getMetricClass('ram', metrics.ram);
-					const swap = metrics.swap !== undefined ? Math.round(metrics.swap) : 0;
-					const load = metrics.load !== undefined ? metrics.load.toFixed(2) : '0.00';
-					ramEl.title = `RAM: ${Math.round(metrics.ram)}%, Swap: ${swap}%, Load: ${load}`;
-				}
-
-				// If metrics cell was showing "—", replace with proper structure
-				const naSpan = cell.querySelector('.metrics-na');
-				if (naSpan && (metrics.cpu !== undefined || metrics.ram !== undefined)) {
-					cell.innerHTML = `
-						<span class="${getMetricClass('cpu', metrics.cpu || 0)}" data-metric="cpu" title="CPU: ${Math.round(metrics.cpu || 0)}%">
-							<svg class="metric-icon"><use href="#icon-cpu"></use></svg><span class="metric-val">${Math.round(metrics.cpu || 0)}%</span>
-						</span>
-						<span class="${getMetricClass('ram', metrics.ram || 0)}" data-metric="ram" title="RAM: ${Math.round(metrics.ram || 0)}%">
-							<svg class="metric-icon"><use href="#icon-ram"></use></svg><span class="metric-val">${Math.round(metrics.ram || 0)}%</span>
-						</span>
-					`;
-				}
-			}
-
-			function getMetricClass(type, value) {
-				let cls = 'metric';
-				if (type === 'cpu' && value >= 80) cls += ' metric-high';
-				if (type === 'ram' && value >= 80) cls += ' metric-high';
-				return cls;
-			}
-
-			// Heartbeat interval in seconds (from server config)
-			const HEARTBEAT_INTERVAL = parseInt(document.getElementById('config').dataset.heartbeatInterval) || 5;
-
-			function formatLastSeen(isoString) {
-				if (!isoString) return { text: '—', className: '' };
-				
-				const date = new Date(isoString);
-				const now = new Date();
-				const diffMs = now - date;
-				// Clamp to 0 to handle clock skew (client ahead of server)
-				const diffSec = Math.max(0, Math.floor(diffMs / 1000));
-				
-				// Format the time text
-				let text;
-				if (diffSec < 60) {
-					text = diffSec + 's';
-				} else if (diffSec < 3600) {
-					text = Math.floor(diffSec / 60) + 'm';
-				} else if (diffSec < 86400) {
-					text = Math.floor(diffSec / 3600) + 'h';
-				} else {
-					text = Math.floor(diffSec / 86400) + 'd';
-				}
-
-				// Determine color class based on heartbeat interval
-				let className;
-				if (diffSec <= HEARTBEAT_INTERVAL * 2) {
-					className = 'last-seen-ok';      // Within 2x heartbeat: gray
-				} else if (diffSec <= HEARTBEAT_INTERVAL * 10) {
-					className = 'last-seen-warn';    // Within 10x heartbeat: yellow
-				} else {
-					className = 'last-seen-stale';   // Beyond 10x heartbeat: red
-				}
-
-				return { text, className };
-			}
-
-			function updateProgressBadge(container, command) {
-				// Find the wrapper element (for table rows: .status-wrapper, for cards: .status-with-badge)
-				const wrapper = container.querySelector('.status-wrapper') || container.querySelector('.status-with-badge');
-				if (!wrapper) return;
-				
-				let badge = wrapper.querySelector('.progress-badge-mini');
-				if (command) {
-					if (!badge) {
-						badge = document.createElement('span');
-						badge.className = 'progress-badge-mini';
-						wrapper.appendChild(badge);
-					}
-					badge.textContent = command;
-				} else if (badge) {
-					badge.remove();
-				}
-			}
-
-			function updateStatusIndicator(container, host) {
-				// Find the wrapper or host-name (for mobile cards)
-				const wrapper = container.querySelector('.status-wrapper') || container.querySelector('.status-with-badge');
-				if (!wrapper) return;
-
-				const existing = wrapper.querySelector('.status-ripple, .status-dot');
-
-				if (host.online && !host.pending_command) {
-					// Online idle - static green with heartbeat animation on update
-					if (existing && existing.classList.contains('status-ripple')) {
-						// Already a ripple - just trigger heartbeat animation
-						triggerHeartbeat(existing);
-					} else {
-						// Create new ripple indicator
-						const html = '<span class="status-ripple"><span class="hb-wave"></span><span class="hb-wave"></span><span class="hb-wave"></span><span class="hb-core"></span></span>';
-						const wrapper = document.createElement('div');
-						wrapper.innerHTML = html;
-						const newEl = wrapper.firstChild;
-						if (existing) {
-							existing.replaceWith(newEl);
-						}
-						// Trigger heartbeat on new element
-						triggerHeartbeat(newEl);
-					}
-				} else if (host.pending_command) {
-					// Running - pulsing yellow
-					const html = '<span class="status-dot status-running"></span>';
-					if (existing) {
-						const wrapper = document.createElement('div');
-						wrapper.innerHTML = html;
-						existing.replaceWith(wrapper.firstChild);
-					}
-				} else {
-					// Offline - static red
-					const html = '<span class="status-dot status-offline"></span>';
-					if (existing) {
-						const wrapper = document.createElement('div');
-						wrapper.innerHTML = html;
-						existing.replaceWith(wrapper.firstChild);
-					}
-				}
-			}
-
-			function triggerHeartbeat(rippleEl) {
-				// Add heartbeat class to trigger animation
-				rippleEl.classList.add('heartbeat');
-				// Remove after animation completes (1.5s total)
-				setTimeout(() => {
-					rippleEl.classList.remove('heartbeat');
-				}, 1500);
-			}
-
+			// ═══════════════════════════════════════════════════════════════════════════
+			// LOG PANEL (Alpine.js component - unchanged)
+			// ═══════════════════════════════════════════════════════════════════════════
 			function appendLog(payload) {
-				// Dispatch to Alpine component
 				window.dispatchEvent(new CustomEvent('log-line', { detail: payload }));
 			}
 
@@ -862,152 +914,19 @@ templ Dashboard(data DashboardData) {
 				window.dispatchEvent(new CustomEvent('log-start', { detail: { hostId } }));
 			}
 
-			function markCommandComplete(payload) {
-				window.dispatchEvent(new CustomEvent('log-complete', { detail: payload }));
-				// Clear busy state - command is done
-				setHostBusy(payload.host_id, null);
-			}
-
-			// Send command to host
-			function sendCommand(hostId, command) {
-				// Immediate UI feedback - disable buttons
-				setHostBusy(hostId, command);
-
-				const csrfToken = document.body.dataset.csrfToken;
-				fetch(`/api/hosts/${hostId}/command`, {
-					method: 'POST',
-					headers: {
-						'Content-Type': 'application/json',
-						'X-CSRF-Token': csrfToken
-					},
-					body: JSON.stringify({ command })
-				}).then(resp => {
-					if (!resp.ok) {
-						return resp.text().then(text => { throw new Error(text); });
-					}
-					return resp.json();
-				}).then(data => {
-					console.log('Command queued:', data);
-					// WebSocket will update state when command completes
-				}).catch(err => {
-					console.error('Command failed:', err);
-					alert('Command failed: ' + err.message);
-					// On error, re-enable buttons
-					setHostBusy(hostId, null);
-				});
-			}
-
-			function setHostBusy(hostId, command) {
-				// Update table row
-				const row = document.querySelector(`tr[data-host-id="${hostId}"]`);
-				if (row) {
-					row.dataset.pendingCommand = command || '';
-					applyButtonStates(row);
-				}
-
-				// Update card
-				const card = document.querySelector(`.host-card[data-host-id="${hostId}"]`);
-				if (card) {
-					card.dataset.pendingCommand = command || '';
-					applyButtonStates(card);
-				}
-			}
-
-			function applyButtonStates(container) {
-				const pending = container.dataset.pendingCommand;
-				const hostId = container.dataset.hostId;
-				const btns = container.querySelectorAll('button[data-command]');
-				
-				btns.forEach(btn => {
-					const cmd = btn.dataset.command;
-					
-					if (cmd === 'test') {
-						// Swap Test button with Stop button when command is running
-						if (pending) {
-							btn.dataset.command = 'stop';
-							btn.onclick = function() { sendCommand(hostId, 'stop'); };
-							btn.disabled = false; // Stop is always enabled
-							btn.classList.add('btn-danger');
-							btn.innerHTML = '<svg class="icon"><use href="#icon-stop"></use></svg>' + 
-								(btn.textContent.includes('Test') ? ' Stop' : '');
-						}
-					} else if (cmd === 'stop') {
-						// Swap Stop button back to Test when no command running
-						if (!pending) {
-							btn.dataset.command = 'test';
-							btn.onclick = function() { sendCommand(hostId, 'test'); };
-							btn.classList.remove('btn-danger');
-							btn.innerHTML = '<svg class="icon"><use href="#icon-flask"></use></svg>' + 
-								(btn.textContent.includes('Stop') ? ' Test' : '');
-						}
-						// Stop button always enabled
-						btn.disabled = false;
-					} else {
-						// All other buttons disabled when pending
-						btn.disabled = !!pending;
-					}
-				});
-
-				// Update progress badge (mini version next to status dot)
-				const wrapper = container.querySelector('.status-wrapper') || container.querySelector('.status-with-badge');
-				if (!wrapper) return;
-				
-				let badge = wrapper.querySelector('.progress-badge-mini');
-				if (pending) {
-					if (!badge) {
-						badge = document.createElement('span');
-						badge.className = 'progress-badge-mini';
-						wrapper.appendChild(badge);
-					}
-					badge.textContent = pending;
-				} else if (badge) {
-					badge.remove();
-				}
-			}
-
-			// Delete host
-			function deleteHost(hostId) {
-				if (!confirm(`Delete host "${hostId}"? This cannot be undone.`)) {
-					return;
-				}
-				const csrfToken = document.body.dataset.csrfToken;
-				fetch(`/api/hosts/${hostId}`, {
-					method: 'DELETE',
-					headers: {
-						'X-CSRF-Token': csrfToken
-					}
-				}).then(resp => {
-					if (!resp.ok) {
-						return resp.text().then(text => { throw new Error(text); });
-					}
-					return resp.json();
-				}).then(data => {
-					console.log('Host deleted:', data);
-					// Remove host from DOM
-					document.querySelectorAll(`[data-host-id="${hostId}"]`).forEach(el => el.remove());
-				}).catch(err => {
-					console.error('Delete failed:', err);
-					alert('Delete failed: ' + err.message);
-				});
-			}
-
-			// Alpine.js log viewer component
 			document.addEventListener('alpine:init', () => {
 				Alpine.data('logViewer', () => ({
 					open: true,
 					lines: [],
 					hostId: '',
 					lineCounter: 0,
-					// Progress tracking
 					phase: '',
 					phaseIcon: '',
 					buildCount: 0,
 					buildCurrent: 0,
 
 					init() {
-						window.addEventListener('log-line', (e) => {
-							this.addLine(e.detail);
-						});
+						window.addEventListener('log-line', (e) => this.addLine(e.detail));
 						window.addEventListener('log-start', (e) => {
 							this.hostId = e.detail.hostId;
 							this.lines = [];
@@ -1032,12 +951,10 @@ templ Dashboard(data DashboardData) {
 					},
 
 					parseProgress(line) {
-						// NixOS rebuild phases
 						if (line.includes('evaluating derivation')) {
 							this.phase = 'Evaluation';
 							this.phaseIcon = '→';
 						} else if (line.includes('these derivations will be built')) {
-							// Extract count: "these 42 derivations will be built"
 							const match = line.match(/these (\d+) derivations/);
 							if (match) this.buildCount = parseInt(match[1], 10);
 							this.phase = 'Building';
@@ -1061,9 +978,7 @@ templ Dashboard(data DashboardData) {
 						}
 					},
 
-					toggle() {
-						this.open = !this.open;
-					},
+					toggle() { this.open = !this.open; },
 
 					addLine(payload) {
 						const text = payload.line;
@@ -1074,7 +989,6 @@ templ Dashboard(data DashboardData) {
 							isError: payload.is_error || payload.stream === 'stderr',
 							isSuccess: payload.isSuccess || false
 						});
-						// Auto-scroll
 						this.$nextTick(() => {
 							const el = this.$refs.logContent;
 							if (el) el.scrollTop = el.scrollHeight;
@@ -1083,54 +997,67 @@ templ Dashboard(data DashboardData) {
 				}));
 			});
 
-			// Format all last-seen cells on page load
-			function initLastSeenCells() {
-				document.querySelectorAll('[data-cell="last-seen"]').forEach(cell => {
-					const timestamp = cell.dataset.timestamp;
-					if (timestamp) {
-						const result = formatLastSeen(timestamp);
-						cell.textContent = result.text;
-						cell.className = result.className;
-					}
-				});
+			// ═══════════════════════════════════════════════════════════════════════════
+			// UTILITIES
+			// ═══════════════════════════════════════════════════════════════════════════
+			function formatLastSeen(isoString) {
+				if (!isoString) return { text: '—', className: '' };
+
+				const date = new Date(isoString);
+				const now = new Date();
+				const diffMs = now - date;
+				const diffSec = Math.max(0, Math.floor(diffMs / 1000));
+
+				let text;
+				if (diffSec < 60) {
+					text = diffSec + 's';
+				} else if (diffSec < 3600) {
+					text = Math.floor(diffSec / 60) + 'm';
+				} else if (diffSec < 86400) {
+					text = Math.floor(diffSec / 3600) + 'h';
+				} else {
+					text = Math.floor(diffSec / 86400) + 'd';
+				}
+
+				let className;
+				if (diffSec <= HEARTBEAT_INTERVAL * 2) {
+					className = 'last-seen-ok';
+				} else if (diffSec <= HEARTBEAT_INTERVAL * 10) {
+					className = 'last-seen-warn';
+				} else {
+					className = 'last-seen-stale';
+				}
+
+				return { text, className };
 			}
 
-			// Update last-seen cells every second for smooth counting
-			function startLastSeenUpdater() {
-				setInterval(() => {
-					document.querySelectorAll('[data-cell="last-seen"]').forEach(cell => {
-						const timestamp = cell.dataset.timestamp;
-						if (timestamp) {
-							const result = formatLastSeen(timestamp);
-							cell.textContent = result.text;
-							cell.className = result.className;
-						}
-					});
-				}, 1000);
+			function triggerHeartbeat(rippleEl) {
+				if (!rippleEl) return;
+				rippleEl.classList.add('heartbeat');
+				setTimeout(() => rippleEl.classList.remove('heartbeat'), 1500);
 			}
 
-			// ===== Dropdown Menu (P4380) =====
+			function handleFlakeUpdateJob(job) {
+				// Could show a toast or banner for deploy progress
+				console.log('Flake update job:', job.state, job.message);
+			}
+
+			// ═══════════════════════════════════════════════════════════════════════════
+			// MODALS & DROPDOWNS (Keep existing, no changes)
+			// ═══════════════════════════════════════════════════════════════════════════
 			function toggleDropdown(btn) {
 				const dropdown = btn.closest('.dropdown');
 				const wasOpen = dropdown.classList.contains('open');
-				
-				// Close all dropdowns first
 				document.querySelectorAll('.dropdown.open').forEach(d => d.classList.remove('open'));
-				
-				// Toggle this one
-				if (!wasOpen) {
-					dropdown.classList.add('open');
-				}
+				if (!wasOpen) dropdown.classList.add('open');
 			}
 
-			// Close dropdowns when clicking outside
 			document.addEventListener('click', (e) => {
 				if (!e.target.closest('.dropdown')) {
 					document.querySelectorAll('.dropdown.open').forEach(d => d.classList.remove('open'));
 				}
 			});
 
-			// Close dropdowns on Escape key
 			document.addEventListener('keydown', (e) => {
 				if (e.key === 'Escape') {
 					document.querySelectorAll('.dropdown.open').forEach(d => d.classList.remove('open'));
@@ -1139,7 +1066,6 @@ templ Dashboard(data DashboardData) {
 				}
 			});
 
-			// ===== Bulk Actions Menu =====
 			function toggleBulkMenu(e) {
 				e.stopPropagation();
 				const menu = document.getElementById('bulk-actions-menu');
@@ -1151,7 +1077,6 @@ templ Dashboard(data DashboardData) {
 				if (menu) menu.classList.remove('open');
 			}
 
-			// Close bulk menu when clicking outside
 			document.addEventListener('click', (e) => {
 				if (!e.target.closest('.bulk-actions-dropdown')) {
 					closeBulkMenu();
@@ -1160,8 +1085,7 @@ templ Dashboard(data DashboardData) {
 
 			function unlockActions(btn) {
 				const hostId = btn.dataset.hostId;
-				setHostBusy(hostId, null);
-				// Close dropdown
+				hostStore.update(hostId, { pendingCommand: null });
 				btn.closest('.dropdown').classList.remove('open');
 			}
 
@@ -1169,24 +1093,20 @@ templ Dashboard(data DashboardData) {
 				window.open(`/api/hosts/${hostId}/logs?download=true`, '_blank');
 			}
 
-			// ===== Modal Functions (P4390) =====
 			let pendingRemoveHostId = null;
 
 			function confirmRemoveHost(hostId, hostname) {
 				pendingRemoveHostId = hostId;
 				document.getElementById('removeHostName').textContent = hostname;
 				document.getElementById('removeHostModal').classList.add('open');
-				// Close dropdown
 				document.querySelectorAll('.dropdown.open').forEach(d => d.classList.remove('open'));
 			}
 
 			function doRemoveHost() {
 				if (!pendingRemoveHostId) return;
-				
-				const csrfToken = document.body.dataset.csrfToken;
 				fetch(`/api/hosts/${pendingRemoveHostId}`, {
 					method: 'DELETE',
-					headers: { 'X-CSRF-Token': csrfToken }
+					headers: { 'X-CSRF-Token': CSRF_TOKEN }
 				}).then(resp => {
 					if (!resp.ok) throw new Error('Failed to remove host');
 					return resp.json();
@@ -1211,13 +1131,11 @@ templ Dashboard(data DashboardData) {
 				const form = document.getElementById('addHostForm');
 				const formData = new FormData(form);
 				const data = Object.fromEntries(formData.entries());
-				
-				const csrfToken = document.body.dataset.csrfToken;
 				fetch('/api/hosts', {
 					method: 'POST',
 					headers: {
 						'Content-Type': 'application/json',
-						'X-CSRF-Token': csrfToken
+						'X-CSRF-Token': CSRF_TOKEN
 					},
 					body: JSON.stringify(data)
 				}).then(resp => {
@@ -1231,88 +1149,34 @@ templ Dashboard(data DashboardData) {
 				});
 			}
 
-			// Close modal on overlay click
 			document.querySelectorAll('.modal-overlay').forEach(overlay => {
 				overlay.addEventListener('click', (e) => {
-					if (e.target === overlay) {
-						overlay.classList.remove('open');
-					}
+					if (e.target === overlay) overlay.classList.remove('open');
 				});
 			});
 
-			// ===== Bulk Actions (P5000) =====
-			function bulkCommand(command) {
-				const onlineHosts = document.querySelectorAll('tr[data-host-id]:not(.host-offline)');
-				if (onlineHosts.length === 0) {
-					alert('No online hosts to send command to');
-					return;
-				}
-
-				const confirmMsg = `Send "${command}" to ${onlineHosts.length} online host(s)?`;
-				if (!confirm(confirmMsg)) return;
-
-				onlineHosts.forEach(row => {
-					const hostId = row.dataset.hostId;
-					if (command === 'update') {
-						// Update = pull then switch (sequential via promise chain would be complex, just do both)
-						sendCommand(hostId, 'pull');
-						// Note: In a real implementation, you'd wait for pull to complete before switch
-					} else {
-						sendCommand(hostId, command);
-					}
-				});
-			}
-
-			// ===== Update Status Refresh (P5000) =====
-			function refreshStatus(compartment, statusType) {
-				const hostId = compartment.closest('.update-status').dataset.hostId;
-				console.log(`Refreshing ${statusType} status for ${hostId}`);
-				
-				// For Lock compartment, also check for flake update PRs (P5300)
-				if (statusType === 'lock') {
-					checkForUpdates();
-				}
-				
-				// Show visual feedback
-				compartment.classList.add('unknown');
-				setTimeout(() => {
-					compartment.classList.remove('unknown');
-				}, 2000);
-			}
-
-			// ===== Check for Flake Updates (P5300) =====
-			function checkForUpdates() {
-				fetch('/api/flake-updates/check', {
-					method: 'POST',
-					headers: {
-						'Content-Type': 'application/json',
-						'X-CSRF-Token': window.csrfToken
-					}
-				})
-				.then(resp => {
-					if (!resp.ok) {
-						if (resp.status === 501) {
-							console.log('GitHub integration not configured');
-							return null;
-						}
-						throw new Error('Failed to check for updates');
-					}
-					return resp.json();
-				})
-				.then(data => {
-					if (data && data.pending_pr) {
-						handleFlakeUpdatePR({ pending_pr: data.pending_pr });
-					}
-				})
-				.catch(err => {
-					console.error('Check for updates failed:', err);
-				});
-			}
-
-			// Initialize page
-			initLastSeenCells();
-			startLastSeenUpdater();
+			// ═══════════════════════════════════════════════════════════════════════════
+			// INIT - P7000
+			// ═══════════════════════════════════════════════════════════════════════════
+			hostStore.hydrate();
 			connectWebSocket();
+
+			// Update last-seen every second
+			setInterval(() => {
+				hostStore.all().forEach(host => {
+					if (host.lastSeen) {
+						const { row, card } = host._elements || {};
+						[row, card].filter(Boolean).forEach(el => {
+							const cell = el.querySelector('[data-cell="last-seen"]');
+							if (cell) {
+								const result = formatLastSeen(host.lastSeen);
+								cell.textContent = result.text;
+								cell.className = result.className;
+							}
+						});
+					}
+				});
+			}, 1000);
 		</script>
 	}
 }
@@ -1342,33 +1206,7 @@ templ FleetTargetLine(target FleetTarget) {
 	</div>
 }
 
-// FlakeUpdateBanner renders the pending PR banner (P5300)
-templ FlakeUpdateBanner(pr *PendingPR, csrfToken string) {
-	<div class="flake-update-content" data-pr-number={ strconv.Itoa(pr.Number) }>
-		<svg class="flake-update-icon"><use href="#icon-refresh"></use></svg>
-		<span class="flake-update-text">
-			Update available:
-			<a href={ templ.SafeURL(pr.URL) } target="_blank" rel="noopener">
-				#{ strconv.Itoa(pr.Number) }
-			</a>
-			— { pr.Title }
-		</span>
-		if pr.Mergeable {
-			<button class="btn btn-primary btn-sm" onclick={ templ.ComponentScript{Call: fmt.Sprintf("mergeAndDeploy(%d)", pr.Number)} }>
-				<svg class="icon"><use href="#icon-check"></use></svg>
-				Merge & Deploy
-			</button>
-		} else {
-			<button class="btn btn-secondary btn-sm" disabled title="PR has conflicts or is not mergeable">
-				<svg class="icon"><use href="#icon-alert"></use></svg>
-				Not Mergeable
-			</button>
-		}
-		<button class="btn btn-secondary btn-sm" onclick="dismissFlakeUpdate()">
-			Dismiss
-		</button>
-	</div>
-}
+// P7000: FlakeUpdateBanner removed - functionality moved to Bulk Actions dropdown
 
 // HostCard renders a host as a card (mobile view)
 templ HostCard(host Host, csrfToken string) {
@@ -1450,8 +1288,19 @@ templ HostCard(host Host, csrfToken string) {
 }
 
 // HostRow renders a host as a table row (desktop view)
+// P7000: data-* attributes for client-side hydration
 templ HostRow(host Host, csrfToken string) {
-	<tr data-host-id={ host.ID } class={ templ.KV("host-offline", !host.Online) }>
+	<tr
+		data-host-id={ host.ID }
+		data-hostname={ host.Hostname }
+		data-host-type={ host.HostType }
+		data-theme-color={ host.ThemeColor }
+		data-generation={ host.Generation }
+		data-agent-version={ host.AgentVersion }
+		data-agent-outdated={ strconv.FormatBool(host.AgentOutdated) }
+		data-pending-command={ host.PendingCommand }
+		class={ templ.KV("host-offline", !host.Online) }
+	>
 		<td class="status-cell-with-badge">
 			<span class="status-wrapper">
 				@StatusIndicator(host)
@@ -1488,6 +1337,15 @@ templ HostRow(host Host, csrfToken string) {
 				@CommandButton(host.ID, "pull", "", "btn", host.Online && host.PendingCommand == "")
 				@CommandButton(host.ID, "switch", "", "btn", host.Online && host.PendingCommand == "")
 				@CommandButton(host.ID, "test", "", "btn", host.Online && host.PendingCommand == "")
+				<!-- P7000: Per-host refresh button (appears on hover) -->
+				<button
+					class="btn btn-refresh"
+					data-host-id={ host.ID }
+					onclick="refreshHost(this.dataset.hostId)"
+					title="Refresh status"
+				>
+					<svg class="icon"><use href="#icon-refresh"></use></svg>
+				</button>
 				@ActionDropdown(host)
 			</div>
 		</td>
@@ -1612,8 +1470,17 @@ templ TestsCell(progress *TestProgress) {
 }
 
 // UpdateStatusCell renders the update status indicator (3 compartments with agent badge overlay on Lock)
+// P7000: data-* attributes for client-side hydration
 templ UpdateStatusCell(host Host) {
-	<div class="update-status" data-host-id={ host.ID }>
+	<div
+		class="update-status"
+		data-host-id={ host.ID }
+		data-git={ updateStatusJSON(host.UpdateStatus, "git") }
+		data-lock={ updateStatusJSON(host.UpdateStatus, "lock") }
+		data-system={ updateStatusJSON(host.UpdateStatus, "system") }
+		data-repo-url={ host.RepoURL }
+		data-repo-dir={ host.RepoDir }
+	>
 		<!-- Git compartment -->
 		<span class={ updateCompartmentClass(host.UpdateStatus, "git") } title={ gitTooltip(host) } onclick="refreshStatus(this, 'git')">
 			<svg class="update-icon"><use href="#icon-git-branch"></use></svg>
@@ -1938,6 +1805,39 @@ func formatTimestamp(ts string) string {
 		return ts[:19] // Trim to "2024-12-17T10:30:00"
 	}
 	return ts
+}
+
+// updateStatusJSON returns JSON for a compartment's status (P7000 hydration)
+func updateStatusJSON(status *UpdateStatus, compartment string) string {
+	if status == nil {
+		return "null"
+	}
+	var check StatusCheck
+	switch compartment {
+	case "git":
+		check = status.Git
+	case "lock":
+		check = status.Lock
+	case "system":
+		check = status.System
+	}
+	data, err := json.Marshal(check)
+	if err != nil {
+		return "null"
+	}
+	return string(data)
+}
+
+// pendingPRJSON returns JSON for pending PR or "null" (P7000 hydration)
+func pendingPRJSON(pr *PendingPR) string {
+	if pr == nil {
+		return "null"
+	}
+	data, err := json.Marshal(pr)
+	if err != nil {
+		return "null"
+	}
+	return string(data)
 }
 
 // updateCompartmentTitle returns the tooltip for an update status compartment (legacy, kept for JS)
