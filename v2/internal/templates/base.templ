@@ -342,7 +342,7 @@ templ Base(title string, csrfToken string) {
 				border-collapse: collapse;
 				background: rgba(36, 40, 59, 0.9); /* bg-float with 90% opacity */
 				border-radius: 8px;
-				overflow: hidden;
+				overflow: visible; /* Allow dropdown menus to extend beyond table */
 				position: relative;
 				z-index: 1;
 			}
@@ -929,30 +929,29 @@ templ Base(title string, csrfToken string) {
 				}
 			}
 
-			/* Agent badge overlay - red "A" on Lock compartment (top-right) */
-			.agent-badge {
+			/* Agent outdated indicator - red dot on bottom-right of status indicator */
+			.agent-outdated-dot {
 				position: absolute;
-				top: 2px;
-				right: 2px;
-				font-family: 'JetBrains Mono', 'Fira Code', monospace;
-				font-size: 7px;
-				font-weight: 800;
-				color: hsl(0, 80%, 65%);
-				text-shadow: 0 0 2px rgba(0,0,0,0.6);
-				line-height: 1;
-				animation: agent-badge-pulse 1.5s ease-in-out infinite;
+				bottom: -2px;
+				right: -2px;
+				width: 6px;
+				height: 6px;
+				border-radius: 50%;
+				background: linear-gradient(to bottom, hsl(0, 70%, 60%), hsl(0, 70%, 40%));
+				box-shadow: 0 0 4px hsl(0, 70%, 50%);
 				pointer-events: auto;
 				cursor: help;
+				animation: agent-dot-pulse 2s ease-in-out infinite;
 			}
 
-			@keyframes agent-badge-pulse {
+			@keyframes agent-dot-pulse {
 				0%, 100% { 
-					opacity: 0.7;
-					transform: scale(1);
+					opacity: 0.8;
+					box-shadow: 0 0 4px hsl(0, 70%, 50%);
 				}
 				50% { 
 					opacity: 1;
-					transform: scale(1.1);
+					box-shadow: 0 0 8px hsl(0, 70%, 60%);
 				}
 			}
 

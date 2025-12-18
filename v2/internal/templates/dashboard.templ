@@ -625,19 +625,21 @@ templ Dashboard(data DashboardData) {
 					const indicator = comp.querySelector('.compartment-indicator');
 					if (indicator) {
 						indicator.className = 'compartment-indicator';
-						indicator.classList.add(`compartment-indicator--${check.status || 'unknown'}`);
+						// Map status to CSS class (outdated → warning to match server-side)
+						const cssStatus = check.status === 'outdated' ? 'warning' : (check.status || 'unknown');
+						indicator.classList.add(`compartment-indicator--${cssStatus}`);
 					}
 
-					// Lock-specific: Agent badge and PR indicator
+					// Lock-specific: Agent outdated dot and PR indicator
 					if (type === 'lock') {
-						let agentBadge = comp.querySelector('.agent-badge');
-						if (host.agentOutdated && !agentBadge) {
-							agentBadge = document.createElement('span');
-							agentBadge.className = 'agent-badge';
-							agentBadge.textContent = 'A';
-							comp.appendChild(agentBadge);
-						} else if (!host.agentOutdated && agentBadge) {
-							agentBadge.remove();
+						let agentDot = comp.querySelector('.agent-outdated-dot');
+						if (host.agentOutdated && !agentDot) {
+							agentDot = document.createElement('span');
+							agentDot.className = 'agent-outdated-dot';
+							agentDot.title = `Agent outdated: ${host.agentVersion || 'unknown'}`;
+							comp.appendChild(agentDot);
+						} else if (!host.agentOutdated && agentDot) {
+							agentDot.remove();
 						}
 
 						// Pending PR indicator
@@ -1486,12 +1488,12 @@ templ UpdateStatusCell(host Host) {
 			<svg class="update-icon"><use href="#icon-git-branch"></use></svg>
 			<span class={ compartmentIndicatorClass(host.UpdateStatus, "git") }></span>
 		</span>
-		<!-- Lock compartment (with agent badge overlay when outdated) -->
+		<!-- Lock compartment (with agent outdated dot when version mismatch) -->
 		<span class={ updateCompartmentClass(host.UpdateStatus, "lock") } title={ lockTooltip(host) } onclick="refreshStatus(this, 'lock')">
 			<svg class="update-icon"><use href="#icon-lock"></use></svg>
 			<span class={ compartmentIndicatorClass(host.UpdateStatus, "lock") }></span>
 			if host.AgentOutdated {
-				<span class="agent-badge" title={ agentTooltip(host) }>A</span>
+				<span class="agent-outdated-dot" title={ agentTooltip(host) }></span>
 			}
 		</span>
 		<!-- System compartment (NixOS snowflake or macOS home) -->
