@@ -63,7 +63,7 @@ We take security seriously. Your fleet is your infrastructure, after all!
 │                     https://fleet.example.com                           │
 │                                                                         │
 │  ┌──────────────────────────────────────────────────────────────────┐   │
-│  │  Fleet Target: abc1234 (main) - Agent v2.0.0                     │   │
+│  │  Fleet Target: abc1234 (main) - Agent v2.1.0                     │   │
 │  ├──────────────────────────────────────────────────────────────────┤   │
 │  │  HOST           │ STATUS │ UPDATE      │ ACTIONS                 │   │
 │  │  ──────────────────────────────────────────────────────────────  │   │

@@ -1,6 +1,6 @@
 # NixFleet Dashboard v2 - Multi-stage Go Build
 #
-# Build: docker build --build-arg VERSION=2.0.0 --build-arg GIT_COMMIT=$(git rev-parse HEAD) -t nixfleet:v2 .
+# Build: docker build --build-arg VERSION=2.1.0 --build-arg GIT_COMMIT=$(git rev-parse HEAD) -t nixfleet:v2 .
 # Run:   docker run -p 8000:8000 -v nixfleet_data:/data nixfleet:v2
 #
 # This uses modernc.org/sqlite (pure Go, no CGO) so we can use scratch/alpine

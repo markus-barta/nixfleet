@@ -24,11 +24,11 @@
       # Version from git - use short rev or "dev" for dirty trees
       version =
         if self ? shortRev then
-          "2.0.0-${self.shortRev}"
+          "2.1.0-${self.shortRev}"
         else if self ? rev then
-          "2.0.0-${builtins.substring 0 7 self.rev}"
+          "2.1.0-${builtins.substring 0 7 self.rev}"
         else
-          "2.0.0-dev";
+          "2.1.0-dev";
 
       # Helper to create the Go agent package
       mkAgentPackage = pkgs: pkgs.callPackage ./packages/nixfleet-agent-v2.nix { };

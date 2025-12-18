@@ -78,7 +78,7 @@ If an agent connects with a hostname that already exists:
   "payload": {
     "hostname": "test-host",
     "host_type": "nixos",
-    "agent_version": "2.0.0",
+    "agent_version": "2.1.0",
     "os_version": "24.11",
     "nixpkgs_version": "24.11.20241201.abc1234",
     "generation": "abc1234",
@@ -101,7 +101,7 @@ If an agent connects with a hostname that already exists:
 | -------------------- | ------ | ------------------------------------------------------------------ |
 | `hostname`           | string | System hostname (identifier)                                       |
 | `host_type`          | string | "nixos" or "macos"                                                 |
-| `agent_version`      | string | Agent software version (e.g., "2.0.0")                             |
+| `agent_version`      | string | Agent software version (e.g., "2.1.0")                             |
 | `os_version`         | string | OS version (e.g., "24.11" or "15.2")                               |
 | `nixpkgs_version`    | string | Full nixpkgs version with commit                                   |
 | `generation`         | string | Git commit hash of deployed config (7+ chars)                      |

@@ -5,6 +5,7 @@
 **Status**: Backlog
 **Estimated Effort**: 2-3 days
 **Breaking Change**: Yes (complete JS rewrite)
+**Target Version**: 2.1.0
 
 ---
 
@@ -186,7 +187,7 @@ Response 200:
   "host_id": "hsb1",
   "online": true,
   "generation": "abc1234",
-  "agent_version": "2.0.0",
+  "agent_version": "2.1.0",
   "agent_outdated": false,
   "update_status": {
     "git": { "status": "ok", "message": "Up to date", "checked_at": "..." },
@@ -503,6 +504,214 @@ If critical issues discovered post-deploy:
 1. `git revert` the PR
 2. Redeploy previous version
 3. No data migration needed (state is ephemeral)
+
+---
+
+## Senior Review: Edge Cases & Refinements
+
+This section documents edge cases and architectural refinements identified during senior-level review.
+
+### 1. New Host Registration
+
+**Problem**: `hostStore.hydrate()` only reads existing DOM. If a new agent connects after page load, the client won't know about it.
+
+**Solution**: Add `host_register` WebSocket message type:
+
+```javascript
+case 'host_register':
+    // New host connected - add to store
+    hostStore.add(msg.payload);
+    // Insert DOM elements (or show "refresh page" toast)
+    break;
+```
+
+**Alternative (simpler)**: Document that page refresh is required for new hosts. This is acceptable for v2.1.0 since new hosts are rare.
+
+### 2. Deep Merge for Nested Objects
+
+**Problem**: `hostStore.update(id, { updateStatus: { git: {...} } })` would lose `lock` and `system` with shallow merge.
+
+**Solution**: Use deep merge for known nested objects:
+
+```javascript
+update(id, patch) {
+    const current = this._hosts.get(id);
+    if (!current) return;
+
+    // Deep merge for specific nested objects
+    const next = { ...current, ...patch };
+    if (patch.updateStatus && current.updateStatus) {
+        next.updateStatus = { ...current.updateStatus, ...patch.updateStatus };
+    }
+    if (patch.metrics && current.metrics) {
+        next.metrics = { ...current.metrics, ...patch.metrics };
+    }
+
+    this._hosts.set(id, next);
+    renderHost(id);
+}
+```
+
+### 3. Pending PR Indicator (Global State)
+
+**Problem**: PR status is global (not per-host) but needs to affect Lock compartment display.
+
+**Solution**: Store PR status separately from host state:
+
+```javascript
+let globalState = {
+  pendingPR: null, // { number, title, url, mergeable }
+  wsConnected: false,
+};
+
+// On page load, hydrate from data attribute
+globalState.pendingPR = JSON.parse(document.body.dataset.pendingPr || "null");
+
+// In renderUpdateStatus(), check global PR state for Lock compartment
+if (type === "lock" && globalState.pendingPR) {
+  comp.classList.add("has-pr");
+}
+```
+
+### 4. Error Handling in refreshHost()
+
+**Problem**: API errors should provide user feedback.
+
+**Solution**: Add toast/notification on error:
+
+```javascript
+async function refreshHost(hostId) {
+    const btn = document.querySelector(`button.btn-refresh[data-host-id="${hostId}"]`);
+    if (btn) btn.classList.add('loading');
+
+    try {
+        const resp = await fetch(`/api/hosts/${hostId}/refresh`, {...});
+
+        if (resp.status === 404) {
+            showToast('Host no longer exists', 'error');
+            // Optionally remove from store and DOM
+            return;
+        }
+
+        if (!resp.ok) {
+            showToast('Refresh failed: ' + resp.statusText, 'error');
+            return;
+        }
+
+        const data = await resp.json();
+        hostStore.update(hostId, {...});
+
+    } catch (err) {
+        showToast('Network error', 'error');
+        console.error('Refresh failed:', err);
+    } finally {
+        if (btn) btn.classList.remove('loading');
+    }
+}
+```
+
+### 5. handleMessage Defensive Coding
+
+**Problem**: Malformed WebSocket payloads could crash the client.
+
+**Solution**: Add validation:
+
+```javascript
+function handleMessage(msg) {
+  if (!msg || !msg.type) {
+    console.warn("Invalid message:", msg);
+    return;
+  }
+
+  const payload = msg.payload || {};
+  const hostId = payload.host_id;
+
+  switch (msg.type) {
+    case "host_heartbeat":
+      if (!hostId) return;
+      hostStore.update(hostId, {
+        online: true,
+        lastSeen: payload.last_seen,
+        metrics: payload.metrics,
+      });
+      break;
+    // ... etc
+  }
+}
+```
+
+### 6. Element Caching for Performance
+
+**Problem**: `renderHost()` queries DOM on every heartbeat (~10/second for 10 hosts = 100 queries/second).
+
+**Solution**: Cache element references in store:
+
+```javascript
+hydrate() {
+    document.querySelectorAll('tr[data-host-id]').forEach((row) => {
+        const id = row.dataset.hostId;
+        const card = document.querySelector(`.host-card[data-host-id="${id}"]`);
+
+        this._hosts.set(id, {
+            // ... state
+            _elements: { row, card }  // Cache DOM refs
+        });
+    });
+}
+
+function renderHost(hostId) {
+    const host = hostStore.get(hostId);
+    if (!host) return;
+
+    const { row, card } = host._elements || {};
+    [row, card].filter(Boolean).forEach((el) => {
+        // ... render
+    });
+}
+```
+
+### 7. Offline Detection Edge Case
+
+**Problem**: If agent disconnects but `host_offline` message is lost (network issue), client shows stale "online" status.
+
+**Solution**: Already mitigated by `lastSeen` display. Consider adding client-side timeout:
+
+```javascript
+// Every 30s, check if lastSeen > 60s ago, mark as "stale" (not offline, but uncertain)
+setInterval(() => {
+  hostStore.all().forEach((host) => {
+    if (host.online && host.lastSeen) {
+      const age = Date.now() - new Date(host.lastSeen).getTime();
+      if (age > 60000) {
+        // Add "stale" indicator (yellow border or dimmed)
+      }
+    }
+  });
+}, 30000);
+```
+
+### 8. Tooltip Generation Strategy
+
+**Problem**: `getCompartmentTooltip()` is deleted but tooltips still needed.
+
+**Solution**: Server-side tooltip generation via `title` attribute:
+
+```templ
+<div class="update-compartment" title={ buildCompartmentTooltip(host, "git") }>
+```
+
+The JS `renderUpdateStatus()` should preserve the `title` attribute from initial render unless the status changes.
+
+---
+
+## Risk Assessment
+
+| Risk                       | Likelihood | Impact | Mitigation                                                  |
+| -------------------------- | ---------- | ------ | ----------------------------------------------------------- |
+| JS bugs break dashboard    | Medium     | High   | Tag `v2.0-pre-P7000-refactor`, comprehensive manual testing |
+| WebSocket message mismatch | Low        | High   | Test in staging, verify message types in browser DevTools   |
+| Performance regression     | Low        | Medium | Profile before/after, element caching                       |
+| Missing edge case          | Medium     | Medium | Senior review (this section), integration tests             |
 
 ---
 

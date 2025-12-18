@@ -2,6 +2,8 @@
 
 **Parent**: P7000-unified-host-state-management.md
 **Purpose**: Exact implementation details for the hard-cut refactor
+**Target Version**: 2.1.0
+**Last Updated**: 2025-12-18 (Senior Review)
 
 ---
 
@@ -131,6 +133,11 @@ Use this checklist during implementation:
 /**
  * Single source of truth for all host state.
  * All updates flow through this store.
+ *
+ * Design decisions:
+ * - Deep merge for nested objects (metrics, updateStatus)
+ * - Element caching for O(1) DOM access
+ * - Defensive null checks throughout
  */
 const hostStore = {
   _hosts: new Map(),
@@ -138,27 +145,39 @@ const hostStore = {
   /**
    * Initialize store from server-rendered data-* attributes.
    * Called once on page load.
+   * Caches DOM element references for performance.
    */
   hydrate() {
-    // Get unique host IDs from table rows (cards may duplicate)
     document.querySelectorAll("tr[data-host-id]").forEach((row) => {
       const id = row.dataset.hostId;
       if (this._hosts.has(id)) return;
 
+      // Cache element references for O(1) access during render
+      const card = document.querySelector(`.host-card[data-host-id="${id}"]`);
+
       this._hosts.set(id, {
+        // Identity
         id: id,
         hostname: row.dataset.hostname || id,
         hostType: row.dataset.hostType || "nixos",
         themeColor: row.dataset.themeColor || "#7aa2f7",
+
+        // State
         online: !row.classList.contains("host-offline"),
-        lastSeen: row.querySelector('[data-cell="last-seen"]')?.dataset
-          .timestamp,
+        lastSeen:
+          row.querySelector('[data-cell="last-seen"]')?.dataset.timestamp ||
+          null,
         pendingCommand: row.dataset.pendingCommand || null,
+
+        // Data
         metrics: this._parseMetrics(row),
         updateStatus: this._parseUpdateStatus(row),
         generation: row.dataset.generation || null,
         agentVersion: row.dataset.agentVersion || null,
         agentOutdated: row.dataset.agentOutdated === "true",
+
+        // Cached DOM references (not serializable, prefix with _)
+        _elements: { row, card },
       });
     });
     console.log(`hostStore: hydrated ${this._hosts.size} hosts`);
@@ -181,18 +200,23 @@ const hostStore = {
   _parseUpdateStatus(row) {
     const container = row.querySelector(".update-status");
     if (!container) return null;
-    // Parse from data attributes set by server
-    return {
-      git: JSON.parse(container.dataset.git || "null"),
-      lock: JSON.parse(container.dataset.lock || "null"),
-      system: JSON.parse(container.dataset.system || "null"),
-      repoUrl: container.dataset.repoUrl || "",
-      repoDir: container.dataset.repoDir || "",
-    };
+    try {
+      return {
+        git: JSON.parse(container.dataset.git || "null"),
+        lock: JSON.parse(container.dataset.lock || "null"),
+        system: JSON.parse(container.dataset.system || "null"),
+        repoUrl: container.dataset.repoUrl || "",
+        repoDir: container.dataset.repoDir || "",
+      };
+    } catch (e) {
+      console.warn("Failed to parse updateStatus:", e);
+      return null;
+    }
   },
 
   /**
    * Get host state by ID.
+   * @returns {object|undefined} Host state or undefined if not found
    */
   get(id) {
     return this._hosts.get(id);
@@ -200,6 +224,7 @@ const hostStore = {
 
   /**
    * Get all hosts as array.
+   * @returns {object[]} Array of host states
    */
   all() {
     return Array.from(this._hosts.values());
@@ -207,6 +232,8 @@ const hostStore = {
 
   /**
    * Update host state and trigger render.
+   * Uses deep merge for nested objects (metrics, updateStatus).
+   *
    * @param {string} id - Host ID
    * @param {object} patch - Partial state to merge
    */
@@ -216,18 +243,54 @@ const hostStore = {
       console.warn(`hostStore: unknown host ${id}`);
       return;
     }
+
+    // Start with shallow merge
     const next = { ...current, ...patch };
+
+    // Deep merge for known nested objects
+    if (patch.metrics && current.metrics) {
+      next.metrics = { ...current.metrics, ...patch.metrics };
+    }
+    if (patch.updateStatus && current.updateStatus) {
+      next.updateStatus = { ...current.updateStatus, ...patch.updateStatus };
+    }
+
+    // Preserve cached elements
+    next._elements = current._elements;
+
     this._hosts.set(id, next);
     renderHost(id);
   },
 
   /**
    * Mark host as offline.
+   * Clears pending command since it can't complete.
    */
   setOffline(id) {
     this.update(id, { online: false, pendingCommand: null });
   },
 };
+
+/**
+ * Global state for non-host-specific data.
+ * Separated from hostStore for clarity.
+ */
+const globalState = {
+  pendingPR: null, // { number, title, url, mergeable } or null
+  wsConnected: false,
+};
+
+// Hydrate global state from body data attributes
+(function hydrateGlobalState() {
+  const prData = document.body.dataset.pendingPr;
+  if (prData) {
+    try {
+      globalState.pendingPR = JSON.parse(prData);
+    } catch (e) {
+      console.warn("Failed to parse pendingPR:", e);
+    }
+  }
+})();
 ```
 
 ### 3.2 renderHost Function
@@ -236,20 +299,23 @@ const hostStore = {
 /**
  * Single render function for all host UI updates.
  * Updates both table row and mobile card.
+ *
+ * Design: Uses cached element references from hostStore for O(1) DOM access.
+ * This avoids 100+ querySelector calls per second with 10 hosts.
+ *
  * @param {string} hostId - Host ID to render
  */
 function renderHost(hostId) {
   const host = hostStore.get(hostId);
   if (!host) return;
 
-  // Derived state
+  // Derived state (computed once, used multiple times)
   const isOnline = host.online;
   const isBusy = !!host.pendingCommand;
   const buttonsEnabled = isOnline && !isBusy;
 
-  // Update both table row and card
-  const row = document.querySelector(`tr[data-host-id="${hostId}"]`);
-  const card = document.querySelector(`.host-card[data-host-id="${hostId}"]`);
+  // Use cached element references (set during hydrate)
+  const { row, card } = host._elements || {};
 
   [row, card].filter(Boolean).forEach((el) => {
     // 1. Offline class
@@ -401,6 +467,8 @@ function renderUpdateStatus(el, host) {
   if (!container) return;
 
   const status = host.updateStatus;
+  if (!status) return;
+
   const compartments = container.querySelectorAll(".update-compartment");
 
   ["git", "lock", "system"].forEach((type, i) => {
@@ -410,7 +478,7 @@ function renderUpdateStatus(el, host) {
     const check = status[type];
     if (!check) return;
 
-    // Update class
+    // Build class list
     comp.className = "update-compartment";
     switch (check.status) {
       case "ok":
@@ -425,7 +493,7 @@ function renderUpdateStatus(el, host) {
         comp.classList.add("unknown");
     }
 
-    // Update indicator
+    // Update indicator dot
     const indicator = comp.querySelector(".compartment-indicator");
     if (indicator) {
       indicator.className = "compartment-indicator";
@@ -434,17 +502,21 @@ function renderUpdateStatus(el, host) {
       );
     }
 
-    // Agent badge on Lock
+    // Lock-specific: Agent badge and PR indicator
     if (type === "lock") {
-      let badge = comp.querySelector(".agent-badge");
-      if (host.agentOutdated && !badge) {
-        badge = document.createElement("span");
-        badge.className = "agent-badge";
-        badge.textContent = "A";
-        comp.appendChild(badge);
-      } else if (!host.agentOutdated && badge) {
-        badge.remove();
+      // Agent outdated badge
+      let agentBadge = comp.querySelector(".agent-badge");
+      if (host.agentOutdated && !agentBadge) {
+        agentBadge = document.createElement("span");
+        agentBadge.className = "agent-badge";
+        agentBadge.textContent = "A";
+        comp.appendChild(agentBadge);
+      } else if (!host.agentOutdated && agentBadge) {
+        agentBadge.remove();
       }
+
+      // Pending PR indicator (uses globalState)
+      comp.classList.toggle("has-pr", !!globalState.pendingPR);
     }
   });
 }
@@ -456,11 +528,21 @@ function renderUpdateStatus(el, host) {
 /**
  * Fetch fresh status for a single host.
  * Called when user clicks refresh button.
+ *
+ * Error handling:
+ * - 404: Host deleted - could remove from UI or show message
+ * - 500: Server error - show toast, keep stale data
+ * - Network error: Show toast, keep stale data
  */
 async function refreshHost(hostId) {
-  const btn = document.querySelector(
-    `button.btn-refresh[data-host-id="${hostId}"]`,
-  );
+  // Find button using cached elements if possible, fallback to querySelector
+  const host = hostStore.get(hostId);
+  let btn = host?._elements?.row?.querySelector(".btn-refresh");
+  if (!btn) {
+    btn = document.querySelector(
+      `button.btn-refresh[data-host-id="${hostId}"]`,
+    );
+  }
   if (btn) btn.classList.add("loading");
 
   try {
@@ -472,10 +554,21 @@ async function refreshHost(hostId) {
       },
     });
 
-    if (!resp.ok) throw new Error("Refresh failed");
+    if (resp.status === 404) {
+      console.warn(`Host ${hostId} not found`);
+      // Optionally: remove from store and DOM, or show toast
+      return;
+    }
+
+    if (!resp.ok) {
+      console.error(`Refresh failed: ${resp.status} ${resp.statusText}`);
+      // Could show toast: showToast('Refresh failed', 'error');
+      return;
+    }
 
     const data = await resp.json();
 
+    // Update store with fresh data
     hostStore.update(hostId, {
       online: data.online,
       generation: data.generation,
@@ -483,8 +576,14 @@ async function refreshHost(hostId) {
       agentOutdated: data.agent_outdated,
       updateStatus: data.update_status,
     });
+
+    // Update global PR state if included
+    if (data.pending_pr !== undefined) {
+      globalState.pendingPR = data.pending_pr;
+    }
   } catch (err) {
     console.error("Refresh failed:", err);
+    // Could show toast: showToast('Network error', 'error');
   } finally {
     if (btn) btn.classList.remove("loading");
   }
@@ -494,39 +593,64 @@ async function refreshHost(hostId) {
 ### 3.4 Simplified handleMessage
 
 ```javascript
+/**
+ * Route incoming WebSocket messages to appropriate handlers.
+ * Includes defensive validation to prevent crashes from malformed data.
+ */
 function handleMessage(msg) {
+  // Defensive: validate message structure
+  if (!msg || typeof msg !== "object") {
+    console.warn("Invalid WS message (not object):", msg);
+    return;
+  }
+  if (!msg.type) {
+    console.warn("Invalid WS message (no type):", msg);
+    return;
+  }
+
+  const payload = msg.payload || {};
+  const hostId = payload.host_id;
+
   switch (msg.type) {
     case "host_heartbeat":
-      hostStore.update(msg.payload.host_id, {
+      if (!hostId) return;
+      hostStore.update(hostId, {
         online: true,
-        lastSeen: msg.payload.last_seen,
-        metrics: msg.payload.metrics,
+        lastSeen: payload.last_seen,
+        metrics: payload.metrics,
       });
       break;
 
     case "host_offline":
-      hostStore.setOffline(msg.payload.host_id);
+      if (!hostId) return;
+      hostStore.setOffline(hostId);
       break;
 
     case "command_queued":
-      hostStore.update(msg.payload.host_id, {
-        pendingCommand: msg.payload.command,
+      if (!hostId) return;
+      hostStore.update(hostId, {
+        pendingCommand: payload.command,
       });
-      showLogPanel(msg.payload.host_id);
+      showLogPanel(hostId);
       break;
 
     case "command_output":
-      appendLog(msg.payload);
+      appendLog(payload);
       break;
 
     case "command_complete":
-      hostStore.update(msg.payload.host_id, {
+      if (!hostId) return;
+      hostStore.update(hostId, {
         pendingCommand: null,
       });
       window.dispatchEvent(
-        new CustomEvent("log-complete", { detail: msg.payload }),
+        new CustomEvent("log-complete", { detail: payload }),
       );
       break;
+
+    default:
+      // Unknown message type - log but don't crash
+      console.debug("Unknown WS message type:", msg.type);
   }
 }
 ```
@@ -889,18 +1013,41 @@ expectedTypes := []string{"host_heartbeat", "host_offline"}
 
 ```go
 func TestRefreshHostEndpoint(t *testing.T) {
-    // Setup...
+    // Setup test server and database...
 
-    resp, err := http.Post(baseURL+"/api/hosts/testhost/refresh", ...)
-    require.NoError(t, err)
-    require.Equal(t, 200, resp.StatusCode)
+    t.Run("Success", func(t *testing.T) {
+        resp, err := http.Post(baseURL+"/api/hosts/testhost/refresh", ...)
+        require.NoError(t, err)
+        require.Equal(t, 200, resp.StatusCode)
 
-    var result map[string]any
-    json.NewDecoder(resp.Body).Decode(&result)
+        var result map[string]any
+        json.NewDecoder(resp.Body).Decode(&result)
 
-    assert.Equal(t, "testhost", result["host_id"])
-    assert.Contains(t, result, "update_status")
-    assert.Contains(t, result, "agent_outdated")
+        assert.Equal(t, "testhost", result["host_id"])
+        assert.Contains(t, result, "update_status")
+        assert.Contains(t, result, "agent_outdated")
+    })
+
+    t.Run("NotFound", func(t *testing.T) {
+        resp, err := http.Post(baseURL+"/api/hosts/nonexistent/refresh", ...)
+        require.NoError(t, err)
+        require.Equal(t, 404, resp.StatusCode)
+    })
+
+    t.Run("RequiresCSRF", func(t *testing.T) {
+        req, _ := http.NewRequest("POST", baseURL+"/api/hosts/testhost/refresh", nil)
+        // No X-CSRF-Token header
+        resp, err := client.Do(req)
+        require.NoError(t, err)
+        require.Equal(t, 403, resp.StatusCode)
+    })
+
+    t.Run("RequiresAuth", func(t *testing.T) {
+        // No session cookie
+        resp, err := http.Post(baseURL+"/api/hosts/testhost/refresh", ...)
+        require.NoError(t, err)
+        require.Equal(t, 401, resp.StatusCode)
+    })
 }
 ```
 
@@ -908,21 +1055,62 @@ func TestRefreshHostEndpoint(t *testing.T) {
 
 ## Verification Checklist
 
-After implementation, verify:
+After implementation, verify in this order:
+
+### Phase 1: Store & Hydration
 
 ```
 [ ] hostStore.hydrate() populates all hosts on page load
 [ ] hostStore has correct count: console.log(hostStore.all().length)
-[ ] renderHost() updates both row and card
+[ ] Each host has _elements.row and _elements.card cached
+[ ] globalState.pendingPR is populated from body data attribute
+```
+
+### Phase 2: Real-time Updates
+
+```
 [ ] WebSocket receives host_heartbeat (not host_update)
 [ ] WebSocket receives host_offline on disconnect
-[ ] Refresh button appears on hover
+[ ] Metrics update in real-time (CPU/RAM values change)
+[ ] Last seen updates every second
+[ ] renderHost() updates both row and card simultaneously
+```
+
+### Phase 3: On-Demand Refresh
+
+```
+[ ] Refresh button appears on hover (opacity transition)
 [ ] Refresh button shows spinner during fetch
-[ ] Refresh button updates compartments
+[ ] Refresh button updates compartments correctly
+[ ] Refresh 404 doesn't crash (console warning only)
+[ ] Refresh network error doesn't crash
+```
+
+### Phase 4: UI Changes
+
+```
 [ ] No global flake banner appears
 [ ] "Merge & Deploy" appears in Bulk Actions when PR pending
+[ ] Lock compartment has .has-pr class when PR pending
 [ ] Lock compartment tooltip mentions PR when pending
-[ ] All old functions are deleted (grep for function names)
-[ ] No console errors
-[ ] Tests pass
+[ ] Agent badge appears/disappears correctly
+```
+
+### Phase 5: Code Cleanup
+
+```
+[ ] All old functions are deleted (grep for each function name)
+[ ] No duplicate logic (search for classList.add, classList.toggle)
+[ ] JS file size reduced (target: -30% or more)
+```
+
+### Phase 6: Quality
+
+```
+[ ] No console errors during normal operation
+[ ] No console errors during WebSocket reconnect
+[ ] Tests pass: go test ./v2/tests/...
+[ ] Manual test: all hosts show correct status after page load
+[ ] Manual test: command execution shows log panel and badge
+[ ] Manual test: stop agent → host goes offline within 60s
 ```

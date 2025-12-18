@@ -5,7 +5,7 @@ import ".shared/common.just"
 
 # Version info for builds
 
-version := "2.0.0"
+version := "2.1.0"
 git_commit := `git rev-parse --short HEAD 2>/dev/null || echo "unknown"`
 build_time := `date -u +%Y-%m-%dT%H:%M:%SZ`
 
