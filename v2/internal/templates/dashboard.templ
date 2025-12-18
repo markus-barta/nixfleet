@@ -481,19 +481,18 @@ templ Dashboard(data DashboardData) {
 						renderUpdateStatus(el, host);
 					}
 
-					// 6. Button states
-					el.querySelectorAll('button[data-command]').forEach((btn) => {
-						const cmd = btn.dataset.command;
-						if (cmd === 'stop') {
-							btn.disabled = !isBusy;
-							btn.style.display = isBusy ? '' : 'none';
-						} else if (cmd === 'test') {
-							btn.style.display = isBusy ? 'none' : '';
+					// 6. Button states: swap between cmd-buttons and stop button
+					const cmdButtons = el.querySelector('.cmd-buttons');
+					const stopBtn = el.querySelector('.btn-stop');
+					if (cmdButtons) {
+						cmdButtons.style.display = isBusy ? 'none' : '';
+						cmdButtons.querySelectorAll('button').forEach(btn => {
 							btn.disabled = !buttonsEnabled;
-						} else {
-							btn.disabled = !buttonsEnabled;
-						}
-					});
+						});
+					}
+					if (stopBtn) {
+						stopBtn.style.display = isBusy ? '' : 'none';
+					}
 
 					// 7. Last seen
 					const lastSeenCell = el.querySelector('[data-cell="last-seen"]');
@@ -1332,10 +1331,25 @@ templ HostRow(host Host, csrfToken string) {
 		</td>
 		<td class="col-right" data-cell="last-seen" data-timestamp={ host.LastSeen }>{ valueOrDash(host.LastSeen) }</td>
 		<td class="actions-cell">
-			<div class="action-buttons">
-				@CommandButton(host.ID, "pull", "", "btn", host.Online && host.PendingCommand == "")
-				@CommandButton(host.ID, "switch", "", "btn", host.Online && host.PendingCommand == "")
-				@CommandButton(host.ID, "test", "", "btn", host.Online && host.PendingCommand == "")
+			<div class="action-buttons" data-host-id={ host.ID }>
+				<!-- Command buttons (visible when idle) -->
+				<span class="cmd-buttons" style={ visibleWhen(host.PendingCommand == "") }>
+					@CommandButton(host.ID, "pull", "", "btn", host.Online)
+					@CommandButton(host.ID, "switch", "", "btn", host.Online)
+					@CommandButton(host.ID, "test", "", "btn", host.Online)
+				</span>
+				<!-- Stop button (visible when command running) -->
+				<button
+					class="btn btn-stop"
+					data-host-id={ host.ID }
+					data-command="stop"
+					onclick="sendCommand(this.dataset.hostId, 'stop')"
+					title="Stop running command"
+					style={ visibleWhen(host.PendingCommand != "") }
+				>
+					<svg class="icon"><use href="#icon-stop"></use></svg>
+					Stop
+				</button>
 				<!-- P7000: Per-host refresh button (appears on hover) -->
 				<button
 					class="btn btn-refresh"
@@ -1578,6 +1592,14 @@ func valueOrDash(v string) string {
 		return "—"
 	}
 	return v
+}
+
+// visibleWhen returns CSS display style based on condition
+func visibleWhen(visible bool) string {
+	if visible {
+		return ""
+	}
+	return "display: none"
 }
 
 func formatPercent(v float64) string {
