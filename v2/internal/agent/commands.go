@@ -142,8 +142,8 @@ func (a *Agent) executeCommand(command string) {
 	a.sendStatus(status, command, exitCode, message)
 
 	// Auto-restart after successful switch to pick up new binary
-	// Exit with code 101 which triggers RestartForceExitStatus in systemd
-	if exitCode == 0 && (command == "switch" || command == "pull-switch") {
+	// Only on NixOS - macOS is handled by home-manager's launchctl bootout/bootstrap
+	if exitCode == 0 && (command == "switch" || command == "pull-switch") && runtime.GOOS != "darwin" {
 		a.log.Info().Msg("switch completed successfully, restarting to pick up new binary")
 		// Give time for the status message to be sent
 		time.Sleep(500 * time.Millisecond)
