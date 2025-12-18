@@ -929,31 +929,6 @@ templ Base(title string, csrfToken string) {
 				}
 			}
 
-			/* Agent outdated indicator - red dot on bottom-right of status indicator */
-			.agent-outdated-dot {
-				position: absolute;
-				bottom: -2px;
-				right: -2px;
-				width: 6px;
-				height: 6px;
-				border-radius: 50%;
-				background: linear-gradient(to bottom, hsl(0, 70%, 60%), hsl(0, 70%, 40%));
-				box-shadow: 0 0 4px hsl(0, 70%, 50%);
-				pointer-events: auto;
-				cursor: help;
-				animation: agent-dot-pulse 2s ease-in-out infinite;
-			}
-
-			@keyframes agent-dot-pulse {
-				0%, 100% { 
-					opacity: 0.8;
-					box-shadow: 0 0 4px hsl(0, 70%, 50%);
-				}
-				50% { 
-					opacity: 1;
-					box-shadow: 0 0 8px hsl(0, 70%, 60%);
-				}
-			}
 
 			/* Flake Update Banner (P5300) */
 			.flake-update-banner {
