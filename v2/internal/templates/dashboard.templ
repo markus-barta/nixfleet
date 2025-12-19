@@ -1514,21 +1514,18 @@ templ Dashboard(data DashboardData) {
 							return;
 						}
 
+						// Clear any existing timers
 						if (this._debounceTimer) clearTimeout(this._debounceTimer);
 						if (this._completeTimer) clearTimeout(this._completeTimer);
 
-						const instanceId = this._instanceId;
-						this._debounceTimer = setTimeout(() => {
-							console.log('ActionBar', instanceId, 'debounce timer fired, calling _showPreview');
-							this._debounceTimer = null;
-							try {
-								this._showPreview(detail);
-								console.log('ActionBar', instanceId, '_showPreview completed, state:', this.state);
-							} catch (e) {
-								console.error('ActionBar', instanceId, '_showPreview error:', e);
-							}
-						}, 300);
-						console.log('ActionBar', this._instanceId, 'debounce timer set');
+						// Show preview immediately (no debounce for now)
+						console.log('ActionBar', this._instanceId, 'calling _showPreview directly');
+						try {
+							this._showPreview(detail);
+							console.log('ActionBar', this._instanceId, '_showPreview completed, state:', this.state);
+						} catch (e) {
+							console.error('ActionBar', this._instanceId, '_showPreview error:', e);
+						}
 					},
 
 					handleClear() {
