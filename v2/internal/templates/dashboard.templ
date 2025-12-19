@@ -2022,6 +2022,7 @@ templ ActionBar() {
 		id="action-bar"
 		class="action-bar"
 		x-data="actionBar"
+		x-init="init()"
 		@action-preview.window="handlePreview($event.detail)"
 		@action-clear.window="handleClear()"
 		@command-start.window="handleCommandStart($event.detail)"
