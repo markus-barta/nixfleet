@@ -89,7 +89,7 @@ The `flake.lock` is like a `package-lock.json` or `Cargo.lock` — it freezes yo
 
 ---
 
-## The Ideal Workflow (P5300 Goal)
+## The Ideal Workflow (P4300 Goal)
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -175,7 +175,7 @@ There are two options for WHO does this:
 | **GitHub-driven** | GitHub Action (CI)           | Creates PR → merge → hosts pull     |
 | **Host-driven**   | One of your hosts            | Commits → pushes → other hosts pull |
 
-### Option C: GitHub-Driven (Current Plan - P5300)
+### Option C: GitHub-Driven (Current Plan - P4300)
 
 ```
 GitHub Action  ──→  PR  ──→  NixFleet detects  ──→  Merge & Deploy
@@ -188,7 +188,7 @@ GitHub Action  ──→  PR  ──→  NixFleet detects  ──→  Merge & De
 - CI can run checks before you merge
 - Clear audit trail in git history
 
-**P5300 just makes it smoother** — instead of manually reviewing PRs on GitHub, NixFleet shows "update available" and offers one-click merge + deploy.
+**P4300 just makes it smoother** — instead of manually reviewing PRs on GitHub, NixFleet shows "update available" and offers one-click merge + deploy.
 
 ### Option A: Host-Driven (Future Feature)
 
@@ -271,7 +271,7 @@ On macOS, even after a successful `switch`, the agent may still report the old v
 - Dashboard: **⋮** → **Restart Agent**
 - CLI: `launchctl kickstart -k gui/$(id -u)/com.nixfleet.agent`
 
-See [P7100](../+pm/backlog/P7100-macos-agent-update-bug.md) for details on this issue.
+See [P1100](../+pm/backlog/P1100-macos-agent-update-bug.md) for details on this issue.
 
 ### Potential Issues: Browser Caching
 
@@ -303,5 +303,5 @@ See [UPDATE-ARCHITECTURE.md](./UPDATE-ARCHITECTURE.md) for complete documentatio
 
 - [UPDATE-ARCHITECTURE.md](./UPDATE-ARCHITECTURE.md) — Complete update flow and troubleshooting
 - [BUILD-DEPLOY.md](./BUILD-DEPLOY.md) — How components are built and deployed
-- [P5300](../+pm/backlog/P5300-automated-flake-updates.md) — Automated flake updates backlog item
-- [P7100](../+pm/backlog/P7100-macos-agent-update-bug.md) — macOS agent update bug
+- [P4300](../+pm/backlog/P4300-automated-flake-updates.md) — Automated flake updates backlog item
+- [P1100](../+pm/backlog/P1100-macos-agent-update-bug.md) — macOS agent update bug

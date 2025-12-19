@@ -1,13 +1,13 @@
-# P7000 - Unified Host State Management
+# P2000 - Unified Host State Management
 
 **Created**: 2025-12-18  
 **Updated**: 2025-12-19  
-**Priority**: P7000 (High - Architecture)  
-**Status**: Blocked by P7200  
+**Priority**: P2000 (High - Architecture)  
+**Status**: Blocked by P1000  
 **Estimated Effort**: 2-3 days  
 **Breaking Change**: Yes (complete JS rewrite)  
 **Target Version**: 2.2.0  
-**Depends on**: P7200 (Reliable Agent Updates)
+**Depends on**: P1000 (Reliable Agent Updates)
 
 ---
 
@@ -254,7 +254,7 @@ Response 200:
 **DELETE this entire section from `dashboard.templ`:**
 
 ```templ
-<!-- Flake Update Banner (P5300) -->
+<!-- Flake Update Banner (P4300) -->
 if data.PendingPR != nil {
     <div id="flake-update-banner" class="flake-update-banner">
         @FlakeUpdateBanner(data.PendingPR, data.CSRFToken)
@@ -710,7 +710,7 @@ The JS `renderUpdateStatus()` should preserve the `title` attribute from initial
 
 | Risk                       | Likelihood | Impact | Mitigation                                                  |
 | -------------------------- | ---------- | ------ | ----------------------------------------------------------- |
-| JS bugs break dashboard    | Medium     | High   | Tag `v2.0-pre-P7000-refactor`, comprehensive manual testing |
+| JS bugs break dashboard    | Medium     | High   | Tag `v2.0-pre-P2000-refactor`, comprehensive manual testing |
 | WebSocket message mismatch | Low        | High   | Test in staging, verify message types in browser DevTools   |
 | Performance regression     | Low        | Medium | Profile before/after, element caching                       |
 | Missing edge case          | Medium     | Medium | Senior review (this section), integration tests             |
@@ -723,13 +723,13 @@ The JS `renderUpdateStatus()` should preserve the `title` attribute from initial
 
 ## Blocks
 
-- Future P5300 work should wait for this to land
+- Future P4300 work should wait for this to land
 - Any new host-related features should use the new architecture
 
 ---
 
 ## Related Documents
 
-- **P7000-TECH-SPEC.md**: Detailed technical specification (see below)
-- **P5300**: Automated Flake Updates (partially deprecated by this)
+- **P2000-TECH-SPEC.md**: Detailed technical specification (see below)
+- **P4300**: Automated Flake Updates (partially deprecated by this)
 - **P5010**: Compartment Status Indicator (render logic moves here)

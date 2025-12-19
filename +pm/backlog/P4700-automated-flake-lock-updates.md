@@ -1,10 +1,10 @@
-# P5700 - Automated flake.lock Updates
+# P4700 - Automated flake.lock Updates
 
-**Priority**: P5700 (Medium - Convenience)  
+**Priority**: P4700 (Medium - Convenience)  
 **Status**: Backlog  
 **Effort**: Medium (~2 hours)  
 **Value**: Medium  
-**Depends on**: P5600 (GitHub Actions Docker Build)
+**Depends on**: P4600 (GitHub Actions Docker Build)
 
 ---
 
@@ -152,6 +152,6 @@ Need a PAT with `repo` scope for cross-repo dispatch:
 
 ## Related
 
-- P5600 - GitHub Actions Docker Build (prerequisite)
-- P5800 - Webhook-Triggered Deployment
-- P5300 - Automated Flake Updates (full automation vision)
+- P4600 - GitHub Actions Docker Build (prerequisite)
+- P4800 - Webhook-Triggered Deployment
+- P4300 - Automated Flake Updates (full automation vision)

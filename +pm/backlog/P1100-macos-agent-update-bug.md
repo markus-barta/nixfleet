@@ -1,9 +1,9 @@
-# P7100: macOS Agent Update Bug
+# P1100: macOS Agent Update Bug
 
 **Created**: 2025-12-18  
 **Updated**: 2025-12-19  
-**Priority**: High (see P7200 for implementation)  
-**Status**: Analysis Complete → Superseded by P7200
+**Priority**: High (see P1000 for implementation)  
+**Status**: Analysis Complete → Superseded by P1000
 
 ---
 
@@ -196,10 +196,10 @@ NixOS hosts (csb0, csb1, hsb0, hsb1, gpc0, hsb8) use systemd's `RestartForceExit
 
 ## Related
 
-- **[P7200](./P7200-reliable-agent-updates.md)** — Implementation plan (this issue is now tracked there)
+- **[P1000](./P1000-reliable-agent-updates.md)** — Implementation plan (this issue is now tracked there)
 - [UPDATE-ARCHITECTURE.md](../../docs/UPDATE-ARCHITECTURE.md) — Complete update flow documentation
-- [P7000](./P7000-unified-host-state-management.md) — Introduced version checking
-- [P5300](./P5300-automated-flake-updates.md) — Automated fleet updates
+- [P2000](./P2000-unified-host-state-management.md) — Introduced version checking
+- [P4300](./P4300-automated-flake-updates.md) — Automated fleet updates
 - Fix commit: ebbc837 (don't auto-restart agent on macOS after switch)
 
 ---

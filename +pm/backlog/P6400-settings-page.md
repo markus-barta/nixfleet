@@ -31,7 +31,7 @@ Central settings page for dashboard configuration. Reduces need for env vars and
 | Lock stale threshold  | 7 days  | When to glow Lock compartment             |
 | Auto-refresh on load  | On      | Refresh status when dashboard loads       |
 
-### Automated Updates (P5300)
+### Automated Updates (P4300)
 
 | Setting            | Default    | Description                          |
 | ------------------ | ---------- | ------------------------------------ |
@@ -96,4 +96,4 @@ Simple form page at `/settings`:
 ## Related
 
 - **P5000**: Update status (needs configurable intervals)
-- **P5300**: Automated updates (needs enable/disable toggle)
+- **P4300**: Automated updates (needs enable/disable toggle)

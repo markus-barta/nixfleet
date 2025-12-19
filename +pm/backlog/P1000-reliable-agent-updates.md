@@ -1,7 +1,7 @@
-# P7200 - Reliable Agent Updates
+# P1000 - Reliable Agent Updates
 
 **Created**: 2025-12-19  
-**Priority**: P7200 (Critical - Blocking)  
+**Priority**: P1000 (Critical - Blocking)  
 **Status**: Ready for Development  
 **Estimated Effort**: 1-2 days  
 **Depends on**: None  
@@ -30,7 +30,7 @@ This breaks the fundamental value proposition of NixFleet.
 
 ---
 
-## Root Causes (from P7100 analysis)
+## Root Causes (from P1100 analysis)
 
 ### 1. flake.lock Version Mismatch
 
@@ -47,7 +47,7 @@ If flake.lock hasn't changed since last switch, Nix may skip rebuilding:
 
 **Check**: Did a new home-manager generation appear after switch?
 
-### 3. macOS launchd Not Reloading (P7100)
+### 3. macOS launchd Not Reloading (P1100)
 
 Even when switch creates a new generation:
 
@@ -218,6 +218,6 @@ Show clear feedback when agent version doesn't match:
 
 ## Related
 
-- [P7100](./P7100-macos-agent-update-bug.md) — Root cause analysis (macOS specific)
-- [P7000](./P7000-unified-host-state-management.md) — State architecture (depends on this fix)
+- [P1100](./P1100-macos-agent-update-bug.md) — Root cause analysis (macOS specific)
+- [P2000](./P2000-unified-host-state-management.md) — State architecture (depends on this fix)
 - [UPDATE-ARCHITECTURE.md](../../docs/UPDATE-ARCHITECTURE.md) — Update flow documentation

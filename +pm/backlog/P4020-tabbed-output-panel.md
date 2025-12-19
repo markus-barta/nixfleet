@@ -1,4 +1,4 @@
-# P5020 - Tabbed Output Panel
+# P4020 - Tabbed Output Panel
 
 ## Problem
 

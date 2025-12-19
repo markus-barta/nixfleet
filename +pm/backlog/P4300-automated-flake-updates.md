@@ -1,8 +1,8 @@
-# P5300 - Automated Flake Lock Updates
+# P4300 - Automated Flake Lock Updates
 
 **Created**: 2025-12-15  
 **Updated**: 2025-12-19  
-**Priority**: P5300 (Medium)  
+**Priority**: P4300 (Medium)  
 **Status**: MVP Complete  
 **Depends on**: P5000 (Update Status Indicator)
 
@@ -217,7 +217,7 @@ Test with **real GitHub PRs** from the weekly `nix flake update` Action:
 
 ### E2E Tests (Future)
 
-See **P5301 - Flake Updates E2E Test Suite** for comprehensive automated testing with mock infrastructure.
+See **P4301 - Flake Updates E2E Test Suite** for comprehensive automated testing with mock infrastructure.
 
 ---
 
@@ -321,7 +321,7 @@ services.nixfleet-agent = {
 - [x] Unit tests for FlakeUpdateService logic — `flake_updates_test.go`
 - [ ] Manual live test with real GitHub PR
 
-_See P5301 for comprehensive E2E test suite (future)_
+_See P4301 for comprehensive E2E test suite (future)_
 
 ---
 
@@ -329,8 +329,8 @@ _See P5301 for comprehensive E2E test suite (future)_
 
 See separate backlog items:
 
-- **P5310**: Rollback on failure (revert merge commit, per-host rollback)
-- **P5301**: Flake Updates E2E Test Suite
+- **P4310**: Rollback on failure (revert merge commit, per-host rollback)
+- **P4301**: Flake Updates E2E Test Suite
 
 ### Automation Features (Future)
 

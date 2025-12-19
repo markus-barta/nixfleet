@@ -57,4 +57,4 @@ Order: pull → switch → test
 
 - Post-MVP feature
 - **P5000**: Update status shows last known state for offline hosts
-- **P5300**: Automated updates may queue for offline hosts
+- **P4300**: Automated updates may queue for offline hosts

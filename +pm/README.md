@@ -14,25 +14,13 @@ P{number}-{name}.md
 
 **Lower number = Higher priority**
 
-| Range       | Priority    | Description                        |
-| ----------- | ----------- | ---------------------------------- |
-| P4000-P4999 | 🔴 Critical | Blocking issues, must fix now      |
-| P5000-P5999 | 🟡 Medium   | Important features, should do soon |
-| P6000-P6999 | 🟢 Low      | Nice-to-have, do when time permits |
-| P7000-P7999 | 🔴 Critical | Architecture & blocking bugs       |
-
-### Current Priority Order (2025-12-19)
-
-| Priority  | Task                    | Status           | Description                      |
-| --------- | ----------------------- | ---------------- | -------------------------------- |
-| **P7200** | Reliable Agent Updates  | Ready            | Fix agent update flow (BLOCKING) |
-| **P7100** | macOS Agent Update Bug  | Superseded       | Analysis → now tracked in P7200  |
-| **P7000** | Unified Host State      | Blocked by P7200 | JS rewrite for state management  |
-| **P5300** | Automated Flake Updates | MVP Complete     | Merge & Deploy feature           |
-| P5600     | GitHub Actions Docker   | Backlog          | CI/CD for dashboard              |
-| P5700     | Automated flake.lock    | Backlog          | Auto-update dependencies         |
-| P5400     | nix-darwin Support      | Backlog          | Full macOS system support        |
-| P6xxx     | Various                 | Low              | Nice-to-have features            |
+| Range       | Priority    | Description                             |
+| ----------- | ----------- | --------------------------------------- |
+| P0000-P1999 | 🔴 Critical | Blocking bugs, system broken, fix now   |
+| P2000-P3999 | 🟠 High     | Important bugs/issues, fix soon         |
+| P4000-P5999 | 🟡 Medium   | Features and improvements, planned work |
+| P6000-P7999 | 🟢 Low      | Nice-to-have, do when time permits      |
+| P8000-P9999 | ⚪ Backlog  | Ideas, future enhancements, someday     |
 
 ### Ordering Within Priority
 
@@ -45,12 +33,12 @@ P{number}-{name}.md
 
 ```
 backlog/
-  P4000-agent-resilience-detached-switch.md   # First critical task
-  P4100-agent-resilience-macos-watchdog.md    # Second critical task
-  P4200-agent-rewrite-python.md               # Third critical task
-  P5000-action-button-locking.md              # First medium task
-  P5100-version-generation-tracking.md        # Second medium task
-  P6000-heartbeat-communication-visualizer.md # First low-priority task
+  P1000-reliable-agent-updates.md      # Critical: blocking bug
+  P1100-macos-agent-update-bug.md      # Critical: related analysis
+  P2000-unified-host-state.md          # High: architecture work
+  P4000-new-feature.md                 # Medium: planned feature
+  P6000-heartbeat-visualizer.md        # Low: nice-to-have
+  P8000-future-idea.md                 # Backlog: someday/maybe
 ```
 
 ---

@@ -1,6 +1,6 @@
-# P7000 Technical Specification
+# P2000 Technical Specification
 
-**Parent**: P7000-unified-host-state-management.md
+**Parent**: P2000-unified-host-state-management.md
 **Purpose**: Exact implementation details for the hard-cut refactor
 **Target Version**: 2.1.0
 **Last Updated**: 2025-12-18 (Senior Review)
@@ -908,7 +908,7 @@ DELETE these lines:
 
 ```templ
 <!-- DELETE THIS ENTIRE BLOCK -->
-<!-- Flake Update Banner (P5300) -->
+<!-- Flake Update Banner (P4300) -->
 if data.PendingPR != nil {
     <div id="flake-update-banner" class="flake-update-banner">
         @FlakeUpdateBanner(data.PendingPR, data.CSRFToken)

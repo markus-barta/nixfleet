@@ -1,7 +1,7 @@
-# P5400 - nix-darwin Support
+# P4400 - nix-darwin Support
 
 **Created**: 2025-12-15  
-**Priority**: P5400 (Medium)  
+**Priority**: P4400 (Medium)  
 **Status**: Backlog  
 **Depends on**: P5000 (Update Status)
 

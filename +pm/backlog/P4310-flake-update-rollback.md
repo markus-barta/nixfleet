@@ -1,9 +1,9 @@
-# P5310 - Flake Update Rollback
+# P4310 - Flake Update Rollback
 
 **Created**: 2025-12-17  
-**Priority**: P5310 (Medium)  
+**Priority**: P4310 (Medium)  
 **Status**: Backlog  
-**Depends on**: P5300 (Automated Flake Lock Updates)
+**Depends on**: P4300 (Automated Flake Lock Updates)
 
 ---
 
@@ -19,7 +19,7 @@
 
 When a flake update deployment fails on one or more hosts, provide options to:
 
-1. Stop deployment to remaining hosts (already implemented in P5300)
+1. Stop deployment to remaining hosts (already implemented in P4300)
 2. Revert the merge commit on GitHub
 3. Trigger rollback on hosts that already deployed
 
@@ -29,7 +29,7 @@ When a flake update deployment fails on one or more hosts, provide options to:
 
 ### Automatic Rollback
 
-- [ ] When switch fails on any host, stop deployment to remaining hosts ✅ (done in P5300)
+- [ ] When switch fails on any host, stop deployment to remaining hosts ✅ (done in P4300)
 - [ ] Option to revert the merge commit via GitHub API
 - [ ] Option to trigger `rollback` command on hosts that successfully switched
 - [ ] Dashboard shows clear status: which hosts succeeded, which failed, which reverted
@@ -120,5 +120,5 @@ After failed deployment:
 
 ## Related
 
-- **P5300**: Automated Flake Lock Updates (prerequisite)
-- **P5301**: Flake Updates E2E Test Suite
+- **P4300**: Automated Flake Lock Updates (prerequisite)
+- **P4301**: Flake Updates E2E Test Suite

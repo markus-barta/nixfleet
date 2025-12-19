@@ -1,9 +1,9 @@
-# P5301 - Flake Updates E2E Test Suite
+# P4301 - Flake Updates E2E Test Suite
 
 **Created**: 2025-12-17  
-**Priority**: P5301 (Low)  
+**Priority**: P4301 (Low)  
 **Status**: Backlog  
-**Depends on**: P5300 (Automated Flake Lock Updates)
+**Depends on**: P4300 (Automated Flake Lock Updates)
 
 ---
 
@@ -11,15 +11,15 @@
 
 **As a** developer  
 **I want** automated E2E tests for the flake update flow  
-**So that** I can refactor and extend P5300 with confidence
+**So that** I can refactor and extend P4300 with confidence
 
 ---
 
 ## Overview
 
-Build comprehensive test infrastructure for P5300 with mock GitHub API and mock agents.
+Build comprehensive test infrastructure for P4300 with mock GitHub API and mock agents.
 
-This is split from P5300 to avoid blocking the feature implementation with complex test infrastructure.
+This is split from P4300 to avoid blocking the feature implementation with complex test infrastructure.
 
 ---
 

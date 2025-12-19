@@ -1,6 +1,6 @@
-# P5600 - GitHub Actions: Docker Build & Registry
+# P4600 - GitHub Actions: Docker Build & Registry
 
-**Priority**: P5600 (High - Infrastructure)  
+**Priority**: P4600 (High - Infrastructure)  
 **Status**: Backlog  
 **Effort**: Low (~1 hour)  
 **Value**: High
@@ -160,5 +160,5 @@ docker compose up -d
 
 ## Related
 
-- P5700 - Automated flake.lock Updates
-- P5800 - Webhook-Triggered Deployment
+- P4700 - Automated flake.lock Updates
+- P4800 - Webhook-Triggered Deployment
