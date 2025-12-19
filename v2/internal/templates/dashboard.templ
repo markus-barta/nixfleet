@@ -163,6 +163,9 @@ templ Dashboard(data DashboardData) {
 
 		<!-- P7000: Flake Update Banner removed - Merge & Deploy moved to Bulk Actions -->
 
+		<!-- P1015: Selection Bar - appears when hosts are selected -->
+		@SelectionBar()
+
 		<!-- Mobile: Card View -->
 		<div class="host-grid" id="host-cards">
 			for _, host := range data.Hosts {
@@ -171,9 +174,22 @@ templ Dashboard(data DashboardData) {
 		</div>
 
 		<!-- Desktop: Table View -->
-		<table class="host-table" id="host-table">
+		<table class="host-table" id="host-table" x-data>
 			<thead>
 				<tr>
+					<!-- P1030: Selection checkbox column -->
+					<th class="col-select">
+						<button
+							type="button"
+							class="select-toggle"
+							@click="handleHeaderCheckboxClick()"
+							:title="$store.selection.headerState === 'all' ? 'Deselect all' : ($store.selection.headerState === 'some' ? 'Clear selection' : 'Select all')"
+						>
+							<svg class="icon" x-show="$store.selection.headerState === 'none'"><use href="#icon-square"></use></svg>
+							<svg class="icon" x-show="$store.selection.headerState === 'some'"><use href="#icon-minus-square"></use></svg>
+							<svg class="icon" x-show="$store.selection.headerState === 'all'"><use href="#icon-check-square"></use></svg>
+						</button>
+					</th>
 					<th class="col-hosts" title="Online / Total Hosts">
 						<span class={ templ.KV("stat-online-positive", data.Stats.Online > 0) } id="stat-online">{ fmt.Sprint(data.Stats.Online) }</span>/{ fmt.Sprint(data.Stats.Total) } Hosts
 					</th>
@@ -314,6 +330,103 @@ templ Dashboard(data DashboardData) {
 			// ═══════════════════════════════════════════════════════════════════════════
 			const HEARTBEAT_INTERVAL = parseInt(document.getElementById('config').dataset.heartbeatInterval) || 5;
 			const CSRF_TOKEN = document.body.dataset.csrfToken;
+
+			// ═══════════════════════════════════════════════════════════════════════════
+			// SELECTION STORE (P1030) - Single Source of Truth for host selection
+			// ═══════════════════════════════════════════════════════════════════════════
+			document.addEventListener('alpine:init', () => {
+				Alpine.store('selection', {
+					selected: [],
+					lastSelected: null,
+
+					toggle(id) {
+						const idx = this.selected.indexOf(id);
+						if (idx === -1) {
+							this.selected.push(id);
+						} else {
+							this.selected.splice(idx, 1);
+						}
+						this.lastSelected = id;
+					},
+
+					select(id) {
+						if (!this.selected.includes(id)) {
+							this.selected.push(id);
+						}
+						this.lastSelected = id;
+					},
+
+					deselect(id) {
+						const idx = this.selected.indexOf(id);
+						if (idx !== -1) {
+							this.selected.splice(idx, 1);
+						}
+					},
+
+					isSelected(id) {
+						return this.selected.includes(id);
+					},
+
+					selectAll() {
+						const allIds = this._getAllHostIds();
+						this.selected = [...allIds];
+						this.lastSelected = allIds[allIds.length - 1] || null;
+					},
+
+					selectNone() {
+						this.selected = [];
+						this.lastSelected = null;
+					},
+
+					selectRange(targetId) {
+						if (!this.lastSelected) {
+							this.toggle(targetId);
+							return;
+						}
+						const allIds = this._getAllHostIds();
+						const startIdx = allIds.indexOf(this.lastSelected);
+						const endIdx = allIds.indexOf(targetId);
+						if (startIdx === -1 || endIdx === -1) {
+							this.toggle(targetId);
+							return;
+						}
+						const minIdx = Math.min(startIdx, endIdx);
+						const maxIdx = Math.max(startIdx, endIdx);
+						for (let i = minIdx; i <= maxIdx; i++) {
+							if (!this.selected.includes(allIds[i])) {
+								this.selected.push(allIds[i]);
+							}
+						}
+					},
+
+					get count() {
+						return this.selected.length;
+					},
+
+					get onlineCount() {
+						return this.selected.filter(id => {
+							const host = hostStore.get(id);
+							return host && host.online;
+						}).length;
+					},
+
+					get headerState() {
+						const allIds = this._getAllHostIds();
+						if (allIds.length === 0) return 'none';
+						if (this.selected.length === 0) return 'none';
+						if (this.selected.length === allIds.length) return 'all';
+						return 'some';
+					},
+
+					_getAllHostIds() {
+						const ids = [];
+						document.querySelectorAll('tr[data-host-id]').forEach(row => {
+							ids.push(row.dataset.hostId);
+						});
+						return ids;
+					}
+				});
+			});
 
 			// ═══════════════════════════════════════════════════════════════════════════
 			// GLOBAL STATE (non-host-specific)
@@ -1147,6 +1260,117 @@ templ Dashboard(data DashboardData) {
 			});
 
 			// ═══════════════════════════════════════════════════════════════════════════
+			// ROW SELECTION HANDLERS (P1030)
+			// ═══════════════════════════════════════════════════════════════════════════
+			function handleHeaderCheckboxClick() {
+				const store = Alpine.store('selection');
+				if (store.headerState === 'none') {
+					store.selectAll();
+				} else {
+					store.selectNone();
+				}
+			}
+
+			function handleCheckboxClick(event, hostId) {
+				event.stopPropagation();
+				const store = Alpine.store('selection');
+				if (event.shiftKey && store.lastSelected) {
+					store.selectRange(hostId);
+				} else {
+					store.toggle(hostId);
+				}
+			}
+
+			function handleRowClick(event, hostId) {
+				const target = event.target;
+				const interactiveSelectors = [
+					'button', 'input', 'a', '.update-compartment', '.dropdown',
+					'.dropdown-menu', '.host-name', '[data-cell]'
+				];
+				for (const selector of interactiveSelectors) {
+					if (target.closest(selector)) return;
+				}
+				const store = Alpine.store('selection');
+				if (event.shiftKey && store.lastSelected) {
+					store.selectRange(hostId);
+				} else {
+					store.toggle(hostId);
+				}
+			}
+
+			// Keyboard shortcuts for selection
+			document.addEventListener('keydown', (e) => {
+				if (e.target.matches('input, textarea, [contenteditable]')) return;
+
+				// Ctrl/Cmd + A: Select all
+				if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
+					e.preventDefault();
+					Alpine.store('selection').selectAll();
+				}
+
+				// Escape: Clear selection (if any)
+				if (e.key === 'Escape') {
+					const store = Alpine.store('selection');
+					if (store.count > 0) {
+						e.preventDefault();
+						store.selectNone();
+					}
+				}
+			});
+
+			// ═══════════════════════════════════════════════════════════════════════════
+			// SELECTION BAR COMPONENT (P1015)
+			// ═══════════════════════════════════════════════════════════════════════════
+			document.addEventListener('alpine:init', () => {
+				Alpine.data('selectionBar', () => ({
+					get selectedCount() {
+						return Alpine.store('selection').selected.length;
+					},
+
+					get onlineCount() {
+						const selected = Alpine.store('selection').selected;
+						return selected.filter(id => {
+							const host = hostStore.get(id);
+							return host && host.online;
+						}).length;
+					},
+
+					get selectionText() {
+						const total = this.selectedCount;
+						const online = this.onlineCount;
+
+						if (total === 0) return '';
+
+						const hostWord = total === 1 ? 'host' : 'hosts';
+
+						if (online === total) {
+							return `${total} ${hostWord} selected`;
+						}
+
+						return `${total} ${hostWord} selected (${online} online)`;
+					},
+
+					bulkCommand(command) {
+						const selected = Alpine.store('selection').selected;
+						const onlineHostIds = selected.filter(id => {
+							const host = hostStore.get(id);
+							return host && host.online;
+						});
+
+						if (onlineHostIds.length === 0) return;
+
+						onlineHostIds.forEach(hostId => {
+							sendCommand(hostId, command);
+						});
+					},
+
+					clearSelection() {
+						Alpine.store('selection').selectNone();
+					}
+				}));
+			});
+
+			// ═══════════════════════════════════════════════════════════════════════════
 			// INIT - P7000
 			// ═══════════════════════════════════════════════════════════════════════════
 			hostStore.hydrate();
@@ -1170,6 +1394,61 @@ templ Dashboard(data DashboardData) {
 			}, 1000);
 		</script>
 	}
+}
+
+// SelectionBar renders the bulk action bar when hosts are selected (P1015)
+templ SelectionBar() {
+	<div
+		id="selection-bar"
+		class="selection-bar"
+		x-data="selectionBar()"
+		x-show="$store.selection.selected.length > 0"
+		x-transition:enter="selection-bar-enter"
+		x-transition:enter-start="selection-bar-enter-start"
+		x-transition:enter-end="selection-bar-enter-end"
+		x-transition:leave="selection-bar-leave"
+		x-transition:leave-start="selection-bar-leave-start"
+		x-transition:leave-end="selection-bar-leave-end"
+		x-cloak
+	>
+		<div class="selection-info">
+			<svg class="icon"><use href="#icon-check-square"></use></svg>
+			<span x-text="selectionText"></span>
+		</div>
+		<div class="selection-actions">
+			<button
+				class="btn btn-selection"
+				:disabled="onlineCount === 0"
+				@click="bulkCommand('pull')"
+			>
+				<svg class="icon"><use href="#icon-download"></use></svg>
+				<span class="btn-label">Pull All</span>
+			</button>
+			<button
+				class="btn btn-selection"
+				:disabled="onlineCount === 0"
+				@click="bulkCommand('switch')"
+			>
+				<svg class="icon"><use href="#icon-refresh"></use></svg>
+				<span class="btn-label">Switch All</span>
+			</button>
+			<button
+				class="btn btn-selection"
+				:disabled="onlineCount === 0"
+				@click="bulkCommand('test')"
+			>
+				<svg class="icon"><use href="#icon-flask"></use></svg>
+				<span class="btn-label">Test All</span>
+			</button>
+			<button
+				class="btn btn-clear"
+				@click="clearSelection()"
+				title="Clear selection"
+			>
+				<svg class="icon"><use href="#icon-x"></use></svg>
+			</button>
+		</div>
+	</div>
 }
 
 // FleetTargetLine renders the fleet target info in the header
@@ -1280,6 +1559,7 @@ templ HostCard(host Host, csrfToken string) {
 
 // HostRow renders a host as a table row (desktop view)
 // P7000: data-* attributes for client-side hydration
+// P1030: x-data for Alpine.js selection bindings
 templ HostRow(host Host, csrfToken string) {
 	<tr
 		data-host-id={ host.ID }
@@ -1291,7 +1571,19 @@ templ HostRow(host Host, csrfToken string) {
 		data-agent-outdated={ strconv.FormatBool(host.AgentOutdated) }
 		data-pending-command={ host.PendingCommand }
 		class={ templ.KV("host-offline", !host.Online) }
+		x-data
+		x-bind:class={ selectionClassBinding(host.ID) }
+		@click={ rowClickHandler(host.ID) }
 	>
+		<!-- P1030: Selection checkbox -->
+		<td class="col-select">
+			<input
+				type="checkbox"
+				class="row-checkbox"
+				x-bind:checked={ selectionCheckedBinding(host.ID) }
+				@click={ checkboxClickHandler(host.ID) }
+			/>
+		</td>
 		<td class="status-cell-with-badge">
 			<span class="status-wrapper">
 				@StatusIndicator(host)
@@ -1610,6 +1902,23 @@ func visibleWhen(visible bool) string {
 		return ""
 	}
 	return "display: none"
+}
+
+// P1030: Helper functions for Alpine.js selection bindings
+func selectionClassBinding(hostID string) string {
+	return fmt.Sprintf("{ 'selected': $store.selection.isSelected('%s') }", hostID)
+}
+
+func selectionCheckedBinding(hostID string) string {
+	return fmt.Sprintf("$store.selection.isSelected('%s')", hostID)
+}
+
+func rowClickHandler(hostID string) string {
+	return fmt.Sprintf("handleRowClick($event, '%s')", hostID)
+}
+
+func checkboxClickHandler(hostID string) string {
+	return fmt.Sprintf("handleCheckboxClick($event, '%s')", hostID)
 }
 
 func formatPercent(v float64) string {
