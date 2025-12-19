@@ -1492,12 +1492,9 @@ templ Dashboard(data DashboardData) {
 					_activeCommand: null,
 
 					init() {
-						// Listen for compartment hover/leave events (P1020)
-						window.addEventListener('action-preview', (e) => this.handlePreview(e.detail));
-						window.addEventListener('action-clear', () => this.handleClear());
-						// Listen for command lifecycle events
-						window.addEventListener('command-start', (e) => this.handleCommandStart(e.detail));
-						window.addEventListener('command-complete', (e) => this.handleCommandComplete(e.detail));
+						console.log('ActionBar init called');
+						// Note: Events are handled via Alpine directives (@action-preview.window etc.)
+						// No need for duplicate window.addEventListener calls
 						// Cleanup on destroy
 						this.$watch('$el', () => this._cleanup());
 					},
@@ -1527,7 +1524,9 @@ templ Dashboard(data DashboardData) {
 					},
 
 					handleClear() {
+						console.log('ActionBar handleClear called, state:', this.state);
 						if (this._debounceTimer) {
+							console.log('Clearing debounce timer');
 							clearTimeout(this._debounceTimer);
 							this._debounceTimer = null;
 						}
