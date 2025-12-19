@@ -1145,7 +1145,6 @@ templ Base(title string, csrfToken string) {
 			}
 
 			.dropdown-menu {
-				display: none;
 				position: absolute;
 				right: 0;
 				top: 100%;
@@ -1158,12 +1157,16 @@ templ Base(title string, csrfToken string) {
 				z-index: 9999;
 			}
 
-			/* Header dropdown uses .open class */
-			.dropdown-menu.open {
+			/* Header dropdown (id-based) starts hidden, uses .open class */
+			#bulk-actions-menu {
+				display: none;
+			}
+
+			#bulk-actions-menu.open {
 				display: block;
 			}
 
-			/* x-cloak hides until Alpine initializes, x-show manages display */
+			/* x-cloak hides Alpine elements until initialized */
 			[x-cloak] { display: none !important; }
 
 			/* Bulk Actions dropdown in header */
