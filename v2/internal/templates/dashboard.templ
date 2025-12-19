@@ -595,6 +595,7 @@ templ Dashboard(data DashboardData) {
 			}
 
 			// Helper: Render update status compartments
+			// P5100: Simplified - compartment styling constant, only indicator dot shows status
 			function renderUpdateStatus(el, host) {
 				const container = el.querySelector('.update-status');
 				if (!container) return;
@@ -609,36 +610,28 @@ templ Dashboard(data DashboardData) {
 					if (!comp) return;
 
 					const check = status[type];
-					if (!check) return;
-
-					// Build class list
+					
+					// P5100: Only add 'unknown' class for dimming, no other state classes
 					comp.className = 'update-compartment';
-					switch (check.status) {
-						case 'ok': break;
-						case 'outdated': comp.classList.add('needs-update'); break;
-						case 'error': comp.classList.add('error'); break;
-						default: comp.classList.add('unknown');
+					if (!check || !check.status || check.status === 'unknown') {
+						comp.classList.add('unknown');
 					}
 
-					// Update indicator dot
+					// Update indicator dot - this is the ONLY status signal
 					const indicator = comp.querySelector('.compartment-indicator');
-					if (indicator) {
+					if (indicator && check) {
 						indicator.className = 'compartment-indicator';
 						// Map status to CSS class (outdated → warning to match server-side)
 						const cssStatus = check.status === 'outdated' ? 'warning' : (check.status || 'unknown');
 						indicator.classList.add(`compartment-indicator--${cssStatus}`);
 					}
 
-					// Lock-specific: worst status wins (agent outdated = error level)
+					// Lock-specific: agent outdated overrides indicator to error (red)
 					if (type === 'lock') {
-						const indicator = comp.querySelector('.compartment-indicator');
 						if (indicator && host.agentOutdated) {
-							// Agent outdated overrides to error (red) if worse than current
 							indicator.className = 'compartment-indicator compartment-indicator--error';
-							comp.classList.add('error');
 						}
-
-						// Pending PR indicator
+						// Pending PR indicator (small dot at top-right)
 						comp.classList.toggle('has-pr', !!globalState.pendingPR);
 					}
 				});
@@ -1636,10 +1629,11 @@ func metricsClass(metricType string, value float64) string {
 }
 
 // updateCompartmentClass returns CSS classes for an update status compartment
+// P5100: Simplified - only indicator dot shows status, compartment styling is constant
 func updateCompartmentClass(status *UpdateStatus, compartment string) string {
 	base := "update-compartment"
 	if status == nil {
-		return base + " unknown"
+		return base + " unknown" // Slightly dimmed for stale/unknown data
 	}
 	
 	var check StatusCheck
@@ -1652,16 +1646,11 @@ func updateCompartmentClass(status *UpdateStatus, compartment string) string {
 		check = status.System
 	}
 	
-	switch check.Status {
-	case "ok":
-		return base
-	case "outdated":
-		return base + " needs-update"
-	case "error":
-		return base + " error"
-	default:
+	// Only add "unknown" class for dimming effect, all other states look the same
+	if check.Status == "" || check.Status == "unknown" {
 		return base + " unknown"
 	}
+	return base
 }
 
 // compartmentIndicatorClass returns CSS classes for the status indicator dot (P5010)
@@ -1693,29 +1682,20 @@ func compartmentIndicatorClass(status *UpdateStatus, compartment string) string 
 	}
 }
 
-// lockCompartmentClass returns CSS classes for Lock compartment (worst status wins: agent vs lock)
+// lockCompartmentClass returns CSS classes for Lock compartment
+// P5100: Simplified - only indicator dot shows status (including agent outdated)
 func lockCompartmentClass(host Host) string {
 	base := "update-compartment"
 	
-	// Agent outdated is error-level (worst)
-	if host.AgentOutdated {
-		return base + " error"
-	}
-	
+	// Only add "unknown" class for dimming effect when no status data
 	if host.UpdateStatus == nil {
 		return base + " unknown"
 	}
 	
-	switch host.UpdateStatus.Lock.Status {
-	case "ok":
-		return base
-	case "outdated":
-		return base + " needs-update"
-	case "error":
-		return base + " error"
-	default:
+	if host.UpdateStatus.Lock.Status == "" || host.UpdateStatus.Lock.Status == "unknown" {
 		return base + " unknown"
 	}
+	return base
 }
 
 // lockIndicatorClass returns CSS classes for Lock indicator dot (worst status wins)

@@ -9,6 +9,7 @@ import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
 import (
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -144,20 +145,33 @@ func Dashboard(data DashboardData) templ.Component {
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<!-- Config for JavaScript --> <div id=\"config\" data-heartbeat-interval=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<!-- Config for JavaScript - P7000: added pending PR data --> <div id=\"config\" data-heartbeat-interval=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var3 string
 			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(data.HeartbeatInterval))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 109, Col: 81}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 112, Col: 65}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\" style=\"display:none;\"></div><header><div class=\"brand\"><h1><img src=\"/static/nixfleet_favicon.png\" alt=\"\" class=\"brand-logo\"> NixFleet</h1>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\" data-pending-pr=\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var4 string
+			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(pendingPRJSON(data.PendingPR))
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 113, Col: 50}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "\" style=\"display:none;\"></div><header><div class=\"brand\"><h1><img src=\"/static/nixfleet_favicon.png\" alt=\"\" class=\"brand-logo\"> NixFleet</h1>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -165,43 +179,56 @@ func Dashboard(data DashboardData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</div><div class=\"header-actions\"><div class=\"dropdown bulk-actions-dropdown\"><button class=\"btn btn-header\" onclick=\"toggleBulkMenu(event)\"><svg class=\"icon\"><use href=\"#icon-fleet\"></use></svg> Bulk Actions</button><div class=\"dropdown-menu\" id=\"bulk-actions-menu\"><button class=\"dropdown-item\" onclick=\"bulkCommand('update'); closeBulkMenu()\"><svg class=\"icon\"><use href=\"#icon-refresh\"></use></svg> Update All</button> <button class=\"dropdown-item\" onclick=\"bulkCommand('pull'); closeBulkMenu()\"><svg class=\"icon\"><use href=\"#icon-download\"></use></svg> Pull All</button> <button class=\"dropdown-item\" onclick=\"bulkCommand('switch'); closeBulkMenu()\"><svg class=\"icon\"><use href=\"#icon-refresh\"></use></svg> Switch All</button> <button class=\"dropdown-item\" onclick=\"bulkCommand('test'); closeBulkMenu()\"><svg class=\"icon\"><use href=\"#icon-flask\"></use></svg> Test All</button></div></div><form method=\"POST\" action=\"/logout\"><input type=\"hidden\" name=\"csrf_token\" value=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "</div><div class=\"header-actions\"><div class=\"dropdown bulk-actions-dropdown\"><button class=\"btn btn-header\" onclick=\"toggleBulkMenu(event)\"><svg class=\"icon\"><use href=\"#icon-fleet\"></use></svg> Bulk Actions</button><div class=\"dropdown-menu\" id=\"bulk-actions-menu\"><!-- P7000: Merge & Deploy moved here from global banner -->")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var4 string
-			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(data.CSRFToken)
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 144, Col: 66}
+			if data.PendingPR != nil && data.PendingPR.Mergeable {
+				templ_7745c5c3_Err = templ.RenderScriptItems(ctx, templ_7745c5c3_Buffer, templ.ComponentScript{Call: fmt.Sprintf("mergeAndDeploy(%d); closeBulkMenu()", data.PendingPR.Number)})
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<button class=\"dropdown-item\" onclick=\"")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				var templ_7745c5c3_Var5 templ.ComponentScript = templ.ComponentScript{Call: fmt.Sprintf("mergeAndDeploy(%d); closeBulkMenu()", data.PendingPR.Number)}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var5.Call)
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "\"><svg class=\"icon\"><use href=\"#icon-check\"></use></svg> Merge & Deploy PR #")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				var templ_7745c5c3_Var6 string
+				templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(data.PendingPR.Number))
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 135, Col: 63}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "</button><div class=\"dropdown-divider\"></div>")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<button class=\"dropdown-item\" onclick=\"bulkCommand('update'); closeBulkMenu()\"><svg class=\"icon\"><use href=\"#icon-refresh\"></use></svg> Update All</button> <button class=\"dropdown-item\" onclick=\"bulkCommand('pull'); closeBulkMenu()\"><svg class=\"icon\"><use href=\"#icon-download\"></use></svg> Pull All</button> <button class=\"dropdown-item\" onclick=\"bulkCommand('switch'); closeBulkMenu()\"><svg class=\"icon\"><use href=\"#icon-refresh\"></use></svg> Switch All</button> <button class=\"dropdown-item\" onclick=\"bulkCommand('test'); closeBulkMenu()\"><svg class=\"icon\"><use href=\"#icon-flask\"></use></svg> Test All</button></div></div><form method=\"POST\" action=\"/logout\"><input type=\"hidden\" name=\"csrf_token\" value=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "\"> <button type=\"submit\" class=\"btn btn-danger btn-header\">Logout</button></form></div></header><!-- Flake Update Banner (P5300) --> ")
+			var templ_7745c5c3_Var7 string
+			templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(data.CSRFToken)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 158, Col: 66}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			if data.PendingPR != nil {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<div id=\"flake-update-banner\" class=\"flake-update-banner\">")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				templ_7745c5c3_Err = FlakeUpdateBanner(data.PendingPR, data.CSRFToken).Render(ctx, templ_7745c5c3_Buffer)
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "</div>")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-			} else {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<div id=\"flake-update-banner\" class=\"flake-update-banner\" style=\"display: none;\"></div>")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, " <!-- Mobile: Card View --> <div class=\"host-grid\" id=\"host-cards\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "\"> <button type=\"submit\" class=\"btn btn-danger btn-header\">Logout</button></form></div></header><!-- P7000: Flake Update Banner removed - Merge & Deploy moved to Bulk Actions --> <!-- Mobile: Card View --> <div class=\"host-grid\" id=\"host-cards\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -211,55 +238,55 @@ func Dashboard(data DashboardData) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "</div><!-- Desktop: Table View --> <table class=\"host-table\" id=\"host-table\"><thead><tr><th class=\"col-hosts\" title=\"Online / Total Hosts\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "</div><!-- Desktop: Table View --> <table class=\"host-table\" id=\"host-table\"><thead><tr><th class=\"col-hosts\" title=\"Online / Total Hosts\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var5 = []any{templ.KV("stat-online-positive", data.Stats.Online > 0)}
-			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var5...)
+			var templ_7745c5c3_Var8 = []any{templ.KV("stat-online-positive", data.Stats.Online > 0)}
+			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var8...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "<span class=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<span class=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var6 string
-			templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var5).String())
+			var templ_7745c5c3_Var9 string
+			templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var8).String())
 			if templ_7745c5c3_Err != nil {
 				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1, Col: 0}
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "\" id=\"stat-online\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "\" id=\"stat-online\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var7 string
-			templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprint(data.Stats.Online))
+			var templ_7745c5c3_Var10 string
+			templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprint(data.Stats.Online))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 171, Col: 126}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 178, Col: 126}
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "</span>/")
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var8 string
-			templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprint(data.Stats.Total))
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 171, Col: 166}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "</span>/")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, " Hosts</th><th class=\"col-center\" title=\"Location\">Loc</th><th class=\"col-center\" title=\"Device Type\">Dev</th><th class=\"col-center\" title=\"Host Type\">Type</th><th>Metrics</th><th title=\"Update Status (Git/Lock/System)\">Update</th><th class=\"col-center\">Tests</th><th class=\"col-right\">Last Seen</th><th>Actions</th></tr></thead> <tbody>")
+			var templ_7745c5c3_Var11 string
+			templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprint(data.Stats.Total))
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 178, Col: 166}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, " Hosts</th><th class=\"col-center\" title=\"Location\">Loc</th><th class=\"col-center\" title=\"Device Type\">Dev</th><th class=\"col-center\" title=\"Host Type\">Type</th><th>Metrics</th><th title=\"Update Status (Git/Lock/System)\">Update</th><th class=\"col-center\">Tests</th><th class=\"col-right\">Last Seen</th><th>Actions</th></tr></thead> <tbody>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -269,20 +296,20 @@ func Dashboard(data DashboardData) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "</tbody></table><!-- Log Viewer (global, shown when command is running) --> <div class=\"log-panel hidden\" id=\"log-panel\" x-data=\"logViewer()\"><div class=\"log-header\" @click=\"toggle()\"><div style=\"display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;\"><span>Command Output <span x-show=\"hostId\" x-text=\"'(' + hostId + ')'\"></span></span><!-- Progress indicator --><span x-show=\"phase\" class=\"progress-badge\" x-text=\"phaseIcon + ' ' + phase + (buildCount ? ' (' + buildCurrent + '/' + buildCount + ')' : '')\"></span></div><span class=\"chevron\" :class=\"{ 'expanded': open }\">▼</span></div><div class=\"log-content\" x-show=\"open\" x-ref=\"logContent\"><template x-for=\"line in lines\" :key=\"line.id\"><div class=\"log-line\" :class=\"{ 'error': line.isError, 'success': line.isSuccess }\" x-text=\"line.text\"></div></template></div></div><!-- Remove Host Confirmation Modal (P4390) --> <div class=\"modal-overlay\" id=\"removeHostModal\"><div class=\"modal\"><div class=\"modal-title\">Remove Host</div><div class=\"modal-body\">Are you sure you want to remove <code id=\"removeHostName\"></code>?<br><br>This will delete the host from the dashboard. The host can re-register when the agent reconnects.</div><div class=\"modal-actions\"><button class=\"modal-btn modal-btn-cancel\" onclick=\"closeModal('removeHostModal')\">Cancel</button> <button class=\"modal-btn modal-btn-danger\" id=\"confirmRemoveBtn\" onclick=\"doRemoveHost()\">Remove</button></div></div></div><!-- Add Host Modal (P4390) --> <div class=\"modal-overlay\" id=\"addHostModal\"><div class=\"modal modal-wide\"><div class=\"modal-title\">Add Host</div><div class=\"modal-body\"><form id=\"addHostForm\"><div class=\"form-group\"><label>Hostname *</label> <input type=\"text\" name=\"hostname\" required pattern=\"[a-zA-Z][a-zA-Z0-9\\-]{0,62}\" placeholder=\"e.g., hsb1\"></div><div class=\"form-row\"><div class=\"form-group\"><label>OS Type</label> <select name=\"host_type\"><option value=\"nixos\">NixOS</option> <option value=\"macos\">macOS</option></select></div><div class=\"form-group\"><label>Location</label> <select name=\"location\"><option value=\"home\">Home</option> <option value=\"work\">Work</option> <option value=\"cloud\">Cloud</option></select></div></div><div class=\"form-row\"><div class=\"form-group\"><label>Device Type</label> <select name=\"device_type\"><option value=\"server\">Server</option> <option value=\"desktop\">Desktop</option> <option value=\"laptop\">Laptop</option> <option value=\"gaming\">Gaming</option></select></div><div class=\"form-group\"><label>Theme Color</label> <input type=\"color\" name=\"theme_color\" value=\"#7aa2f7\"></div></div></form></div><div class=\"modal-actions\"><button class=\"modal-btn modal-btn-cancel\" onclick=\"closeModal('addHostModal')\">Cancel</button> <button class=\"modal-btn modal-btn-primary\" onclick=\"doAddHost()\">Add Host</button></div></div></div><footer class=\"site-footer\"><div class=\"footer-left\"><span class=\"connection-indicator\" id=\"ws-status\"><span class=\"status-dot status-offline\"></span> Connecting...</span> <span class=\"footer-sep\">•</span> <span>NixFleet ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "</tbody></table><!-- Log Viewer (global, shown when command is running) --> <div class=\"log-panel hidden\" id=\"log-panel\" x-data=\"logViewer()\"><div class=\"log-header\" @click=\"toggle()\"><div style=\"display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;\"><span>Command Output <span x-show=\"hostId\" x-text=\"'(' + hostId + ')'\"></span></span><!-- Progress indicator --><span x-show=\"phase\" class=\"progress-badge\" x-text=\"phaseIcon + ' ' + phase + (buildCount ? ' (' + buildCurrent + '/' + buildCount + ')' : '')\"></span></div><span class=\"chevron\" :class=\"{ 'expanded': open }\">▼</span></div><div class=\"log-content\" x-show=\"open\" x-ref=\"logContent\"><template x-for=\"line in lines\" :key=\"line.id\"><div class=\"log-line\" :class=\"{ 'error': line.isError, 'success': line.isSuccess }\" x-text=\"line.text\"></div></template></div></div><!-- Remove Host Confirmation Modal (P4390) --> <div class=\"modal-overlay\" id=\"removeHostModal\"><div class=\"modal\"><div class=\"modal-title\">Remove Host</div><div class=\"modal-body\">Are you sure you want to remove <code id=\"removeHostName\"></code>?<br><br>This will delete the host from the dashboard. The host can re-register when the agent reconnects.</div><div class=\"modal-actions\"><button class=\"modal-btn modal-btn-cancel\" onclick=\"closeModal('removeHostModal')\">Cancel</button> <button class=\"modal-btn modal-btn-danger\" id=\"confirmRemoveBtn\" onclick=\"doRemoveHost()\">Remove</button></div></div></div><!-- Add Host Modal (P4390) --> <div class=\"modal-overlay\" id=\"addHostModal\"><div class=\"modal modal-wide\"><div class=\"modal-title\">Add Host</div><div class=\"modal-body\"><form id=\"addHostForm\"><div class=\"form-group\"><label>Hostname *</label> <input type=\"text\" name=\"hostname\" required pattern=\"[a-zA-Z][a-zA-Z0-9\\-]{0,62}\" placeholder=\"e.g., hsb1\"></div><div class=\"form-row\"><div class=\"form-group\"><label>OS Type</label> <select name=\"host_type\"><option value=\"nixos\">NixOS</option> <option value=\"macos\">macOS</option></select></div><div class=\"form-group\"><label>Location</label> <select name=\"location\"><option value=\"home\">Home</option> <option value=\"work\">Work</option> <option value=\"cloud\">Cloud</option></select></div></div><div class=\"form-row\"><div class=\"form-group\"><label>Device Type</label> <select name=\"device_type\"><option value=\"server\">Server</option> <option value=\"desktop\">Desktop</option> <option value=\"laptop\">Laptop</option> <option value=\"gaming\">Gaming</option></select></div><div class=\"form-group\"><label>Theme Color</label> <input type=\"color\" name=\"theme_color\" value=\"#7aa2f7\"></div></div></form></div><div class=\"modal-actions\"><button class=\"modal-btn modal-btn-cancel\" onclick=\"closeModal('addHostModal')\">Cancel</button> <button class=\"modal-btn modal-btn-primary\" onclick=\"doAddHost()\">Add Host</button></div></div></div><footer class=\"site-footer\"><div class=\"footer-left\"><span class=\"connection-indicator\" id=\"ws-status\"><span class=\"status-dot status-offline\"></span> Connecting...</span> <span class=\"footer-sep\">•</span> <span>NixFleet ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var9 string
-			templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(data.Version)
+			var templ_7745c5c3_Var12 string
+			templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(data.Version)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 284, Col: 33}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 291, Col: 33}
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "</span> <a href=\"https://github.com/markus-barta/nixfleet\" class=\"footer-link\" target=\"_blank\" rel=\"noopener\"><svg class=\"icon\"><use href=\"#icon-github\"></use></svg> Source</a> <a href=\"https://www.gnu.org/licenses/agpl-3.0.html\" class=\"footer-link\" target=\"_blank\" rel=\"noopener\"><svg class=\"icon\"><use href=\"#icon-license\"></use></svg> AGPL-3.0</a></div><div class=\"footer-right\"><span class=\"made-with\">Made with <svg class=\"icon heart\"><use href=\"#icon-heart\"></use></svg> by <a href=\"https://x.com/markusbarta\" target=\"_blank\" rel=\"noopener\">&#64;markusbarta</a>, Claude &amp; Cursor</span></div></footer><!-- WebSocket and Alpine.js logic --> <script>\n\t\t\t// WebSocket connection\n\t\t\tlet ws = null;\n\t\t\tlet reconnectAttempts = 0;\n\t\t\tconst maxReconnectDelay = 30000;\n\n\t\t\tfunction connectWebSocket() {\n\t\t\t\tconst protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';\n\t\t\t\tws = new WebSocket(`${protocol}//${window.location.host}/ws`);\n\n\t\t\t\tws.onopen = () => {\n\t\t\t\t\tconsole.log('WebSocket connected');\n\t\t\t\t\treconnectAttempts = 0;\n\t\t\t\t\tupdateConnectionStatus(true);\n\t\t\t\t};\n\n\t\t\t\tws.onclose = () => {\n\t\t\t\t\tconsole.log('WebSocket disconnected');\n\t\t\t\t\tupdateConnectionStatus(false);\n\t\t\t\t\tscheduleReconnect();\n\t\t\t\t};\n\n\t\t\t\tws.onerror = (err) => {\n\t\t\t\t\tconsole.error('WebSocket error:', err);\n\t\t\t\t};\n\n\t\t\t\tws.onmessage = (event) => {\n\t\t\t\t\ttry {\n\t\t\t\t\t\tconst msg = JSON.parse(event.data);\n\t\t\t\t\t\thandleMessage(msg);\n\t\t\t\t\t} catch (e) {\n\t\t\t\t\t\tconsole.error('Failed to parse message:', e);\n\t\t\t\t\t}\n\t\t\t\t};\n\t\t\t}\n\n\t\t\tfunction updateConnectionStatus(connected) {\n\t\t\t\tconst el = document.getElementById('ws-status');\n\t\t\t\tif (connected) {\n\t\t\t\t\tel.className = 'connection-indicator connected';\n\t\t\t\t\tel.innerHTML = '<span class=\"status-dot status-online\"></span> Connected';\n\t\t\t\t} else {\n\t\t\t\t\tel.className = 'connection-indicator disconnected';\n\t\t\t\t\tel.innerHTML = '<span class=\"status-dot status-offline\"></span> Disconnected';\n\t\t\t\t}\n\t\t\t}\n\n\t\t\tfunction scheduleReconnect() {\n\t\t\t\treconnectAttempts++;\n\t\t\t\tconst delay = Math.min(1000 * Math.pow(2, reconnectAttempts), maxReconnectDelay);\n\t\t\t\tconsole.log(`Reconnecting in ${delay}ms...`);\n\t\t\t\tsetTimeout(connectWebSocket, delay);\n\t\t\t}\n\n\t\t\tfunction handleMessage(msg) {\n\t\t\t\tswitch (msg.type) {\n\t\t\t\t\tcase 'host_update':\n\t\t\t\t\t\tupdateHost(msg.payload);\n\t\t\t\t\t\tbreak;\n\t\t\t\t\tcase 'command_output':\n\t\t\t\t\t\tappendLog(msg.payload);\n\t\t\t\t\t\tbreak;\n\t\t\t\t\tcase 'command_queued':\n\t\t\t\t\t\tshowLogPanel(msg.payload.host_id);\n\t\t\t\t\t\tbreak;\n\t\t\t\t\tcase 'command_complete':\n\t\t\t\t\t\tmarkCommandComplete(msg.payload);\n\t\t\t\t\t\tbreak;\n\t\t\t\t\tcase 'flake_update_pr':\n\t\t\t\t\t\thandleFlakeUpdatePR(msg.payload);\n\t\t\t\t\t\tbreak;\n\t\t\t\t\tcase 'flake_update_job':\n\t\t\t\t\t\thandleFlakeUpdateJob(msg.payload);\n\t\t\t\t\t\tbreak;\n\t\t\t\t}\n\t\t\t}\n\n\t\t\t// P5300: Handle pending flake update PR notification\n\t\t\tfunction handleFlakeUpdatePR(payload) {\n\t\t\t\tconst banner = document.getElementById('flake-update-banner');\n\t\t\t\tif (!banner) return;\n\n\t\t\t\t// Update all Lock compartments to show pr-pending state\n\t\t\t\tdocument.querySelectorAll('.update-compartment').forEach(comp => {\n\t\t\t\t\t// Check if this is a Lock compartment (has icon-lock)\n\t\t\t\t\tconst icon = comp.querySelector('use[href=\"#icon-lock\"]');\n\t\t\t\t\tif (icon) {\n\t\t\t\t\t\tif (payload.pending_pr) {\n\t\t\t\t\t\t\tcomp.classList.add('pr-pending');\n\t\t\t\t\t\t} else {\n\t\t\t\t\t\t\tcomp.classList.remove('pr-pending');\n\t\t\t\t\t\t}\n\t\t\t\t\t}\n\t\t\t\t});\n\n\t\t\t\tif (payload.pending_pr) {\n\t\t\t\t\tconst mergeBtn = payload.pending_pr.mergeable \n\t\t\t\t\t\t? `<button class=\"btn btn-primary btn-sm\" onclick=\"mergeAndDeploy(${payload.pending_pr.number})\">\n\t\t\t\t\t\t\t<svg class=\"icon\" style=\"width:12px;height:12px;margin-right:4px;\"><use href=\"#icon-check\"></use></svg>\n\t\t\t\t\t\t\tMerge & Deploy\n\t\t\t\t\t\t</button>`\n\t\t\t\t\t\t: `<button class=\"btn btn-secondary btn-sm\" disabled title=\"PR has conflicts or is not mergeable\">\n\t\t\t\t\t\t\t<svg class=\"icon\" style=\"width:12px;height:12px;margin-right:4px;\"><use href=\"#icon-alert\"></use></svg>\n\t\t\t\t\t\t\tNot Mergeable\n\t\t\t\t\t\t</button>`;\n\t\t\t\t\t\n\t\t\t\t\tbanner.innerHTML = `\n\t\t\t\t\t\t<div class=\"flake-update-content\">\n\t\t\t\t\t\t\t<svg class=\"flake-update-icon\" style=\"width:20px;height:20px;fill:#60a5fa;\"><use href=\"#icon-refresh\"></use></svg>\n\t\t\t\t\t\t\t<span class=\"flake-update-text\">\n\t\t\t\t\t\t\t\tUpdate available: <a href=\"${payload.pending_pr.url}\" target=\"_blank\" rel=\"noopener\">#${payload.pending_pr.number}</a>\n\t\t\t\t\t\t\t\t— ${payload.pending_pr.title}\n\t\t\t\t\t\t\t</span>\n\t\t\t\t\t\t\t${mergeBtn}\n\t\t\t\t\t\t\t<button class=\"btn btn-secondary btn-sm\" onclick=\"dismissFlakeUpdate()\">\n\t\t\t\t\t\t\t\tDismiss\n\t\t\t\t\t\t\t</button>\n\t\t\t\t\t\t</div>\n\t\t\t\t\t`;\n\t\t\t\t\tbanner.style.display = 'block';\n\t\t\t\t} else {\n\t\t\t\t\tbanner.style.display = 'none';\n\t\t\t\t}\n\t\t\t}\n\n\t\t\t// P5300: Handle deployment job updates\n\t\t\tfunction handleFlakeUpdateJob(job) {\n\t\t\t\tconst banner = document.getElementById('flake-update-banner');\n\t\t\t\tif (!banner) return;\n\n\t\t\t\tif (job.state === 'completed') {\n\t\t\t\t\t// Clear pr-pending from all Lock compartments\n\t\t\t\t\tdocument.querySelectorAll('.update-compartment.pr-pending').forEach(comp => {\n\t\t\t\t\t\tcomp.classList.remove('pr-pending');\n\t\t\t\t\t});\n\t\t\t\t\t\n\t\t\t\t\tbanner.innerHTML = `\n\t\t\t\t\t\t<div class=\"flake-update-content flake-update-success\">\n\t\t\t\t\t\t\t<svg class=\"flake-update-icon\" style=\"width:20px;height:20px;fill:#22c55e;\"><use href=\"#icon-check\"></use></svg>\n\t\t\t\t\t\t\t<span class=\"flake-update-text\">${job.message || 'Deployment complete!'}</span>\n\t\t\t\t\t\t\t<button class=\"btn btn-secondary btn-sm\" onclick=\"dismissFlakeUpdate()\">Dismiss</button>\n\t\t\t\t\t\t</div>\n\t\t\t\t\t`;\n\t\t\t\t\tsetTimeout(() => { banner.style.display = 'none'; }, 5000);\n\t\t\t\t} else if (job.state === 'failed') {\n\t\t\t\t\tbanner.innerHTML = `\n\t\t\t\t\t\t<div class=\"flake-update-content flake-update-error\">\n\t\t\t\t\t\t\t<svg class=\"flake-update-icon\" style=\"width:20px;height:20px;fill:#ef4444;\"><use href=\"#icon-alert\"></use></svg>\n\t\t\t\t\t\t\t<span class=\"flake-update-text\">${job.message || 'Deployment failed'}</span>\n\t\t\t\t\t\t\t<button class=\"btn btn-secondary btn-sm\" onclick=\"dismissFlakeUpdate()\">Dismiss</button>\n\t\t\t\t\t\t</div>\n\t\t\t\t\t`;\n\t\t\t\t} else {\n\t\t\t\t\tbanner.innerHTML = `\n\t\t\t\t\t\t<div class=\"flake-update-content flake-update-progress\">\n\t\t\t\t\t\t\t<svg class=\"flake-update-icon flake-update-spinner\" style=\"width:20px;height:20px;fill:#60a5fa;\"><use href=\"#icon-refresh\"></use></svg>\n\t\t\t\t\t\t\t<span class=\"flake-update-text\">${job.message || 'Deploying...'} (${job.completed_hosts}/${job.total_hosts})</span>\n\t\t\t\t\t\t</div>\n\t\t\t\t\t`;\n\t\t\t\t\tbanner.style.display = 'block';\n\t\t\t\t}\n\t\t\t}\n\n\t\t\tfunction mergeAndDeploy(prNumber) {\n\t\t\t\tif (!confirm('Merge PR #' + prNumber + ' and deploy to all online hosts?')) return;\n\n\t\t\t\tfetch('/api/flake-updates/merge-and-deploy', {\n\t\t\t\t\tmethod: 'POST',\n\t\t\t\t\theaders: {\n\t\t\t\t\t\t'Content-Type': 'application/json',\n\t\t\t\t\t\t'X-CSRF-Token': window.csrfToken\n\t\t\t\t\t},\n\t\t\t\t\tbody: JSON.stringify({ pr_number: prNumber })\n\t\t\t\t})\n\t\t\t\t.then(resp => {\n\t\t\t\t\tif (!resp.ok) throw new Error('Failed to start deployment');\n\t\t\t\t\treturn resp.json();\n\t\t\t\t})\n\t\t\t\t.then(data => {\n\t\t\t\t\tconsole.log('Deployment started:', data.job_id);\n\t\t\t\t})\n\t\t\t\t.catch(err => {\n\t\t\t\t\talert('Failed to start deployment: ' + err.message);\n\t\t\t\t});\n\t\t\t}\n\n\t\t\tfunction dismissFlakeUpdate() {\n\t\t\t\tconst banner = document.getElementById('flake-update-banner');\n\t\t\t\tif (banner) banner.style.display = 'none';\n\t\t\t}\n\n\t\t\tfunction updateHost(host) {\n\t\t\t\t// Update table row\n\t\t\t\tconst row = document.querySelector(`tr[data-host-id=\"${host.host_id}\"]`);\n\t\t\t\tif (row) {\n\t\t\t\t\tupdateStatusIndicator(row, host);\n\t\t\t\t\trow.classList.toggle('host-offline', !host.online);\n\t\t\t\t\tif (host.pending_command !== undefined) {\n\t\t\t\t\t\trow.dataset.pendingCommand = host.pending_command || '';\n\t\t\t\t\t\tapplyButtonStates(row);\n\t\t\t\t\t\tupdateProgressBadge(row, host.pending_command);\n\t\t\t\t\t}\n\t\t\t\t\t// Update data cells\n\t\t\t\t\tupdateCellData(row, host);\n\t\t\t\t}\n\n\t\t\t\t// Update card\n\t\t\t\tconst card = document.querySelector(`.host-card[data-host-id=\"${host.host_id}\"]`);\n\t\t\t\tif (card) {\n\t\t\t\t\tupdateStatusIndicator(card, host);\n\t\t\t\t\tcard.classList.toggle('host-offline', !host.online);\n\t\t\t\t\tif (host.pending_command !== undefined) {\n\t\t\t\t\t\tcard.dataset.pendingCommand = host.pending_command || '';\n\t\t\t\t\t\tapplyButtonStates(card);\n\t\t\t\t\t\tupdateProgressBadge(card, host.pending_command);\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t}\n\n\t\t\tfunction updateCellData(row, host) {\n\t\t\t\t// Update generation\n\t\t\t\tif (host.generation !== undefined) {\n\t\t\t\t\tconst genCell = row.querySelector('[data-cell=\"generation\"]');\n\t\t\t\t\tif (genCell) genCell.textContent = host.generation || '—';\n\t\t\t\t}\n\n\t\t\t\t// Update last seen (format as relative time with color)\n\t\t\t\tif (host.last_seen !== undefined) {\n\t\t\t\t\tconst lastSeenCell = row.querySelector('[data-cell=\"last-seen\"]');\n\t\t\t\t\tif (lastSeenCell) {\n\t\t\t\t\t\tlastSeenCell.dataset.timestamp = host.last_seen;\n\t\t\t\t\t\tconst result = formatLastSeen(host.last_seen);\n\t\t\t\t\t\tlastSeenCell.textContent = result.text;\n\t\t\t\t\t\tlastSeenCell.className = result.className;\n\t\t\t\t\t}\n\t\t\t\t}\n\n\t\t\t\t// Update metrics\n\t\t\t\tif (host.metrics) {\n\t\t\t\t\tconst metricsCell = row.querySelector('[data-cell=\"metrics\"]');\n\t\t\t\t\tif (metricsCell) {\n\t\t\t\t\t\tupdateMetrics(metricsCell, host.metrics);\n\t\t\t\t\t}\n\t\t\t\t}\n\n\t\t\t\t// Update status compartments (P5010 fix)\n\t\t\t\tif (host.update_status) {\n\t\t\t\t\tupdateStatusCompartments(row, host.update_status, host);\n\t\t\t\t}\n\t\t\t}\n\n\t\t\t// Update the three status compartments (Git, Lock, System) based on new status data\n\t\t\tfunction updateStatusCompartments(row, updateStatus, host) {\n\t\t\t\tconst container = row.querySelector('.update-status');\n\t\t\t\tif (!container) return;\n\n\t\t\t\tconst compartments = ['git', 'lock', 'system'];\n\t\t\t\tcompartments.forEach((type, index) => {\n\t\t\t\t\tconst compartment = container.children[index];\n\t\t\t\t\tif (!compartment) return;\n\n\t\t\t\t\tconst status = updateStatus[type];\n\t\t\t\t\tif (!status) return;\n\n\t\t\t\t\t// Update compartment class\n\t\t\t\t\tcompartment.className = getCompartmentClass(status.status);\n\n\t\t\t\t\t// Update indicator class\n\t\t\t\t\tconst indicator = compartment.querySelector('.compartment-indicator');\n\t\t\t\t\tif (indicator) {\n\t\t\t\t\t\tindicator.className = getIndicatorClass(status.status);\n\t\t\t\t\t}\n\n\t\t\t\t\t// Update tooltip with nice formatting\n\t\t\t\t\tcompartment.title = getCompartmentTooltip(type, status, updateStatus, host);\n\t\t\t\t\t\n\t\t\t\t\t// Handle agent badge on Lock compartment\n\t\t\t\t\tif (type === 'lock') {\n\t\t\t\t\t\tupdateAgentBadge(compartment, host);\n\t\t\t\t\t}\n\t\t\t\t});\n\t\t\t}\n\n\t\t\t// Toggle agent badge visibility on Lock compartment\n\t\t\tfunction updateAgentBadge(compartment, host) {\n\t\t\t\tlet badge = compartment.querySelector('.agent-badge');\n\t\t\t\tconst isOutdated = host && host.agent_outdated;\n\t\t\t\t\n\t\t\t\tif (isOutdated && !badge) {\n\t\t\t\t\t// Add badge\n\t\t\t\t\tbadge = document.createElement('span');\n\t\t\t\t\tbadge.className = 'agent-badge';\n\t\t\t\t\tbadge.textContent = 'A';\n\t\t\t\t\tbadge.title = formatAgentTooltip(host);\n\t\t\t\t\tcompartment.appendChild(badge);\n\t\t\t\t} else if (!isOutdated && badge) {\n\t\t\t\t\t// Remove badge\n\t\t\t\t\tbadge.remove();\n\t\t\t\t} else if (badge && host) {\n\t\t\t\t\t// Update badge tooltip\n\t\t\t\t\tbadge.title = formatAgentTooltip(host);\n\t\t\t\t}\n\t\t\t}\n\n\t\t\tfunction formatAgentTooltip(host) {\n\t\t\t\tif (!host) return 'Agent status unknown';\n\t\t\t\treturn [\n\t\t\t\t\t'Agent Outdated!',\n\t\t\t\t\t'───────────────',\n\t\t\t\t\t'Installed: ' + (host.agent_version || 'unknown'),\n\t\t\t\t\t'',\n\t\t\t\t\t'Update via \"switch\" or',\n\t\t\t\t\t'\"update-agent\" command'\n\t\t\t\t].join('\\n');\n\t\t\t}\n\n\t\t\tfunction getCompartmentClass(status) {\n\t\t\t\tconst base = 'update-compartment';\n\t\t\t\tswitch (status) {\n\t\t\t\t\tcase 'ok': return base;\n\t\t\t\t\tcase 'outdated': return base + ' needs-update';\n\t\t\t\t\tcase 'error': return base + ' error';\n\t\t\t\t\tdefault: return base + ' unknown';\n\t\t\t\t}\n\t\t\t}\n\n\t\t\tfunction getIndicatorClass(status) {\n\t\t\t\tconst base = 'compartment-indicator';\n\t\t\t\tswitch (status) {\n\t\t\t\t\tcase 'ok': return base + ' compartment-indicator--ok';\n\t\t\t\t\tcase 'outdated': return base + ' compartment-indicator--warning';\n\t\t\t\t\tcase 'error': return base + ' compartment-indicator--error';\n\t\t\t\t\tdefault: return base + ' compartment-indicator--unknown';\n\t\t\t\t}\n\t\t\t}\n\n\t\t\tfunction getCompartmentTooltip(type, status, updateStatus, host) {\n\t\t\t\tconst formatStatus = (s) => {\n\t\t\t\t\tswitch (s) {\n\t\t\t\t\t\tcase 'ok': return '✓ Up to date';\n\t\t\t\t\t\tcase 'outdated': return '⚠ Needs update';\n\t\t\t\t\t\tcase 'error': return '✗ Error';\n\t\t\t\t\t\tdefault: return '? Unknown';\n\t\t\t\t\t}\n\t\t\t\t};\n\n\t\t\t\tconst formatTime = (ts) => ts && ts.length > 19 ? ts.slice(0, 19) : (ts || '');\n\n\t\t\t\tif (type === 'git') {\n\t\t\t\t\tconst lines = [\n\t\t\t\t\t\t'Git Repository',\n\t\t\t\t\t\t'─────────────',\n\t\t\t\t\t\t'Status: ' + formatStatus(status.status)\n\t\t\t\t\t];\n\t\t\t\t\tif (status.message) lines.push('Detail: ' + status.message);\n\t\t\t\t\tif (updateStatus.repo_url) lines.push('Remote: ' + updateStatus.repo_url);\n\t\t\t\t\tif (updateStatus.repo_dir) lines.push('Local: ' + updateStatus.repo_dir);\n\t\t\t\t\tif (status.checked_at) lines.push('Checked: ' + formatTime(status.checked_at));\n\t\t\t\t\treturn lines.join('\\n');\n\t\t\t\t}\n\n\t\t\t\tif (type === 'lock') {\n\t\t\t\t\tconst lines = [\n\t\t\t\t\t\t'Flake Lock',\n\t\t\t\t\t\t'──────────',\n\t\t\t\t\t\t'Status: ' + formatStatus(status.status)\n\t\t\t\t\t];\n\t\t\t\t\tif (status.message) lines.push('Detail: ' + status.message);\n\t\t\t\t\tif (status.checked_at) lines.push('Checked: ' + formatTime(status.checked_at));\n\t\t\t\t\tlines.push('');\n\t\t\t\t\tlines.push('Agent Version');\n\t\t\t\t\tlines.push('─────────────');\n\t\t\t\t\tif (host && host.agent_version) {\n\t\t\t\t\t\tlines.push('Installed: ' + host.agent_version);\n\t\t\t\t\t}\n\t\t\t\t\tif (host && host.agent_outdated) {\n\t\t\t\t\t\tlines.push('⚠ Agent outdated!');\n\t\t\t\t\t} else {\n\t\t\t\t\t\tlines.push('✓ Agent up to date');\n\t\t\t\t\t}\n\t\t\t\t\treturn lines.join('\\n');\n\t\t\t\t}\n\n\t\t\t\tif (type === 'system') {\n\t\t\t\t\tconst label = (host && host.host_type === 'macos') ? 'Home Manager' : 'System (NixOS)';\n\t\t\t\t\tconst divider = '─'.repeat(label.length);\n\t\t\t\t\tconst lines = [\n\t\t\t\t\t\tlabel,\n\t\t\t\t\t\tdivider,\n\t\t\t\t\t\t'Status: ' + formatStatus(status.status)\n\t\t\t\t\t];\n\t\t\t\t\tif (status.message) lines.push('Detail: ' + status.message);\n\t\t\t\t\tif (host && host.generation) lines.push('Generation: ' + host.generation);\n\t\t\t\t\tif (status.checked_at) lines.push('Checked: ' + formatTime(status.checked_at));\n\t\t\t\t\treturn lines.join('\\n');\n\t\t\t\t}\n\n\t\t\t\t// Fallback\n\t\t\t\treturn type + ': ' + formatStatus(status.status);\n\t\t\t}\n\n\t\t\tfunction updateMetrics(cell, metrics) {\n\t\t\t\t// Update CPU\n\t\t\t\tconst cpuEl = cell.querySelector('[data-metric=\"cpu\"]');\n\t\t\t\tif (cpuEl && metrics.cpu !== undefined) {\n\t\t\t\t\tconst val = cpuEl.querySelector('.metric-val');\n\t\t\t\t\tif (val) val.textContent = Math.round(metrics.cpu) + '%';\n\t\t\t\t\tcpuEl.className = getMetricClass('cpu', metrics.cpu);\n\t\t\t\t\tcpuEl.title = 'CPU: ' + Math.round(metrics.cpu) + '%';\n\t\t\t\t}\n\n\t\t\t\t// Update RAM\n\t\t\t\tconst ramEl = cell.querySelector('[data-metric=\"ram\"]');\n\t\t\t\tif (ramEl && metrics.ram !== undefined) {\n\t\t\t\t\tconst val = ramEl.querySelector('.metric-val');\n\t\t\t\t\tif (val) val.textContent = Math.round(metrics.ram) + '%';\n\t\t\t\t\tramEl.className = getMetricClass('ram', metrics.ram);\n\t\t\t\t\tconst swap = metrics.swap !== undefined ? Math.round(metrics.swap) : 0;\n\t\t\t\t\tconst load = metrics.load !== undefined ? metrics.load.toFixed(2) : '0.00';\n\t\t\t\t\tramEl.title = `RAM: ${Math.round(metrics.ram)}%, Swap: ${swap}%, Load: ${load}`;\n\t\t\t\t}\n\n\t\t\t\t// If metrics cell was showing \"—\", replace with proper structure\n\t\t\t\tconst naSpan = cell.querySelector('.metrics-na');\n\t\t\t\tif (naSpan && (metrics.cpu !== undefined || metrics.ram !== undefined)) {\n\t\t\t\t\tcell.innerHTML = `\n\t\t\t\t\t\t<span class=\"${getMetricClass('cpu', metrics.cpu || 0)}\" data-metric=\"cpu\" title=\"CPU: ${Math.round(metrics.cpu || 0)}%\">\n\t\t\t\t\t\t\t<svg class=\"metric-icon\"><use href=\"#icon-cpu\"></use></svg><span class=\"metric-val\">${Math.round(metrics.cpu || 0)}%</span>\n\t\t\t\t\t\t</span>\n\t\t\t\t\t\t<span class=\"${getMetricClass('ram', metrics.ram || 0)}\" data-metric=\"ram\" title=\"RAM: ${Math.round(metrics.ram || 0)}%\">\n\t\t\t\t\t\t\t<svg class=\"metric-icon\"><use href=\"#icon-ram\"></use></svg><span class=\"metric-val\">${Math.round(metrics.ram || 0)}%</span>\n\t\t\t\t\t\t</span>\n\t\t\t\t\t`;\n\t\t\t\t}\n\t\t\t}\n\n\t\t\tfunction getMetricClass(type, value) {\n\t\t\t\tlet cls = 'metric';\n\t\t\t\tif (type === 'cpu' && value >= 80) cls += ' metric-high';\n\t\t\t\tif (type === 'ram' && value >= 80) cls += ' metric-high';\n\t\t\t\treturn cls;\n\t\t\t}\n\n\t\t\t// Heartbeat interval in seconds (from server config)\n\t\t\tconst HEARTBEAT_INTERVAL = parseInt(document.getElementById('config').dataset.heartbeatInterval) || 5;\n\n\t\t\tfunction formatLastSeen(isoString) {\n\t\t\t\tif (!isoString) return { text: '—', className: '' };\n\t\t\t\t\n\t\t\t\tconst date = new Date(isoString);\n\t\t\t\tconst now = new Date();\n\t\t\t\tconst diffMs = now - date;\n\t\t\t\t// Clamp to 0 to handle clock skew (client ahead of server)\n\t\t\t\tconst diffSec = Math.max(0, Math.floor(diffMs / 1000));\n\t\t\t\t\n\t\t\t\t// Format the time text\n\t\t\t\tlet text;\n\t\t\t\tif (diffSec < 60) {\n\t\t\t\t\ttext = diffSec + 's';\n\t\t\t\t} else if (diffSec < 3600) {\n\t\t\t\t\ttext = Math.floor(diffSec / 60) + 'm';\n\t\t\t\t} else if (diffSec < 86400) {\n\t\t\t\t\ttext = Math.floor(diffSec / 3600) + 'h';\n\t\t\t\t} else {\n\t\t\t\t\ttext = Math.floor(diffSec / 86400) + 'd';\n\t\t\t\t}\n\n\t\t\t\t// Determine color class based on heartbeat interval\n\t\t\t\tlet className;\n\t\t\t\tif (diffSec <= HEARTBEAT_INTERVAL * 2) {\n\t\t\t\t\tclassName = 'last-seen-ok';      // Within 2x heartbeat: gray\n\t\t\t\t} else if (diffSec <= HEARTBEAT_INTERVAL * 10) {\n\t\t\t\t\tclassName = 'last-seen-warn';    // Within 10x heartbeat: yellow\n\t\t\t\t} else {\n\t\t\t\t\tclassName = 'last-seen-stale';   // Beyond 10x heartbeat: red\n\t\t\t\t}\n\n\t\t\t\treturn { text, className };\n\t\t\t}\n\n\t\t\tfunction updateProgressBadge(container, command) {\n\t\t\t\t// Find the wrapper element (for table rows: .status-wrapper, for cards: .status-with-badge)\n\t\t\t\tconst wrapper = container.querySelector('.status-wrapper') || container.querySelector('.status-with-badge');\n\t\t\t\tif (!wrapper) return;\n\t\t\t\t\n\t\t\t\tlet badge = wrapper.querySelector('.progress-badge-mini');\n\t\t\t\tif (command) {\n\t\t\t\t\tif (!badge) {\n\t\t\t\t\t\tbadge = document.createElement('span');\n\t\t\t\t\t\tbadge.className = 'progress-badge-mini';\n\t\t\t\t\t\twrapper.appendChild(badge);\n\t\t\t\t\t}\n\t\t\t\t\tbadge.textContent = command;\n\t\t\t\t} else if (badge) {\n\t\t\t\t\tbadge.remove();\n\t\t\t\t}\n\t\t\t}\n\n\t\t\tfunction updateStatusIndicator(container, host) {\n\t\t\t\t// Find the wrapper or host-name (for mobile cards)\n\t\t\t\tconst wrapper = container.querySelector('.status-wrapper') || container.querySelector('.status-with-badge');\n\t\t\t\tif (!wrapper) return;\n\n\t\t\t\tconst existing = wrapper.querySelector('.status-ripple, .status-dot');\n\n\t\t\t\tif (host.online && !host.pending_command) {\n\t\t\t\t\t// Online idle - static green with heartbeat animation on update\n\t\t\t\t\tif (existing && existing.classList.contains('status-ripple')) {\n\t\t\t\t\t\t// Already a ripple - just trigger heartbeat animation\n\t\t\t\t\t\ttriggerHeartbeat(existing);\n\t\t\t\t\t} else {\n\t\t\t\t\t\t// Create new ripple indicator\n\t\t\t\t\t\tconst html = '<span class=\"status-ripple\"><span class=\"hb-wave\"></span><span class=\"hb-wave\"></span><span class=\"hb-wave\"></span><span class=\"hb-core\"></span></span>';\n\t\t\t\t\t\tconst wrapper = document.createElement('div');\n\t\t\t\t\t\twrapper.innerHTML = html;\n\t\t\t\t\t\tconst newEl = wrapper.firstChild;\n\t\t\t\t\t\tif (existing) {\n\t\t\t\t\t\t\texisting.replaceWith(newEl);\n\t\t\t\t\t\t}\n\t\t\t\t\t\t// Trigger heartbeat on new element\n\t\t\t\t\t\ttriggerHeartbeat(newEl);\n\t\t\t\t\t}\n\t\t\t\t} else if (host.pending_command) {\n\t\t\t\t\t// Running - pulsing yellow\n\t\t\t\t\tconst html = '<span class=\"status-dot status-running\"></span>';\n\t\t\t\t\tif (existing) {\n\t\t\t\t\t\tconst wrapper = document.createElement('div');\n\t\t\t\t\t\twrapper.innerHTML = html;\n\t\t\t\t\t\texisting.replaceWith(wrapper.firstChild);\n\t\t\t\t\t}\n\t\t\t\t} else {\n\t\t\t\t\t// Offline - static red\n\t\t\t\t\tconst html = '<span class=\"status-dot status-offline\"></span>';\n\t\t\t\t\tif (existing) {\n\t\t\t\t\t\tconst wrapper = document.createElement('div');\n\t\t\t\t\t\twrapper.innerHTML = html;\n\t\t\t\t\t\texisting.replaceWith(wrapper.firstChild);\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t}\n\n\t\t\tfunction triggerHeartbeat(rippleEl) {\n\t\t\t\t// Add heartbeat class to trigger animation\n\t\t\t\trippleEl.classList.add('heartbeat');\n\t\t\t\t// Remove after animation completes (1.5s total)\n\t\t\t\tsetTimeout(() => {\n\t\t\t\t\trippleEl.classList.remove('heartbeat');\n\t\t\t\t}, 1500);\n\t\t\t}\n\n\t\t\tfunction appendLog(payload) {\n\t\t\t\t// Dispatch to Alpine component\n\t\t\t\twindow.dispatchEvent(new CustomEvent('log-line', { detail: payload }));\n\t\t\t}\n\n\t\t\tfunction showLogPanel(hostId) {\n\t\t\t\tconst panel = document.getElementById('log-panel');\n\t\t\t\tpanel.classList.remove('hidden');\n\t\t\t\twindow.dispatchEvent(new CustomEvent('log-start', { detail: { hostId } }));\n\t\t\t}\n\n\t\t\tfunction markCommandComplete(payload) {\n\t\t\t\twindow.dispatchEvent(new CustomEvent('log-complete', { detail: payload }));\n\t\t\t\t// Clear busy state - command is done\n\t\t\t\tsetHostBusy(payload.host_id, null);\n\t\t\t}\n\n\t\t\t// Send command to host\n\t\t\tfunction sendCommand(hostId, command) {\n\t\t\t\t// Immediate UI feedback - disable buttons\n\t\t\t\tsetHostBusy(hostId, command);\n\n\t\t\t\tconst csrfToken = document.body.dataset.csrfToken;\n\t\t\t\tfetch(`/api/hosts/${hostId}/command`, {\n\t\t\t\t\tmethod: 'POST',\n\t\t\t\t\theaders: {\n\t\t\t\t\t\t'Content-Type': 'application/json',\n\t\t\t\t\t\t'X-CSRF-Token': csrfToken\n\t\t\t\t\t},\n\t\t\t\t\tbody: JSON.stringify({ command })\n\t\t\t\t}).then(resp => {\n\t\t\t\t\tif (!resp.ok) {\n\t\t\t\t\t\treturn resp.text().then(text => { throw new Error(text); });\n\t\t\t\t\t}\n\t\t\t\t\treturn resp.json();\n\t\t\t\t}).then(data => {\n\t\t\t\t\tconsole.log('Command queued:', data);\n\t\t\t\t\t// WebSocket will update state when command completes\n\t\t\t\t}).catch(err => {\n\t\t\t\t\tconsole.error('Command failed:', err);\n\t\t\t\t\talert('Command failed: ' + err.message);\n\t\t\t\t\t// On error, re-enable buttons\n\t\t\t\t\tsetHostBusy(hostId, null);\n\t\t\t\t});\n\t\t\t}\n\n\t\t\tfunction setHostBusy(hostId, command) {\n\t\t\t\t// Update table row\n\t\t\t\tconst row = document.querySelector(`tr[data-host-id=\"${hostId}\"]`);\n\t\t\t\tif (row) {\n\t\t\t\t\trow.dataset.pendingCommand = command || '';\n\t\t\t\t\tapplyButtonStates(row);\n\t\t\t\t}\n\n\t\t\t\t// Update card\n\t\t\t\tconst card = document.querySelector(`.host-card[data-host-id=\"${hostId}\"]`);\n\t\t\t\tif (card) {\n\t\t\t\t\tcard.dataset.pendingCommand = command || '';\n\t\t\t\t\tapplyButtonStates(card);\n\t\t\t\t}\n\t\t\t}\n\n\t\t\tfunction applyButtonStates(container) {\n\t\t\t\tconst pending = container.dataset.pendingCommand;\n\t\t\t\tconst hostId = container.dataset.hostId;\n\t\t\t\tconst btns = container.querySelectorAll('button[data-command]');\n\t\t\t\t\n\t\t\t\tbtns.forEach(btn => {\n\t\t\t\t\tconst cmd = btn.dataset.command;\n\t\t\t\t\t\n\t\t\t\t\tif (cmd === 'test') {\n\t\t\t\t\t\t// Swap Test button with Stop button when command is running\n\t\t\t\t\t\tif (pending) {\n\t\t\t\t\t\t\tbtn.dataset.command = 'stop';\n\t\t\t\t\t\t\tbtn.onclick = function() { sendCommand(hostId, 'stop'); };\n\t\t\t\t\t\t\tbtn.disabled = false; // Stop is always enabled\n\t\t\t\t\t\t\tbtn.classList.add('btn-danger');\n\t\t\t\t\t\t\tbtn.innerHTML = '<svg class=\"icon\"><use href=\"#icon-stop\"></use></svg>' + \n\t\t\t\t\t\t\t\t(btn.textContent.includes('Test') ? ' Stop' : '');\n\t\t\t\t\t\t}\n\t\t\t\t\t} else if (cmd === 'stop') {\n\t\t\t\t\t\t// Swap Stop button back to Test when no command running\n\t\t\t\t\t\tif (!pending) {\n\t\t\t\t\t\t\tbtn.dataset.command = 'test';\n\t\t\t\t\t\t\tbtn.onclick = function() { sendCommand(hostId, 'test'); };\n\t\t\t\t\t\t\tbtn.classList.remove('btn-danger');\n\t\t\t\t\t\t\tbtn.innerHTML = '<svg class=\"icon\"><use href=\"#icon-flask\"></use></svg>' + \n\t\t\t\t\t\t\t\t(btn.textContent.includes('Stop') ? ' Test' : '');\n\t\t\t\t\t\t}\n\t\t\t\t\t\t// Stop button always enabled\n\t\t\t\t\t\tbtn.disabled = false;\n\t\t\t\t\t} else {\n\t\t\t\t\t\t// All other buttons disabled when pending\n\t\t\t\t\t\tbtn.disabled = !!pending;\n\t\t\t\t\t}\n\t\t\t\t});\n\n\t\t\t\t// Update progress badge (mini version next to status dot)\n\t\t\t\tconst wrapper = container.querySelector('.status-wrapper') || container.querySelector('.status-with-badge');\n\t\t\t\tif (!wrapper) return;\n\t\t\t\t\n\t\t\t\tlet badge = wrapper.querySelector('.progress-badge-mini');\n\t\t\t\tif (pending) {\n\t\t\t\t\tif (!badge) {\n\t\t\t\t\t\tbadge = document.createElement('span');\n\t\t\t\t\t\tbadge.className = 'progress-badge-mini';\n\t\t\t\t\t\twrapper.appendChild(badge);\n\t\t\t\t\t}\n\t\t\t\t\tbadge.textContent = pending;\n\t\t\t\t} else if (badge) {\n\t\t\t\t\tbadge.remove();\n\t\t\t\t}\n\t\t\t}\n\n\t\t\t// Delete host\n\t\t\tfunction deleteHost(hostId) {\n\t\t\t\tif (!confirm(`Delete host \"${hostId}\"? This cannot be undone.`)) {\n\t\t\t\t\treturn;\n\t\t\t\t}\n\t\t\t\tconst csrfToken = document.body.dataset.csrfToken;\n\t\t\t\tfetch(`/api/hosts/${hostId}`, {\n\t\t\t\t\tmethod: 'DELETE',\n\t\t\t\t\theaders: {\n\t\t\t\t\t\t'X-CSRF-Token': csrfToken\n\t\t\t\t\t}\n\t\t\t\t}).then(resp => {\n\t\t\t\t\tif (!resp.ok) {\n\t\t\t\t\t\treturn resp.text().then(text => { throw new Error(text); });\n\t\t\t\t\t}\n\t\t\t\t\treturn resp.json();\n\t\t\t\t}).then(data => {\n\t\t\t\t\tconsole.log('Host deleted:', data);\n\t\t\t\t\t// Remove host from DOM\n\t\t\t\t\tdocument.querySelectorAll(`[data-host-id=\"${hostId}\"]`).forEach(el => el.remove());\n\t\t\t\t}).catch(err => {\n\t\t\t\t\tconsole.error('Delete failed:', err);\n\t\t\t\t\talert('Delete failed: ' + err.message);\n\t\t\t\t});\n\t\t\t}\n\n\t\t\t// Alpine.js log viewer component\n\t\t\tdocument.addEventListener('alpine:init', () => {\n\t\t\t\tAlpine.data('logViewer', () => ({\n\t\t\t\t\topen: true,\n\t\t\t\t\tlines: [],\n\t\t\t\t\thostId: '',\n\t\t\t\t\tlineCounter: 0,\n\t\t\t\t\t// Progress tracking\n\t\t\t\t\tphase: '',\n\t\t\t\t\tphaseIcon: '',\n\t\t\t\t\tbuildCount: 0,\n\t\t\t\t\tbuildCurrent: 0,\n\n\t\t\t\t\tinit() {\n\t\t\t\t\t\twindow.addEventListener('log-line', (e) => {\n\t\t\t\t\t\t\tthis.addLine(e.detail);\n\t\t\t\t\t\t});\n\t\t\t\t\t\twindow.addEventListener('log-start', (e) => {\n\t\t\t\t\t\t\tthis.hostId = e.detail.hostId;\n\t\t\t\t\t\t\tthis.lines = [];\n\t\t\t\t\t\t\tthis.open = true;\n\t\t\t\t\t\t\tthis.resetProgress();\n\t\t\t\t\t\t});\n\t\t\t\t\t\twindow.addEventListener('log-complete', (e) => {\n\t\t\t\t\t\t\tthis.phase = e.detail.exit_code === 0 ? 'Complete' : 'Failed';\n\t\t\t\t\t\t\tthis.phaseIcon = e.detail.exit_code === 0 ? '✓' : '✗';\n\t\t\t\t\t\t\tthis.addLine({\n\t\t\t\t\t\t\t\tline: `\\n${this.phaseIcon} Command completed (exit code: ${e.detail.exit_code || 0})`,\n\t\t\t\t\t\t\t\tisSuccess: e.detail.exit_code === 0\n\t\t\t\t\t\t\t});\n\t\t\t\t\t\t});\n\t\t\t\t\t},\n\n\t\t\t\t\tresetProgress() {\n\t\t\t\t\t\tthis.phase = '';\n\t\t\t\t\t\tthis.phaseIcon = '';\n\t\t\t\t\t\tthis.buildCount = 0;\n\t\t\t\t\t\tthis.buildCurrent = 0;\n\t\t\t\t\t},\n\n\t\t\t\t\tparseProgress(line) {\n\t\t\t\t\t\t// NixOS rebuild phases\n\t\t\t\t\t\tif (line.includes('evaluating derivation')) {\n\t\t\t\t\t\t\tthis.phase = 'Evaluation';\n\t\t\t\t\t\t\tthis.phaseIcon = '→';\n\t\t\t\t\t\t} else if (line.includes('these derivations will be built')) {\n\t\t\t\t\t\t\t// Extract count: \"these 42 derivations will be built\"\n\t\t\t\t\t\t\tconst match = line.match(/these (\\d+) derivations/);\n\t\t\t\t\t\t\tif (match) this.buildCount = parseInt(match[1], 10);\n\t\t\t\t\t\t\tthis.phase = 'Building';\n\t\t\t\t\t\t\tthis.phaseIcon = '●';\n\t\t\t\t\t\t} else if (line.includes(\"building '/nix/store/\")) {\n\t\t\t\t\t\t\tthis.buildCurrent++;\n\t\t\t\t\t\t\tthis.phase = 'Building';\n\t\t\t\t\t\t\tthis.phaseIcon = '●';\n\t\t\t\t\t\t} else if (line.includes('activating the configuration')) {\n\t\t\t\t\t\t\tthis.phase = 'Activation';\n\t\t\t\t\t\t\tthis.phaseIcon = '▶';\n\t\t\t\t\t\t} else if (line.includes('switching to configuration')) {\n\t\t\t\t\t\t\tthis.phase = 'Switch';\n\t\t\t\t\t\t\tthis.phaseIcon = '→';\n\t\t\t\t\t\t} else if (line.includes('setting up /etc')) {\n\t\t\t\t\t\t\tthis.phase = 'Setup';\n\t\t\t\t\t\t\tthis.phaseIcon = '○';\n\t\t\t\t\t\t} else if (line.includes('will be fetched')) {\n\t\t\t\t\t\t\tthis.phase = 'Fetching';\n\t\t\t\t\t\t\tthis.phaseIcon = '↓';\n\t\t\t\t\t\t}\n\t\t\t\t\t},\n\n\t\t\t\t\ttoggle() {\n\t\t\t\t\t\tthis.open = !this.open;\n\t\t\t\t\t},\n\n\t\t\t\t\taddLine(payload) {\n\t\t\t\t\t\tconst text = payload.line;\n\t\t\t\t\t\tthis.parseProgress(text);\n\t\t\t\t\t\tthis.lines.push({\n\t\t\t\t\t\t\tid: ++this.lineCounter,\n\t\t\t\t\t\t\ttext: text,\n\t\t\t\t\t\t\tisError: payload.is_error || payload.stream === 'stderr',\n\t\t\t\t\t\t\tisSuccess: payload.isSuccess || false\n\t\t\t\t\t\t});\n\t\t\t\t\t\t// Auto-scroll\n\t\t\t\t\t\tthis.$nextTick(() => {\n\t\t\t\t\t\t\tconst el = this.$refs.logContent;\n\t\t\t\t\t\t\tif (el) el.scrollTop = el.scrollHeight;\n\t\t\t\t\t\t});\n\t\t\t\t\t}\n\t\t\t\t}));\n\t\t\t});\n\n\t\t\t// Format all last-seen cells on page load\n\t\t\tfunction initLastSeenCells() {\n\t\t\t\tdocument.querySelectorAll('[data-cell=\"last-seen\"]').forEach(cell => {\n\t\t\t\t\tconst timestamp = cell.dataset.timestamp;\n\t\t\t\t\tif (timestamp) {\n\t\t\t\t\t\tconst result = formatLastSeen(timestamp);\n\t\t\t\t\t\tcell.textContent = result.text;\n\t\t\t\t\t\tcell.className = result.className;\n\t\t\t\t\t}\n\t\t\t\t});\n\t\t\t}\n\n\t\t\t// Update last-seen cells every second for smooth counting\n\t\t\tfunction startLastSeenUpdater() {\n\t\t\t\tsetInterval(() => {\n\t\t\t\t\tdocument.querySelectorAll('[data-cell=\"last-seen\"]').forEach(cell => {\n\t\t\t\t\t\tconst timestamp = cell.dataset.timestamp;\n\t\t\t\t\t\tif (timestamp) {\n\t\t\t\t\t\t\tconst result = formatLastSeen(timestamp);\n\t\t\t\t\t\t\tcell.textContent = result.text;\n\t\t\t\t\t\t\tcell.className = result.className;\n\t\t\t\t\t\t}\n\t\t\t\t\t});\n\t\t\t\t}, 1000);\n\t\t\t}\n\n\t\t\t// ===== Dropdown Menu (P4380) =====\n\t\t\tfunction toggleDropdown(btn) {\n\t\t\t\tconst dropdown = btn.closest('.dropdown');\n\t\t\t\tconst wasOpen = dropdown.classList.contains('open');\n\t\t\t\t\n\t\t\t\t// Close all dropdowns first\n\t\t\t\tdocument.querySelectorAll('.dropdown.open').forEach(d => d.classList.remove('open'));\n\t\t\t\t\n\t\t\t\t// Toggle this one\n\t\t\t\tif (!wasOpen) {\n\t\t\t\t\tdropdown.classList.add('open');\n\t\t\t\t}\n\t\t\t}\n\n\t\t\t// Close dropdowns when clicking outside\n\t\t\tdocument.addEventListener('click', (e) => {\n\t\t\t\tif (!e.target.closest('.dropdown')) {\n\t\t\t\t\tdocument.querySelectorAll('.dropdown.open').forEach(d => d.classList.remove('open'));\n\t\t\t\t}\n\t\t\t});\n\n\t\t\t// Close dropdowns on Escape key\n\t\t\tdocument.addEventListener('keydown', (e) => {\n\t\t\t\tif (e.key === 'Escape') {\n\t\t\t\t\tdocument.querySelectorAll('.dropdown.open').forEach(d => d.classList.remove('open'));\n\t\t\t\t\tdocument.querySelectorAll('.modal-overlay.open').forEach(m => m.classList.remove('open'));\n\t\t\t\t\tcloseBulkMenu();\n\t\t\t\t}\n\t\t\t});\n\n\t\t\t// ===== Bulk Actions Menu =====\n\t\t\tfunction toggleBulkMenu(e) {\n\t\t\t\te.stopPropagation();\n\t\t\t\tconst menu = document.getElementById('bulk-actions-menu');\n\t\t\t\tmenu.classList.toggle('open');\n\t\t\t}\n\n\t\t\tfunction closeBulkMenu() {\n\t\t\t\tconst menu = document.getElementById('bulk-actions-menu');\n\t\t\t\tif (menu) menu.classList.remove('open');\n\t\t\t}\n\n\t\t\t// Close bulk menu when clicking outside\n\t\t\tdocument.addEventListener('click', (e) => {\n\t\t\t\tif (!e.target.closest('.bulk-actions-dropdown')) {\n\t\t\t\t\tcloseBulkMenu();\n\t\t\t\t}\n\t\t\t});\n\n\t\t\tfunction unlockActions(btn) {\n\t\t\t\tconst hostId = btn.dataset.hostId;\n\t\t\t\tsetHostBusy(hostId, null);\n\t\t\t\t// Close dropdown\n\t\t\t\tbtn.closest('.dropdown').classList.remove('open');\n\t\t\t}\n\n\t\t\tfunction downloadLogs(hostId) {\n\t\t\t\twindow.open(`/api/hosts/${hostId}/logs?download=true`, '_blank');\n\t\t\t}\n\n\t\t\t// ===== Modal Functions (P4390) =====\n\t\t\tlet pendingRemoveHostId = null;\n\n\t\t\tfunction confirmRemoveHost(hostId, hostname) {\n\t\t\t\tpendingRemoveHostId = hostId;\n\t\t\t\tdocument.getElementById('removeHostName').textContent = hostname;\n\t\t\t\tdocument.getElementById('removeHostModal').classList.add('open');\n\t\t\t\t// Close dropdown\n\t\t\t\tdocument.querySelectorAll('.dropdown.open').forEach(d => d.classList.remove('open'));\n\t\t\t}\n\n\t\t\tfunction doRemoveHost() {\n\t\t\t\tif (!pendingRemoveHostId) return;\n\t\t\t\t\n\t\t\t\tconst csrfToken = document.body.dataset.csrfToken;\n\t\t\t\tfetch(`/api/hosts/${pendingRemoveHostId}`, {\n\t\t\t\t\tmethod: 'DELETE',\n\t\t\t\t\theaders: { 'X-CSRF-Token': csrfToken }\n\t\t\t\t}).then(resp => {\n\t\t\t\t\tif (!resp.ok) throw new Error('Failed to remove host');\n\t\t\t\t\treturn resp.json();\n\t\t\t\t}).then(() => {\n\t\t\t\t\tdocument.querySelectorAll(`[data-host-id=\"${pendingRemoveHostId}\"]`).forEach(el => el.remove());\n\t\t\t\t\tcloseModal('removeHostModal');\n\t\t\t\t}).catch(err => {\n\t\t\t\t\talert('Failed to remove host: ' + err.message);\n\t\t\t\t});\n\t\t\t}\n\n\t\t\tfunction closeModal(modalId) {\n\t\t\t\tdocument.getElementById(modalId).classList.remove('open');\n\t\t\t\tpendingRemoveHostId = null;\n\t\t\t}\n\n\t\t\tfunction openAddHostModal() {\n\t\t\t\tdocument.getElementById('addHostModal').classList.add('open');\n\t\t\t}\n\n\t\t\tfunction doAddHost() {\n\t\t\t\tconst form = document.getElementById('addHostForm');\n\t\t\t\tconst formData = new FormData(form);\n\t\t\t\tconst data = Object.fromEntries(formData.entries());\n\t\t\t\t\n\t\t\t\tconst csrfToken = document.body.dataset.csrfToken;\n\t\t\t\tfetch('/api/hosts', {\n\t\t\t\t\tmethod: 'POST',\n\t\t\t\t\theaders: {\n\t\t\t\t\t\t'Content-Type': 'application/json',\n\t\t\t\t\t\t'X-CSRF-Token': csrfToken\n\t\t\t\t\t},\n\t\t\t\t\tbody: JSON.stringify(data)\n\t\t\t\t}).then(resp => {\n\t\t\t\t\tif (!resp.ok) throw new Error('Failed to add host');\n\t\t\t\t\treturn resp.json();\n\t\t\t\t}).then(() => {\n\t\t\t\t\tcloseModal('addHostModal');\n\t\t\t\t\twindow.location.reload();\n\t\t\t\t}).catch(err => {\n\t\t\t\t\talert('Failed to add host: ' + err.message);\n\t\t\t\t});\n\t\t\t}\n\n\t\t\t// Close modal on overlay click\n\t\t\tdocument.querySelectorAll('.modal-overlay').forEach(overlay => {\n\t\t\t\toverlay.addEventListener('click', (e) => {\n\t\t\t\t\tif (e.target === overlay) {\n\t\t\t\t\t\toverlay.classList.remove('open');\n\t\t\t\t\t}\n\t\t\t\t});\n\t\t\t});\n\n\t\t\t// ===== Bulk Actions (P5000) =====\n\t\t\tfunction bulkCommand(command) {\n\t\t\t\tconst onlineHosts = document.querySelectorAll('tr[data-host-id]:not(.host-offline)');\n\t\t\t\tif (onlineHosts.length === 0) {\n\t\t\t\t\talert('No online hosts to send command to');\n\t\t\t\t\treturn;\n\t\t\t\t}\n\n\t\t\t\tconst confirmMsg = `Send \"${command}\" to ${onlineHosts.length} online host(s)?`;\n\t\t\t\tif (!confirm(confirmMsg)) return;\n\n\t\t\t\tonlineHosts.forEach(row => {\n\t\t\t\t\tconst hostId = row.dataset.hostId;\n\t\t\t\t\tif (command === 'update') {\n\t\t\t\t\t\t// Update = pull then switch (sequential via promise chain would be complex, just do both)\n\t\t\t\t\t\tsendCommand(hostId, 'pull');\n\t\t\t\t\t\t// Note: In a real implementation, you'd wait for pull to complete before switch\n\t\t\t\t\t} else {\n\t\t\t\t\t\tsendCommand(hostId, command);\n\t\t\t\t\t}\n\t\t\t\t});\n\t\t\t}\n\n\t\t\t// ===== Update Status Refresh (P5000) =====\n\t\t\tfunction refreshStatus(compartment, statusType) {\n\t\t\t\tconst hostId = compartment.closest('.update-status').dataset.hostId;\n\t\t\t\tconsole.log(`Refreshing ${statusType} status for ${hostId}`);\n\t\t\t\t\n\t\t\t\t// For Lock compartment, also check for flake update PRs (P5300)\n\t\t\t\tif (statusType === 'lock') {\n\t\t\t\t\tcheckForUpdates();\n\t\t\t\t}\n\t\t\t\t\n\t\t\t\t// Show visual feedback\n\t\t\t\tcompartment.classList.add('unknown');\n\t\t\t\tsetTimeout(() => {\n\t\t\t\t\tcompartment.classList.remove('unknown');\n\t\t\t\t}, 2000);\n\t\t\t}\n\n\t\t\t// ===== Check for Flake Updates (P5300) =====\n\t\t\tfunction checkForUpdates() {\n\t\t\t\tfetch('/api/flake-updates/check', {\n\t\t\t\t\tmethod: 'POST',\n\t\t\t\t\theaders: {\n\t\t\t\t\t\t'Content-Type': 'application/json',\n\t\t\t\t\t\t'X-CSRF-Token': window.csrfToken\n\t\t\t\t\t}\n\t\t\t\t})\n\t\t\t\t.then(resp => {\n\t\t\t\t\tif (!resp.ok) {\n\t\t\t\t\t\tif (resp.status === 501) {\n\t\t\t\t\t\t\tconsole.log('GitHub integration not configured');\n\t\t\t\t\t\t\treturn null;\n\t\t\t\t\t\t}\n\t\t\t\t\t\tthrow new Error('Failed to check for updates');\n\t\t\t\t\t}\n\t\t\t\t\treturn resp.json();\n\t\t\t\t})\n\t\t\t\t.then(data => {\n\t\t\t\t\tif (data && data.pending_pr) {\n\t\t\t\t\t\thandleFlakeUpdatePR({ pending_pr: data.pending_pr });\n\t\t\t\t\t}\n\t\t\t\t})\n\t\t\t\t.catch(err => {\n\t\t\t\t\tconsole.error('Check for updates failed:', err);\n\t\t\t\t});\n\t\t\t}\n\n\t\t\t// Initialize page\n\t\t\tinitLastSeenCells();\n\t\t\tstartLastSeenUpdater();\n\t\t\tconnectWebSocket();\n\t\t</script>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "</span> <a href=\"https://github.com/markus-barta/nixfleet\" class=\"footer-link\" target=\"_blank\" rel=\"noopener\"><svg class=\"icon\"><use href=\"#icon-github\"></use></svg> Source</a> <a href=\"https://www.gnu.org/licenses/agpl-3.0.html\" class=\"footer-link\" target=\"_blank\" rel=\"noopener\"><svg class=\"icon\"><use href=\"#icon-license\"></use></svg> AGPL-3.0</a></div><div class=\"footer-right\"><span class=\"made-with\">Made with <svg class=\"icon heart\"><use href=\"#icon-heart\"></use></svg> by <a href=\"https://x.com/markusbarta\" target=\"_blank\" rel=\"noopener\">&#64;markusbarta</a>, Claude &amp; Cursor</span></div></footer><!-- WebSocket and Alpine.js logic - P7000 Unified Host State Management --> <script>\n\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\t// CONSTANTS\n\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\tconst HEARTBEAT_INTERVAL = parseInt(document.getElementById('config').dataset.heartbeatInterval) || 5;\n\t\t\tconst CSRF_TOKEN = document.body.dataset.csrfToken;\n\n\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\t// GLOBAL STATE (non-host-specific)\n\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\tconst globalState = {\n\t\t\t\tpendingPR: null, // { number, title, url, mergeable } or null\n\t\t\t\twsConnected: false\n\t\t\t};\n\n\t\t\t// Hydrate globalState from config\n\t\t\t(function hydrateGlobalState() {\n\t\t\t\tconst prData = document.getElementById('config').dataset.pendingPr;\n\t\t\t\tif (prData && prData !== 'null') {\n\t\t\t\t\ttry {\n\t\t\t\t\t\tglobalState.pendingPR = JSON.parse(prData);\n\t\t\t\t\t} catch (e) {\n\t\t\t\t\t\tconsole.warn('Failed to parse pendingPR:', e);\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t})();\n\n\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\t// HOST STORE (Single Source of Truth) - P7000\n\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\tconst hostStore = {\n\t\t\t\t_hosts: new Map(),\n\n\t\t\t\t// Initialize store from server-rendered DOM\n\t\t\t\thydrate() {\n\t\t\t\t\tdocument.querySelectorAll('tr[data-host-id]').forEach((row) => {\n\t\t\t\t\t\tconst id = row.dataset.hostId;\n\t\t\t\t\t\tif (this._hosts.has(id)) return;\n\n\t\t\t\t\t\t// Cache element references for O(1) access\n\t\t\t\t\t\tconst card = document.querySelector(`.host-card[data-host-id=\"${id}\"]`);\n\n\t\t\t\t\t\tthis._hosts.set(id, {\n\t\t\t\t\t\t\t// Identity\n\t\t\t\t\t\t\tid: id,\n\t\t\t\t\t\t\thostname: row.dataset.hostname || id,\n\t\t\t\t\t\t\thostType: row.dataset.hostType || 'nixos',\n\t\t\t\t\t\t\tthemeColor: row.dataset.themeColor || '#7aa2f7',\n\n\t\t\t\t\t\t\t// State\n\t\t\t\t\t\t\tonline: !row.classList.contains('host-offline'),\n\t\t\t\t\t\t\tlastSeen: row.querySelector('[data-cell=\"last-seen\"]')?.dataset.timestamp || null,\n\t\t\t\t\t\t\tpendingCommand: row.dataset.pendingCommand || null,\n\n\t\t\t\t\t\t\t// Data\n\t\t\t\t\t\t\tmetrics: this._parseMetrics(row),\n\t\t\t\t\t\t\tupdateStatus: this._parseUpdateStatus(row),\n\t\t\t\t\t\t\tgeneration: row.dataset.generation || null,\n\t\t\t\t\t\t\tagentVersion: row.dataset.agentVersion || null,\n\t\t\t\t\t\t\tagentOutdated: row.dataset.agentOutdated === 'true',\n\n\t\t\t\t\t\t\t// Cached DOM references\n\t\t\t\t\t\t\t_elements: { row, card }\n\t\t\t\t\t\t});\n\t\t\t\t\t});\n\t\t\t\t\tconsole.log(`hostStore: hydrated ${this._hosts.size} hosts`);\n\t\t\t\t},\n\n\t\t\t\t_parseMetrics(row) {\n\t\t\t\t\tconst cell = row.querySelector('[data-cell=\"metrics\"]');\n\t\t\t\t\tif (!cell) return null;\n\t\t\t\t\tconst cpu = cell.querySelector('[data-metric=\"cpu\"]');\n\t\t\t\t\tconst ram = cell.querySelector('[data-metric=\"ram\"]');\n\t\t\t\t\tif (!cpu && !ram) return null;\n\t\t\t\t\treturn {\n\t\t\t\t\t\tcpu: parseFloat(cpu?.dataset.value) || 0,\n\t\t\t\t\t\tram: parseFloat(ram?.dataset.value) || 0,\n\t\t\t\t\t\tswap: parseFloat(ram?.dataset.swap) || 0,\n\t\t\t\t\t\tload: parseFloat(ram?.dataset.load) || 0\n\t\t\t\t\t};\n\t\t\t\t},\n\n\t\t\t\t_parseUpdateStatus(row) {\n\t\t\t\t\tconst container = row.querySelector('.update-status');\n\t\t\t\t\tif (!container) return null;\n\t\t\t\t\ttry {\n\t\t\t\t\t\treturn {\n\t\t\t\t\t\t\tgit: JSON.parse(container.dataset.git || 'null'),\n\t\t\t\t\t\t\tlock: JSON.parse(container.dataset.lock || 'null'),\n\t\t\t\t\t\t\tsystem: JSON.parse(container.dataset.system || 'null'),\n\t\t\t\t\t\t\trepoUrl: container.dataset.repoUrl || '',\n\t\t\t\t\t\t\trepoDir: container.dataset.repoDir || ''\n\t\t\t\t\t\t};\n\t\t\t\t\t} catch (e) {\n\t\t\t\t\t\tconsole.warn('Failed to parse updateStatus:', e);\n\t\t\t\t\t\treturn null;\n\t\t\t\t\t}\n\t\t\t\t},\n\n\t\t\t\tget(id) {\n\t\t\t\t\treturn this._hosts.get(id);\n\t\t\t\t},\n\n\t\t\t\tall() {\n\t\t\t\t\treturn Array.from(this._hosts.values());\n\t\t\t\t},\n\n\t\t\t\t// Update host state and trigger render\n\t\t\t\tupdate(id, patch) {\n\t\t\t\t\tconst current = this._hosts.get(id);\n\t\t\t\t\tif (!current) {\n\t\t\t\t\t\tconsole.warn(`hostStore: unknown host ${id}`);\n\t\t\t\t\t\treturn;\n\t\t\t\t\t}\n\n\t\t\t\t\t// Start with shallow merge\n\t\t\t\t\tconst next = { ...current, ...patch };\n\n\t\t\t\t\t// Deep merge for known nested objects\n\t\t\t\t\tif (patch.metrics && current.metrics) {\n\t\t\t\t\t\tnext.metrics = { ...current.metrics, ...patch.metrics };\n\t\t\t\t\t}\n\t\t\t\t\tif (patch.updateStatus && current.updateStatus) {\n\t\t\t\t\t\tnext.updateStatus = { ...current.updateStatus, ...patch.updateStatus };\n\t\t\t\t\t}\n\n\t\t\t\t\t// Preserve cached elements\n\t\t\t\t\tnext._elements = current._elements;\n\n\t\t\t\t\tthis._hosts.set(id, next);\n\t\t\t\t\trenderHost(id);\n\t\t\t\t},\n\n\t\t\t\tsetOffline(id) {\n\t\t\t\t\tthis.update(id, { online: false, pendingCommand: null });\n\t\t\t\t}\n\t\t\t};\n\n\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\t// RENDER (Single Render Function) - P7000\n\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\tfunction renderHost(hostId) {\n\t\t\t\tconst host = hostStore.get(hostId);\n\t\t\t\tif (!host) return;\n\n\t\t\t\t// Derived state\n\t\t\t\tconst isOnline = host.online;\n\t\t\t\tconst isBusy = !!host.pendingCommand;\n\t\t\t\tconst buttonsEnabled = isOnline && !isBusy;\n\n\t\t\t\t// Use cached element references\n\t\t\t\tconst { row, card } = host._elements || {};\n\n\t\t\t\t[row, card].filter(Boolean).forEach((el) => {\n\t\t\t\t\t// 1. Offline class\n\t\t\t\t\tel.classList.toggle('host-offline', !isOnline);\n\n\t\t\t\t\t// 2. Status indicator (ripple/dot)\n\t\t\t\t\trenderStatusIndicator(el, isOnline, isBusy);\n\n\t\t\t\t\t// 3. Progress badge\n\t\t\t\t\trenderProgressBadge(el, host.pendingCommand);\n\n\t\t\t\t\t// 4. Metrics\n\t\t\t\t\tif (host.metrics) {\n\t\t\t\t\t\trenderMetrics(el, host.metrics);\n\t\t\t\t\t}\n\n\t\t\t\t\t// 5. Update status compartments\n\t\t\t\t\tif (host.updateStatus) {\n\t\t\t\t\t\trenderUpdateStatus(el, host);\n\t\t\t\t\t}\n\n\t\t\t\t\t// 6. Button states: swap between cmd-buttons and stop button\n\t\t\t\t\tconst cmdButtons = el.querySelector('.cmd-buttons');\n\t\t\t\t\tconst stopBtn = el.querySelector('.btn-stop');\n\t\t\t\t\tif (cmdButtons) {\n\t\t\t\t\t\tcmdButtons.style.display = isBusy ? 'none' : '';\n\t\t\t\t\t\tcmdButtons.querySelectorAll('button').forEach(btn => {\n\t\t\t\t\t\t\tbtn.disabled = !buttonsEnabled;\n\t\t\t\t\t\t});\n\t\t\t\t\t}\n\t\t\t\t\tif (stopBtn) {\n\t\t\t\t\t\tstopBtn.style.display = isBusy ? '' : 'none';\n\t\t\t\t\t}\n\n\t\t\t\t\t// 7. Last seen\n\t\t\t\t\tconst lastSeenCell = el.querySelector('[data-cell=\"last-seen\"]');\n\t\t\t\t\tif (lastSeenCell && host.lastSeen) {\n\t\t\t\t\t\tlastSeenCell.dataset.timestamp = host.lastSeen;\n\t\t\t\t\t\tconst result = formatLastSeen(host.lastSeen);\n\t\t\t\t\t\tlastSeenCell.textContent = result.text;\n\t\t\t\t\t\tlastSeenCell.className = result.className;\n\t\t\t\t\t}\n\t\t\t\t});\n\t\t\t}\n\n\t\t\t// Helper: Render status indicator\n\t\t\tfunction renderStatusIndicator(el, isOnline, isBusy) {\n\t\t\t\tconst wrapper = el.querySelector('.status-wrapper') || el.querySelector('.status-with-badge');\n\t\t\t\tif (!wrapper) return;\n\n\t\t\t\tconst existing = wrapper.querySelector('.status-ripple, .status-dot');\n\n\t\t\t\tlet html;\n\t\t\t\tif (isOnline && !isBusy) {\n\t\t\t\t\tif (existing?.classList.contains('status-ripple')) {\n\t\t\t\t\t\ttriggerHeartbeat(existing);\n\t\t\t\t\t\treturn;\n\t\t\t\t\t}\n\t\t\t\t\thtml = '<span class=\"status-ripple\"><span class=\"hb-wave\"></span><span class=\"hb-wave\"></span><span class=\"hb-wave\"></span><span class=\"hb-core\"></span></span>';\n\t\t\t\t} else if (isBusy) {\n\t\t\t\t\thtml = '<span class=\"status-dot status-running\"></span>';\n\t\t\t\t} else {\n\t\t\t\t\thtml = '<span class=\"status-dot status-offline\"></span>';\n\t\t\t\t}\n\n\t\t\t\tif (existing) {\n\t\t\t\t\tconst temp = document.createElement('div');\n\t\t\t\t\ttemp.innerHTML = html;\n\t\t\t\t\texisting.replaceWith(temp.firstChild);\n\t\t\t\t\tif (isOnline && !isBusy) {\n\t\t\t\t\t\ttriggerHeartbeat(wrapper.querySelector('.status-ripple'));\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t}\n\n\t\t\t// Helper: Render progress badge\n\t\t\tfunction renderProgressBadge(el, pendingCommand) {\n\t\t\t\tconst wrapper = el.querySelector('.status-wrapper') || el.querySelector('.status-with-badge');\n\t\t\t\tif (!wrapper) return;\n\n\t\t\t\tlet badge = wrapper.querySelector('.progress-badge-mini');\n\t\t\t\tif (pendingCommand) {\n\t\t\t\t\tif (!badge) {\n\t\t\t\t\t\tbadge = document.createElement('span');\n\t\t\t\t\t\tbadge.className = 'progress-badge-mini';\n\t\t\t\t\t\twrapper.appendChild(badge);\n\t\t\t\t\t}\n\t\t\t\t\tbadge.textContent = pendingCommand;\n\t\t\t\t} else if (badge) {\n\t\t\t\t\tbadge.remove();\n\t\t\t\t}\n\t\t\t}\n\n\t\t\t// Helper: Render metrics\n\t\t\tfunction renderMetrics(el, metrics) {\n\t\t\t\tconst cell = el.querySelector('[data-cell=\"metrics\"]');\n\t\t\t\tif (!cell) return;\n\n\t\t\t\tconst cpuEl = cell.querySelector('[data-metric=\"cpu\"]');\n\t\t\t\tconst ramEl = cell.querySelector('[data-metric=\"ram\"]');\n\n\t\t\t\tif (cpuEl) {\n\t\t\t\t\tconst val = cpuEl.querySelector('.metric-val');\n\t\t\t\t\tif (val) val.textContent = Math.round(metrics.cpu) + '%';\n\t\t\t\t\tcpuEl.classList.toggle('metric-high', metrics.cpu >= 80);\n\t\t\t\t\tcpuEl.dataset.value = metrics.cpu;\n\t\t\t\t}\n\n\t\t\t\tif (ramEl) {\n\t\t\t\t\tconst val = ramEl.querySelector('.metric-val');\n\t\t\t\t\tif (val) val.textContent = Math.round(metrics.ram) + '%';\n\t\t\t\t\tramEl.classList.toggle('metric-high', metrics.ram >= 80);\n\t\t\t\t\tramEl.dataset.value = metrics.ram;\n\t\t\t\t\tramEl.dataset.swap = metrics.swap;\n\t\t\t\t\tramEl.dataset.load = metrics.load;\n\t\t\t\t\tramEl.title = `RAM: ${Math.round(metrics.ram)}%, Swap: ${Math.round(metrics.swap)}%, Load: ${metrics.load.toFixed(2)}`;\n\t\t\t\t}\n\n\t\t\t\t// Replace \"—\" placeholder if needed\n\t\t\t\tconst naSpan = cell.querySelector('.metrics-na');\n\t\t\t\tif (naSpan) {\n\t\t\t\t\tcell.innerHTML = `\n\t\t\t\t\t\t<span class=\"metric\" data-metric=\"cpu\" data-value=\"${metrics.cpu}\">\n\t\t\t\t\t\t\t<svg class=\"metric-icon\"><use href=\"#icon-cpu\"></use></svg>\n\t\t\t\t\t\t\t<span class=\"metric-val\">${Math.round(metrics.cpu)}%</span>\n\t\t\t\t\t\t</span>\n\t\t\t\t\t\t<span class=\"metric\" data-metric=\"ram\" data-value=\"${metrics.ram}\">\n\t\t\t\t\t\t\t<svg class=\"metric-icon\"><use href=\"#icon-ram\"></use></svg>\n\t\t\t\t\t\t\t<span class=\"metric-val\">${Math.round(metrics.ram)}%</span>\n\t\t\t\t\t\t</span>\n\t\t\t\t\t`;\n\t\t\t\t}\n\t\t\t}\n\n\t\t\t// Helper: Render update status compartments\n\t\t\t// P5100: Simplified - compartment styling constant, only indicator dot shows status\n\t\t\tfunction renderUpdateStatus(el, host) {\n\t\t\t\tconst container = el.querySelector('.update-status');\n\t\t\t\tif (!container) return;\n\n\t\t\t\tconst status = host.updateStatus;\n\t\t\t\tif (!status) return;\n\n\t\t\t\tconst compartments = container.querySelectorAll('.update-compartment');\n\n\t\t\t\t['git', 'lock', 'system'].forEach((type, i) => {\n\t\t\t\t\tconst comp = compartments[i];\n\t\t\t\t\tif (!comp) return;\n\n\t\t\t\t\tconst check = status[type];\n\t\t\t\t\t\n\t\t\t\t\t// P5100: Only add 'unknown' class for dimming, no other state classes\n\t\t\t\t\tcomp.className = 'update-compartment';\n\t\t\t\t\tif (!check || !check.status || check.status === 'unknown') {\n\t\t\t\t\t\tcomp.classList.add('unknown');\n\t\t\t\t\t}\n\n\t\t\t\t\t// Update indicator dot - this is the ONLY status signal\n\t\t\t\t\tconst indicator = comp.querySelector('.compartment-indicator');\n\t\t\t\t\tif (indicator && check) {\n\t\t\t\t\t\tindicator.className = 'compartment-indicator';\n\t\t\t\t\t\t// Map status to CSS class (outdated → warning to match server-side)\n\t\t\t\t\t\tconst cssStatus = check.status === 'outdated' ? 'warning' : (check.status || 'unknown');\n\t\t\t\t\t\tindicator.classList.add(`compartment-indicator--${cssStatus}`);\n\t\t\t\t\t}\n\n\t\t\t\t\t// Lock-specific: agent outdated overrides indicator to error (red)\n\t\t\t\t\tif (type === 'lock') {\n\t\t\t\t\t\tif (indicator && host.agentOutdated) {\n\t\t\t\t\t\t\tindicator.className = 'compartment-indicator compartment-indicator--error';\n\t\t\t\t\t\t}\n\t\t\t\t\t\t// Pending PR indicator (small dot at top-right)\n\t\t\t\t\t\tcomp.classList.toggle('has-pr', !!globalState.pendingPR);\n\t\t\t\t\t}\n\t\t\t\t});\n\t\t\t}\n\n\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\t// REFRESH HOST (On-demand API call) - P7000\n\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\tasync function refreshHost(hostId) {\n\t\t\t\tconst host = hostStore.get(hostId);\n\t\t\t\tlet btn = host?._elements?.row?.querySelector('.btn-refresh');\n\t\t\t\tif (!btn) {\n\t\t\t\t\tbtn = document.querySelector(`button.btn-refresh[data-host-id=\"${hostId}\"]`);\n\t\t\t\t}\n\t\t\t\tif (btn) btn.classList.add('loading');\n\n\t\t\t\ttry {\n\t\t\t\t\tconst resp = await fetch(`/api/hosts/${hostId}/refresh`, {\n\t\t\t\t\t\tmethod: 'POST',\n\t\t\t\t\t\theaders: {\n\t\t\t\t\t\t\t'Content-Type': 'application/json',\n\t\t\t\t\t\t\t'X-CSRF-Token': CSRF_TOKEN\n\t\t\t\t\t\t}\n\t\t\t\t\t});\n\n\t\t\t\t\tif (resp.status === 404) {\n\t\t\t\t\t\tconsole.warn(`Host ${hostId} not found`);\n\t\t\t\t\t\treturn;\n\t\t\t\t\t}\n\n\t\t\t\t\tif (!resp.ok) {\n\t\t\t\t\t\tconsole.error(`Refresh failed: ${resp.status} ${resp.statusText}`);\n\t\t\t\t\t\treturn;\n\t\t\t\t\t}\n\n\t\t\t\t\tconst data = await resp.json();\n\n\t\t\t\t\t// Update store with fresh data\n\t\t\t\t\thostStore.update(hostId, {\n\t\t\t\t\t\tonline: data.online,\n\t\t\t\t\t\tgeneration: data.generation,\n\t\t\t\t\t\tagentVersion: data.agent_version,\n\t\t\t\t\t\tagentOutdated: data.agent_outdated,\n\t\t\t\t\t\tupdateStatus: data.update_status\n\t\t\t\t\t});\n\n\t\t\t\t\t// Update global PR state if included\n\t\t\t\t\tif (data.pending_pr !== undefined) {\n\t\t\t\t\t\tglobalState.pendingPR = data.pending_pr;\n\t\t\t\t\t}\n\n\t\t\t\t} catch (err) {\n\t\t\t\t\tconsole.error('Refresh failed:', err);\n\t\t\t\t} finally {\n\t\t\t\t\tif (btn) btn.classList.remove('loading');\n\t\t\t\t}\n\t\t\t}\n\n\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\t// WEBSOCKET - P7000 Simplified Messages\n\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\tlet ws = null;\n\t\t\tlet reconnectAttempts = 0;\n\t\t\tconst maxReconnectDelay = 30000;\n\n\t\t\tfunction connectWebSocket() {\n\t\t\t\tconst protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';\n\t\t\t\tws = new WebSocket(`${protocol}//${window.location.host}/ws`);\n\n\t\t\t\tws.onopen = () => {\n\t\t\t\t\tconsole.log('WebSocket connected');\n\t\t\t\t\treconnectAttempts = 0;\n\t\t\t\t\tupdateConnectionStatus(true);\n\t\t\t\t};\n\n\t\t\t\tws.onclose = () => {\n\t\t\t\t\tconsole.log('WebSocket disconnected');\n\t\t\t\t\tupdateConnectionStatus(false);\n\t\t\t\t\tscheduleReconnect();\n\t\t\t\t};\n\n\t\t\t\tws.onerror = (err) => {\n\t\t\t\t\tconsole.error('WebSocket error:', err);\n\t\t\t\t};\n\n\t\t\t\tws.onmessage = (event) => {\n\t\t\t\t\ttry {\n\t\t\t\t\t\tconst msg = JSON.parse(event.data);\n\t\t\t\t\t\thandleMessage(msg);\n\t\t\t\t\t} catch (e) {\n\t\t\t\t\t\tconsole.error('Failed to parse message:', e);\n\t\t\t\t\t}\n\t\t\t\t};\n\t\t\t}\n\n\t\t\tfunction updateConnectionStatus(connected) {\n\t\t\t\tglobalState.wsConnected = connected;\n\t\t\t\tconst el = document.getElementById('ws-status');\n\t\t\t\tif (connected) {\n\t\t\t\t\tel.className = 'connection-indicator connected';\n\t\t\t\t\tel.innerHTML = '<span class=\"status-dot status-online\"></span> Connected';\n\t\t\t\t} else {\n\t\t\t\t\tel.className = 'connection-indicator disconnected';\n\t\t\t\t\tel.innerHTML = '<span class=\"status-dot status-offline\"></span> Disconnected';\n\t\t\t\t}\n\t\t\t}\n\n\t\t\tfunction scheduleReconnect() {\n\t\t\t\treconnectAttempts++;\n\t\t\t\tconst delay = Math.min(1000 * Math.pow(2, reconnectAttempts), maxReconnectDelay);\n\t\t\t\tconsole.log(`Reconnecting in ${delay}ms...`);\n\t\t\t\tsetTimeout(connectWebSocket, delay);\n\t\t\t}\n\n\t\t\t// P7000: Simplified message handler\n\t\t\tfunction handleMessage(msg) {\n\t\t\t\tif (!msg || !msg.type) {\n\t\t\t\t\tconsole.warn('Invalid message:', msg);\n\t\t\t\t\treturn;\n\t\t\t\t}\n\n\t\t\t\tconst payload = msg.payload || {};\n\t\t\t\tconst hostId = payload.host_id;\n\n\t\t\t\tswitch (msg.type) {\n\t\t\t\t\tcase 'host_heartbeat':\n\t\t\t\t\t\tif (!hostId) return;\n\t\t\t\t\t\thostStore.update(hostId, {\n\t\t\t\t\t\t\tonline: true,\n\t\t\t\t\t\t\tlastSeen: payload.last_seen,\n\t\t\t\t\t\t\tmetrics: payload.metrics\n\t\t\t\t\t\t});\n\t\t\t\t\t\tbreak;\n\n\t\t\t\t\tcase 'host_offline':\n\t\t\t\t\t\tif (!hostId) return;\n\t\t\t\t\t\thostStore.setOffline(hostId);\n\t\t\t\t\t\tbreak;\n\n\t\t\t\t\tcase 'command_queued':\n\t\t\t\t\t\tif (!hostId) return;\n\t\t\t\t\t\thostStore.update(hostId, {\n\t\t\t\t\t\t\tpendingCommand: payload.command\n\t\t\t\t\t\t});\n\t\t\t\t\t\tshowLogPanel(hostId);\n\t\t\t\t\t\tbreak;\n\n\t\t\t\t\tcase 'command_output':\n\t\t\t\t\t\tappendLog(payload);\n\t\t\t\t\t\tbreak;\n\n\t\t\t\t\tcase 'command_complete':\n\t\t\t\t\t\tif (!hostId) return;\n\t\t\t\t\t\thostStore.update(hostId, {\n\t\t\t\t\t\t\tpendingCommand: null\n\t\t\t\t\t\t});\n\t\t\t\t\t\twindow.dispatchEvent(new CustomEvent('log-complete', { detail: payload }));\n\t\t\t\t\t\tbreak;\n\n\t\t\t\t\tcase 'flake_update_job':\n\t\t\t\t\t\t// Keep for deployment progress display\n\t\t\t\t\t\thandleFlakeUpdateJob(payload);\n\t\t\t\t\t\tbreak;\n\n\t\t\t\t\tdefault:\n\t\t\t\t\t\tconsole.debug('Unknown WS message type:', msg.type);\n\t\t\t\t}\n\t\t\t}\n\n\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\t// ACTIONS (User-initiated)\n\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\tfunction sendCommand(hostId, command) {\n\t\t\t\t// Immediate UI feedback\n\t\t\t\thostStore.update(hostId, { pendingCommand: command });\n\n\t\t\t\tfetch(`/api/hosts/${hostId}/command`, {\n\t\t\t\t\tmethod: 'POST',\n\t\t\t\t\theaders: {\n\t\t\t\t\t\t'Content-Type': 'application/json',\n\t\t\t\t\t\t'X-CSRF-Token': CSRF_TOKEN\n\t\t\t\t\t},\n\t\t\t\t\tbody: JSON.stringify({ command })\n\t\t\t\t}).then(resp => {\n\t\t\t\t\tif (!resp.ok) {\n\t\t\t\t\t\treturn resp.text().then(text => { throw new Error(text); });\n\t\t\t\t\t}\n\t\t\t\t\treturn resp.json();\n\t\t\t\t}).then(data => {\n\t\t\t\t\tconsole.log('Command queued:', data);\n\t\t\t\t}).catch(err => {\n\t\t\t\t\tconsole.error('Command failed:', err);\n\t\t\t\t\talert('Command failed: ' + err.message);\n\t\t\t\t\thostStore.update(hostId, { pendingCommand: null });\n\t\t\t\t});\n\t\t\t}\n\n\t\t\tfunction mergeAndDeploy(prNumber) {\n\t\t\t\tif (!confirm('Merge PR #' + prNumber + ' and deploy to all online hosts?')) return;\n\n\t\t\t\tfetch('/api/flake-updates/merge-and-deploy', {\n\t\t\t\t\tmethod: 'POST',\n\t\t\t\t\theaders: {\n\t\t\t\t\t\t'Content-Type': 'application/json',\n\t\t\t\t\t\t'X-CSRF-Token': CSRF_TOKEN\n\t\t\t\t\t},\n\t\t\t\t\tbody: JSON.stringify({ pr_number: prNumber })\n\t\t\t\t})\n\t\t\t\t.then(resp => {\n\t\t\t\t\tif (!resp.ok) throw new Error('Failed to start deployment');\n\t\t\t\t\treturn resp.json();\n\t\t\t\t})\n\t\t\t\t.then(data => {\n\t\t\t\t\tconsole.log('Deployment started:', data.job_id);\n\t\t\t\t})\n\t\t\t\t.catch(err => {\n\t\t\t\t\talert('Failed to start deployment: ' + err.message);\n\t\t\t\t});\n\t\t\t}\n\n\t\t\tfunction bulkCommand(command) {\n\t\t\t\tconst onlineHosts = hostStore.all().filter(h => h.online);\n\t\t\t\tif (onlineHosts.length === 0) {\n\t\t\t\t\talert('No online hosts to send command to');\n\t\t\t\t\treturn;\n\t\t\t\t}\n\n\t\t\t\tconst confirmMsg = `Send \"${command}\" to ${onlineHosts.length} online host(s)?`;\n\t\t\t\tif (!confirm(confirmMsg)) return;\n\n\t\t\t\tonlineHosts.forEach(host => {\n\t\t\t\t\tif (command === 'update') {\n\t\t\t\t\t\tsendCommand(host.id, 'pull');\n\t\t\t\t\t} else {\n\t\t\t\t\t\tsendCommand(host.id, command);\n\t\t\t\t\t}\n\t\t\t\t});\n\t\t\t}\n\n\t\t\tfunction deleteHost(hostId) {\n\t\t\t\tif (!confirm(`Delete host \"${hostId}\"? This cannot be undone.`)) {\n\t\t\t\t\treturn;\n\t\t\t\t}\n\t\t\t\tfetch(`/api/hosts/${hostId}`, {\n\t\t\t\t\tmethod: 'DELETE',\n\t\t\t\t\theaders: { 'X-CSRF-Token': CSRF_TOKEN }\n\t\t\t\t}).then(resp => {\n\t\t\t\t\tif (!resp.ok) {\n\t\t\t\t\t\treturn resp.text().then(text => { throw new Error(text); });\n\t\t\t\t\t}\n\t\t\t\t\treturn resp.json();\n\t\t\t\t}).then(data => {\n\t\t\t\t\tconsole.log('Host deleted:', data);\n\t\t\t\t\tdocument.querySelectorAll(`[data-host-id=\"${hostId}\"]`).forEach(el => el.remove());\n\t\t\t\t}).catch(err => {\n\t\t\t\t\tconsole.error('Delete failed:', err);\n\t\t\t\t\talert('Delete failed: ' + err.message);\n\t\t\t\t});\n\t\t\t}\n\n\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\t// LOG PANEL (Alpine.js component - unchanged)\n\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\tfunction appendLog(payload) {\n\t\t\t\twindow.dispatchEvent(new CustomEvent('log-line', { detail: payload }));\n\t\t\t}\n\n\t\t\tfunction showLogPanel(hostId) {\n\t\t\t\tconst panel = document.getElementById('log-panel');\n\t\t\t\tpanel.classList.remove('hidden');\n\t\t\t\twindow.dispatchEvent(new CustomEvent('log-start', { detail: { hostId } }));\n\t\t\t}\n\n\t\t\tdocument.addEventListener('alpine:init', () => {\n\t\t\t\tAlpine.data('logViewer', () => ({\n\t\t\t\t\topen: true,\n\t\t\t\t\tlines: [],\n\t\t\t\t\thostId: '',\n\t\t\t\t\tlineCounter: 0,\n\t\t\t\t\tphase: '',\n\t\t\t\t\tphaseIcon: '',\n\t\t\t\t\tbuildCount: 0,\n\t\t\t\t\tbuildCurrent: 0,\n\n\t\t\t\t\tinit() {\n\t\t\t\t\t\twindow.addEventListener('log-line', (e) => this.addLine(e.detail));\n\t\t\t\t\t\twindow.addEventListener('log-start', (e) => {\n\t\t\t\t\t\t\tthis.hostId = e.detail.hostId;\n\t\t\t\t\t\t\tthis.lines = [];\n\t\t\t\t\t\t\tthis.open = true;\n\t\t\t\t\t\t\tthis.resetProgress();\n\t\t\t\t\t\t});\n\t\t\t\t\t\twindow.addEventListener('log-complete', (e) => {\n\t\t\t\t\t\t\tthis.phase = e.detail.exit_code === 0 ? 'Complete' : 'Failed';\n\t\t\t\t\t\t\tthis.phaseIcon = e.detail.exit_code === 0 ? '✓' : '✗';\n\t\t\t\t\t\t\tthis.addLine({\n\t\t\t\t\t\t\t\tline: `\\n${this.phaseIcon} Command completed (exit code: ${e.detail.exit_code || 0})`,\n\t\t\t\t\t\t\t\tisSuccess: e.detail.exit_code === 0\n\t\t\t\t\t\t\t});\n\t\t\t\t\t\t});\n\t\t\t\t\t},\n\n\t\t\t\t\tresetProgress() {\n\t\t\t\t\t\tthis.phase = '';\n\t\t\t\t\t\tthis.phaseIcon = '';\n\t\t\t\t\t\tthis.buildCount = 0;\n\t\t\t\t\t\tthis.buildCurrent = 0;\n\t\t\t\t\t},\n\n\t\t\t\t\tparseProgress(line) {\n\t\t\t\t\t\tif (line.includes('evaluating derivation')) {\n\t\t\t\t\t\t\tthis.phase = 'Evaluation';\n\t\t\t\t\t\t\tthis.phaseIcon = '→';\n\t\t\t\t\t\t} else if (line.includes('these derivations will be built')) {\n\t\t\t\t\t\t\tconst match = line.match(/these (\\d+) derivations/);\n\t\t\t\t\t\t\tif (match) this.buildCount = parseInt(match[1], 10);\n\t\t\t\t\t\t\tthis.phase = 'Building';\n\t\t\t\t\t\t\tthis.phaseIcon = '●';\n\t\t\t\t\t\t} else if (line.includes(\"building '/nix/store/\")) {\n\t\t\t\t\t\t\tthis.buildCurrent++;\n\t\t\t\t\t\t\tthis.phase = 'Building';\n\t\t\t\t\t\t\tthis.phaseIcon = '●';\n\t\t\t\t\t\t} else if (line.includes('activating the configuration')) {\n\t\t\t\t\t\t\tthis.phase = 'Activation';\n\t\t\t\t\t\t\tthis.phaseIcon = '▶';\n\t\t\t\t\t\t} else if (line.includes('switching to configuration')) {\n\t\t\t\t\t\t\tthis.phase = 'Switch';\n\t\t\t\t\t\t\tthis.phaseIcon = '→';\n\t\t\t\t\t\t} else if (line.includes('setting up /etc')) {\n\t\t\t\t\t\t\tthis.phase = 'Setup';\n\t\t\t\t\t\t\tthis.phaseIcon = '○';\n\t\t\t\t\t\t} else if (line.includes('will be fetched')) {\n\t\t\t\t\t\t\tthis.phase = 'Fetching';\n\t\t\t\t\t\t\tthis.phaseIcon = '↓';\n\t\t\t\t\t\t}\n\t\t\t\t\t},\n\n\t\t\t\t\ttoggle() { this.open = !this.open; },\n\n\t\t\t\t\taddLine(payload) {\n\t\t\t\t\t\tconst text = payload.line;\n\t\t\t\t\t\tthis.parseProgress(text);\n\t\t\t\t\t\tthis.lines.push({\n\t\t\t\t\t\t\tid: ++this.lineCounter,\n\t\t\t\t\t\t\ttext: text,\n\t\t\t\t\t\t\tisError: payload.is_error || payload.stream === 'stderr',\n\t\t\t\t\t\t\tisSuccess: payload.isSuccess || false\n\t\t\t\t\t\t});\n\t\t\t\t\t\tthis.$nextTick(() => {\n\t\t\t\t\t\t\tconst el = this.$refs.logContent;\n\t\t\t\t\t\t\tif (el) el.scrollTop = el.scrollHeight;\n\t\t\t\t\t\t});\n\t\t\t\t\t}\n\t\t\t\t}));\n\t\t\t});\n\n\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\t// UTILITIES\n\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\tfunction formatLastSeen(isoString) {\n\t\t\t\tif (!isoString) return { text: '—', className: '' };\n\n\t\t\t\tconst date = new Date(isoString);\n\t\t\t\tconst now = new Date();\n\t\t\t\tconst diffMs = now - date;\n\t\t\t\tconst diffSec = Math.max(0, Math.floor(diffMs / 1000));\n\n\t\t\t\tlet text;\n\t\t\t\tif (diffSec < 60) {\n\t\t\t\t\ttext = diffSec + 's';\n\t\t\t\t} else if (diffSec < 3600) {\n\t\t\t\t\ttext = Math.floor(diffSec / 60) + 'm';\n\t\t\t\t} else if (diffSec < 86400) {\n\t\t\t\t\ttext = Math.floor(diffSec / 3600) + 'h';\n\t\t\t\t} else {\n\t\t\t\t\ttext = Math.floor(diffSec / 86400) + 'd';\n\t\t\t\t}\n\n\t\t\t\tlet className;\n\t\t\t\tif (diffSec <= HEARTBEAT_INTERVAL * 2) {\n\t\t\t\t\tclassName = 'last-seen-ok';\n\t\t\t\t} else if (diffSec <= HEARTBEAT_INTERVAL * 10) {\n\t\t\t\t\tclassName = 'last-seen-warn';\n\t\t\t\t} else {\n\t\t\t\t\tclassName = 'last-seen-stale';\n\t\t\t\t}\n\n\t\t\t\treturn { text, className };\n\t\t\t}\n\n\t\t\tfunction triggerHeartbeat(rippleEl) {\n\t\t\t\tif (!rippleEl) return;\n\t\t\t\trippleEl.classList.add('heartbeat');\n\t\t\t\tsetTimeout(() => rippleEl.classList.remove('heartbeat'), 1500);\n\t\t\t}\n\n\t\t\tfunction handleFlakeUpdateJob(job) {\n\t\t\t\t// Could show a toast or banner for deploy progress\n\t\t\t\tconsole.log('Flake update job:', job.state, job.message);\n\t\t\t}\n\n\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\t// MODALS & DROPDOWNS (Keep existing, no changes)\n\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\tfunction toggleDropdown(btn) {\n\t\t\t\tconst dropdown = btn.closest('.dropdown');\n\t\t\t\tconst wasOpen = dropdown.classList.contains('open');\n\t\t\t\tdocument.querySelectorAll('.dropdown.open').forEach(d => d.classList.remove('open'));\n\t\t\t\tif (!wasOpen) dropdown.classList.add('open');\n\t\t\t}\n\n\t\t\tdocument.addEventListener('click', (e) => {\n\t\t\t\tif (!e.target.closest('.dropdown')) {\n\t\t\t\t\tdocument.querySelectorAll('.dropdown.open').forEach(d => d.classList.remove('open'));\n\t\t\t\t}\n\t\t\t});\n\n\t\t\tdocument.addEventListener('keydown', (e) => {\n\t\t\t\tif (e.key === 'Escape') {\n\t\t\t\t\tdocument.querySelectorAll('.dropdown.open').forEach(d => d.classList.remove('open'));\n\t\t\t\t\tdocument.querySelectorAll('.modal-overlay.open').forEach(m => m.classList.remove('open'));\n\t\t\t\t\tcloseBulkMenu();\n\t\t\t\t}\n\t\t\t});\n\n\t\t\tfunction toggleBulkMenu(e) {\n\t\t\t\te.stopPropagation();\n\t\t\t\tconst menu = document.getElementById('bulk-actions-menu');\n\t\t\t\tmenu.classList.toggle('open');\n\t\t\t}\n\n\t\t\tfunction closeBulkMenu() {\n\t\t\t\tconst menu = document.getElementById('bulk-actions-menu');\n\t\t\t\tif (menu) menu.classList.remove('open');\n\t\t\t}\n\n\t\t\tdocument.addEventListener('click', (e) => {\n\t\t\t\tif (!e.target.closest('.bulk-actions-dropdown')) {\n\t\t\t\t\tcloseBulkMenu();\n\t\t\t\t}\n\t\t\t});\n\n\t\t\tfunction unlockActions(btn) {\n\t\t\t\tconst hostId = btn.dataset.hostId;\n\t\t\t\thostStore.update(hostId, { pendingCommand: null });\n\t\t\t\tbtn.closest('.dropdown').classList.remove('open');\n\t\t\t}\n\n\t\t\tfunction downloadLogs(hostId) {\n\t\t\t\twindow.open(`/api/hosts/${hostId}/logs?download=true`, '_blank');\n\t\t\t}\n\n\t\t\tlet pendingRemoveHostId = null;\n\n\t\t\tfunction confirmRemoveHost(hostId, hostname) {\n\t\t\t\tpendingRemoveHostId = hostId;\n\t\t\t\tdocument.getElementById('removeHostName').textContent = hostname;\n\t\t\t\tdocument.getElementById('removeHostModal').classList.add('open');\n\t\t\t\tdocument.querySelectorAll('.dropdown.open').forEach(d => d.classList.remove('open'));\n\t\t\t}\n\n\t\t\tfunction doRemoveHost() {\n\t\t\t\tif (!pendingRemoveHostId) return;\n\t\t\t\tfetch(`/api/hosts/${pendingRemoveHostId}`, {\n\t\t\t\t\tmethod: 'DELETE',\n\t\t\t\t\theaders: { 'X-CSRF-Token': CSRF_TOKEN }\n\t\t\t\t}).then(resp => {\n\t\t\t\t\tif (!resp.ok) throw new Error('Failed to remove host');\n\t\t\t\t\treturn resp.json();\n\t\t\t\t}).then(() => {\n\t\t\t\t\tdocument.querySelectorAll(`[data-host-id=\"${pendingRemoveHostId}\"]`).forEach(el => el.remove());\n\t\t\t\t\tcloseModal('removeHostModal');\n\t\t\t\t}).catch(err => {\n\t\t\t\t\talert('Failed to remove host: ' + err.message);\n\t\t\t\t});\n\t\t\t}\n\n\t\t\tfunction closeModal(modalId) {\n\t\t\t\tdocument.getElementById(modalId).classList.remove('open');\n\t\t\t\tpendingRemoveHostId = null;\n\t\t\t}\n\n\t\t\tfunction openAddHostModal() {\n\t\t\t\tdocument.getElementById('addHostModal').classList.add('open');\n\t\t\t}\n\n\t\t\tfunction doAddHost() {\n\t\t\t\tconst form = document.getElementById('addHostForm');\n\t\t\t\tconst formData = new FormData(form);\n\t\t\t\tconst data = Object.fromEntries(formData.entries());\n\t\t\t\tfetch('/api/hosts', {\n\t\t\t\t\tmethod: 'POST',\n\t\t\t\t\theaders: {\n\t\t\t\t\t\t'Content-Type': 'application/json',\n\t\t\t\t\t\t'X-CSRF-Token': CSRF_TOKEN\n\t\t\t\t\t},\n\t\t\t\t\tbody: JSON.stringify(data)\n\t\t\t\t}).then(resp => {\n\t\t\t\t\tif (!resp.ok) throw new Error('Failed to add host');\n\t\t\t\t\treturn resp.json();\n\t\t\t\t}).then(() => {\n\t\t\t\t\tcloseModal('addHostModal');\n\t\t\t\t\twindow.location.reload();\n\t\t\t\t}).catch(err => {\n\t\t\t\t\talert('Failed to add host: ' + err.message);\n\t\t\t\t});\n\t\t\t}\n\n\t\t\tdocument.querySelectorAll('.modal-overlay').forEach(overlay => {\n\t\t\t\toverlay.addEventListener('click', (e) => {\n\t\t\t\t\tif (e.target === overlay) overlay.classList.remove('open');\n\t\t\t\t});\n\t\t\t});\n\n\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\t// INIT - P7000\n\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\thostStore.hydrate();\n\t\t\tconnectWebSocket();\n\n\t\t\t// Update last-seen every second\n\t\t\tsetInterval(() => {\n\t\t\t\thostStore.all().forEach(host => {\n\t\t\t\t\tif (host.lastSeen) {\n\t\t\t\t\t\tconst { row, card } = host._elements || {};\n\t\t\t\t\t\t[row, card].filter(Boolean).forEach(el => {\n\t\t\t\t\t\t\tconst cell = el.querySelector('[data-cell=\"last-seen\"]');\n\t\t\t\t\t\t\tif (cell) {\n\t\t\t\t\t\t\t\tconst result = formatLastSeen(host.lastSeen);\n\t\t\t\t\t\t\t\tcell.textContent = result.text;\n\t\t\t\t\t\t\t\tcell.className = result.className;\n\t\t\t\t\t\t\t}\n\t\t\t\t\t\t});\n\t\t\t\t\t}\n\t\t\t\t});\n\t\t\t}, 1000);\n\t\t</script>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -313,118 +340,118 @@ func FleetTargetLine(target FleetTarget) templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var10 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var10 == nil {
-			templ_7745c5c3_Var10 = templ.NopComponent
+		templ_7745c5c3_Var13 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var13 == nil {
+			templ_7745c5c3_Var13 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "<div class=\"fleet-target\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "<div class=\"fleet-target\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if target.HasData {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "<span class=\"target-label\">Target:</span> <svg class=\"target-icon\"><use href=\"#icon-git-branch\"></use></svg> <a href=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "<span class=\"target-label\">Target:</span> <svg class=\"target-icon\"><use href=\"#icon-git-branch\"></use></svg> <a href=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var11 templ.SafeURL
-			templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL("https://github.com/" + target.RepoURL + "/commit/" + target.GitFull))
+			var templ_7745c5c3_Var14 templ.SafeURL
+			templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL("https://github.com/" + target.RepoURL + "/commit/" + target.GitFull))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1327, Col: 94}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "\" target=\"_blank\" rel=\"noopener\" class=\"target-commit\" title=\"")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			var templ_7745c5c3_Var12 string
-			templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs("Latest commit: " + target.Message)
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1331, Col: 46}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "\">")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			var templ_7745c5c3_Var13 string
-			templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(target.GitCommit)
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1333, Col: 22}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "</a> <span class=\"target-branch\">(")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			var templ_7745c5c3_Var14 string
-			templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinStringErrs(target.Branch)
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1335, Col: 47}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1182, Col: 94}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var14))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, ", ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "\" target=\"_blank\" rel=\"noopener\" class=\"target-commit\" title=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var15 string
-			templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(target.TimeAgo)
+			templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs("Latest commit: " + target.Message)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1335, Col: 67}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1186, Col: 46}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, ")</span> <span class=\"target-separator\">•</span> <span class=\"target-agent\" title=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var16 string
-			templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinStringErrs("Expected agent version: " + target.AgentVer)
+			templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinStringErrs(target.GitCommit)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1337, Col: 82}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1188, Col: 22}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "</a> <span class=\"target-branch\">(")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var17 string
-			templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(target.AgentVer)
+			templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(target.Branch)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1337, Col: 102}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1190, Col: 47}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "</span>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, ", ")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var18 string
+			templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(target.TimeAgo)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1190, Col: 67}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, ")</span> <span class=\"target-separator\">•</span> <span class=\"target-agent\" title=\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var19 string
+			templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.JoinStringErrs("Expected agent version: " + target.AgentVer)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1192, Col: 82}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var19))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "\">")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var20 string
+			templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.JoinStringErrs(target.AgentVer)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1192, Col: 102}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var20))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "</span>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "<span class=\"target-label\">Target:</span> <span class=\"target-unavailable\">Version tracking not configured</span>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 26, "<span class=\"target-label\">Target:</span> <span class=\"target-unavailable\">Version tracking not configured</span>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 26, "</div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 27, "</div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -432,115 +459,7 @@ func FleetTargetLine(target FleetTarget) templ.Component {
 	})
 }
 
-// FlakeUpdateBanner renders the pending PR banner (P5300)
-func FlakeUpdateBanner(pr *PendingPR, csrfToken string) templ.Component {
-	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
-		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
-		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
-			return templ_7745c5c3_CtxErr
-		}
-		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
-		if !templ_7745c5c3_IsBuffer {
-			defer func() {
-				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
-				if templ_7745c5c3_Err == nil {
-					templ_7745c5c3_Err = templ_7745c5c3_BufErr
-				}
-			}()
-		}
-		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var18 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var18 == nil {
-			templ_7745c5c3_Var18 = templ.NopComponent
-		}
-		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 27, "<div class=\"flake-update-content\" data-pr-number=\"")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var19 string
-		templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(pr.Number))
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1347, Col: 75}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var19))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 28, "\"><svg class=\"flake-update-icon\"><use href=\"#icon-refresh\"></use></svg> <span class=\"flake-update-text\">Update available: <a href=\"")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var20 templ.SafeURL
-		templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(pr.URL))
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1351, Col: 34}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var20))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 29, "\" target=\"_blank\" rel=\"noopener\">#")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var21 string
-		templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(pr.Number))
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1352, Col: 30}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var21))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 30, "</a> — ")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var22 string
-		templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.JoinStringErrs(pr.Title)
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1354, Col: 17}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var22))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 31, "</span> ")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		if pr.Mergeable {
-			templ_7745c5c3_Err = templ.RenderScriptItems(ctx, templ_7745c5c3_Buffer, templ.ComponentScript{Call: fmt.Sprintf("mergeAndDeploy(%d)", pr.Number)})
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 32, "<button class=\"btn btn-primary btn-sm\" onclick=\"")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			var templ_7745c5c3_Var23 templ.ComponentScript = templ.ComponentScript{Call: fmt.Sprintf("mergeAndDeploy(%d)", pr.Number)}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var23.Call)
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 33, "\"><svg class=\"icon\"><use href=\"#icon-check\"></use></svg> Merge & Deploy</button> ")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 34, "<button class=\"btn btn-secondary btn-sm\" disabled title=\"PR has conflicts or is not mergeable\"><svg class=\"icon\"><use href=\"#icon-alert\"></use></svg> Not Mergeable</button> ")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 35, "<button class=\"btn btn-secondary btn-sm\" onclick=\"dismissFlakeUpdate()\">Dismiss</button></div>")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		return nil
-	})
-}
+// P7000: FlakeUpdateBanner removed - functionality moved to Bulk Actions dropdown
 
 // HostCard renders a host as a card (mobile view)
 func HostCard(host Host, csrfToken string) templ.Component {
@@ -559,43 +478,43 @@ func HostCard(host Host, csrfToken string) templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var24 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var24 == nil {
-			templ_7745c5c3_Var24 = templ.NopComponent
+		templ_7745c5c3_Var21 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var21 == nil {
+			templ_7745c5c3_Var21 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		var templ_7745c5c3_Var25 = []any{"host-card", templ.KV("host-offline", !host.Online)}
-		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var25...)
+		var templ_7745c5c3_Var22 = []any{"host-card", templ.KV("host-offline", !host.Online)}
+		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var22...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 36, "<div class=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 28, "<div class=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var26 string
-		templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var25).String())
+		var templ_7745c5c3_Var23 string
+		templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var22).String())
 		if templ_7745c5c3_Err != nil {
 			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1, Col: 0}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var26))
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var23))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 37, "\" data-host-id=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 29, "\" data-host-id=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var27 string
-		templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.JoinStringErrs(host.ID)
+		var templ_7745c5c3_Var24 string
+		templ_7745c5c3_Var24, templ_7745c5c3_Err = templ.JoinStringErrs(host.ID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1375, Col: 90}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1204, Col: 90}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var27))
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var24))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 38, "\" x-data=\"{ expanded: false }\"><div class=\"host-card-header\" @click=\"expanded = !expanded\"><div class=\"host-name\"><span class=\"status-with-badge\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 30, "\" x-data=\"{ expanded: false }\"><div class=\"host-card-header\" @click=\"expanded = !expanded\"><div class=\"host-name\"><span class=\"status-with-badge\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -604,51 +523,51 @@ func HostCard(host Host, csrfToken string) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if host.PendingCommand != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 39, "<span class=\"progress-badge-mini\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 31, "<span class=\"progress-badge-mini\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var28 string
-			templ_7745c5c3_Var28, templ_7745c5c3_Err = templ.JoinStringErrs(host.PendingCommand)
+			var templ_7745c5c3_Var25 string
+			templ_7745c5c3_Var25, templ_7745c5c3_Err = templ.JoinStringErrs(host.PendingCommand)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1381, Col: 61}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1210, Col: 61}
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var28))
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 40, "</span>")
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var25))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 32, "</span>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 41, "</span> <span style=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 33, "</span> <span style=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var29 string
-		templ_7745c5c3_Var29, templ_7745c5c3_Err = templruntime.SanitizeStyleAttributeValues(hostColorStyle(host))
+		var templ_7745c5c3_Var26 string
+		templ_7745c5c3_Var26, templ_7745c5c3_Err = templruntime.SanitizeStyleAttributeValues(hostColorStyle(host))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1384, Col: 38}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1213, Col: 38}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var29))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 42, "\">")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var26))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var30 string
-		templ_7745c5c3_Var30, templ_7745c5c3_Err = templ.JoinStringErrs(host.Hostname)
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1384, Col: 56}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var30))
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 34, "\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 43, "</span></div><span class=\"chevron\" :class=\"{ 'expanded': expanded }\">▼</span></div><div class=\"host-card-body\" x-show=\"expanded\" x-collapse><div class=\"host-card-row\"><span class=\"host-card-label\">Type</span> <span style=\"display: flex; align-items: center; gap: 0.5rem;\">")
+		var templ_7745c5c3_Var27 string
+		templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.JoinStringErrs(host.Hostname)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1213, Col: 56}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var27))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 35, "</span></div><span class=\"chevron\" :class=\"{ 'expanded': expanded }\">▼</span></div><div class=\"host-card-body\" x-show=\"expanded\" x-collapse><div class=\"host-card-row\"><span class=\"host-card-label\">Type</span> <span style=\"display: flex; align-items: center; gap: 0.5rem;\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -656,16 +575,16 @@ func HostCard(host Host, csrfToken string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var31 string
-		templ_7745c5c3_Var31, templ_7745c5c3_Err = templ.JoinStringErrs(host.HostType)
+		var templ_7745c5c3_Var28 string
+		templ_7745c5c3_Var28, templ_7745c5c3_Err = templ.JoinStringErrs(host.HostType)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1393, Col: 20}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1222, Col: 20}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var31))
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var28))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 44, "</span></div><div class=\"host-card-row\"><span class=\"host-card-label\">Location</span> <span style=\"display: flex; align-items: center; gap: 0.5rem;\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 36, "</span></div><div class=\"host-card-row\"><span class=\"host-card-label\">Location</span> <span style=\"display: flex; align-items: center; gap: 0.5rem;\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -673,16 +592,16 @@ func HostCard(host Host, csrfToken string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var32 string
-		templ_7745c5c3_Var32, templ_7745c5c3_Err = templ.JoinStringErrs(host.Location)
+		var templ_7745c5c3_Var29 string
+		templ_7745c5c3_Var29, templ_7745c5c3_Err = templ.JoinStringErrs(host.Location)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1400, Col: 20}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1229, Col: 20}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var32))
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var29))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 45, "</span></div><div class=\"host-card-row\"><span class=\"host-card-label\">Device</span> <span style=\"display: flex; align-items: center; gap: 0.5rem;\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 37, "</span></div><div class=\"host-card-row\"><span class=\"host-card-label\">Device</span> <span style=\"display: flex; align-items: center; gap: 0.5rem;\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -690,30 +609,65 @@ func HostCard(host Host, csrfToken string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var33 string
-		templ_7745c5c3_Var33, templ_7745c5c3_Err = templ.JoinStringErrs(host.DeviceType)
+		var templ_7745c5c3_Var30 string
+		templ_7745c5c3_Var30, templ_7745c5c3_Err = templ.JoinStringErrs(host.DeviceType)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1407, Col: 22}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1236, Col: 22}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var33))
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var30))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 46, "</span></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 38, "</span></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if host.Metrics != nil {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 47, "<div class=\"host-card-row\"><span class=\"host-card-label\">Metrics</span> <span class=\"metrics-cell\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 39, "<div class=\"host-card-row\"><span class=\"host-card-label\">Metrics</span> <span class=\"metrics-cell\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var34 = []any{metricsClass("cpu", host.Metrics.CPU)}
+			var templ_7745c5c3_Var31 = []any{metricsClass("cpu", host.Metrics.CPU)}
+			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var31...)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 40, "<span class=\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var32 string
+			templ_7745c5c3_Var32, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var31).String())
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1, Col: 0}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var32))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 41, "\"><svg class=\"metric-icon\"><use href=\"#icon-cpu\"></use></svg><span class=\"metric-val\">")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var33 string
+			templ_7745c5c3_Var33, templ_7745c5c3_Err = templ.JoinStringErrs(formatPercent(host.Metrics.CPU))
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1243, Col: 177}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var33))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 42, "</span></span> ")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var34 = []any{metricsClass("ram", host.Metrics.RAM)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var34...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 48, "<span class=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 43, "<span class=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -726,74 +680,39 @@ func HostCard(host Host, csrfToken string) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 49, "\"><svg class=\"metric-icon\"><use href=\"#icon-cpu\"></use></svg><span class=\"metric-val\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 44, "\"><svg class=\"metric-icon\"><use href=\"#icon-ram\"></use></svg><span class=\"metric-val\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var36 string
-			templ_7745c5c3_Var36, templ_7745c5c3_Err = templ.JoinStringErrs(formatPercent(host.Metrics.CPU))
+			templ_7745c5c3_Var36, templ_7745c5c3_Err = templ.JoinStringErrs(formatPercent(host.Metrics.RAM))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1414, Col: 177}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1244, Col: 177}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var36))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 50, "</span></span> ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 45, "</span></span> <span class=\"metric\"><span class=\"metric-val\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var37 = []any{metricsClass("ram", host.Metrics.RAM)}
-			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var37...)
+			var templ_7745c5c3_Var37 string
+			templ_7745c5c3_Var37, templ_7745c5c3_Err = templ.JoinStringErrs(formatLoad(host.Metrics.Load))
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1245, Col: 83}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var37))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 51, "<span class=\"")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			var templ_7745c5c3_Var38 string
-			templ_7745c5c3_Var38, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var37).String())
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1, Col: 0}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var38))
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 52, "\"><svg class=\"metric-icon\"><use href=\"#icon-ram\"></use></svg><span class=\"metric-val\">")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			var templ_7745c5c3_Var39 string
-			templ_7745c5c3_Var39, templ_7745c5c3_Err = templ.JoinStringErrs(formatPercent(host.Metrics.RAM))
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1415, Col: 177}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var39))
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 53, "</span></span> <span class=\"metric\"><span class=\"metric-val\">")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			var templ_7745c5c3_Var40 string
-			templ_7745c5c3_Var40, templ_7745c5c3_Err = templ.JoinStringErrs(formatLoad(host.Metrics.Load))
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1416, Col: 83}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var40))
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 54, "</span></span></span></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 46, "</span></span></span></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
 		if host.TestProgress != nil {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 55, "<div class=\"host-card-row\"><span class=\"host-card-label\">Tests</span>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 47, "<div class=\"host-card-row\"><span class=\"host-card-label\">Tests</span>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -801,77 +720,77 @@ func HostCard(host Host, csrfToken string) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 56, "</div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 48, "</div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 57, "<div class=\"host-card-row\"><span class=\"host-card-label\">OS Version</span> <span>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 49, "<div class=\"host-card-row\"><span class=\"host-card-label\">OS Version</span> <span>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var38 string
+		templ_7745c5c3_Var38, templ_7745c5c3_Err = templ.JoinStringErrs(valueOrDash(host.OSVersion))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1257, Col: 39}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var38))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 50, "</span></div><div class=\"host-card-row\"><span class=\"host-card-label\">Generation</span> <span>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var39 string
+		templ_7745c5c3_Var39, templ_7745c5c3_Err = templ.JoinStringErrs(valueOrDash(host.Generation))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1261, Col: 40}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var39))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 51, "</span></div><div class=\"host-card-row\"><span class=\"host-card-label\">Agent</span> <span>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var40 string
+		templ_7745c5c3_Var40, templ_7745c5c3_Err = templ.JoinStringErrs(valueOrDash(host.AgentVersion))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1265, Col: 42}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var40))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 52, "</span></div><div class=\"host-card-row\"><span class=\"host-card-label\">Last Seen</span> <span data-cell=\"last-seen\" data-timestamp=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var41 string
-		templ_7745c5c3_Var41, templ_7745c5c3_Err = templ.JoinStringErrs(valueOrDash(host.OSVersion))
+		templ_7745c5c3_Var41, templ_7745c5c3_Err = templ.JoinStringErrs(host.LastSeen)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1428, Col: 39}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1269, Col: 62}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var41))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 58, "</span></div><div class=\"host-card-row\"><span class=\"host-card-label\">Generation</span> <span>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 53, "\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var42 string
-		templ_7745c5c3_Var42, templ_7745c5c3_Err = templ.JoinStringErrs(valueOrDash(host.Generation))
+		templ_7745c5c3_Var42, templ_7745c5c3_Err = templ.JoinStringErrs(valueOrDash(host.LastSeen))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1432, Col: 40}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1269, Col: 93}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var42))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 59, "</span></div><div class=\"host-card-row\"><span class=\"host-card-label\">Agent</span> <span>")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var43 string
-		templ_7745c5c3_Var43, templ_7745c5c3_Err = templ.JoinStringErrs(valueOrDash(host.AgentVersion))
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1436, Col: 42}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var43))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 60, "</span></div><div class=\"host-card-row\"><span class=\"host-card-label\">Last Seen</span> <span data-cell=\"last-seen\" data-timestamp=\"")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var44 string
-		templ_7745c5c3_Var44, templ_7745c5c3_Err = templ.JoinStringErrs(host.LastSeen)
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1440, Col: 62}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var44))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 61, "\">")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var45 string
-		templ_7745c5c3_Var45, templ_7745c5c3_Err = templ.JoinStringErrs(valueOrDash(host.LastSeen))
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1440, Col: 93}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var45))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 62, "</span></div><div class=\"host-card-actions\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 54, "</span></div><div class=\"host-card-actions\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -891,7 +810,7 @@ func HostCard(host Host, csrfToken string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 63, "</div></div></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 55, "</div></div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -900,6 +819,7 @@ func HostCard(host Host, csrfToken string) templ.Component {
 }
 
 // HostRow renders a host as a table row (desktop view)
+// P7000: data-* attributes for client-side hydration
 func HostRow(host Host, csrfToken string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -916,43 +836,134 @@ func HostRow(host Host, csrfToken string) templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var46 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var46 == nil {
-			templ_7745c5c3_Var46 = templ.NopComponent
+		templ_7745c5c3_Var43 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var43 == nil {
+			templ_7745c5c3_Var43 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		var templ_7745c5c3_Var47 = []any{templ.KV("host-offline", !host.Online)}
-		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var47...)
+		var templ_7745c5c3_Var44 = []any{templ.KV("host-offline", !host.Online)}
+		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var44...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 64, "<tr data-host-id=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 56, "<tr data-host-id=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var45 string
+		templ_7745c5c3_Var45, templ_7745c5c3_Err = templ.JoinStringErrs(host.ID)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1285, Col: 24}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var45))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 57, "\" data-hostname=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var46 string
+		templ_7745c5c3_Var46, templ_7745c5c3_Err = templ.JoinStringErrs(host.Hostname)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1286, Col: 31}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var46))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 58, "\" data-host-type=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var47 string
+		templ_7745c5c3_Var47, templ_7745c5c3_Err = templ.JoinStringErrs(host.HostType)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1287, Col: 32}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var47))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 59, "\" data-theme-color=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var48 string
-		templ_7745c5c3_Var48, templ_7745c5c3_Err = templ.JoinStringErrs(host.ID)
+		templ_7745c5c3_Var48, templ_7745c5c3_Err = templ.JoinStringErrs(host.ThemeColor)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1454, Col: 27}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1288, Col: 36}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var48))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 65, "\" class=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 60, "\" data-generation=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var49 string
-		templ_7745c5c3_Var49, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var47).String())
+		templ_7745c5c3_Var49, templ_7745c5c3_Err = templ.JoinStringErrs(host.Generation)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1, Col: 0}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1289, Col: 35}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var49))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 66, "\"><td class=\"status-cell-with-badge\"><span class=\"status-wrapper\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 61, "\" data-agent-version=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var50 string
+		templ_7745c5c3_Var50, templ_7745c5c3_Err = templ.JoinStringErrs(host.AgentVersion)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1290, Col: 40}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var50))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 62, "\" data-agent-outdated=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var51 string
+		templ_7745c5c3_Var51, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.FormatBool(host.AgentOutdated))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1291, Col: 62}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var51))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 63, "\" data-pending-command=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var52 string
+		templ_7745c5c3_Var52, templ_7745c5c3_Err = templ.JoinStringErrs(host.PendingCommand)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1292, Col: 44}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var52))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 64, "\" class=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var53 string
+		templ_7745c5c3_Var53, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var44).String())
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1, Col: 0}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var53))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 65, "\"><td class=\"status-cell-with-badge\"><span class=\"status-wrapper\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -960,69 +971,69 @@ func HostRow(host Host, csrfToken string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 67, "<span style=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 66, "<span style=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var50 string
-		templ_7745c5c3_Var50, templ_7745c5c3_Err = templruntime.SanitizeStyleAttributeValues(hostColorStyle(host))
+		var templ_7745c5c3_Var54 string
+		templ_7745c5c3_Var54, templ_7745c5c3_Err = templruntime.SanitizeStyleAttributeValues(hostColorStyle(host))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1458, Col: 38}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1298, Col: 38}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var50))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 68, "\">")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var54))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var51 string
-		templ_7745c5c3_Var51, templ_7745c5c3_Err = templ.JoinStringErrs(host.Hostname)
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1458, Col: 56}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var51))
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 67, "\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 69, "</span> ")
+		var templ_7745c5c3_Var55 string
+		templ_7745c5c3_Var55, templ_7745c5c3_Err = templ.JoinStringErrs(host.Hostname)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1298, Col: 56}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var55))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 68, "</span> ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if host.PendingCommand != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 70, "<span class=\"progress-badge-mini\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 69, "<span class=\"progress-badge-mini\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var52 string
-			templ_7745c5c3_Var52, templ_7745c5c3_Err = templ.JoinStringErrs(host.PendingCommand)
+			var templ_7745c5c3_Var56 string
+			templ_7745c5c3_Var56, templ_7745c5c3_Err = templ.JoinStringErrs(host.PendingCommand)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1460, Col: 60}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1300, Col: 60}
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var52))
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var56))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 71, "</span>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 70, "</span>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 72, "</span></td><td class=\"col-center\" title=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 71, "</span></td><td class=\"col-center\" title=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var53 string
-		templ_7745c5c3_Var53, templ_7745c5c3_Err = templ.JoinStringErrs(host.Location)
+		var templ_7745c5c3_Var57 string
+		templ_7745c5c3_Var57, templ_7745c5c3_Err = templ.JoinStringErrs(host.Location)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1464, Col: 46}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1304, Col: 46}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var53))
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var57))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 73, "\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 72, "\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1030,20 +1041,20 @@ func HostRow(host Host, csrfToken string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 74, "</td><td class=\"col-center\" title=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 73, "</td><td class=\"col-center\" title=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var54 string
-		templ_7745c5c3_Var54, templ_7745c5c3_Err = templ.JoinStringErrs(host.DeviceType)
+		var templ_7745c5c3_Var58 string
+		templ_7745c5c3_Var58, templ_7745c5c3_Err = templ.JoinStringErrs(host.DeviceType)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1465, Col: 48}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1305, Col: 48}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var54))
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var58))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 75, "\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 74, "\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1051,7 +1062,7 @@ func HostRow(host Host, csrfToken string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 76, "</td><td class=\"col-center\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 75, "</td><td class=\"col-center\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1059,65 +1070,17 @@ func HostRow(host Host, csrfToken string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 77, "</td><td class=\"metrics-cell\" data-cell=\"metrics\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 76, "</td><td class=\"metrics-cell\" data-cell=\"metrics\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if host.Metrics != nil {
-			var templ_7745c5c3_Var55 = []any{metricsClass("cpu", host.Metrics.CPU)}
-			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var55...)
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 78, "<span class=\"")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			var templ_7745c5c3_Var56 string
-			templ_7745c5c3_Var56, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var55).String())
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1, Col: 0}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var56))
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 79, "\" data-metric=\"cpu\" title=\"")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			var templ_7745c5c3_Var57 string
-			templ_7745c5c3_Var57, templ_7745c5c3_Err = templ.JoinStringErrs("CPU: " + formatPercent(host.Metrics.CPU))
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1469, Col: 125}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var57))
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 80, "\"><svg class=\"metric-icon\"><use href=\"#icon-cpu\"></use></svg><span class=\"metric-val\">")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			var templ_7745c5c3_Var58 string
-			templ_7745c5c3_Var58, templ_7745c5c3_Err = templ.JoinStringErrs(formatPercent(host.Metrics.CPU))
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1470, Col: 122}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var58))
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 81, "</span></span> ")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			var templ_7745c5c3_Var59 = []any{metricsClass("ram", host.Metrics.RAM)}
+			var templ_7745c5c3_Var59 = []any{metricsClass("cpu", host.Metrics.CPU)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var59...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 82, "<span class=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 77, "<span class=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1130,43 +1093,91 @@ func HostRow(host Host, csrfToken string) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 83, "\" data-metric=\"ram\" title=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 78, "\" data-metric=\"cpu\" title=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var61 string
-			templ_7745c5c3_Var61, templ_7745c5c3_Err = templ.JoinStringErrs("RAM: " + formatPercent(host.Metrics.RAM) + ", Swap: " + formatPercent(host.Metrics.Swap) + ", Load: " + formatLoad(host.Metrics.Load))
+			templ_7745c5c3_Var61, templ_7745c5c3_Err = templ.JoinStringErrs("CPU: " + formatPercent(host.Metrics.CPU))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1472, Col: 218}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1309, Col: 125}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var61))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 84, "\"><svg class=\"metric-icon\"><use href=\"#icon-ram\"></use></svg><span class=\"metric-val\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 79, "\"><svg class=\"metric-icon\"><use href=\"#icon-cpu\"></use></svg><span class=\"metric-val\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var62 string
-			templ_7745c5c3_Var62, templ_7745c5c3_Err = templ.JoinStringErrs(formatPercent(host.Metrics.RAM))
+			templ_7745c5c3_Var62, templ_7745c5c3_Err = templ.JoinStringErrs(formatPercent(host.Metrics.CPU))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1473, Col: 122}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1310, Col: 122}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var62))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 85, "</span></span>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 80, "</span></span> ")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var63 = []any{metricsClass("ram", host.Metrics.RAM)}
+			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var63...)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 81, "<span class=\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var64 string
+			templ_7745c5c3_Var64, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var63).String())
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1, Col: 0}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var64))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 82, "\" data-metric=\"ram\" title=\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var65 string
+			templ_7745c5c3_Var65, templ_7745c5c3_Err = templ.JoinStringErrs("RAM: " + formatPercent(host.Metrics.RAM) + ", Swap: " + formatPercent(host.Metrics.Swap) + ", Load: " + formatLoad(host.Metrics.Load))
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1312, Col: 218}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var65))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 83, "\"><svg class=\"metric-icon\"><use href=\"#icon-ram\"></use></svg><span class=\"metric-val\">")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var66 string
+			templ_7745c5c3_Var66, templ_7745c5c3_Err = templ.JoinStringErrs(formatPercent(host.Metrics.RAM))
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1313, Col: 122}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var66))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 84, "</span></span>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 86, "<span class=\"metrics-na\">—</span>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 85, "<span class=\"metrics-na\">—</span>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 87, "</td><td class=\"update-cell\" data-cell=\"update\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 86, "</td><td class=\"update-cell\" data-cell=\"update\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1174,7 +1185,7 @@ func HostRow(host Host, csrfToken string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 88, "</td><td class=\"tests-cell col-center\" data-cell=\"tests\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 87, "</td><td class=\"tests-cell col-center\" data-cell=\"tests\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1182,45 +1193,114 @@ func HostRow(host Host, csrfToken string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 89, "</td><td class=\"col-right\" data-cell=\"last-seen\" data-timestamp=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 88, "</td><td class=\"col-right\" data-cell=\"last-seen\" data-timestamp=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var63 string
-		templ_7745c5c3_Var63, templ_7745c5c3_Err = templ.JoinStringErrs(host.LastSeen)
+		var templ_7745c5c3_Var67 string
+		templ_7745c5c3_Var67, templ_7745c5c3_Err = templ.JoinStringErrs(host.LastSeen)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1485, Col: 76}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1325, Col: 76}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var63))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 90, "\">")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var67))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var64 string
-		templ_7745c5c3_Var64, templ_7745c5c3_Err = templ.JoinStringErrs(valueOrDash(host.LastSeen))
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1485, Col: 107}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var64))
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 89, "\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 91, "</td><td class=\"actions-cell\"><div class=\"action-buttons\">")
+		var templ_7745c5c3_Var68 string
+		templ_7745c5c3_Var68, templ_7745c5c3_Err = templ.JoinStringErrs(valueOrDash(host.LastSeen))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1325, Col: 107}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var68))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = CommandButton(host.ID, "pull", "", "btn", host.Online && host.PendingCommand == "").Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 90, "</td><td class=\"actions-cell\"><div class=\"action-buttons\" data-host-id=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = CommandButton(host.ID, "switch", "", "btn", host.Online && host.PendingCommand == "").Render(ctx, templ_7745c5c3_Buffer)
+		var templ_7745c5c3_Var69 string
+		templ_7745c5c3_Var69, templ_7745c5c3_Err = templ.JoinStringErrs(host.ID)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1327, Col: 53}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var69))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = CommandButton(host.ID, "test", "", "btn", host.Online && host.PendingCommand == "").Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 91, "\"><!-- Command buttons (visible when idle) --><span class=\"cmd-buttons\" style=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var70 string
+		templ_7745c5c3_Var70, templ_7745c5c3_Err = templruntime.SanitizeStyleAttributeValues(visibleWhen(host.PendingCommand == ""))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1329, Col: 76}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var70))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 92, "\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = CommandButton(host.ID, "pull", "", "btn", host.Online).Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = CommandButton(host.ID, "switch", "", "btn", host.Online).Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = CommandButton(host.ID, "test", "", "btn", host.Online).Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 93, "</span><!-- Stop button (visible when command running) --><button class=\"btn btn-stop\" data-host-id=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var71 string
+		templ_7745c5c3_Var71, templ_7745c5c3_Err = templ.JoinStringErrs(host.ID)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1337, Col: 27}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var71))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 94, "\" data-command=\"stop\" onclick=\"sendCommand(this.dataset.hostId, 'stop')\" title=\"Stop running command\" style=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var72 string
+		templ_7745c5c3_Var72, templ_7745c5c3_Err = templruntime.SanitizeStyleAttributeValues(visibleWhen(host.PendingCommand != ""))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1341, Col: 51}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var72))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 95, "\"><svg class=\"icon\"><use href=\"#icon-stop\"></use></svg> Stop</button><!-- P7000: Per-host refresh button (appears on hover) --><button class=\"btn btn-refresh\" data-host-id=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var73 string
+		templ_7745c5c3_Var73, templ_7745c5c3_Err = templ.JoinStringErrs(host.ID)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1349, Col: 27}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var73))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 96, "\" onclick=\"refreshHost(this.dataset.hostId)\" title=\"Refresh status\"><svg class=\"icon\"><use href=\"#icon-refresh\"></use></svg></button>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1228,7 +1308,7 @@ func HostRow(host Host, csrfToken string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 92, "</div></td></tr>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 97, "</div></td></tr>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1253,23 +1333,23 @@ func StatusIndicator(host Host) templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var65 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var65 == nil {
-			templ_7745c5c3_Var65 = templ.NopComponent
+		templ_7745c5c3_Var74 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var74 == nil {
+			templ_7745c5c3_Var74 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
 		if host.Online && host.PendingCommand == "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 93, "<span class=\"status-ripple\"><span class=\"hb-wave\"></span> <span class=\"hb-wave\"></span> <span class=\"hb-wave\"></span> <span class=\"hb-core\"></span></span>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 98, "<span class=\"status-ripple\"><span class=\"hb-wave\"></span> <span class=\"hb-wave\"></span> <span class=\"hb-wave\"></span> <span class=\"hb-core\"></span></span>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else if host.PendingCommand != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 94, "<span class=\"status-dot status-running\"></span>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 99, "<span class=\"status-dot status-running\"></span>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 95, "<span class=\"status-dot status-offline\"></span>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 100, "<span class=\"status-dot status-offline\"></span>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1295,82 +1375,14 @@ func CommandButton(hostID, command, label, classes string, enabled bool) templ.C
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var66 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var66 == nil {
-			templ_7745c5c3_Var66 = templ.NopComponent
+		templ_7745c5c3_Var75 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var75 == nil {
+			templ_7745c5c3_Var75 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
 		if enabled {
-			var templ_7745c5c3_Var67 = []any{classes}
-			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var67...)
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 96, "<button class=\"")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			var templ_7745c5c3_Var68 string
-			templ_7745c5c3_Var68, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var67).String())
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1, Col: 0}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var68))
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 97, "\" data-host-id=\"")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			var templ_7745c5c3_Var69 string
-			templ_7745c5c3_Var69, templ_7745c5c3_Err = templ.JoinStringErrs(hostID)
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1518, Col: 24}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var69))
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 98, "\" data-command=\"")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			var templ_7745c5c3_Var70 string
-			templ_7745c5c3_Var70, templ_7745c5c3_Err = templ.JoinStringErrs(command)
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1519, Col: 25}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var70))
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 99, "\" onclick=\"sendCommand(this.dataset.hostId, this.dataset.command)\">")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = commandIcon(command).Render(ctx, templ_7745c5c3_Buffer)
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			if label != "" {
-				var templ_7745c5c3_Var71 string
-				templ_7745c5c3_Var71, templ_7745c5c3_Err = templ.JoinStringErrs(label)
-				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1524, Col: 11}
-				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var71))
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 100, "</button>")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-		} else {
-			var templ_7745c5c3_Var72 = []any{classes}
-			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var72...)
+			var templ_7745c5c3_Var76 = []any{classes}
+			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var76...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1378,16 +1390,55 @@ func CommandButton(hostID, command, label, classes string, enabled bool) templ.C
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var73 string
-			templ_7745c5c3_Var73, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var72).String())
+			var templ_7745c5c3_Var77 string
+			templ_7745c5c3_Var77, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var76).String())
 			if templ_7745c5c3_Err != nil {
 				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1, Col: 0}
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var73))
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var77))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 102, "\" disabled>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 102, "\" data-host-id=\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var78 string
+			templ_7745c5c3_Var78, templ_7745c5c3_Err = templ.JoinStringErrs(hostID)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1382, Col: 24}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var78))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 103, "\" data-command=\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var79 string
+			templ_7745c5c3_Var79, templ_7745c5c3_Err = templ.JoinStringErrs(command)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1383, Col: 25}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var79))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 104, "\" onclick=\"sendCommand(this.dataset.hostId, this.dataset.command)\" title=\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var80 string
+			templ_7745c5c3_Var80, templ_7745c5c3_Err = templ.JoinStringErrs(commandTitle(command))
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1385, Col: 32}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var80))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 105, "\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1396,23 +1447,94 @@ func CommandButton(hostID, command, label, classes string, enabled bool) templ.C
 				return templ_7745c5c3_Err
 			}
 			if label != "" {
-				var templ_7745c5c3_Var74 string
-				templ_7745c5c3_Var74, templ_7745c5c3_Err = templ.JoinStringErrs(label)
+				var templ_7745c5c3_Var81 string
+				templ_7745c5c3_Var81, templ_7745c5c3_Err = templ.JoinStringErrs(label)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1531, Col: 11}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1389, Col: 11}
 				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var74))
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var81))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 103, "</button>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 106, "</button>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		} else {
+			var templ_7745c5c3_Var82 = []any{classes}
+			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var82...)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 107, "<button class=\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var83 string
+			templ_7745c5c3_Var83, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var82).String())
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1, Col: 0}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var83))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 108, "\" disabled title=\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var84 string
+			templ_7745c5c3_Var84, templ_7745c5c3_Err = templ.JoinStringErrs(commandTitle(command))
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1393, Col: 66}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var84))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 109, "\">")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = commandIcon(command).Render(ctx, templ_7745c5c3_Buffer)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			if label != "" {
+				var templ_7745c5c3_Var85 string
+				templ_7745c5c3_Var85, templ_7745c5c3_Err = templ.JoinStringErrs(label)
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1396, Col: 11}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var85))
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 110, "</button>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
 		return nil
 	})
+}
+
+// commandTitle returns a human-readable title for button tooltips
+func commandTitle(command string) string {
+	switch command {
+	case "pull":
+		return "Pull latest code from Git"
+	case "switch":
+		return "Apply configuration (nixos-rebuild switch)"
+	case "test":
+		return "Test configuration (nixos-rebuild test)"
+	case "stop":
+		return "Stop running command"
+	default:
+		return command
+	}
 }
 
 // commandIcon renders the SVG icon for a command
@@ -1432,29 +1554,29 @@ func commandIcon(command string) templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var75 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var75 == nil {
-			templ_7745c5c3_Var75 = templ.NopComponent
+		templ_7745c5c3_Var86 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var86 == nil {
+			templ_7745c5c3_Var86 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
 		switch command {
 		case "pull":
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 104, "<svg class=\"icon\"><use href=\"#icon-download\"></use></svg>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 111, "<svg class=\"icon\"><use href=\"#icon-download\"></use></svg>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		case "switch":
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 105, "<svg class=\"icon\"><use href=\"#icon-refresh\"></use></svg>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 112, "<svg class=\"icon\"><use href=\"#icon-refresh\"></use></svg>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		case "test":
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 106, "<svg class=\"icon\"><use href=\"#icon-flask\"></use></svg>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 113, "<svg class=\"icon\"><use href=\"#icon-flask\"></use></svg>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		case "stop":
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 107, "<svg class=\"icon\"><use href=\"#icon-stop\"></use></svg>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 114, "<svg class=\"icon\"><use href=\"#icon-stop\"></use></svg>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1481,37 +1603,37 @@ func osTypeIcon(hostType string) templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var76 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var76 == nil {
-			templ_7745c5c3_Var76 = templ.NopComponent
+		templ_7745c5c3_Var87 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var87 == nil {
+			templ_7745c5c3_Var87 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
 		switch hostType {
 		case "nixos":
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 108, "<svg class=\"icon type-icon\" title=\"NixOS\"><use href=\"#icon-nixos\"></use></svg>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 115, "<svg class=\"icon type-icon\" title=\"NixOS\"><use href=\"#icon-nixos\"></use></svg>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		case "macos":
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 109, "<svg class=\"icon type-icon\" title=\"macOS\"><use href=\"#icon-apple\"></use></svg>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 116, "<svg class=\"icon type-icon\" title=\"macOS\"><use href=\"#icon-apple\"></use></svg>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		default:
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 110, "<span>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 117, "<span>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var77 string
-			templ_7745c5c3_Var77, templ_7745c5c3_Err = templ.JoinStringErrs(hostType)
+			var templ_7745c5c3_Var88 string
+			templ_7745c5c3_Var88, templ_7745c5c3_Err = templ.JoinStringErrs(hostType)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1561, Col: 19}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1442, Col: 19}
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var77))
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var88))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 111, "</span>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 118, "</span>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1537,29 +1659,29 @@ func locationIcon(location string) templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var78 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var78 == nil {
-			templ_7745c5c3_Var78 = templ.NopComponent
+		templ_7745c5c3_Var89 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var89 == nil {
+			templ_7745c5c3_Var89 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
 		switch location {
 		case "home":
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 112, "<svg class=\"icon location-icon\" title=\"Home\"><use href=\"#icon-home\"></use></svg>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 119, "<svg class=\"icon location-icon\" title=\"Home\"><use href=\"#icon-home\"></use></svg>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		case "work":
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 113, "<svg class=\"icon location-icon\" title=\"Work\"><use href=\"#icon-office\"></use></svg>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 120, "<svg class=\"icon location-icon\" title=\"Work\"><use href=\"#icon-office\"></use></svg>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		case "cloud":
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 114, "<svg class=\"icon location-icon\" title=\"Cloud\"><use href=\"#icon-cloud\"></use></svg>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 121, "<svg class=\"icon location-icon\" title=\"Cloud\"><use href=\"#icon-cloud\"></use></svg>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		default:
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 115, "<svg class=\"icon location-icon\" title=\"Home\"><use href=\"#icon-home\"></use></svg>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 122, "<svg class=\"icon location-icon\" title=\"Home\"><use href=\"#icon-home\"></use></svg>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1585,34 +1707,34 @@ func deviceTypeIcon(deviceType string) templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var79 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var79 == nil {
-			templ_7745c5c3_Var79 = templ.NopComponent
+		templ_7745c5c3_Var90 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var90 == nil {
+			templ_7745c5c3_Var90 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
 		switch deviceType {
 		case "server":
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 116, "<svg class=\"icon device-icon\" title=\"Server\"><use href=\"#icon-server\"></use></svg>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 123, "<svg class=\"icon device-icon\" title=\"Server\"><use href=\"#icon-server\"></use></svg>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		case "desktop":
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 117, "<svg class=\"icon device-icon\" title=\"Desktop\"><use href=\"#icon-desktop\"></use></svg>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 124, "<svg class=\"icon device-icon\" title=\"Desktop\"><use href=\"#icon-desktop\"></use></svg>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		case "laptop":
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 118, "<svg class=\"icon device-icon\" title=\"Laptop\"><use href=\"#icon-laptop\"></use></svg>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 125, "<svg class=\"icon device-icon\" title=\"Laptop\"><use href=\"#icon-laptop\"></use></svg>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		case "gaming":
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 119, "<svg class=\"icon device-icon\" title=\"Gaming\"><use href=\"#icon-game\"></use></svg>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 126, "<svg class=\"icon device-icon\" title=\"Gaming\"><use href=\"#icon-game\"></use></svg>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		default:
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 120, "<svg class=\"icon device-icon\" title=\"Desktop\"><use href=\"#icon-desktop\"></use></svg>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 127, "<svg class=\"icon device-icon\" title=\"Desktop\"><use href=\"#icon-desktop\"></use></svg>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1638,89 +1760,89 @@ func TestsCell(progress *TestProgress) templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var80 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var80 == nil {
-			templ_7745c5c3_Var80 = templ.NopComponent
+		templ_7745c5c3_Var91 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var91 == nil {
+			templ_7745c5c3_Var91 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
 		if progress != nil {
 			if progress.Running {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 121, "<span class=\"test-progress\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 128, "<span class=\"test-progress\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var81 string
-				templ_7745c5c3_Var81, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(progress.Current))
+				var templ_7745c5c3_Var92 string
+				templ_7745c5c3_Var92, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(progress.Current))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1599, Col: 63}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1480, Col: 63}
 				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var81))
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 122, "/")
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var92))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var82 string
-				templ_7745c5c3_Var82, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(progress.Total))
-				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1599, Col: 96}
-				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var82))
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 129, "/")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 123, "</span>")
+				var templ_7745c5c3_Var93 string
+				templ_7745c5c3_Var93, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(progress.Total))
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1480, Col: 96}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var93))
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 130, "</span>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			} else if progress.Result != "" {
 				if progress.Passed == progress.Total {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 124, "<span class=\"test-result pass\">")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 131, "<span class=\"test-result pass\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					var templ_7745c5c3_Var83 string
-					templ_7745c5c3_Var83, templ_7745c5c3_Err = templ.JoinStringErrs(progress.Result)
+					var templ_7745c5c3_Var94 string
+					templ_7745c5c3_Var94, templ_7745c5c3_Err = templ.JoinStringErrs(progress.Result)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1602, Col: 52}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1483, Col: 52}
 					}
-					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var83))
+					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var94))
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 125, "</span>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 132, "</span>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 				} else {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 126, "<span class=\"test-result fail\">")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 133, "<span class=\"test-result fail\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					var templ_7745c5c3_Var84 string
-					templ_7745c5c3_Var84, templ_7745c5c3_Err = templ.JoinStringErrs(progress.Result)
+					var templ_7745c5c3_Var95 string
+					templ_7745c5c3_Var95, templ_7745c5c3_Err = templ.JoinStringErrs(progress.Result)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1604, Col: 52}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1485, Col: 52}
 					}
-					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var84))
+					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var95))
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 127, "</span>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 134, "</span>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 				}
 			} else {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 128, "<span class=\"tests-na\">—</span>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 135, "<span class=\"tests-na\">—</span>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 129, "<span class=\"tests-na\">—</span>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 136, "<span class=\"tests-na\">—</span>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1730,6 +1852,7 @@ func TestsCell(progress *TestProgress) templ.Component {
 }
 
 // UpdateStatusCell renders the update status indicator (3 compartments with agent badge overlay on Lock)
+// P7000: data-* attributes for client-side hydration
 func UpdateStatusCell(host Host) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -1746,230 +1869,272 @@ func UpdateStatusCell(host Host) templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var85 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var85 == nil {
-			templ_7745c5c3_Var85 = templ.NopComponent
+		templ_7745c5c3_Var96 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var96 == nil {
+			templ_7745c5c3_Var96 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 130, "<div class=\"update-status\" data-host-id=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 137, "<div class=\"update-status\" data-host-id=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var86 string
-		templ_7745c5c3_Var86, templ_7745c5c3_Err = templ.JoinStringErrs(host.ID)
+		var templ_7745c5c3_Var97 string
+		templ_7745c5c3_Var97, templ_7745c5c3_Err = templ.JoinStringErrs(host.ID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1616, Col: 50}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1500, Col: 24}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var86))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 131, "\"><!-- Git compartment -->")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var97))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var87 = []any{updateCompartmentClass(host.UpdateStatus, "git")}
-		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var87...)
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 138, "\" data-git=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 132, "<span class=\"")
+		var templ_7745c5c3_Var98 string
+		templ_7745c5c3_Var98, templ_7745c5c3_Err = templ.JoinStringErrs(updateStatusJSON(host.UpdateStatus, "git"))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1501, Col: 55}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var98))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var88 string
-		templ_7745c5c3_Var88, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var87).String())
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1, Col: 0}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var88))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 133, "\" title=\"")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var89 string
-		templ_7745c5c3_Var89, templ_7745c5c3_Err = templ.JoinStringErrs(gitTooltip(host))
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1618, Col: 91}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var89))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 134, "\" onclick=\"refreshStatus(this, 'git')\"><svg class=\"update-icon\"><use href=\"#icon-git-branch\"></use></svg> ")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var90 = []any{compartmentIndicatorClass(host.UpdateStatus, "git")}
-		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var90...)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 135, "<span class=\"")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var91 string
-		templ_7745c5c3_Var91, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var90).String())
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1, Col: 0}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var91))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 136, "\"></span></span><!-- Lock compartment (with agent badge overlay when outdated) -->")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var92 = []any{updateCompartmentClass(host.UpdateStatus, "lock")}
-		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var92...)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 137, "<span class=\"")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var93 string
-		templ_7745c5c3_Var93, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var92).String())
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1, Col: 0}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var93))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 138, "\" title=\"")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var94 string
-		templ_7745c5c3_Var94, templ_7745c5c3_Err = templ.JoinStringErrs(lockTooltip(host))
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1623, Col: 93}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var94))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 139, "\" onclick=\"refreshStatus(this, 'lock')\"><svg class=\"update-icon\"><use href=\"#icon-lock\"></use></svg> ")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var95 = []any{compartmentIndicatorClass(host.UpdateStatus, "lock")}
-		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var95...)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 140, "<span class=\"")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var96 string
-		templ_7745c5c3_Var96, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var95).String())
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1, Col: 0}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var96))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 141, "\"></span> ")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		if host.AgentOutdated {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 142, "<span class=\"agent-badge\" title=\"")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			var templ_7745c5c3_Var97 string
-			templ_7745c5c3_Var97, templ_7745c5c3_Err = templ.JoinStringErrs(agentTooltip(host))
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1627, Col: 56}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var97))
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 143, "\">A</span>")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 144, "</span><!-- System compartment (NixOS snowflake or macOS home) -->")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var98 = []any{updateCompartmentClass(host.UpdateStatus, "system")}
-		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var98...)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 145, "<span class=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 139, "\" data-lock=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var99 string
-		templ_7745c5c3_Var99, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var98).String())
+		templ_7745c5c3_Var99, templ_7745c5c3_Err = templ.JoinStringErrs(updateStatusJSON(host.UpdateStatus, "lock"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1, Col: 0}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1502, Col: 57}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var99))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 146, "\" title=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 140, "\" data-system=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var100 string
-		templ_7745c5c3_Var100, templ_7745c5c3_Err = templ.JoinStringErrs(systemTooltip(host))
+		templ_7745c5c3_Var100, templ_7745c5c3_Err = templ.JoinStringErrs(updateStatusJSON(host.UpdateStatus, "system"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1631, Col: 97}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1503, Col: 61}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var100))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 147, "\" onclick=\"refreshStatus(this, 'system')\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 141, "\" data-repo-url=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		if host.HostType == "macos" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 148, "<svg class=\"update-icon\"><use href=\"#icon-home\"></use></svg> ")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 149, "<svg class=\"update-icon\"><use href=\"#icon-nixos\"></use></svg> ")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
+		var templ_7745c5c3_Var101 string
+		templ_7745c5c3_Var101, templ_7745c5c3_Err = templ.JoinStringErrs(host.RepoURL)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1504, Col: 30}
 		}
-		var templ_7745c5c3_Var101 = []any{compartmentIndicatorClass(host.UpdateStatus, "system")}
-		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var101...)
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var101))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 150, "<span class=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 142, "\" data-repo-dir=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var102 string
-		templ_7745c5c3_Var102, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var101).String())
+		templ_7745c5c3_Var102, templ_7745c5c3_Err = templ.JoinStringErrs(host.RepoDir)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1, Col: 0}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1505, Col: 30}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var102))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 151, "\"></span></span></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 143, "\"><!-- Git compartment -->")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var103 = []any{updateCompartmentClass(host.UpdateStatus, "git")}
+		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var103...)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 144, "<span class=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var104 string
+		templ_7745c5c3_Var104, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var103).String())
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1, Col: 0}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var104))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 145, "\" title=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var105 string
+		templ_7745c5c3_Var105, templ_7745c5c3_Err = templ.JoinStringErrs(gitTooltip(host))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1508, Col: 91}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var105))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 146, "\" onclick=\"refreshStatus(this, 'git')\"><svg class=\"update-icon\"><use href=\"#icon-git-branch\"></use></svg> ")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var106 = []any{compartmentIndicatorClass(host.UpdateStatus, "git")}
+		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var106...)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 147, "<span class=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var107 string
+		templ_7745c5c3_Var107, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var106).String())
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1, Col: 0}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var107))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 148, "\"></span></span><!-- Lock compartment (indicator color reflects worst of: lock status OR agent outdated) -->")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var108 = []any{lockCompartmentClass(host)}
+		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var108...)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 149, "<span class=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var109 string
+		templ_7745c5c3_Var109, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var108).String())
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1, Col: 0}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var109))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 150, "\" title=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var110 string
+		templ_7745c5c3_Var110, templ_7745c5c3_Err = templ.JoinStringErrs(lockTooltip(host))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1513, Col: 70}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var110))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 151, "\" onclick=\"refreshStatus(this, 'lock')\"><svg class=\"update-icon\"><use href=\"#icon-lock\"></use></svg> ")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var111 = []any{lockIndicatorClass(host)}
+		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var111...)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 152, "<span class=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var112 string
+		templ_7745c5c3_Var112, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var111).String())
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1, Col: 0}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var112))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 153, "\"></span></span><!-- System compartment (NixOS snowflake or macOS home) -->")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var113 = []any{updateCompartmentClass(host.UpdateStatus, "system")}
+		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var113...)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 154, "<span class=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var114 string
+		templ_7745c5c3_Var114, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var113).String())
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1, Col: 0}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var114))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 155, "\" title=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var115 string
+		templ_7745c5c3_Var115, templ_7745c5c3_Err = templ.JoinStringErrs(systemTooltip(host))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1518, Col: 97}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var115))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 156, "\" onclick=\"refreshStatus(this, 'system')\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		if host.HostType == "macos" {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 157, "<svg class=\"update-icon\"><use href=\"#icon-home\"></use></svg> ")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		} else {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 158, "<svg class=\"update-icon\"><use href=\"#icon-nixos\"></use></svg> ")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		var templ_7745c5c3_Var116 = []any{compartmentIndicatorClass(host.UpdateStatus, "system")}
+		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var116...)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 159, "<span class=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var117 string
+		templ_7745c5c3_Var117, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var116).String())
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1, Col: 0}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var117))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 160, "\"></span></span></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1994,100 +2159,100 @@ func ActionDropdown(host Host) templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var103 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var103 == nil {
-			templ_7745c5c3_Var103 = templ.NopComponent
+		templ_7745c5c3_Var118 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var118 == nil {
+			templ_7745c5c3_Var118 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 152, "<div class=\"dropdown\" data-host-id=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 161, "<div class=\"dropdown\" data-host-id=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var104 string
-		templ_7745c5c3_Var104, templ_7745c5c3_Err = templ.JoinStringErrs(host.ID)
+		var templ_7745c5c3_Var119 string
+		templ_7745c5c3_Var119, templ_7745c5c3_Err = templ.JoinStringErrs(host.ID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1644, Col: 45}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1531, Col: 45}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var104))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 153, "\"><button class=\"btn btn-more\" onclick=\"toggleDropdown(this)\" title=\"More actions\"><svg class=\"icon\"><use href=\"#icon-more\"></use></svg></button><div class=\"dropdown-menu\"><button class=\"dropdown-item\" onclick=\"unlockActions(this)\" data-host-id=\"")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var119))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var105 string
-		templ_7745c5c3_Var105, templ_7745c5c3_Err = templ.JoinStringErrs(host.ID)
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1649, Col: 85}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var105))
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 162, "\"><button class=\"btn btn-more\" onclick=\"toggleDropdown(this)\" title=\"More actions\"><svg class=\"icon\"><use href=\"#icon-more\"></use></svg></button><div class=\"dropdown-menu\"><button class=\"dropdown-item\" onclick=\"unlockActions(this)\" data-host-id=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 154, "\"><svg class=\"icon\"><use href=\"#icon-refresh\"></use></svg> Unlock actions</button> <button class=\"dropdown-item\" onclick=\"checkForUpdates()\" title=\"Check GitHub for flake.lock update PRs\"><svg class=\"icon\"><use href=\"#icon-lock\"></use></svg> Check for Updates</button> ")
+		var templ_7745c5c3_Var120 string
+		templ_7745c5c3_Var120, templ_7745c5c3_Err = templ.JoinStringErrs(host.ID)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1536, Col: 85}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var120))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 163, "\"><svg class=\"icon\"><use href=\"#icon-refresh\"></use></svg> Unlock actions</button> <button class=\"dropdown-item\" onclick=\"checkForUpdates()\" title=\"Check GitHub for flake.lock update PRs\"><svg class=\"icon\"><use href=\"#icon-lock\"></use></svg> Check for Updates</button> ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if host.Online {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 155, "<button class=\"dropdown-item\" onclick=\"sendCommand(this.dataset.hostId, 'restart')\" data-host-id=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 164, "<button class=\"dropdown-item\" onclick=\"sendCommand(this.dataset.hostId, 'restart')\" data-host-id=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var106 string
-			templ_7745c5c3_Var106, templ_7745c5c3_Err = templ.JoinStringErrs(host.ID)
+			var templ_7745c5c3_Var121 string
+			templ_7745c5c3_Var121, templ_7745c5c3_Err = templ.JoinStringErrs(host.ID)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1658, Col: 110}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1545, Col: 110}
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var106))
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 156, "\"><svg class=\"icon\"><use href=\"#icon-refresh\"></use></svg> Restart Agent</button>")
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var121))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 165, "\"><svg class=\"icon\"><use href=\"#icon-refresh\"></use></svg> Restart Agent</button>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 157, "<div class=\"dropdown-divider\"></div><button class=\"dropdown-item\" onclick=\"downloadLogs(this.dataset.hostId)\" data-host-id=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 166, "<div class=\"dropdown-divider\"></div><button class=\"dropdown-item\" onclick=\"downloadLogs(this.dataset.hostId)\" data-host-id=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var107 string
-		templ_7745c5c3_Var107, templ_7745c5c3_Err = templ.JoinStringErrs(host.ID)
+		var templ_7745c5c3_Var122 string
+		templ_7745c5c3_Var122, templ_7745c5c3_Err = templ.JoinStringErrs(host.ID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1664, Col: 99}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1551, Col: 99}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var107))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 158, "\"><svg class=\"icon\"><use href=\"#icon-file\"></use></svg> Download Logs</button><div class=\"dropdown-divider\"></div><button class=\"dropdown-item danger\" onclick=\"confirmRemoveHost(this.dataset.hostId, this.dataset.hostname)\" data-host-id=\"")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var122))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var108 string
-		templ_7745c5c3_Var108, templ_7745c5c3_Err = templ.JoinStringErrs(host.ID)
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1669, Col: 134}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var108))
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 167, "\"><svg class=\"icon\"><use href=\"#icon-file\"></use></svg> Download Logs</button><div class=\"dropdown-divider\"></div><button class=\"dropdown-item danger\" onclick=\"confirmRemoveHost(this.dataset.hostId, this.dataset.hostname)\" data-host-id=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 159, "\" data-hostname=\"")
+		var templ_7745c5c3_Var123 string
+		templ_7745c5c3_Var123, templ_7745c5c3_Err = templ.JoinStringErrs(host.ID)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1556, Col: 134}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var123))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var109 string
-		templ_7745c5c3_Var109, templ_7745c5c3_Err = templ.JoinStringErrs(host.Hostname)
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1669, Col: 166}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var109))
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 168, "\" data-hostname=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 160, "\"><svg class=\"icon\"><use href=\"#icon-trash\"></use></svg> Remove Host</button></div></div>")
+		var templ_7745c5c3_Var124 string
+		templ_7745c5c3_Var124, templ_7745c5c3_Err = templ.JoinStringErrs(host.Hostname)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1556, Col: 166}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var124))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 169, "\"><svg class=\"icon\"><use href=\"#icon-trash\"></use></svg> Remove Host</button></div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -2112,31 +2277,31 @@ func DeleteButton(hostID string, enabled bool) templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var110 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var110 == nil {
-			templ_7745c5c3_Var110 = templ.NopComponent
+		templ_7745c5c3_Var125 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var125 == nil {
+			templ_7745c5c3_Var125 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
 		if enabled {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 161, "<button class=\"btn btn-danger\" data-host-id=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 170, "<button class=\"btn btn-danger\" data-host-id=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var111 string
-			templ_7745c5c3_Var111, templ_7745c5c3_Err = templ.JoinStringErrs(hostID)
+			var templ_7745c5c3_Var126 string
+			templ_7745c5c3_Var126, templ_7745c5c3_Err = templ.JoinStringErrs(hostID)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1682, Col: 24}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1569, Col: 24}
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var111))
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var126))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 162, "\" onclick=\"deleteHost(this.dataset.hostId)\" title=\"Delete offline host\"><svg class=\"icon\"><use href=\"#icon-trash\"></use></svg></button>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 171, "\" onclick=\"deleteHost(this.dataset.hostId)\" title=\"Delete offline host\"><svg class=\"icon\"><use href=\"#icon-trash\"></use></svg></button>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 163, "<button class=\"btn btn-danger\" disabled title=\"Cannot delete online host\"><svg class=\"icon\"><use href=\"#icon-trash\"></use></svg></button>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 172, "<button class=\"btn btn-danger\" disabled title=\"Cannot delete online host\"><svg class=\"icon\"><use href=\"#icon-trash\"></use></svg></button>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -2170,6 +2335,14 @@ func valueOrDash(v string) string {
 	return v
 }
 
+// visibleWhen returns CSS display style based on condition
+func visibleWhen(visible bool) string {
+	if visible {
+		return ""
+	}
+	return "display: none"
+}
+
 func formatPercent(v float64) string {
 	return strconv.FormatFloat(v, 'f', 0, 64) + "%"
 }
@@ -2187,10 +2360,11 @@ func metricsClass(metricType string, value float64) string {
 }
 
 // updateCompartmentClass returns CSS classes for an update status compartment
+// P5100: Simplified - only indicator dot shows status, compartment styling is constant
 func updateCompartmentClass(status *UpdateStatus, compartment string) string {
 	base := "update-compartment"
 	if status == nil {
-		return base + " unknown"
+		return base + " unknown" // Slightly dimmed for stale/unknown data
 	}
 
 	var check StatusCheck
@@ -2203,16 +2377,11 @@ func updateCompartmentClass(status *UpdateStatus, compartment string) string {
 		check = status.System
 	}
 
-	switch check.Status {
-	case "ok":
-		return base
-	case "outdated":
-		return base + " needs-update"
-	case "error":
-		return base + " error"
-	default:
+	// Only add "unknown" class for dimming effect, all other states look the same
+	if check.Status == "" || check.Status == "unknown" {
 		return base + " unknown"
 	}
+	return base
 }
 
 // compartmentIndicatorClass returns CSS classes for the status indicator dot (P5010)
@@ -2244,127 +2413,209 @@ func compartmentIndicatorClass(status *UpdateStatus, compartment string) string 
 	}
 }
 
-// gitTooltip returns a nicely formatted tooltip for the Git compartment
+// lockCompartmentClass returns CSS classes for Lock compartment
+// P5100: Simplified - only indicator dot shows status (including agent outdated)
+func lockCompartmentClass(host Host) string {
+	base := "update-compartment"
+
+	// Only add "unknown" class for dimming effect when no status data
+	if host.UpdateStatus == nil {
+		return base + " unknown"
+	}
+
+	if host.UpdateStatus.Lock.Status == "" || host.UpdateStatus.Lock.Status == "unknown" {
+		return base + " unknown"
+	}
+	return base
+}
+
+// lockIndicatorClass returns CSS classes for Lock indicator dot (worst status wins)
+func lockIndicatorClass(host Host) string {
+	base := "compartment-indicator"
+
+	// Agent outdated = error (red) - this is the worst status
+	if host.AgentOutdated {
+		return base + " compartment-indicator--error"
+	}
+
+	if host.UpdateStatus == nil {
+		return base + " compartment-indicator--unknown"
+	}
+
+	switch host.UpdateStatus.Lock.Status {
+	case "ok":
+		return base + " compartment-indicator--ok"
+	case "outdated":
+		return base + " compartment-indicator--warning"
+	case "error":
+		return base + " compartment-indicator--error"
+	default:
+		return base + " compartment-indicator--unknown"
+	}
+}
+
+// gitTooltip returns a clear tooltip explaining Git status
 func gitTooltip(host Host) string {
 	status := host.UpdateStatus
 	if status == nil {
-		return "Git Repository\n─────────────\nStatus: Checking..."
+		return "Git: Checking..."
 	}
 
 	check := status.Git
-	statusText := formatStatus(check.Status)
+	var lines []string
 
-	lines := []string{
-		"Git Repository",
-		"─────────────",
-		"Status: " + statusText,
+	switch check.Status {
+	case "ok":
+		lines = append(lines, "✓ Code is up to date")
+		lines = append(lines, "")
+		lines = append(lines, "Your local code matches the")
+		lines = append(lines, "latest version on GitHub.")
+	case "outdated":
+		lines = append(lines, "⚠ Code is behind")
+		lines = append(lines, "")
+		lines = append(lines, "New commits are available.")
+		lines = append(lines, "Run 'pull' to update.")
+		if check.Message != "" {
+			lines = append(lines, "")
+			lines = append(lines, check.Message)
+		}
+	case "error":
+		lines = append(lines, "✗ Check failed")
+		lines = append(lines, "")
+		if check.Message != "" {
+			lines = append(lines, check.Message)
+		}
+	default:
+		lines = append(lines, "? Status unknown")
+		lines = append(lines, "")
+		lines = append(lines, "Waiting for status check...")
 	}
 
-	if check.Message != "" && check.Message != statusText {
-		lines = append(lines, "Detail: "+check.Message)
-	}
-
-	if status.RepoURL != "" {
-		lines = append(lines, "Remote: "+status.RepoURL)
-	}
-	if status.RepoDir != "" {
-		lines = append(lines, "Local: "+status.RepoDir)
-	}
-	if check.CheckedAt != "" {
-		lines = append(lines, "Checked: "+formatTimestamp(check.CheckedAt))
+	if host.Generation != "" {
+		lines = append(lines, "")
+		lines = append(lines, "Current: "+host.Generation)
 	}
 
 	return strings.Join(lines, "\n")
 }
 
-// lockTooltip returns a nicely formatted tooltip for the Lock compartment
+// lockTooltip returns a clear tooltip explaining Lock + Agent status
+// Shows worst status first (agent outdated = red indicator)
 func lockTooltip(host Host) string {
+	var lines []string
+
+	// Agent status first (if outdated, it's why the dot is red)
+	if host.AgentOutdated {
+		lines = append(lines, "✗ Agent needs update")
+		lines = append(lines, "")
+		lines = append(lines, "Installed: "+host.AgentVersion)
+		lines = append(lines, "Expected:  "+host.ExpectedAgentVersion)
+		lines = append(lines, "")
+		lines = append(lines, "Run 'switch' to update the agent.")
+		lines = append(lines, "")
+		lines = append(lines, "─────────────────────────")
+		lines = append(lines, "")
+	}
+
 	status := host.UpdateStatus
 	if status == nil {
-		return "Flake Lock\n──────────\nStatus: Checking..."
+		if len(lines) == 0 {
+			return "Dependencies: Checking..."
+		}
+		lines = append(lines, "Dependencies: Checking...")
+		return strings.Join(lines, "\n")
 	}
 
 	check := status.Lock
-	statusText := formatStatus(check.Status)
 
-	lines := []string{
-		"Flake Lock",
-		"──────────",
-		"Status: " + statusText,
+	switch check.Status {
+	case "ok":
+		lines = append(lines, "✓ Dependencies up to date")
+		lines = append(lines, "")
+		lines = append(lines, "flake.lock matches the latest")
+		lines = append(lines, "available package versions.")
+	case "outdated":
+		lines = append(lines, "⚠ Dependencies outdated")
+		lines = append(lines, "")
+		lines = append(lines, "Newer package versions available.")
+		if check.Message != "" {
+			lines = append(lines, check.Message)
+		}
+	case "error":
+		lines = append(lines, "✗ Check failed")
+		if check.Message != "" {
+			lines = append(lines, "")
+			lines = append(lines, check.Message)
+		}
+	default:
+		lines = append(lines, "? Dependencies unknown")
+		lines = append(lines, "")
+		lines = append(lines, "Waiting for agent check...")
 	}
 
-	if check.Message != "" && check.Message != statusText {
-		lines = append(lines, "Detail: "+check.Message)
-	}
-	if check.CheckedAt != "" {
-		lines = append(lines, "Checked: "+formatTimestamp(check.CheckedAt))
-	}
-
-	// Add agent version info
-	lines = append(lines, "")
-	lines = append(lines, "Agent Version")
-	lines = append(lines, "─────────────")
-	if host.AgentVersion != "" {
-		lines = append(lines, "Installed: "+host.AgentVersion)
-	}
-	if host.AgentOutdated {
-		lines = append(lines, "⚠ Agent outdated!")
-	} else {
-		lines = append(lines, "✓ Agent up to date")
+	// Show agent OK status only if not already shown as error
+	if !host.AgentOutdated && host.AgentVersion != "" {
+		lines = append(lines, "")
+		lines = append(lines, "Agent: "+host.AgentVersion+" ✓")
 	}
 
 	return strings.Join(lines, "\n")
 }
 
-// agentTooltip returns a tooltip for the agent badge overlay
-func agentTooltip(host Host) string {
-	expected := host.ExpectedAgentVersion
-	if expected == "" {
-		expected = "unknown"
-	}
-	lines := []string{
-		"Agent Outdated!",
-		"───────────────",
-		"Installed: " + host.AgentVersion,
-		"Expected:  " + expected,
-		"",
-		"Update via 'switch' or",
-		"'update-agent' command",
-	}
-	return strings.Join(lines, "\n")
-}
-
-// systemTooltip returns a nicely formatted tooltip for the System compartment
+// systemTooltip returns a clear tooltip explaining System status
 func systemTooltip(host Host) string {
 	status := host.UpdateStatus
-	label := "System (NixOS)"
-	if host.HostType == "macos" {
-		label = "Home Manager"
-	}
+	isMac := host.HostType == "macos"
 
-	divider := strings.Repeat("─", len(label))
+	var lines []string
 
 	if status == nil {
-		return label + "\n" + divider + "\nStatus: Checking..."
+		if isMac {
+			return "Home Manager: Checking..."
+		}
+		return "System: Checking..."
 	}
 
 	check := status.System
-	statusText := formatStatus(check.Status)
 
-	lines := []string{
-		label,
-		divider,
-		"Status: " + statusText,
+	switch check.Status {
+	case "ok":
+		if isMac {
+			lines = append(lines, "✓ Home Manager up to date")
+		} else {
+			lines = append(lines, "✓ System up to date")
+		}
+		lines = append(lines, "")
+		lines = append(lines, "Running config matches the")
+		lines = append(lines, "latest built generation.")
+	case "outdated":
+		if isMac {
+			lines = append(lines, "⚠ Home Manager outdated")
+		} else {
+			lines = append(lines, "⚠ System needs rebuild")
+		}
+		lines = append(lines, "")
+		lines = append(lines, "Config has changed since last")
+		lines = append(lines, "build. Run 'switch' to apply.")
+		if check.Message != "" {
+			lines = append(lines, "")
+			lines = append(lines, check.Message)
+		}
+	case "error":
+		lines = append(lines, "✗ Check failed")
+		if check.Message != "" {
+			lines = append(lines, "")
+			lines = append(lines, check.Message)
+		}
+	default:
+		lines = append(lines, "? Status unknown")
+		lines = append(lines, "")
+		lines = append(lines, "Waiting for agent check...")
 	}
 
-	if check.Message != "" && check.Message != statusText {
-		lines = append(lines, "Detail: "+check.Message)
-	}
 	if host.Generation != "" {
+		lines = append(lines, "")
 		lines = append(lines, "Generation: "+host.Generation)
-	}
-	if check.CheckedAt != "" {
-		lines = append(lines, "Checked: "+formatTimestamp(check.CheckedAt))
 	}
 
 	return strings.Join(lines, "\n")
@@ -2391,6 +2642,39 @@ func formatTimestamp(ts string) string {
 		return ts[:19] // Trim to "2024-12-17T10:30:00"
 	}
 	return ts
+}
+
+// updateStatusJSON returns JSON for a compartment's status (P7000 hydration)
+func updateStatusJSON(status *UpdateStatus, compartment string) string {
+	if status == nil {
+		return "null"
+	}
+	var check StatusCheck
+	switch compartment {
+	case "git":
+		check = status.Git
+	case "lock":
+		check = status.Lock
+	case "system":
+		check = status.System
+	}
+	data, err := json.Marshal(check)
+	if err != nil {
+		return "null"
+	}
+	return string(data)
+}
+
+// pendingPRJSON returns JSON for pending PR or "null" (P7000 hydration)
+func pendingPRJSON(pr *PendingPR) string {
+	if pr == nil {
+		return "null"
+	}
+	data, err := json.Marshal(pr)
+	if err != nil {
+		return "null"
+	}
+	return string(data)
 }
 
 // updateCompartmentTitle returns the tooltip for an update status compartment (legacy, kept for JS)
