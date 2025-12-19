@@ -1490,9 +1490,10 @@ templ Dashboard(data DashboardData) {
 					_debounceTimer: null,
 					_completeTimer: null,
 					_activeCommand: null,
+					_instanceId: Math.random().toString(36).substr(2, 6),
 
 					init() {
-						console.log('ActionBar init called');
+						console.log('ActionBar init called, instance:', this._instanceId, 'element:', this.$el?.id || 'no-id');
 						// Note: Events are handled via Alpine directives (@action-preview.window etc.)
 						// No need for duplicate window.addEventListener calls
 						// Cleanup on destroy
@@ -1507,26 +1508,33 @@ templ Dashboard(data DashboardData) {
 					},
 
 					handlePreview(detail) {
-						console.log('ActionBar handlePreview received', detail);
+						console.log('ActionBar', this._instanceId, 'handlePreview received', detail);
 						if (this.state === 'progress') {
-							console.log('Ignoring preview - in progress state');
+							console.log('ActionBar', this._instanceId, 'Ignoring preview - in progress state');
 							return;
 						}
 
 						if (this._debounceTimer) clearTimeout(this._debounceTimer);
 						if (this._completeTimer) clearTimeout(this._completeTimer);
 
+						const instanceId = this._instanceId;
 						this._debounceTimer = setTimeout(() => {
+							console.log('ActionBar', instanceId, 'debounce timer fired, calling _showPreview');
 							this._debounceTimer = null;
-							console.log('ActionBar showing preview after debounce');
-							this._showPreview(detail);
+							try {
+								this._showPreview(detail);
+								console.log('ActionBar', instanceId, '_showPreview completed, state:', this.state);
+							} catch (e) {
+								console.error('ActionBar', instanceId, '_showPreview error:', e);
+							}
 						}, 300);
+						console.log('ActionBar', this._instanceId, 'debounce timer set');
 					},
 
 					handleClear() {
-						console.log('ActionBar handleClear called, state:', this.state);
+						console.log('ActionBar', this._instanceId, 'handleClear called, state:', this.state, 'hasTimer:', !!this._debounceTimer);
 						if (this._debounceTimer) {
-							console.log('Clearing debounce timer');
+							console.log('ActionBar', this._instanceId, 'Clearing debounce timer');
 							clearTimeout(this._debounceTimer);
 							this._debounceTimer = null;
 						}
