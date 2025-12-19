@@ -163,9 +163,6 @@ templ Dashboard(data DashboardData) {
 
 		<!-- P7000: Flake Update Banner removed - Merge & Deploy moved to Bulk Actions -->
 
-		<!-- P1015: Selection Bar - appears when hosts are selected -->
-		@SelectionBar()
-
 		<!-- Mobile: Card View -->
 		<div class="host-grid" id="host-cards">
 			for _, host := range data.Hosts {
@@ -177,7 +174,18 @@ templ Dashboard(data DashboardData) {
 		<table class="host-table" id="host-table" x-data>
 			<thead>
 				<tr>
-					<!-- P1030: Selection checkbox column -->
+					<th class="col-hosts" title="Online / Total Hosts">
+						<span class={ templ.KV("stat-online-positive", data.Stats.Online > 0) } id="stat-online">{ fmt.Sprint(data.Stats.Online) }</span>/{ fmt.Sprint(data.Stats.Total) } Hosts
+					</th>
+					<th class="col-center" title="Location">Loc</th>
+					<th class="col-center" title="Device Type">Dev</th>
+					<th class="col-center" title="Host Type">Type</th>
+					<th>Metrics</th>
+					<th title="Update Status (Git/Lock/System)">Update</th>
+					<th class="col-center">Tests</th>
+					<th class="col-right">Last Seen</th>
+					<th>Actions</th>
+					<!-- P1030: Selection checkbox column (right side) -->
 					<th class="col-select">
 						<button
 							type="button"
@@ -190,17 +198,6 @@ templ Dashboard(data DashboardData) {
 							<svg class="icon" x-show="$store.selection.headerState === 'all'"><use href="#icon-check-square"></use></svg>
 						</button>
 					</th>
-					<th class="col-hosts" title="Online / Total Hosts">
-						<span class={ templ.KV("stat-online-positive", data.Stats.Online > 0) } id="stat-online">{ fmt.Sprint(data.Stats.Online) }</span>/{ fmt.Sprint(data.Stats.Total) } Hosts
-					</th>
-					<th class="col-center" title="Location">Loc</th>
-					<th class="col-center" title="Device Type">Dev</th>
-					<th class="col-center" title="Host Type">Type</th>
-					<th>Metrics</th>
-					<th title="Update Status (Git/Lock/System)">Update</th>
-					<th class="col-center">Tests</th>
-					<th class="col-right">Last Seen</th>
-					<th>Actions</th>
 				</tr>
 			</thead>
 			<tbody>
@@ -209,6 +206,9 @@ templ Dashboard(data DashboardData) {
 				}
 			</tbody>
 		</table>
+
+		<!-- P1015: Selection Bar - appears below table when hosts are selected -->
+		@SelectionBar()
 
 		<!-- Log Viewer (global, shown when command is running) -->
 		<div class="log-panel hidden" id="log-panel" x-data="logViewer()">
@@ -1281,23 +1281,6 @@ templ Dashboard(data DashboardData) {
 				}
 			}
 
-			function handleRowClick(event, hostId) {
-				const target = event.target;
-				const interactiveSelectors = [
-					'button', 'input', 'a', '.update-compartment', '.dropdown',
-					'.dropdown-menu', '.host-name', '[data-cell]'
-				];
-				for (const selector of interactiveSelectors) {
-					if (target.closest(selector)) return;
-				}
-				const store = Alpine.store('selection');
-				if (event.shiftKey && store.lastSelected) {
-					store.selectRange(hostId);
-				} else {
-					store.toggle(hostId);
-				}
-			}
-
 			// Keyboard shortcuts for selection
 			document.addEventListener('keydown', (e) => {
 				if (e.target.matches('input, textarea, [contenteditable]')) return;
@@ -1573,17 +1556,7 @@ templ HostRow(host Host, csrfToken string) {
 		class={ templ.KV("host-offline", !host.Online) }
 		x-data
 		x-bind:class={ selectionClassBinding(host.ID) }
-		@click={ rowClickHandler(host.ID) }
 	>
-		<!-- P1030: Selection checkbox -->
-		<td class="col-select">
-			<input
-				type="checkbox"
-				class="row-checkbox"
-				x-bind:checked={ selectionCheckedBinding(host.ID) }
-				@click={ checkboxClickHandler(host.ID) }
-			/>
-		</td>
 		<td class="status-cell-with-badge">
 			<span class="status-wrapper">
 				@StatusIndicator(host)
@@ -1646,6 +1619,19 @@ templ HostRow(host Host, csrfToken string) {
 				</button>
 				@ActionDropdown(host)
 			</div>
+		</td>
+		<!-- P1030: Selection checkbox (right side, subtle button style) -->
+		<td class="col-select">
+			<button
+				type="button"
+				class="select-toggle row-select-toggle"
+				@click={ checkboxClickHandler(host.ID) }
+				x-bind:class={ rowSelectedClass(host.ID) }
+				title="Select host"
+			>
+				<svg class="icon" x-bind:style={ iconVisibility(host.ID, false) }><use href="#icon-square"></use></svg>
+				<svg class="icon" x-bind:style={ iconVisibility(host.ID, true) }><use href="#icon-check-square"></use></svg>
+			</button>
 		</td>
 	</tr>
 }
@@ -1909,16 +1895,19 @@ func selectionClassBinding(hostID string) string {
 	return fmt.Sprintf("{ 'selected': $store.selection.isSelected('%s') }", hostID)
 }
 
-func selectionCheckedBinding(hostID string) string {
-	return fmt.Sprintf("$store.selection.isSelected('%s')", hostID)
-}
-
-func rowClickHandler(hostID string) string {
-	return fmt.Sprintf("handleRowClick($event, '%s')", hostID)
-}
-
 func checkboxClickHandler(hostID string) string {
 	return fmt.Sprintf("handleCheckboxClick($event, '%s')", hostID)
+}
+
+func rowSelectedClass(hostID string) string {
+	return fmt.Sprintf("{ 'is-selected': $store.selection.isSelected('%s') }", hostID)
+}
+
+func iconVisibility(hostID string, checked bool) string {
+	if checked {
+		return fmt.Sprintf("$store.selection.isSelected('%s') ? '' : 'display: none'", hostID)
+	}
+	return fmt.Sprintf("$store.selection.isSelected('%s') ? 'display: none' : ''", hostID)
 }
 
 func formatPercent(v float64) string {

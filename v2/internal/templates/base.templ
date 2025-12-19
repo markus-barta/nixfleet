@@ -1360,20 +1360,22 @@ templ Base(title string, csrfToken string) {
 				height: 18px;
 			}
 
-			/* Row Checkbox */
-			.row-checkbox {
-				width: 16px;
-				height: 16px;
-				cursor: pointer;
-				accent-color: var(--blue);
+			/* Row Toggle (button style, matching header) */
+			.row-select-toggle {
 				opacity: 0;
 				transition: opacity 150ms ease;
 			}
 
-			/* Show checkbox on row hover or when selected */
-			tr:hover .row-checkbox,
-			tr.selected .row-checkbox {
+			/* Show toggle on row hover or when selected */
+			tr:hover .row-select-toggle,
+			tr.selected .row-select-toggle,
+			.row-select-toggle.is-selected {
 				opacity: 1;
+			}
+
+			/* Selected indicator */
+			.row-select-toggle.is-selected {
+				color: var(--blue);
 			}
 
 			/* Selected Row */
@@ -1385,12 +1387,7 @@ templ Base(title string, csrfToken string) {
 				background: rgba(41, 46, 66, 0.9) !important;
 			}
 
-			/* Prevent text selection when clicking row */
-			tr[data-host-id] {
-				user-select: none;
-			}
-
-			/* But allow text selection on specific content */
+			/* Allow text selection everywhere (no row click selection) */
 			tr[data-host-id] .host-name {
 				user-select: text;
 				cursor: text;
@@ -1406,9 +1403,9 @@ templ Base(title string, csrfToken string) {
 				align-items: center;
 				padding: 0.625rem 1rem;
 				background: var(--bg-float);
-				border-bottom: 1px solid var(--border);
+				border-top: 1px solid var(--border);
 				gap: 1rem;
-				margin: 0 -1rem 1rem -1rem;
+				margin: 1rem -1rem 0 -1rem;
 				padding-left: 2rem;
 				padding-right: 2rem;
 			}
@@ -1419,7 +1416,7 @@ templ Base(title string, csrfToken string) {
 					align-items: stretch;
 					gap: 0.75rem;
 					padding: 0.75rem 1rem;
-					margin: 0 -1rem 1rem -1rem;
+					margin: 1rem -1rem 0 -1rem;
 				}
 			}
 
