@@ -1,11 +1,13 @@
 # P7000 - Unified Host State Management
 
-**Created**: 2025-12-18
-**Priority**: P7000 (High - Architecture)
-**Status**: Backlog
-**Estimated Effort**: 2-3 days
-**Breaking Change**: Yes (complete JS rewrite)
-**Target Version**: 2.1.0
+**Created**: 2025-12-18  
+**Updated**: 2025-12-19  
+**Priority**: P7000 (High - Architecture)  
+**Status**: Blocked by P7200  
+**Estimated Effort**: 2-3 days  
+**Breaking Change**: Yes (complete JS rewrite)  
+**Target Version**: 2.2.0  
+**Depends on**: P7200 (Reliable Agent Updates)
 
 ---
 

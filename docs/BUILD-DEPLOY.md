@@ -244,3 +244,10 @@ Dashboard could have a `/deploy` webhook that:
 | Deploy to macOS host | `home-manager switch --flake .#hostname`                                                               |
 | Check dashboard logs | `ssh csb1 "docker logs nixfleet --tail 50"`                                                            |
 | Check agent logs     | `journalctl -u nixfleet-agent -f` (NixOS)                                                              |
+
+---
+
+## Related Documentation
+
+- [UPDATE-ARCHITECTURE.md](./UPDATE-ARCHITECTURE.md) — Complete update flow and troubleshooting
+- [FLAKE-UPDATES.md](./FLAKE-UPDATES.md) — Understanding the three compartments

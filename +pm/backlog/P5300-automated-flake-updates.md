@@ -1,8 +1,9 @@
 # P5300 - Automated Flake Lock Updates
 
 **Created**: 2025-12-15  
+**Updated**: 2025-12-19  
 **Priority**: P5300 (Medium)  
-**Status**: Backlog  
+**Status**: MVP Complete  
 **Depends on**: P5000 (Update Status Indicator)
 
 ---
@@ -17,7 +18,7 @@
 
 ## Overview
 
-Turn the manual "review and merge PR" workflow into a one-click (or fully automated) experience.
+Turn the manual "review and merge PR" workflow into a one-click (or fully automated) experience, while preserving the ability to do each step manually.
 
 ```text
 ┌─────────────────────────────────────────────────────────────────┐
@@ -27,12 +28,22 @@ Turn the manual "review and merge PR" workflow into a one-click (or fully automa
 └─────────────────────────────────────────────────────────────────┘
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│  AFTER (NixFleet automated)                                     │
-│  ──────────────────────────                                     │
-│  GitHub Action → PR → NixFleet detects → Auto/Click merge       │
-│  → Pull all hosts → Switch all hosts → Rollback on failure      │
+│  AFTER (NixFleet - flexible modes)                              │
+│  ─────────────────────────────────                              │
+│                                                                 │
+│  MODE 1: Manual per-step                                        │
+│  Click Pull → Click Switch → per host, full control             │
+│                                                                 │
+│  MODE 2: Per-host automatic                                     │
+│  Click "Update Host" → Pull + Switch + Verify automatically     │
+│                                                                 │
+│  MODE 3: Fleet-wide automatic                                   │
+│  Click "Merge & Deploy" → All hosts updated in one action       │
+│                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
+
+See [UPDATE-ARCHITECTURE.md](../../docs/UPDATE-ARCHITECTURE.md) for the complete update flow documentation.
 
 ---
 

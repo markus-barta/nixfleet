@@ -225,26 +225,31 @@ The NixFleet agent has its own versioning, **separate** from your `flake.lock`:
 
 ### Visual Indicator
 
-When an agent is outdated, a **red pulsing "A"** appears in the top-right corner of the **Lock compartment**:
+When an agent is outdated, the **Lock compartment indicator turns red**:
 
 ```
 ┌──────────┬──────────┬──────────┐
-│   Git    │  Lock  A │  System  │  ← "A" badge means agent is outdated
+│   Git    │   Lock   │  System  │
+│   🟢     │   🔴     │   🟢     │  ← Red Lock = agent outdated
 └──────────┴──────────┴──────────┘
 ```
 
-The Lock compartment's tooltip includes agent version info:
+The Lock compartment's tooltip shows detailed agent version info:
 
 ```
-Flake Lock
-──────────
-Status: ✓ Up to date
-Checked: 2025-12-17T10:30
+✗ Agent needs update
 
-Agent Version
-─────────────
-Installed: v2.3.0
-⚠ Agent outdated!
+Installed: 2.0.0
+Expected:  2.1.0
+
+Run 'switch' to update the agent.
+
+─────────────────────────
+
+✓ Dependencies up to date
+
+flake.lock matches the latest
+available package versions.
 ```
 
 ### Why on Lock? (Not a 4th Compartment)
@@ -257,11 +262,22 @@ The agent version is tied to your `flake.lock` because:
 
 So **updating the Lock** → **updates the Agent**. They're conceptually linked.
 
+### macOS-Specific Issue
+
+On macOS, even after a successful `switch`, the agent may still report the old version. This is because launchd doesn't automatically reload the updated plist.
+
+**Fix**: After switch on macOS, restart the agent:
+
+- Dashboard: **⋮** → **Restart Agent**
+- CLI: `launchctl kickstart -k gui/$(id -u)/com.nixfleet.agent`
+
+See [P7100](../+pm/backlog/P7100-macos-agent-update-bug.md) for details on this issue.
+
 ### Potential Issues: Browser Caching
 
 ⚠️ The dashboard's version comes from its compiled code. If your browser caches an old dashboard version, it might show false positives ("agent outdated" when it isn't).
 
-**If you see unexpected "A" badges:**
+**If you see unexpected red Lock indicators:**
 
 1. Hard refresh: `Cmd+Shift+R` (Mac) or `Ctrl+Shift+R` (Windows/Linux)
 2. Clear browser cache for the dashboard URL
@@ -269,12 +285,23 @@ So **updating the Lock** → **updates the Agent**. They're conceptually linked.
 
 ---
 
-## Summary: Current vs Future
+## Summary: Update Modes
 
-| Feature            | Current (P5300)       | Future (Settings) |
-| ------------------ | --------------------- | ----------------- |
-| Who updates        | GitHub Action         | Dashboard/Agent   |
-| Uses PRs           | Yes                   | No                |
-| Needs GitHub API   | Yes (to merge)        | Yes (to push)     |
-| Review step        | Optional (auto-merge) | None              |
-| For users who want | Full CI/PR workflow   | Quick updates     |
+NixFleet supports three update modes for flexibility:
+
+| Mode                   | Scope       | Control Level  | Best For                |
+| ---------------------- | ----------- | -------------- | ----------------------- |
+| **Manual per-step**    | Per host    | Full manual    | Debugging, testing      |
+| **Per-host automatic** | Single host | Semi-automatic | Individual host updates |
+| **Fleet-wide**         | All hosts   | Automated      | Regular maintenance     |
+
+See [UPDATE-ARCHITECTURE.md](./UPDATE-ARCHITECTURE.md) for complete documentation of the update flow.
+
+---
+
+## Related Documentation
+
+- [UPDATE-ARCHITECTURE.md](./UPDATE-ARCHITECTURE.md) — Complete update flow and troubleshooting
+- [BUILD-DEPLOY.md](./BUILD-DEPLOY.md) — How components are built and deployed
+- [P5300](../+pm/backlog/P5300-automated-flake-updates.md) — Automated flake updates backlog item
+- [P7100](../+pm/backlog/P7100-macos-agent-update-bug.md) — macOS agent update bug

@@ -129,4 +129,6 @@ System: ⚡ (stale)
 
 ## See Also
 
-- [P5000 - Host Update Status](../+pm/backlog/P5000-version-generation-tracking.md) - Dashboard feature spec
+- [UPDATE-ARCHITECTURE.md](./UPDATE-ARCHITECTURE.md) — Complete update flow and troubleshooting
+- [FLAKE-UPDATES.md](./FLAKE-UPDATES.md) — Understanding the three compartments
+- [BUILD-DEPLOY.md](./BUILD-DEPLOY.md) — How components are built and deployed

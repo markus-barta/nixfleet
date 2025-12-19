@@ -19,6 +19,20 @@ P{number}-{name}.md
 | P4000-P4999 | 🔴 Critical | Blocking issues, must fix now      |
 | P5000-P5999 | 🟡 Medium   | Important features, should do soon |
 | P6000-P6999 | 🟢 Low      | Nice-to-have, do when time permits |
+| P7000-P7999 | 🔴 Critical | Architecture & blocking bugs       |
+
+### Current Priority Order (2025-12-19)
+
+| Priority  | Task                    | Status           | Description                      |
+| --------- | ----------------------- | ---------------- | -------------------------------- |
+| **P7200** | Reliable Agent Updates  | Ready            | Fix agent update flow (BLOCKING) |
+| **P7100** | macOS Agent Update Bug  | Superseded       | Analysis → now tracked in P7200  |
+| **P7000** | Unified Host State      | Blocked by P7200 | JS rewrite for state management  |
+| **P5300** | Automated Flake Updates | MVP Complete     | Merge & Deploy feature           |
+| P5600     | GitHub Actions Docker   | Backlog          | CI/CD for dashboard              |
+| P5700     | Automated flake.lock    | Backlog          | Auto-update dependencies         |
+| P5400     | nix-darwin Support      | Backlog          | Full macOS system support        |
+| P6xxx     | Various                 | Low              | Nice-to-have features            |
 
 ### Ordering Within Priority
 
