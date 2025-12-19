@@ -789,6 +789,12 @@ templ Base(title string, csrfToken string) {
 				height: 6px;
 				min-width: 6px;
 				min-height: 6px;
+				/* Override the ::before from offline dots */
+				background: currentColor;
+			}
+
+			.connection-indicator .status-dot::before {
+				display: none;
 			}
 
 			.connection-indicator.connected {
@@ -1145,6 +1151,7 @@ templ Base(title string, csrfToken string) {
 			}
 
 			.dropdown-menu {
+				display: none;
 				position: absolute;
 				right: 0;
 				top: 100%;
@@ -1157,7 +1164,12 @@ templ Base(title string, csrfToken string) {
 				z-index: 9999;
 			}
 
-			/* x-cloak hides until Alpine initializes */
+			/* Header dropdown uses .open class */
+			.dropdown-menu.open {
+				display: block;
+			}
+
+			/* x-cloak hides until Alpine initializes, x-show manages display */
 			[x-cloak] { display: none !important; }
 
 			/* Bulk Actions dropdown in header */
