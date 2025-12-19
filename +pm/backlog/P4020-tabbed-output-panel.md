@@ -4,11 +4,14 @@
 
 Currently, the dashboard has a single output panel at the bottom that shows command output for one host at a time. When multiple hosts have operations running in parallel, users can only see output from one host, losing visibility into the others.
 
+Additionally, ephemeral UI events (toast notifications, connection events, errors) disappear without a trace. Users have no way to review what happened if they missed a notification.
+
 ## Solution
 
 Implement a tabbed output panel similar to browser tabs:
 
 - **One tab per host** with active/recent command output
+- **System Log tab** captures all ephemeral events (toasts, errors, system messages)
 - **Tabs persist** until the user explicitly dismisses them (X button)
 - **Visual indicators** for tab state (active, has new output, completed, error)
 - **Auto-scroll** within each tab, independent of other tabs
@@ -32,6 +35,12 @@ Implement a tabbed output panel similar to browser tabs:
 **As a** fleet administrator  
 **I want to** see which tabs have new output or errors  
 **So that** I can quickly identify hosts that need attention
+
+### US-4: Review System Events
+
+**As a** fleet administrator  
+**I want to** see a history of system events and toast notifications  
+**So that** I can review what happened even if I missed a notification
 
 ## Functional Requirements
 
@@ -112,6 +121,44 @@ The separator shows command name and timestamp.
 | FR-5.3 | Clicking dropdown item switches to that tab (moves to visible area)   |
 | FR-5.4 | On mobile (<640px), only active tab visible + dropdown for all others |
 
+### FR-6: System Log Tab
+
+A special tab that captures all ephemeral UI events (toasts, errors, system messages).
+
+| ID     | Requirement                                                    |
+| ------ | -------------------------------------------------------------- |
+| FR-6.1 | Tab auto-created on first system message                       |
+| FR-6.2 | Tab labeled "Log" with 📋 icon                                 |
+| FR-6.3 | Tab is closable like any other tab                             |
+| FR-6.4 | If closed, re-created automatically on next system message     |
+| FR-6.5 | New entries appear at the top (reverse chronological)          |
+| FR-6.6 | Each entry shows: icon, timestamp, message                     |
+| FR-6.7 | Timestamp format: "14:23:05 (2 min ago)" - absolute + relative |
+| FR-6.8 | Scrollable with same buffer limit as host tabs (1000 entries)  |
+
+### FR-7: System Log Message Categories
+
+| Icon | Color  | Category | Examples                                     |
+| ---- | ------ | -------- | -------------------------------------------- |
+| ✓    | Green  | Success  | Command completed, host connected, PR merged |
+| ⚠   | Orange | Warning  | Host disconnected, retry happening           |
+| ✗    | Red    | Error    | Command failed, connection lost              |
+| ℹ   | Blue   | Info     | Command started, system events               |
+
+### FR-8: Events Logged to System Log
+
+| Event Type                    | Logged? |
+| ----------------------------- | ------- |
+| Toast notifications           | ✅      |
+| Command start (any host)      | ✅      |
+| Command end (any host)        | ✅      |
+| Host connect                  | ✅      |
+| Host disconnect               | ✅      |
+| WebSocket connection issues   | ✅      |
+| Flake update PR events        | ✅      |
+| Agent version mismatch        | ✅      |
+| Git/Lock/System status change | ❌      |
+
 ### Session Behavior
 
 **Output is session-only.** On page refresh:
@@ -123,13 +170,13 @@ The separator shows command name and timestamp.
 
 ## UI Mockup
 
-### Output Panel (Bottom)
+### Output Panel (Bottom) - Host Tab
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│ ┌─────────┐ ┌─────────┐ ┌─────────┐                        [Close All] │
-│ │ hsb0  × │ │ hsb1 🔴│ │ gpc0 ●  │                           [▼ Hide]  │
-│ └─────────┘ └─────────┘ └─────────┘                                     │
+│ ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐            [Close All] │
+│ │ 📋 Log ×│ │ hsb0  × │ │ hsb1 🔴│ │ gpc0 ●  │               [▼ Hide] │
+│ └─────────┘ └─────────┘ └─────────┘ └─────────┘                         │
 ├─────────────────────────────────────────────────────────────────────────┤
 │ $ nixos-rebuild switch --flake .#hsb0                                   │
 │ building the system configuration...                                    │
@@ -141,11 +188,31 @@ The separator shows command name and timestamp.
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
+### Output Panel (Bottom) - System Log Tab
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│ ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐            [Close All] │
+│ │ 📋 Log ×│ │ hsb0  × │ │ hsb1 🔴│ │ gpc0 ●  │               [▼ Hide] │
+│ └─────────┘ └─────────┘ └─────────┘ └─────────┘                         │
+├─────────────────────────────────────────────────────────────────────────┤
+│ ✗  14:23:05 (just now)   hsb1 command failed: switch (exit 1)          │
+│ ✓  14:22:47 (38s ago)    gpc0 connected                                │
+│ ℹ  14:22:45 (40s ago)    Pull started on 3 hosts                       │
+│ ⚠  14:21:30 (2 min ago)  imac0 disconnected (timeout)                  │
+│ ✓  14:20:00 (3 min ago)  Flake update PR #42 merged                    │
+│ ⚠  14:19:58 (3 min ago)  Agent version mismatch: gpc0 (2.0.0 → 2.1.0)  │
+│ ℹ  14:19:55 (3 min ago)  Dashboard started (v2.1.0)                    │
+│                                                          [Clear] [Copy] │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
 Legend:
 
 - `×` = Close button
 - `🔴` = Error state (red dot)
 - `●` = Running/has new output
+- `📋` = System Log tab
 
 ### Ellipsis Menu (Per-Host)
 
@@ -168,12 +235,30 @@ The "Show Output" option:
 - Creates a new tab for the host (or switches to existing tab)
 - Shows buffered output history from previous commands
 
+### Bulk Actions Dropdown (Header)
+
+Rename "Bark Actions" → "Bulk Actions" with sections:
+
+```
+┌───────────────────────┐
+│ Fleet Actions         │
+│   Pull All            │
+│   Switch All          │
+│   Bark at All         │
+│ ──────────────────────│
+│ View                  │
+│   Show/Hide Output    │  ← Toggles entire output panel
+└───────────────────────┘
+```
+
+Note: No separate "Show System Log" option needed - it's just a tab in the output panel.
+
 ## Technical Considerations
 
 ### State Management
 
 ```javascript
-// Per-tab state
+// Per-tab state (host tabs)
 const outputTabs = {
   hsb0: {
     hostname: "hsb0",
@@ -187,6 +272,26 @@ const outputTabs = {
   },
   // ...
 };
+
+// System Log state
+const systemLog = {
+  entries: [
+    {
+      id: "uuid",
+      category: "error", // success, warning, error, info
+      timestamp: "2025-12-17T14:23:05Z",
+      message: "hsb1 command failed: switch (exit 1)",
+    },
+    // ... newest first
+  ],
+  scrollPosition: 0,
+  hasUnread: false,
+};
+
+// Helper for relative time display
+function formatRelativeTime(timestamp) {
+  // Returns "just now", "38s ago", "2 min ago", "1 hour ago", etc.
+}
 ```
 
 ### WebSocket Integration
@@ -215,13 +320,21 @@ const outputTabs = {
    - Running/completed/error indicators
    - Unread output badge
 
-3. **Phase 3: Panel Controls**
+3. **Phase 3: System Log Tab**
+   - Auto-create Log tab on first system message
+   - Message categories with colored icons
+   - Dual timestamp format (absolute + relative)
+   - Reverse chronological order (newest at top)
+   - Hook into toast system to capture messages
+
+4. **Phase 4: Panel Controls**
    - Collapse/expand
    - Resize by drag
    - Clear/Copy buttons
    - LocalStorage persistence for panel state
+   - Rename "Bark Actions" → "Bulk Actions" with sections
 
-4. **Phase 4: Polish**
+5. **Phase 5: Polish**
    - Keyboard shortcuts (Ctrl+1-9 for tabs)
    - Settings for buffer size
 
