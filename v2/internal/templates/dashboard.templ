@@ -904,10 +904,20 @@ templ Dashboard(data DashboardData) {
 
 					case 'command_complete':
 						if (!hostId) return;
+						const host = hostStore.get(hostId);
 						hostStore.update(hostId, {
 							pendingCommand: null
 						});
 						window.dispatchEvent(new CustomEvent('log-complete', { detail: payload }));
+						// P1010: Notify Action Bar of command completion
+						window.dispatchEvent(new CustomEvent('command-complete', {
+							detail: {
+								hostId,
+								hostname: host?.hostname || hostId,
+								command: payload.command,
+								exit_code: payload.exit_code || 0
+							}
+						}));
 						break;
 
 					case 'flake_update_job':
@@ -924,8 +934,16 @@ templ Dashboard(data DashboardData) {
 			// ACTIONS (User-initiated)
 			// ═══════════════════════════════════════════════════════════════════════════
 			function sendCommand(hostId, command) {
+				const host = hostStore.get(hostId);
+				const hostname = host?.hostname || hostId;
+
 				// Immediate UI feedback
 				hostStore.update(hostId, { pendingCommand: command });
+
+				// P1010: Notify Action Bar of command start
+				window.dispatchEvent(new CustomEvent('command-start', {
+					detail: { hostId, hostname, command }
+				}));
 
 				fetch(`/api/hosts/${hostId}/command`, {
 					method: 'POST',
@@ -945,6 +963,10 @@ templ Dashboard(data DashboardData) {
 					console.error('Command failed:', err);
 					alert('Command failed: ' + err.message);
 					hostStore.update(hostId, { pendingCommand: null });
+					// P1010: Notify Action Bar of failure
+					window.dispatchEvent(new CustomEvent('command-complete', {
+						detail: { hostId, hostname, command, exit_code: 1, error: err.message }
+					}));
 				});
 			}
 
@@ -1465,6 +1487,12 @@ templ Dashboard(data DashboardData) {
 					_activeCommand: null,
 
 					init() {
+						// Listen for compartment hover/leave events (P1020)
+						window.addEventListener('action-preview', (e) => this.handlePreview(e.detail));
+						window.addEventListener('action-clear', () => this.handleClear());
+						// Listen for command lifecycle events
+						window.addEventListener('command-start', (e) => this.handleCommandStart(e.detail));
+						window.addEventListener('command-complete', (e) => this.handleCommandComplete(e.detail));
 						// Cleanup on destroy
 						this.$watch('$el', () => this._cleanup());
 					},
