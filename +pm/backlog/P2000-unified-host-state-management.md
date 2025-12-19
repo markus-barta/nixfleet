@@ -3,11 +3,12 @@
 **Created**: 2025-12-18  
 **Updated**: 2025-12-19  
 **Priority**: P2000 (High - Architecture)  
-**Status**: Blocked by P1000  
+**Status**: ⚠️ NEEDS REASSESSMENT after P1000  
 **Estimated Effort**: 2-3 days  
 **Breaking Change**: Yes (complete JS rewrite)  
-**Target Version**: 2.2.0  
 **Depends on**: P1000 (Reliable Agent Updates)
+
+> **Note**: The current UI is functional. Fix P1000 (agent updates) first, then evaluate if this complete rewrite is still needed or if incremental improvements suffice.
 
 ---
 

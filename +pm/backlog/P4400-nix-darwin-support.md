@@ -3,7 +3,7 @@
 **Created**: 2025-12-15  
 **Priority**: P4400 (Medium)  
 **Status**: Backlog  
-**Depends on**: P5000 (Update Status)
+**Depends on**: None
 
 ---
 
@@ -94,5 +94,5 @@ System compartment icon for nix-darwin Macs:
 
 ## Related
 
-- **P5000**: Update status (System check needs correct paths)
+- System status check uses correct paths for each tool
 - Current: macOS uses Home Manager only

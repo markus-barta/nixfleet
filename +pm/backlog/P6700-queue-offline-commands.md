@@ -1,10 +1,9 @@
-# P5100 - Queue Commands for Offline Hosts
+# P6700 - Queue Commands for Offline Hosts
 
 **Created**: 2025-12-14  
-**Updated**: 2025-12-15  
-**Priority**: P5100 (Medium)  
-**Status**: Backlog  
-**Depends on**: P4000-P4400 (Core rewrite)
+**Updated**: 2025-12-19  
+**Priority**: P6700 (Low)  
+**Status**: Backlog
 
 ---
 

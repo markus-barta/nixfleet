@@ -1,8 +1,8 @@
 # P6500 - Cursor/VS Code Direnv Extension Setup
 
-**Created**: 2025-12-16  
-**Priority**: P6500 (Low)  
-**Status**: Backlog
+**Status**: ❌ CANCELLED - Not a NixFleet feature  
+**Closed**: 2025-12-19  
+**Reason**: This is a developer tooling issue, not a NixFleet product feature. Workaround documented (start Cursor from nix shell).
 
 ---
 

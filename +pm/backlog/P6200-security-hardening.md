@@ -4,7 +4,7 @@
 **Updated**: 2025-12-15  
 **Priority**: P6200 (Low)  
 **Status**: Backlog  
-**Depends on**: P4000-P4400 (Core rewrite)
+**Depends on**: None (post-MVP)
 
 ---
 

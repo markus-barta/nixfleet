@@ -1,10 +1,9 @@
-# P4375 - UI: Status Papertrail
+# P6600 - UI: Status Papertrail
 
-**Priority**: Medium  
-**Status**: Pending  
+**Priority**: P6600 (Low)  
+**Status**: Backlog  
 **Effort**: Medium  
-**Updated**: 2025-12-15  
-**References**: `+pm/legacy/v1.0/dashboard.html` (lines 468-568)
+**Created**: 2025-12-15
 
 ## Problem
 

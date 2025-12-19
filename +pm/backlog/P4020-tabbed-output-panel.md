@@ -231,7 +231,7 @@ const outputTabs = {
 
 ## Dependencies
 
-- P5000 (Host Update Status) - completed
+- Host Update Status - completed (built into dashboard)
 - Existing WebSocket output streaming
 
 ## Related
