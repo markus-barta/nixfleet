@@ -3,284 +3,231 @@
 **Created**: 2025-12-19  
 **Updated**: 2025-12-19  
 **Priority**: P1000 (Critical - Blocking)  
-**Status**: Ready for Development  
-**Estimated Effort**: 4-6 hours  
-**Depends on**: None  
-**Blocks**: Fleet management reliability
+**Status**: Root Cause Confirmed - UX Issue  
+**Estimated Effort**: 2-3 hours  
+**Depends on**: None
 
 ---
 
 ## Executive Summary
 
-The agent update flow is broken on macOS. After `switch`, the agent continues running the old binary. NixOS works correctly. This is the #1 blocker for fleet management.
+~~The agent update flow is broken on macOS.~~ **CORRECTION**: The agent update flow works correctly! The issue is **UX** — users click "Pull" but don't click "Switch", thinking the update is complete.
 
-**Goal**: After `switch` completes, the agent automatically restarts with the new binary on ALL platforms.
-
----
-
-## Root Cause (Confirmed via Code Analysis)
-
-### The Code
-
-In `v2/internal/agent/commands.go` lines 144-152:
-
-```go
-// Auto-restart after successful switch to pick up new binary
-// Only on NixOS - macOS is handled by home-manager's launchctl bootout/bootstrap
-if exitCode == 0 && (command == "switch" || command == "pull-switch") && runtime.GOOS != "darwin" {
-    a.log.Info().Msg("switch completed successfully, restarting to pick up new binary")
-    time.Sleep(500 * time.Millisecond)
-    a.Shutdown()
-    os.Exit(101) // Triggers RestartForceExitStatus in systemd
-}
-```
-
-### The Problem
-
-**macOS is explicitly SKIPPED** from the restart logic because the comment assumes "home-manager's launchctl bootout/bootstrap" handles it.
-
-But it doesn't work because:
-
-1. **home-manager DOES write a new plist** pointing to the new binary in `/nix/store/...`
-2. **home-manager DOES run `launchctl bootout` then `bootstrap`** during activation
-3. **BUT**: The agent is RUNNING during switch. The bootout kills it, bootstrap starts it... but with which binary?
-
-The race condition:
-
-```
-1. Agent running (old binary)
-2. Agent executes: home-manager switch
-3. home-manager writes new plist (points to new binary)
-4. home-manager runs: launchctl bootout gui/501/com.nixfleet.agent
-5. Agent process dies (killed by bootout)
-6. home-manager runs: launchctl bootstrap gui/501 <new-plist>
-7. launchd starts new agent... but agent code never reached line 148!
-```
-
-Wait, that should work! Let me reconsider...
-
-Actually, the **real** issue is:
-
-```
-1. Agent running (old binary)
-2. Agent executes: home-manager switch
-3. home-manager writes new plist
-4. home-manager skips launchctl reload because agent is already running
-5. Switch completes, old binary continues running
-6. Agent code reaches line 146, condition is FALSE for darwin
-7. Old binary keeps running indefinitely
-```
-
-**Key insight**: home-manager's `setupLaunchAgents` only does bootout/bootstrap if the service is NOT already running OR if the plist changed AND stopOnChange is true.
-
-### Evidence from modules/home-manager.nix
-
-```nix
-# NOTE: No custom activation hook needed - home-manager's setupLaunchAgents
-# already handles agent lifecycle (bootout → bootstrap) correctly.
-# A previous custom hook was causing double-reloads that left the agent dead.
-```
-
-This note is **misleading**. It was written after removing a buggy hook, but the underlying problem was never actually fixed.
+**Verified**: Running `home-manager switch` on macOS correctly restarts the agent with the new binary via launchd's bootout/bootstrap mechanism.
 
 ---
 
-## Solution: Simple Agent Self-Restart for macOS
+## Root Cause (Confirmed via Manual Testing)
 
-Add macOS to the restart logic. The agent should restart itself after switch, just like on NixOS.
+### What We Tested (2025-12-19 on imac0)
 
-### Option A: launchctl kickstart (Recommended)
+1. **Before switch**: Agent running 2.0.0
+2. **After `home-manager switch`**: Agent running 2.1.0 ✅
 
-```go
-// In commands.go, after successful switch
-if exitCode == 0 && (command == "switch" || command == "pull-switch") {
-    a.log.Info().Msg("switch completed successfully, triggering restart")
-    time.Sleep(500 * time.Millisecond)
-
-    if runtime.GOOS == "darwin" {
-        // macOS: Use launchctl kickstart to restart with new binary
-        // -k = kill existing, then restart
-        uid := os.Getuid()
-        serviceLabel := fmt.Sprintf("gui/%d/com.nixfleet.agent", uid)
-        a.log.Info().Str("service", serviceLabel).Msg("executing launchctl kickstart")
-
-        cmd := exec.Command("launchctl", "kickstart", "-k", serviceLabel)
-        if err := cmd.Run(); err != nil {
-            a.log.Error().Err(err).Msg("launchctl kickstart failed")
-        }
-        // The kickstart -k will kill this process, so we don't reach here
-    } else {
-        // NixOS: Exit with 101 to trigger systemd RestartForceExitStatus
-        a.Shutdown()
-        os.Exit(101)
-    }
-}
+```
+1:50PM INF received signal signal=terminated
+1:50PM INF shutting down
+1:50PM INF NixFleet Agent starting ... version=2.1.0
 ```
 
-**Why this works**:
+home-manager's `setupLaunchAgents` correctly:
 
-- `launchctl kickstart -k` kills the running agent and starts a fresh instance
-- launchd reads the NEW plist (already updated by home-manager)
-- New plist points to new binary in `/nix/store/...`
-- Agent starts with new binary
+- Sends SIGTERM to old agent
+- Runs `launchctl bootout`
+- Runs `launchctl bootstrap` with new plist
+- New agent starts with new binary
 
-### Option B: Exit and rely on KeepAlive (Alternative)
+### The ACTUAL Problem
 
-```go
-// In commands.go, after successful switch
-if exitCode == 0 && (command == "switch" || command == "pull-switch") {
-    a.log.Info().Msg("switch completed, exiting to pick up new binary")
-    time.Sleep(500 * time.Millisecond)
-    a.Shutdown()
-    os.Exit(0)  // Both platforms - launchd KeepAlive / systemd Restart=always will restart
-}
+Timeline on imac0:
+
+| Event                    | Date/Time     | Result                          |
+| ------------------------ | ------------- | ------------------------------- |
+| Gen 121 created (switch) | Dec 17, 19:24 | Agent 2.0.0 installed           |
+| Commit with 2.1.0 pushed | Dec 18, 14:07 | flake.lock updated in repo      |
+| Pull via dashboard       | Dec 19, 10:58 | Agent fetched new flake.lock    |
+| **Switch NOT triggered** | -             | Gen 121 still active!           |
+| Manual switch            | Dec 19, 13:49 | Gen 122 created, Agent 2.1.0 ✅ |
+
+**The bug**: Users clicked "Pull" and assumed they were done. They didn't click "Switch".
+
+---
+
+## The UX Problem
+
+Current UI:
+
+```
+[Pull]  [Switch]  [Test]   ← Three separate buttons
 ```
 
-**Why this might work**:
+User mental model:
 
-- Simpler code (same path for both platforms)
-- launchd's `KeepAlive = true` will restart the agent
-- launchd should read the updated plist on restart
+- "I clicked Pull, my host is updated!" ❌
+- Reality: Pull just fetches code, Switch applies it
 
-**Risk**: If launchd caches the old plist, we're back to square one.
+### Evidence
 
-### Recommendation: Option A
+The UI has no combined action:
 
-Option A is explicit and guaranteed to work. Option B relies on launchd behavior that we haven't verified.
+```go
+// dashboard.templ lines 1279-1280
+@CommandButton(host.ID, "pull", "Pull", "btn", ...)
+@CommandButton(host.ID, "switch", "Switch", "btn", ...)  // Separate button!
+```
+
+But the agent DOES support `pull-switch`:
+
+```go
+// commands.go line 100
+case "pull-switch":
+    // Pull first, then switch
+```
+
+This command exists but isn't exposed in the UI!
+
+---
+
+## Solution: Add "Update" Button
+
+### Option A: Add "Update" Button (Recommended)
+
+Add a combined button that runs `pull-switch`:
+
+```
+[Update ▾]  [Test]   ← Single button with optional dropdown
+   └── Pull only
+   └── Switch only
+```
+
+Or simpler:
+
+```
+[Update]  [Pull]  [Switch]  [Test]   ← "Update" does both
+```
+
+### Option B: Auto-Switch After Pull
+
+When Pull completes successfully, automatically trigger Switch.
+
+**Risk**: User might want to review changes before applying. Less control.
+
+### Option C: Better Visual Feedback
+
+After Pull succeeds, show prominent message:
+
+```
+✓ Pull complete. Click [Switch] to apply changes.
+```
+
+### Recommendation
+
+**Option A** — Add "Update" button that runs `pull-switch`. Keep Pull/Switch for advanced users who want granular control.
 
 ---
 
 ## Implementation
 
-### Step 1: Fix the restart logic (30 min)
+### Step 1: Add "Update" button to UI (1 hour)
 
-File: `v2/internal/agent/commands.go`
+File: `v2/internal/templates/dashboard.templ`
 
 ```go
-// After line 143, replace the existing restart block with:
-
-// Auto-restart after successful switch to pick up new binary
-if exitCode == 0 && (command == "switch" || command == "pull-switch") {
-    a.log.Info().Msg("switch completed successfully, triggering restart to pick up new binary")
-
-    // Give time for status message to be sent
-    time.Sleep(500 * time.Millisecond)
-
-    if runtime.GOOS == "darwin" {
-        // macOS: launchctl kickstart -k kills current and starts new
-        uid := os.Getuid()
-        service := fmt.Sprintf("gui/%d/com.nixfleet.agent", uid)
-        a.log.Info().Str("service", service).Msg("restarting via launchctl kickstart")
-
-        // Don't use exec.Command - we need Setsid so the child survives
-        cmd := exec.Command("launchctl", "kickstart", "-k", service)
-        cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
-        if err := cmd.Start(); err != nil {
-            a.log.Error().Err(err).Msg("launchctl kickstart failed, agent may need manual restart")
-        }
-        // The kickstart will kill us, but just in case:
-        time.Sleep(100 * time.Millisecond)
-        os.Exit(0)
-    } else {
-        // NixOS: exit 101 triggers RestartForceExitStatus in systemd
-        a.Shutdown()
-        os.Exit(101)
-    }
-}
+// In host card actions section
+@CommandButton(host.ID, "pull-switch", "Update", "btn btn-primary", host.Online && host.PendingCommand == "")
+@CommandButton(host.ID, "pull", "Pull", "btn btn-secondary", host.Online && host.PendingCommand == "")
+@CommandButton(host.ID, "switch", "Switch", "btn btn-secondary", host.Online && host.PendingCommand == "")
 ```
 
-### Step 2: Update the misleading comment (5 min)
+### Step 2: Update "Pull All" / "Switch All" (30 min)
 
-File: `modules/home-manager.nix`
+Add "Update All" button in header:
+
+```go
+<button class="btn btn-primary" @click="sendBroadcast('pull-switch')">
+    <svg class="icon"><use href="#icon-refresh"></use></svg>
+    Update All
+</button>
+```
+
+### Step 3: Fix button styling (30 min)
+
+Make "Update" visually prominent, Pull/Switch secondary.
+
+---
+
+## What We DON'T Need to Fix
+
+Based on testing, these are NOT broken:
+
+- ~~launchd restart~~ → Works correctly
+- ~~launchctl kickstart~~ → Not needed
+- ~~Agent self-restart on macOS~~ → Not needed
+- ~~Activation hooks~~ → Not needed
+
+The existing code in `modules/home-manager.nix` is correct:
 
 ```nix
-# Agent restart after switch is handled by the agent itself (launchctl kickstart).
-# home-manager's setupLaunchAgents updates the plist, but doesn't restart
-# a running agent reliably, so the agent triggers its own restart.
+# NOTE: No custom activation hook needed - home-manager's setupLaunchAgents
+# already handles agent lifecycle (bootout → bootstrap) correctly.
 ```
 
-### Step 3: Test on both platforms (1-2 hours)
-
-1. **Before fix**: Verify agent doesn't update after switch on macOS
-2. **Deploy fix**: Push new agent code, update flake.lock
-3. **Test macOS**: Run switch, verify agent version updates
-4. **Test NixOS**: Run switch, verify agent version updates (regression test)
-5. **Test edge cases**: What if switch fails? What if network drops?
+This comment is ACCURATE. We just need better UX.
 
 ---
 
 ## Acceptance Criteria
 
-- [ ] **macOS**: After switch, agent reports new version within 30 seconds
-- [ ] **NixOS**: After switch, agent reports new version within 30 seconds (no regression)
-- [ ] **Switch failure**: If switch fails, agent keeps running (no restart)
-- [ ] **Logs**: Clear log message indicating restart reason
-- [ ] **Dashboard**: No manual intervention needed
+- [ ] "Update" button visible in host card (runs pull-switch)
+- [ ] "Update All" button in header (runs pull-switch on all hosts)
+- [ ] Pull/Switch buttons still available for granular control
+- [ ] After Update, agent version updates within 60 seconds
 
 ---
 
-## Testing Checklist
+## Testing
 
-### Pre-implementation (verify the bug)
+### Verify the fix works:
 
-```bash
-# On macOS host (e.g., imac0)
-# 1. Check current agent version
-pgrep -fl nixfleet
+1. Update flake.lock in nixcfg with new agent version
+2. Push to GitHub
+3. In dashboard, click "Update" on imac0
+4. Verify: Pull runs, Switch runs, Agent restarts with new version
 
-# 2. Run switch via dashboard or:
-cd ~/.local/state/nixfleet-agent/repo
-home-manager switch --flake .#hostname
+### Regression test:
 
-# 3. Check agent version again - should be SAME (bug)
-pgrep -fl nixfleet
-```
-
-### Post-implementation (verify the fix)
-
-```bash
-# On macOS host
-# 1. Update flake.lock to include new agent with fix
-# 2. Pull and switch
-# 3. Agent should restart automatically
-# 4. Check: pgrep -fl nixfleet - should show NEW binary path
-```
+1. Click "Pull" only → Agent version should NOT change
+2. Click "Switch" only → Agent should update if code was already pulled
+3. Click "Update" → Agent should update in one action
 
 ---
 
 ## Files to Modify
 
-| File                            | Change                                    |
-| ------------------------------- | ----------------------------------------- |
-| `v2/internal/agent/commands.go` | Add macOS restart via launchctl kickstart |
-| `modules/home-manager.nix`      | Update misleading comment                 |
+| File                                    | Change                                |
+| --------------------------------------- | ------------------------------------- |
+| `v2/internal/templates/dashboard.templ` | Add "Update" and "Update All" buttons |
+| `v2/internal/templates/styles.css`      | Style primary vs secondary buttons    |
 
 ---
 
-## Risks & Mitigations
+## Why Previous Analysis Was Wrong
 
-| Risk                            | Mitigation                                                |
-| ------------------------------- | --------------------------------------------------------- |
-| launchctl kickstart fails       | Log error, agent continues running (no worse than before) |
-| New binary crashes on startup   | launchd KeepAlive restarts it; can rollback via SSH       |
-| Race with plist update          | 500ms delay should be sufficient                          |
-| Agent killed before status sent | Sleep ensures status is sent first                        |
+The P1000 code analysis looked at `commands.go:146`:
 
----
+```go
+if ... && runtime.GOOS != "darwin" {
+    os.Exit(101)  // Only for NixOS
+}
+```
 
-## Why NOT an Activation Hook?
+And concluded "macOS doesn't restart". But this code is for the AGENT to restart ITSELF after switch. It's not needed on macOS because **home-manager already handles the restart**.
 
-A previous version tried adding a home.activation script. It was removed because:
-
-1. **Double-reload**: Both home-manager's setupLaunchAgents AND the custom hook tried to reload, leaving the agent dead
-2. **Timing issues**: Hook ran before plist was updated
-3. **Complexity**: Agent self-restart is simpler and more reliable
-
-The agent knows exactly when switch completed and can trigger its own restart at the right moment.
+The confusion: We thought switch was being run and failing. Actually, **switch wasn't being run at all** — only pull was.
 
 ---
 
 ## Related
 
-- [UPDATE-ARCHITECTURE.md](../../docs/UPDATE-ARCHITECTURE.md) — Update flow documentation
-- [P2000](./P2000-unified-host-state-management.md) — Depends on this fix
+- [UPDATE-ARCHITECTURE.md](../../docs/UPDATE-ARCHITECTURE.md) — Documents the 5-step update flow
+- The `pull-switch` command already exists in agent code, just not exposed in UI
