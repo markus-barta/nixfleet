@@ -196,11 +196,10 @@ templ Base(title string, csrfToken string) {
 			.target-agent {
 				font-family: 'JetBrains Mono', 'Fira Code', monospace;
 				font-size: 0.7rem;
-				color: var(--bg);
-				background: var(--purple);
-				padding: 0.15rem 0.5rem;
-				border-radius: 4px;
-				font-weight: 600;
+				color: var(--purple);
+				background: rgba(187, 154, 247, 0.15);
+				padding: 0.15rem 0.4rem;
+				border-radius: 3px;
 			}
 
 			.target-unavailable {
@@ -490,25 +489,19 @@ templ Base(title string, csrfToken string) {
 				justify-content: center;
 				vertical-align: middle;
 				flex-shrink: 0;
+				position: relative;
 			}
 
 			.status-online { background: var(--green); box-shadow: 0 0 6px var(--green); }
 			.status-offline { 
-				/* Keep 12px container for alignment, but show smaller dot */
-				background: transparent;
-				box-shadow: none;
-				position: relative;
-			}
-			.status-offline::after {
-				content: '';
-				position: absolute;
-				top: 50%;
-				left: 50%;
-				transform: translate(-50%, -50%);
+				/* Show smaller centered dot */
+				background: var(--fg-dim);
 				width: 6px;
 				height: 6px;
-				border-radius: 50%;
-				background: var(--fg-dim);
+				min-width: 6px;
+				min-height: 6px;
+				/* Center within the cell using margin */
+				margin: 3px;
 			}
 			.status-running { background: var(--yellow); animation: pulse 1.5s infinite; box-shadow: 0 0 4px var(--yellow); }
 			.status-error { background: var(--red); }
@@ -1150,7 +1143,6 @@ templ Base(title string, csrfToken string) {
 			}
 
 			.dropdown-menu {
-				display: none;
 				position: absolute;
 				right: 0;
 				top: 100%;
@@ -1163,10 +1155,8 @@ templ Base(title string, csrfToken string) {
 				z-index: 9999;
 			}
 
-			.dropdown.open .dropdown-menu,
-			.dropdown-menu.open {
-				display: block;
-			}
+			/* x-cloak hides until Alpine initializes */
+			[x-cloak] { display: none !important; }
 
 			/* Bulk Actions dropdown in header */
 			.bulk-actions-dropdown {
@@ -1240,20 +1230,21 @@ templ Base(title string, csrfToken string) {
 				display: inline-flex;
 				align-items: center;
 				justify-content: center;
-				width: 32px;
-				height: 32px;
+				width: 28px;
+				height: 28px;
 				padding: 0;
 				background: transparent;
-				border: none;
+				border: 1px solid var(--border);
 				border-radius: 4px;
 				color: var(--fg-muted);
 				cursor: pointer;
-				transition: color 150ms ease, background 150ms ease;
+				transition: all 150ms ease;
 			}
 
 			.dropdown-toggle:hover {
 				color: var(--fg);
 				background: var(--bg-highlight);
+				border-color: var(--fg-dim);
 			}
 
 			.dropdown-toggle:focus-visible {
@@ -1262,8 +1253,8 @@ templ Base(title string, csrfToken string) {
 			}
 
 			.dropdown-toggle .icon {
-				width: 18px;
-				height: 18px;
+				width: 16px;
+				height: 16px;
 			}
 
 			/* Modals (P4390) */
@@ -1904,13 +1895,14 @@ templ Base(title string, csrfToken string) {
 				}
 			}
 
-			/* DO ALL Button - matches Logout style but green */
+			/* DO ALL Button - matches other context buttons but green accent */
 			.btn-do-all {
 				background: transparent;
 				border: 1px solid var(--green);
 				color: var(--green);
-				padding: 0.5rem 1rem;
-				font-weight: 600;
+				/* Same padding as .btn-context */
+				padding: 0.4rem 0.75rem;
+				font-weight: 500;
 			}
 
 			.btn-do-all:hover:not(:disabled) {
@@ -1919,8 +1911,8 @@ templ Base(title string, csrfToken string) {
 			}
 
 			.btn-do-all .icon {
-				width: 16px;
-				height: 16px;
+				width: 14px;
+				height: 14px;
 			}
 
 			.btn-clear {
@@ -2114,4 +2106,5 @@ templ Base(title string, csrfToken string) {
 	</body>
 	</html>
 }
+
 
