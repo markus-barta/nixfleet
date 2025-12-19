@@ -1336,19 +1336,14 @@ templ Dashboard(data DashboardData) {
 			const COOLDOWN_MS = 500;
 
 			function handleCompartmentHover(btn) {
-				console.log('handleCompartmentHover called', btn.dataset);
 				const hostId = btn.dataset.hostId;
 				const hostname = btn.dataset.hostname;
 				const compartment = btn.dataset.compartment;
 				const action = btn.dataset.action;
 
 				// Don't show preview for error/info actions
-				if (action === 'error' || action === 'info') {
-					console.log('Skipping preview for action:', action);
-					return;
-				}
+				if (action === 'error' || action === 'info') return;
 
-				console.log('Dispatching action-preview', { hostId, hostname, command: action, compartment });
 				window.dispatchEvent(new CustomEvent('action-preview', {
 					detail: { hostId, hostname, command: action, compartment }
 				}));
@@ -1490,12 +1485,9 @@ templ Dashboard(data DashboardData) {
 					_debounceTimer: null,
 					_completeTimer: null,
 					_activeCommand: null,
-					_instanceId: Math.random().toString(36).substr(2, 6),
 
 					init() {
-						console.log('ActionBar init called, instance:', this._instanceId, 'element:', this.$el?.id || 'no-id');
-						// Note: Events are handled via Alpine directives (@action-preview.window etc.)
-						// No need for duplicate window.addEventListener calls
+						// Events are handled via Alpine directives (@action-preview.window etc.)
 						// Cleanup on destroy
 						this.$watch('$el', () => this._cleanup());
 					},
@@ -1508,30 +1500,18 @@ templ Dashboard(data DashboardData) {
 					},
 
 					handlePreview(detail) {
-						console.log('ActionBar', this._instanceId, 'handlePreview received', detail);
-						if (this.state === 'progress') {
-							console.log('ActionBar', this._instanceId, 'Ignoring preview - in progress state');
-							return;
-						}
+						if (this.state === 'progress') return;
 
 						// Clear any existing timers
 						if (this._debounceTimer) clearTimeout(this._debounceTimer);
 						if (this._completeTimer) clearTimeout(this._completeTimer);
 
-						// Show preview immediately (no debounce for now)
-						console.log('ActionBar', this._instanceId, 'calling _showPreview directly');
-						try {
-							this._showPreview(detail);
-							console.log('ActionBar', this._instanceId, '_showPreview completed, state:', this.state);
-						} catch (e) {
-							console.error('ActionBar', this._instanceId, '_showPreview error:', e);
-						}
+						// Show preview immediately
+						this._showPreview(detail);
 					},
 
 					handleClear() {
-						console.log('ActionBar', this._instanceId, 'handleClear called, state:', this.state, 'hasTimer:', !!this._debounceTimer);
 						if (this._debounceTimer) {
-							console.log('ActionBar', this._instanceId, 'Clearing debounce timer');
 							clearTimeout(this._debounceTimer);
 							this._debounceTimer = null;
 						}
