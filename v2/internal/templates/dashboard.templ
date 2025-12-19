@@ -186,7 +186,8 @@ templ Dashboard(data DashboardData) {
 					<th title="Update Status (Git/Lock/System)">Update</th>
 					<th class="col-center">Tests</th>
 					<th class="col-right">Last Seen</th>
-					<th>Actions</th>
+					<!-- P1050: Actions removed, P1060: Menu column -->
+					<th class="col-menu"></th>
 					<!-- P1030: Selection checkbox column (right side) -->
 					<th class="col-select">
 						<button
@@ -231,6 +232,9 @@ templ Dashboard(data DashboardData) {
 				</template>
 			</div>
 		</div>
+
+		<!-- P1040: Dependency Dialog -->
+		@DependencyDialog()
 
 		<!-- Remove Host Confirmation Modal (P4390) -->
 		<div class="modal-overlay" id="removeHostModal">
@@ -1383,6 +1387,17 @@ templ Dashboard(data DashboardData) {
 				}, 3000);
 			}
 
+			// P1060: Clipboard utility
+			async function copyToClipboard(text, message) {
+				try {
+					await navigator.clipboard.writeText(text);
+					showToast(message, 'success');
+				} catch (err) {
+					console.error('Failed to copy:', err);
+					showToast('Failed to copy to clipboard', 'error');
+				}
+			}
+
 			// ═══════════════════════════════════════════════════════════════════════════
 			// SELECTION BAR COMPONENT (P1015)
 			// ═══════════════════════════════════════════════════════════════════════════
@@ -1618,7 +1633,197 @@ templ Dashboard(data DashboardData) {
 						return icons[command] || 'play';
 					}
 				}));
+
+				// ═══════════════════════════════════════════════════════════════════════════
+				// DEPENDENCY DIALOG COMPONENT (P1040)
+				// ═══════════════════════════════════════════════════════════════════════════
+				Alpine.data('dependencyDialog', () => ({
+					show: false,
+					title: '',
+					message: '',
+					hosts: [],
+					executing: false,
+					progressText: '',
+					cancelled: false,
+					_completionHandlers: [],
+
+					init() {
+						window.addEventListener('show-dependency-dialog', (e) => this.open(e.detail));
+					},
+
+					open(detail) {
+						this.title = detail.title;
+						this.message = detail.message;
+						this.hosts = detail.hosts;
+						this.executing = false;
+						this.progressText = '';
+						this.cancelled = false;
+						this.show = true;
+					},
+
+					close() {
+						if (this.executing) return;
+						this.show = false;
+						this._cleanup();
+					},
+
+					handleEscape() {
+						if (this.executing) {
+							this.cancelExecution();
+						} else {
+							this.close();
+						}
+					},
+
+					async choose(action) {
+						switch (action) {
+							case 'pull':
+								sendCommand(this.hosts[0].id, 'pull');
+								this.show = false;
+								break;
+							case 'switch':
+								sendCommand(this.hosts[0].id, 'switch');
+								this.show = false;
+								break;
+							case 'pull-switch':
+								await this.executePullThenSwitch([this.hosts[0]]);
+								break;
+							case 'switch-all':
+								this.hosts.forEach(h => sendCommand(h.id, 'switch'));
+								this.show = false;
+								break;
+							case 'pull-switch-all':
+								await this.executePullThenSwitch(this.hosts);
+								break;
+						}
+					},
+
+					async executePullThenSwitch(hosts) {
+						this.executing = true;
+						this.cancelled = false;
+
+						const hostsToPull = hosts.filter(h => h.needsPull);
+						const hostsToSwitchOnly = hosts.filter(h => !h.needsPull);
+
+						try {
+							if (hostsToPull.length > 0) {
+								this.progressText = `Pulling ${hostsToPull.length} host${hostsToPull.length > 1 ? 's' : ''}...`;
+								await Promise.all(hostsToPull.map(h => {
+									if (this.cancelled) throw new Error('Cancelled');
+									return this._sendCommandAndWait(h.id, 'pull');
+								}));
+							}
+
+							if (this.cancelled) {
+								this._showCancelled();
+								return;
+							}
+
+							const allToSwitch = [...hostsToPull, ...hostsToSwitchOnly];
+							this.progressText = `Switching ${allToSwitch.length} host${allToSwitch.length > 1 ? 's' : ''}...`;
+							allToSwitch.forEach(h => {
+								if (!this.cancelled) sendCommand(h.id, 'switch');
+							});
+
+							this.show = false;
+							this._cleanup();
+						} catch (err) {
+							if (err.message === 'Cancelled') {
+								this._showCancelled();
+							} else {
+								console.error('Pull+Switch failed:', err);
+								this.progressText = `Error: ${err.message}`;
+								setTimeout(() => { this.executing = false; }, 2000);
+							}
+						}
+					},
+
+					cancelExecution() {
+						this.cancelled = true;
+						this.progressText = 'Cancelling...';
+					},
+
+					_showCancelled() {
+						this.progressText = 'Cancelled';
+						setTimeout(() => {
+							this.show = false;
+							this.executing = false;
+							this._cleanup();
+						}, 1000);
+					},
+
+					_sendCommandAndWait(hostId, command) {
+						return new Promise((resolve, reject) => {
+							const handler = (e) => {
+								const detail = e.detail;
+								if (detail.hostId === hostId) {
+									window.removeEventListener('command-complete', handler);
+									const idx = this._completionHandlers.indexOf(handler);
+									if (idx !== -1) this._completionHandlers.splice(idx, 1);
+									if (detail.exit_code === 0) {
+										resolve();
+									} else {
+										reject(new Error(`${command} failed on ${hostId} (exit ${detail.exit_code})`));
+									}
+								}
+							};
+							window.addEventListener('command-complete', handler);
+							this._completionHandlers.push(handler);
+							sendCommand(hostId, command);
+						});
+					},
+
+					_cleanup() {
+						this._completionHandlers.forEach(handler => {
+							window.removeEventListener('command-complete', handler);
+						});
+						this._completionHandlers = [];
+					}
+				}));
 			});
+
+			// ═══════════════════════════════════════════════════════════════════════════
+			// DEPENDENCY CHECK HELPER (P1040)
+			// ═══════════════════════════════════════════════════════════════════════════
+			function checkDependenciesAndExecute(hostIds, command) {
+				if (command !== 'switch') {
+					hostIds.forEach(id => sendCommand(id, command));
+					return;
+				}
+
+				const hostsNeedingPull = [];
+				const hostsReady = [];
+
+				hostIds.forEach(id => {
+					const host = hostStore.get(id);
+					if (!host) return;
+
+					const gitStatus = host.updateStatus?.git?.status;
+					if (gitStatus === 'outdated') {
+						hostsNeedingPull.push({ id: host.id, hostname: host.hostname, needsPull: true });
+					} else {
+						hostsReady.push({ id: host.id, hostname: host.hostname, needsPull: false });
+					}
+				});
+
+				if (hostsNeedingPull.length === 0) {
+					hostIds.forEach(id => sendCommand(id, 'switch'));
+					return;
+				}
+
+				const allHosts = [...hostsNeedingPull, ...hostsReady];
+				const isSingle = allHosts.length === 1;
+
+				window.dispatchEvent(new CustomEvent('show-dependency-dialog', {
+					detail: {
+						title: isSingle
+							? `Git is behind on ${allHosts[0].hostname}`
+							: `${hostsNeedingPull.length} of ${allHosts.length} hosts need Pull first`,
+						message: 'Running Switch without Pull may deploy old code.',
+						hosts: allHosts
+					}
+				}));
+			}
 
 			// ═══════════════════════════════════════════════════════════════════════════
 			// INIT - P7000
@@ -1697,6 +1902,88 @@ templ SelectionBar() {
 			>
 				<svg class="icon"><use href="#icon-x"></use></svg>
 			</button>
+		</div>
+	</div>
+}
+
+// DependencyDialog renders the dependency warning modal (P1040)
+templ DependencyDialog() {
+	<div
+		id="dependency-dialog"
+		class="modal-overlay"
+		x-data="dependencyDialog()"
+		x-show="show"
+		x-cloak
+		@keydown.escape.window="handleEscape()"
+		@click.self="close()"
+	>
+		<div class="modal dialog-modal" @click.stop>
+			<div class="dialog-header">
+				<svg class="dialog-icon warning"><use href="#icon-alert-triangle"></use></svg>
+				<h3 class="dialog-title" x-text="title"></h3>
+			</div>
+
+			<div class="dialog-body">
+				<p class="dialog-message" x-text="message"></p>
+
+				<!-- Host list for multi-host -->
+				<template x-if="hosts.length > 1">
+					<ul class="dialog-host-list">
+						<template x-for="host in hosts" :key="host.id">
+							<li :class="{ 'needs-action': host.needsPull }">
+								<span class="host-name" x-text="host.hostname"></span>
+								<span class="host-status" x-text="host.needsPull ? 'Git is behind' : 'OK (will switch)'"></span>
+							</li>
+						</template>
+					</ul>
+				</template>
+			</div>
+
+			<div class="dialog-footer">
+				<button type="button" class="btn btn-cancel" @click="close()">
+					Cancel
+				</button>
+
+				<div class="dialog-actions">
+					<!-- Single-host buttons -->
+					<template x-if="hosts.length === 1">
+						<div class="dialog-action-group">
+							<button type="button" class="btn" @click="choose('pull')">
+								Pull Only
+							</button>
+							<button type="button" class="btn" @click="choose('switch')">
+								Switch Anyway
+							</button>
+							<button type="button" class="btn btn-primary" @click="choose('pull-switch')">
+								Pull + Switch
+							</button>
+						</div>
+					</template>
+
+					<!-- Multi-host buttons -->
+					<template x-if="hosts.length > 1">
+						<div class="dialog-action-group">
+							<button type="button" class="btn" @click="choose('switch-all')">
+								Switch All Anyway
+							</button>
+							<button type="button" class="btn btn-primary" @click="choose('pull-switch-all')">
+								Pull + Switch All
+							</button>
+						</div>
+					</template>
+				</div>
+			</div>
+
+			<!-- Progress overlay -->
+			<div class="dialog-progress" x-show="executing" x-cloak>
+				<div class="progress-content">
+					<svg class="icon spinning"><use href="#icon-loader"></use></svg>
+					<span x-text="progressText"></span>
+					<button type="button" class="btn btn-cancel-small" @click="cancelExecution()">
+						Cancel
+					</button>
+				</div>
+			</div>
 		</div>
 	</div>
 }
@@ -1949,37 +2236,9 @@ templ HostRow(host Host, csrfToken string) {
 			@TestsCell(host.TestProgress)
 		</td>
 		<td class="col-right" data-cell="last-seen" data-timestamp={ host.LastSeen }>{ valueOrDash(host.LastSeen) }</td>
-		<td class="actions-cell">
-			<div class="action-buttons" data-host-id={ host.ID }>
-				<!-- Command buttons (visible when idle) -->
-				<span class="cmd-buttons" style={ visibleWhen(host.PendingCommand == "") }>
-					@CommandButton(host.ID, "pull", "", "btn", host.Online)
-					@CommandButton(host.ID, "switch", "", "btn", host.Online)
-					@CommandButton(host.ID, "test", "", "btn", host.Online)
-				</span>
-				<!-- Stop button (visible when command running) -->
-				<button
-					class="btn btn-stop"
-					data-host-id={ host.ID }
-					data-command="stop"
-					onclick="sendCommand(this.dataset.hostId, 'stop')"
-					title="Stop running command"
-					style={ visibleWhen(host.PendingCommand != "") }
-				>
-					<svg class="icon"><use href="#icon-stop"></use></svg>
-					Stop
-				</button>
-				<!-- P7000: Per-host refresh button (appears on hover) -->
-				<button
-					class="btn btn-refresh"
-					data-host-id={ host.ID }
-					onclick="refreshHost(this.dataset.hostId)"
-					title="Refresh status"
-				>
-					<svg class="icon"><use href="#icon-refresh"></use></svg>
-				</button>
-				@ActionDropdown(host)
-			</div>
+		<!-- P1050: Actions column removed - Pull/Switch via compartments, Test via menu -->
+		<td class="col-menu">
+			@ActionDropdown(host)
 		</td>
 		<!-- P1030: Selection checkbox (right side, subtle button style) -->
 		<td class="col-select">
@@ -2203,38 +2462,112 @@ templ UpdateStatusCell(host Host) {
 }
 
 // ActionDropdown renders the per-host action dropdown menu
+// P1060: ActionDropdown with reorganized menu (Test at top, grouped items)
 templ ActionDropdown(host Host) {
-	<div class="dropdown" data-host-id={ host.ID }>
-		<button class="btn btn-more" onclick="toggleDropdown(this)" title="More actions">
-			<svg class="icon"><use href="#icon-more"></use></svg>
+	<div class="dropdown" x-data="{ open: false }">
+		<button
+			type="button"
+			class="dropdown-toggle"
+			@click="open = !open"
+			@click.outside="open = false"
+			title="More actions"
+		>
+			<svg class="icon"><use href="#icon-more-vertical"></use></svg>
 		</button>
-		<div class="dropdown-menu">
-			<button class="dropdown-item" onclick="unlockActions(this)" data-host-id={ host.ID }>
-				<svg class="icon"><use href="#icon-refresh"></use></svg>
-				Unlock actions
+		<div class="dropdown-menu" x-show="open" x-cloak @click="open = false">
+			<!-- Actions Group -->
+			<button
+				type="button"
+				class="dropdown-item"
+				onclick={ sendCommandScript(host.ID, "test") }
+				disabled?={ !host.Online }
+			>
+				<svg class="icon"><use href="#icon-flask"></use></svg>
+				<span>Test</span>
 			</button>
-			<button class="dropdown-item" onclick="checkForUpdates()" title="Check GitHub for flake.lock update PRs">
-				<svg class="icon"><use href="#icon-lock"></use></svg>
-				Check for Updates
-			</button>
-			if host.Online {
-				<button class="dropdown-item" onclick="sendCommand(this.dataset.hostId, 'restart')" data-host-id={ host.ID }>
-					<svg class="icon"><use href="#icon-refresh"></use></svg>
-					Restart Agent
+			if host.PendingCommand != "" {
+				<button
+					type="button"
+					class="dropdown-item"
+					onclick={ sendCommandScript(host.ID, "stop") }
+				>
+					<svg class="icon"><use href="#icon-stop"></use></svg>
+					<span>Stop</span>
 				</button>
 			}
-			<div class="dropdown-divider"></div>
-			<button class="dropdown-item" onclick="downloadLogs(this.dataset.hostId)" data-host-id={ host.ID }>
-				<svg class="icon"><use href="#icon-file"></use></svg>
-				Download Logs
+			<button
+				type="button"
+				class="dropdown-item"
+				onclick={ sendCommandScript(host.ID, "restart") }
+				disabled?={ !host.Online }
+			>
+				<svg class="icon"><use href="#icon-refresh-cw"></use></svg>
+				<span>Restart Agent</span>
 			</button>
-			<div class="dropdown-divider"></div>
-			<button class="dropdown-item danger" onclick="confirmRemoveHost(this.dataset.hostId, this.dataset.hostname)" data-host-id={ host.ID } data-hostname={ host.Hostname }>
+			<hr class="dropdown-divider"/>
+			<!-- Utilities Group -->
+			<button
+				type="button"
+				class="dropdown-item"
+				onclick={ copyHostnameScript(host.Hostname) }
+			>
+				<svg class="icon"><use href="#icon-copy"></use></svg>
+				<span>Copy Hostname</span>
+			</button>
+			<button
+				type="button"
+				class="dropdown-item"
+				onclick={ copySSHScript(host) }
+			>
+				<svg class="icon"><use href="#icon-terminal"></use></svg>
+				<span>SSH Command</span>
+			</button>
+			<hr class="dropdown-divider"/>
+			<!-- Admin Group -->
+			<button
+				type="button"
+				class="dropdown-item"
+				onclick={ downloadLogsScript(host.ID) }
+			>
+				<svg class="icon"><use href="#icon-file"></use></svg>
+				<span>Download Logs</span>
+			</button>
+			<button
+				type="button"
+				class="dropdown-item danger"
+				onclick={ removeHostScript(host.ID, host.Hostname) }
+			>
 				<svg class="icon"><use href="#icon-trash"></use></svg>
-				Remove Host
+				<span>Remove Host</span>
 			</button>
 		</div>
 	</div>
+}
+
+// P1060: Script helpers for ActionDropdown
+func sendCommandScript(hostID, command string) templ.ComponentScript {
+	return templ.ComponentScript{Call: fmt.Sprintf("sendCommand('%s', '%s')", hostID, command)}
+}
+
+func copyHostnameScript(hostname string) templ.ComponentScript {
+	return templ.ComponentScript{Call: fmt.Sprintf("copyToClipboard('%s', 'Hostname copied')", hostname)}
+}
+
+func copySSHScript(host Host) templ.ComponentScript {
+	user := "mba"
+	if host.HostType == "macos" {
+		user = "markus"
+	}
+	sshCmd := fmt.Sprintf("ssh %s@%s", user, host.Hostname)
+	return templ.ComponentScript{Call: fmt.Sprintf("copyToClipboard('%s', 'SSH command copied')", sshCmd)}
+}
+
+func downloadLogsScript(hostID string) templ.ComponentScript {
+	return templ.ComponentScript{Call: fmt.Sprintf("downloadLogs('%s')", hostID)}
+}
+
+func removeHostScript(hostID, hostname string) templ.ComponentScript {
+	return templ.ComponentScript{Call: fmt.Sprintf("confirmRemoveHost('%s', '%s')", hostID, hostname)}
 }
 
 // DeleteButton renders a delete button for offline hosts
