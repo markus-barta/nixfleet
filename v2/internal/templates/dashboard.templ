@@ -1336,14 +1336,19 @@ templ Dashboard(data DashboardData) {
 			const COOLDOWN_MS = 500;
 
 			function handleCompartmentHover(btn) {
+				console.log('handleCompartmentHover called', btn.dataset);
 				const hostId = btn.dataset.hostId;
 				const hostname = btn.dataset.hostname;
 				const compartment = btn.dataset.compartment;
 				const action = btn.dataset.action;
 
 				// Don't show preview for error/info actions
-				if (action === 'error' || action === 'info') return;
+				if (action === 'error' || action === 'info') {
+					console.log('Skipping preview for action:', action);
+					return;
+				}
 
+				console.log('Dispatching action-preview', { hostId, hostname, command: action, compartment });
 				window.dispatchEvent(new CustomEvent('action-preview', {
 					detail: { hostId, hostname, command: action, compartment }
 				}));
@@ -1505,13 +1510,18 @@ templ Dashboard(data DashboardData) {
 					},
 
 					handlePreview(detail) {
-						if (this.state === 'progress') return;
+						console.log('ActionBar handlePreview received', detail);
+						if (this.state === 'progress') {
+							console.log('Ignoring preview - in progress state');
+							return;
+						}
 
 						if (this._debounceTimer) clearTimeout(this._debounceTimer);
 						if (this._completeTimer) clearTimeout(this._completeTimer);
 
 						this._debounceTimer = setTimeout(() => {
 							this._debounceTimer = null;
+							console.log('ActionBar showing preview after debounce');
 							this._showPreview(detail);
 						}, 300);
 					},
