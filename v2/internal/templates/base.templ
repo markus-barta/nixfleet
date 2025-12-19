@@ -78,7 +78,7 @@ templ Base(title string, csrfToken string) {
 				}
 			}
 
-			/* Header */
+			/* Header - Single line layout */
 			header {
 				display: flex;
 				justify-content: space-between;
@@ -86,17 +86,21 @@ templ Base(title string, csrfToken string) {
 				padding-bottom: 1rem;
 				margin-bottom: 1.5rem;
 				border-bottom: 1px solid var(--border);
-				flex-wrap: wrap;
 				gap: 1rem;
+				min-height: 48px;
 			}
 
-			.brand h1 {
-				color: var(--blue);
-				font-size: 1.25rem;
-				font-weight: 600;
+			.header-brand {
 				display: flex;
 				align-items: center;
 				gap: 0.5rem;
+				flex-shrink: 0;
+			}
+
+			.brand-title {
+				color: var(--blue);
+				font-size: 1.25rem;
+				font-weight: 600;
 			}
 
 			.brand-logo {
@@ -105,14 +109,34 @@ templ Base(title string, csrfToken string) {
 				border-radius: 4px;
 			}
 
+			.header-center {
+				flex: 1;
+				display: flex;
+				justify-content: center;
+				min-width: 0;
+			}
+
+			.header-actions {
+				display: flex;
+				align-items: center;
+				gap: 0.5rem;
+				flex-shrink: 0;
+			}
+
 			@media (min-width: 768px) {
-				.brand h1 {
+				.brand-title {
 					font-size: 1.5rem;
 				}
 
 				.brand-logo {
 					height: 32px;
 					width: 32px;
+				}
+			}
+
+			@media (max-width: 900px) {
+				.header-center {
+					display: none;
 				}
 			}
 
@@ -174,11 +198,9 @@ templ Base(title string, csrfToken string) {
 				font-size: 0.7rem;
 				color: var(--bg);
 				background: var(--purple);
-				padding: 0.15rem 0.4rem;
+				padding: 0.15rem 0.5rem;
 				border-radius: 4px;
-				background: rgba(187, 154, 247, 0.1);
-				padding: 0.15rem 0.4rem;
-				border-radius: 3px;
+				font-weight: 600;
 			}
 
 			.target-unavailable {
@@ -224,7 +246,8 @@ templ Base(title string, csrfToken string) {
 			}
 
 			.btn-danger:hover {
-				background: rgba(247, 118, 142, 0.1);
+				background: var(--red);
+				color: var(--bg);
 			}
 
 			/* Header actions container */
@@ -471,12 +494,21 @@ templ Base(title string, csrfToken string) {
 
 			.status-online { background: var(--green); box-shadow: 0 0 6px var(--green); }
 			.status-offline { 
+				/* Keep 12px container for alignment, but show smaller dot */
+				background: transparent;
+				box-shadow: none;
+				position: relative;
+			}
+			.status-offline::after {
+				content: '';
+				position: absolute;
+				top: 50%;
+				left: 50%;
+				transform: translate(-50%, -50%);
 				width: 6px;
 				height: 6px;
-				min-width: 6px;
-				min-height: 6px;
-				background: #c75a6a;
-				box-shadow: none;
+				border-radius: 50%;
+				background: var(--fg-dim);
 			}
 			.status-running { background: var(--yellow); animation: pulse 1.5s infinite; box-shadow: 0 0 4px var(--yellow); }
 			.status-error { background: var(--red); }
@@ -1719,12 +1751,20 @@ templ Base(title string, csrfToken string) {
 				justify-content: space-between;
 				align-items: center;
 				padding: 0.75rem 1.5rem;
-				background: linear-gradient(135deg, var(--bg-elevated) 0%, var(--bg-float) 100%);
+				background: var(--bg-elevated);
 				border-top: 1px solid var(--border);
-				border-bottom: 1px solid color-mix(in srgb, var(--blue) 20%, transparent);
 				gap: 1.5rem;
 				margin: 1rem -1rem 0 -1rem;
-				box-shadow: 0 -2px 8px color-mix(in srgb, var(--bg) 50%, transparent);
+				min-height: 52px; /* Always reserve space */
+			}
+
+			/* When empty, fade content but keep space */
+			.context-bar-empty {
+				opacity: 0;
+			}
+
+			.context-bar-empty * {
+				pointer-events: none;
 			}
 
 			@media (max-width: 768px) {
@@ -1733,16 +1773,17 @@ templ Base(title string, csrfToken string) {
 					align-items: stretch;
 					gap: 0.75rem;
 					padding: 0.75rem 1rem;
+					min-height: 80px;
 				}
 			}
 
-			/* Animation */
+			/* Animation - opacity only */
 			.context-bar-enter {
-				transition: all 250ms cubic-bezier(0.4, 0, 0.2, 1);
+				transition: opacity 200ms ease-out;
 			}
 
 			.context-bar-leave {
-				transition: all 180ms cubic-bezier(0.4, 0, 1, 1);
+				transition: opacity 150ms ease-in;
 			}
 
 			/* Info Section - Left side */
@@ -1822,23 +1863,22 @@ templ Base(title string, csrfToken string) {
 				padding: 0.4rem 0.75rem;
 				font-size: 0.8125rem;
 				font-weight: 500;
-				background: var(--bg-highlight);
+				background: transparent;
 				border: 1px solid var(--border);
 				border-radius: 6px;
 				color: var(--fg);
 				cursor: pointer;
-				transition: all 180ms ease;
+				transition: all 150ms ease;
 				font-family: inherit;
 			}
 
 			.btn-context:hover:not(:disabled) {
-				background: var(--bg);
-				border-color: var(--blue);
-				transform: translateY(-1px);
+				background: var(--bg-highlight);
+				border-color: var(--fg-dim);
 			}
 
 			.btn-context:active:not(:disabled) {
-				transform: translateY(0);
+				background: var(--bg);
 			}
 
 			.btn-context:disabled {
@@ -1864,21 +1904,18 @@ templ Base(title string, csrfToken string) {
 				}
 			}
 
-			/* DO ALL Button - Prominent primary action */
+			/* DO ALL Button - matches Logout style but green */
 			.btn-do-all {
-				background: linear-gradient(135deg, var(--green) 0%, color-mix(in srgb, var(--green) 85%, var(--cyan)) 100%);
-				border: none;
-				color: var(--bg);
+				background: transparent;
+				border: 1px solid var(--green);
+				color: var(--green);
 				padding: 0.5rem 1rem;
 				font-weight: 600;
-				letter-spacing: 0.02em;
-				box-shadow: 0 2px 6px color-mix(in srgb, var(--green) 30%, transparent);
 			}
 
 			.btn-do-all:hover:not(:disabled) {
-				background: linear-gradient(135deg, color-mix(in srgb, var(--green) 90%, white) 0%, var(--cyan) 100%);
-				border: none;
-				box-shadow: 0 3px 10px color-mix(in srgb, var(--green) 40%, transparent);
+				background: var(--green);
+				color: var(--bg);
 			}
 
 			.btn-do-all .icon {

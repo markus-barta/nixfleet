@@ -114,11 +114,11 @@ templ Dashboard(data DashboardData) {
 			style="display:none;"
 		></div>
 		<header>
-			<div class="brand">
-				<h1>
-					<img src="/static/nixfleet_favicon.png" alt="" class="brand-logo"/>
-					NixFleet
-				</h1>
+			<div class="header-brand">
+				<img src="/static/nixfleet_favicon.png" alt="" class="brand-logo"/>
+				<span class="brand-title">NixFleet</span>
+			</div>
+			<div class="header-center">
 				@FleetTargetLine(data.FleetTarget)
 			</div>
 			<div class="header-actions">
@@ -1737,10 +1737,7 @@ templ ContextBar() {
 		id="context-bar"
 		class="context-bar"
 		x-data="contextBar"
-		x-show="hasContent"
-		x-transition:enter="context-bar-enter"
-		x-transition:leave="context-bar-leave"
-		x-cloak
+		:class="{ 'context-bar-empty': !hasContent }"
 	>
 		<!-- Left: Context info (hover + selection) -->
 		<div class="context-info">
