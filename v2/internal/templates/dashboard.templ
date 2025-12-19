@@ -121,13 +121,11 @@ templ Dashboard(data DashboardData) {
 				</h1>
 				@FleetTargetLine(data.FleetTarget)
 			</div>
-			<!-- P1010: Action Bar -->
-			@ActionBar()
 			<div class="header-actions">
 				<div class="dropdown bulk-actions-dropdown">
 					<button class="btn btn-header" onclick="toggleBulkMenu(event)">
-						<svg class="icon"><use href="#icon-fleet"></use></svg>
-						Bulk Actions
+						<svg class="icon"><use href="#icon-more-vertical"></use></svg>
+						More
 					</button>
 				<div class="dropdown-menu" id="bulk-actions-menu">
 					<!-- P7000: Merge & Deploy moved here from global banner -->
@@ -210,8 +208,8 @@ templ Dashboard(data DashboardData) {
 			</tbody>
 		</table>
 
-		<!-- P1015: Selection Bar - appears below table when hosts are selected -->
-		@SelectionBar()
+		<!-- Context Bar - unified hover preview + selection actions -->
+		@ContextBar()
 
 		<!-- Log Viewer (global, shown when command is running) -->
 		<div class="log-panel hidden" id="log-panel" x-data="logViewer()">
@@ -1421,10 +1419,21 @@ templ Dashboard(data DashboardData) {
 			}
 
 			// ═══════════════════════════════════════════════════════════════════════════
-			// SELECTION BAR COMPONENT (P1015)
+			// CONTEXT BAR COMPONENT - Unified hover preview + selection actions
 			// ═══════════════════════════════════════════════════════════════════════════
 			document.addEventListener('alpine:init', () => {
-				Alpine.data('selectionBar', () => ({
+				Alpine.data('contextBar', () => ({
+					// Hover state
+					hoverAction: null,
+					_clearTimer: null,
+
+					init() {
+						// Listen for hover events from compartments
+						window.addEventListener('action-preview', (e) => this.handlePreview(e.detail));
+						window.addEventListener('action-clear', () => this.handleClear());
+					},
+
+					// Computed properties
 					get selectedCount() {
 						return Alpine.store('selection').selected.length;
 					},
@@ -1437,222 +1446,70 @@ templ Dashboard(data DashboardData) {
 						}).length;
 					},
 
+					get hasContent() {
+						return this.hoverAction !== null || this.selectedCount > 0;
+					},
+
 					get selectionText() {
 						const total = this.selectedCount;
 						const online = this.onlineCount;
-
 						if (total === 0) return '';
-
 						const hostWord = total === 1 ? 'host' : 'hosts';
-
-						if (online === total) {
-							return `${total} ${hostWord} selected`;
-						}
-
-						return `${total} ${hostWord} selected (${online} online)`;
+						if (online === total) return `${total} ${hostWord}`;
+						return `${total} ${hostWord} (${online} online)`;
 					},
 
+					// Hover handlers
+					handlePreview(detail) {
+						if (this._clearTimer) {
+							clearTimeout(this._clearTimer);
+							this._clearTimer = null;
+						}
+						this.hoverAction = {
+							command: detail.command,
+							hostname: detail.hostname,
+							hostId: detail.hostId
+						};
+					},
+
+					handleClear() {
+						// Debounce clearing to prevent flicker
+						this._clearTimer = setTimeout(() => {
+							this.hoverAction = null;
+							this._clearTimer = null;
+						}, 200);
+					},
+
+					// Bulk actions
 					bulkCommand(command) {
 						const selected = Alpine.store('selection').selected;
 						const onlineHostIds = selected.filter(id => {
 							const host = hostStore.get(id);
 							return host && host.online;
 						});
+						if (onlineHostIds.length === 0) return;
+						onlineHostIds.forEach(hostId => sendCommand(hostId, command));
+					},
 
+					// Do All: Pull → Switch → Test in sequence
+					async doAll() {
+						const selected = Alpine.store('selection').selected;
+						const onlineHostIds = selected.filter(id => {
+							const host = hostStore.get(id);
+							return host && host.online;
+						});
 						if (onlineHostIds.length === 0) return;
 
-						onlineHostIds.forEach(hostId => {
-							sendCommand(hostId, command);
-						});
+						// Execute Pull → Switch → Test sequentially on all hosts
+						for (const command of ['pull', 'switch', 'test']) {
+							onlineHostIds.forEach(hostId => sendCommand(hostId, command));
+							// Wait a moment between commands
+							await new Promise(r => setTimeout(r, 500));
+						}
 					},
 
 					clearSelection() {
 						Alpine.store('selection').selectNone();
-					}
-				}));
-
-				// ═══════════════════════════════════════════════════════════════════════════
-				// ACTION BAR COMPONENT (P1010)
-				// ═══════════════════════════════════════════════════════════════════════════
-				Alpine.data('actionBar', () => ({
-					// State
-					state: 'idle', // 'idle' | 'preview' | 'progress' | 'complete'
-					action: null,
-					result: null,
-					transitioning: false,
-
-					// Timers
-					_debounceTimer: null,
-					_completeTimer: null,
-					_activeCommand: null,
-
-					init() {
-						// Events are handled via Alpine directives (@action-preview.window etc.)
-						// Cleanup on destroy
-						this.$watch('$el', () => this._cleanup());
-					},
-
-					_cleanup() {
-						if (this._debounceTimer) clearTimeout(this._debounceTimer);
-						if (this._completeTimer) clearTimeout(this._completeTimer);
-						this._debounceTimer = null;
-						this._completeTimer = null;
-					},
-
-					handlePreview(detail) {
-						if (this.state === 'progress') return;
-
-						// Clear any existing timers
-						if (this._debounceTimer) clearTimeout(this._debounceTimer);
-						if (this._completeTimer) clearTimeout(this._completeTimer);
-
-						// Show preview immediately
-						this._showPreview(detail);
-					},
-
-					handleClear() {
-						if (this._debounceTimer) {
-							clearTimeout(this._debounceTimer);
-							this._debounceTimer = null;
-						}
-
-						if (this.state !== 'preview') return;
-
-						this._debounceTimer = setTimeout(() => {
-							this._debounceTimer = null;
-							this._transitionTo('idle');
-						}, 300);
-					},
-
-					handleCommandStart(detail) {
-						if (this._activeCommand &&
-							this._activeCommand.hostId === detail.hostId &&
-							this._activeCommand.command === detail.command) {
-							if (!this.action) {
-								this.action = this._buildAction(detail.command, detail.hostId, detail.hostname);
-							}
-							this.state = 'progress';
-						}
-					},
-
-					handleCommandComplete(detail) {
-						if (this._activeCommand && this._activeCommand.hostId === detail.hostId) {
-							this._showComplete(detail);
-							this._activeCommand = null;
-						}
-					},
-
-					execute() {
-						if (!this.action || !this.action.hostId) return;
-
-						this._activeCommand = {
-							hostId: this.action.hostId,
-							command: this.action.command
-						};
-
-						if (this.action.command === 'refresh') {
-							refreshHost(this.action.hostId);
-							this._activeCommand = null;
-							this._transitionTo('idle');
-						} else {
-							sendCommand(this.action.hostId, this.action.command);
-						}
-					},
-
-					stop() {
-						if (!this.action || !this.action.hostId) return;
-						sendCommand(this.action.hostId, 'stop');
-					},
-
-					_showPreview(detail) {
-						this.action = this._buildAction(detail.command, detail.hostId, detail.hostname);
-						if (detail.isInfoOnly) return;
-						this.state = 'preview';
-					},
-
-					_showComplete(detail) {
-						const success = detail.exit_code === 0;
-						const commandName = this._getCommandName(detail.command || this._activeCommand?.command);
-
-						this.result = {
-							success,
-							title: success ? `${commandName} Complete` : `${commandName} Failed`,
-							message: success
-								? this._getSuccessMessage(detail.command || this._activeCommand?.command)
-								: `Exit code: ${detail.exit_code}`,
-							hostname: detail.hostname || this.action?.hostname || 'Unknown'
-						};
-
-						this.state = 'complete';
-						this.action = null;
-
-						if (this._completeTimer) clearTimeout(this._completeTimer);
-						this._completeTimer = setTimeout(() => {
-							this._completeTimer = null;
-							this._transitionTo('idle');
-						}, 2000);
-					},
-
-					_transitionTo(newState) {
-						if (this.state === newState) return;
-						if (this.state === 'complete' && newState !== 'complete') this.result = null;
-						if (newState === 'idle') this.action = null;
-						this.state = newState;
-					},
-
-					_buildAction(command, hostId, hostname) {
-						return {
-							command,
-							hostId,
-							hostname,
-							name: this._getCommandName(command),
-							description: this._getCommandDescription(command),
-							progressText: this._getProgressText(command),
-							iconRef: this._getCommandIconRef(command)
-						};
-					},
-
-					_getCommandName(command) {
-						const names = { pull: 'Pull', switch: 'Switch', test: 'Test', restart: 'Restart', refresh: 'Refresh', stop: 'Stop' };
-						return names[command] || (command?.charAt(0).toUpperCase() + command?.slice(1)) || 'Unknown';
-					},
-
-					_getCommandDescription(command) {
-						const descriptions = {
-							pull: 'Fetch latest code from GitHub',
-							switch: 'Apply configuration (nixos-rebuild switch)',
-							test: 'Test configuration without activating',
-							restart: 'Restart the NixFleet agent',
-							refresh: 'Check for status updates'
-						};
-						return descriptions[command] || '';
-					},
-
-					_getProgressText(command) {
-						const texts = {
-							pull: 'Fetching latest code from GitHub...',
-							switch: 'Applying configuration...',
-							test: 'Testing configuration...',
-							restart: 'Restarting agent...',
-							refresh: 'Checking status...'
-						};
-						return texts[command] || 'Running...';
-					},
-
-					_getSuccessMessage(command) {
-						const messages = {
-							pull: 'Successfully fetched latest code',
-							switch: 'Configuration applied successfully',
-							test: 'Configuration test passed',
-							restart: 'Agent restarted successfully',
-							refresh: 'Status updated'
-						};
-						return messages[command] || 'Completed successfully';
-					},
-
-					_getCommandIconRef(command) {
-						const icons = { pull: 'download', switch: 'refresh', test: 'flask', restart: 'refresh', refresh: 'refresh-cw' };
-						return icons[command] || 'play';
 					}
 				}));
 
@@ -1874,57 +1731,88 @@ templ Dashboard(data DashboardData) {
 }
 
 // SelectionBar renders the bulk action bar when hosts are selected (P1015)
-templ SelectionBar() {
+// ContextBar - Unified bar for hover preview and selection actions
+templ ContextBar() {
 	<div
-		id="selection-bar"
-		class="selection-bar"
-		x-data="selectionBar()"
-		x-show="$store.selection.selected.length > 0"
-		x-transition:enter="selection-bar-enter"
-		x-transition:enter-start="selection-bar-enter-start"
-		x-transition:enter-end="selection-bar-enter-end"
-		x-transition:leave="selection-bar-leave"
-		x-transition:leave-start="selection-bar-leave-start"
-		x-transition:leave-end="selection-bar-leave-end"
+		id="context-bar"
+		class="context-bar"
+		x-data="contextBar"
+		x-show="hasContent"
+		x-transition:enter="context-bar-enter"
+		x-transition:leave="context-bar-leave"
 		x-cloak
 	>
-		<div class="selection-info">
-			<svg class="icon"><use href="#icon-check-square"></use></svg>
-			<span x-text="selectionText"></span>
+		<!-- Left: Context info (hover + selection) -->
+		<div class="context-info">
+			<!-- Hover context -->
+			<template x-if="hoverAction">
+				<span class="context-hover">
+					<span class="context-arrow">→</span>
+					<span class="context-action" x-text="'click to ' + hoverAction.command"></span>
+					<span class="context-host" x-text="hoverAction.hostname"></span>
+				</span>
+			</template>
+			<!-- Separator when both -->
+			<template x-if="hoverAction && selectedCount > 0">
+				<span class="context-separator">·</span>
+			</template>
+			<!-- Selection context -->
+			<template x-if="selectedCount > 0">
+				<span class="context-selection">
+					<svg class="icon"><use href="#icon-check-square"></use></svg>
+					<span x-text="selectionText"></span>
+				</span>
+			</template>
 		</div>
-		<div class="selection-actions">
-			<button
-				class="btn btn-selection"
-				:disabled="onlineCount === 0"
-				@click="bulkCommand('pull')"
-			>
-				<svg class="icon"><use href="#icon-download"></use></svg>
-				<span class="btn-label">Pull All</span>
-			</button>
-			<button
-				class="btn btn-selection"
-				:disabled="onlineCount === 0"
-				@click="bulkCommand('switch')"
-			>
-				<svg class="icon"><use href="#icon-refresh"></use></svg>
-				<span class="btn-label">Switch All</span>
-			</button>
-			<button
-				class="btn btn-selection"
-				:disabled="onlineCount === 0"
-				@click="bulkCommand('test')"
-			>
-				<svg class="icon"><use href="#icon-flask"></use></svg>
-				<span class="btn-label">Test All</span>
-			</button>
-			<button
-				class="btn btn-clear"
-				@click="clearSelection()"
-				title="Clear selection"
-			>
-				<svg class="icon"><use href="#icon-x"></use></svg>
-			</button>
-		</div>
+
+		<!-- Right: Actions (only when selection) -->
+		<template x-if="selectedCount > 0">
+			<div class="context-actions">
+				<button
+					class="btn btn-context"
+					:disabled="onlineCount === 0"
+					@click="bulkCommand('pull')"
+					title="Pull on all selected hosts"
+				>
+					<svg class="icon"><use href="#icon-download"></use></svg>
+					<span class="btn-label">Pull</span>
+				</button>
+				<button
+					class="btn btn-context"
+					:disabled="onlineCount === 0"
+					@click="bulkCommand('switch')"
+					title="Switch on all selected hosts"
+				>
+					<svg class="icon"><use href="#icon-refresh"></use></svg>
+					<span class="btn-label">Switch</span>
+				</button>
+				<button
+					class="btn btn-context"
+					:disabled="onlineCount === 0"
+					@click="bulkCommand('test')"
+					title="Test on all selected hosts"
+				>
+					<svg class="icon"><use href="#icon-flask"></use></svg>
+					<span class="btn-label">Test</span>
+				</button>
+				<button
+					class="btn btn-primary btn-do-all"
+					:disabled="onlineCount === 0"
+					@click="doAll()"
+					title="Pull → Switch → Test on all selected hosts"
+				>
+					<svg class="icon"><use href="#icon-play"></use></svg>
+					<span class="btn-label">Do All</span>
+				</button>
+				<button
+					class="btn btn-clear"
+					@click="clearSelection()"
+					title="Clear selection"
+				>
+					<svg class="icon"><use href="#icon-x"></use></svg>
+				</button>
+			</div>
+		</template>
 	</div>
 }
 
@@ -2010,99 +1898,6 @@ templ DependencyDialog() {
 	</div>
 }
 
-// ActionBar renders the action preview bar in header (P1010)
-templ ActionBar() {
-	<div
-		id="action-bar"
-		class="action-bar"
-		x-data="actionBar"
-		@action-preview.window="handlePreview($event.detail)"
-		@action-clear.window="handleClear()"
-		@command-start.window="handleCommandStart($event.detail)"
-		@command-complete.window="handleCommandComplete($event.detail)"
-	>
-		<div
-			class="action-bar-content"
-			:class="{ 'fade-out': transitioning, 'fade-in': !transitioning }"
-		>
-			<!-- IDLE State -->
-			<template x-if="state === 'idle'">
-				<span class="action-bar-idle">Hover a status to see actions</span>
-			</template>
-
-			<!-- PREVIEW State -->
-			<template x-if="state === 'preview' && action">
-				<div class="action-bar-preview">
-					<div class="action-bar-header">
-						<span class="action-icon">
-							<svg class="icon"><use :href="'#icon-' + action.iconRef"></use></svg>
-						</span>
-						<span class="action-name" x-text="action.name"></span>
-						<button
-							class="btn btn-action-bar"
-							@click="execute()"
-							:disabled="!action.hostId"
-							:title="'Execute ' + action.name + ' on ' + action.hostname"
-						>
-							<svg class="icon"><use href="#icon-play"></use></svg>
-							DO NOW
-						</button>
-					</div>
-					<p class="action-bar-description" x-text="action.description"></p>
-					<p class="action-bar-target">
-						Host: <strong x-text="action.hostname"></strong>
-					</p>
-				</div>
-			</template>
-
-			<!-- PROGRESS State -->
-			<template x-if="state === 'progress' && action">
-				<div class="action-bar-preview">
-					<div class="action-bar-header">
-						<span class="action-icon spinning">
-							<svg class="icon"><use href="#icon-loader"></use></svg>
-						</span>
-						<span class="action-name" x-text="action.name + '...'"></span>
-						<button
-							class="btn btn-stop"
-							@click="stop()"
-							title="Stop command"
-						>
-							<svg class="icon"><use href="#icon-stop"></use></svg>
-							Stop
-						</button>
-					</div>
-					<p class="action-bar-description" x-text="action.progressText"></p>
-					<p class="action-bar-target">
-						Host: <strong x-text="action.hostname"></strong>
-					</p>
-				</div>
-			</template>
-
-			<!-- COMPLETE State -->
-			<template x-if="state === 'complete' && result">
-				<div class="action-bar-preview">
-					<div class="action-bar-header">
-						<span
-							class="action-icon"
-							:class="result.success ? 'success' : 'error'"
-						>
-							<svg class="icon">
-								<use :href="result.success ? '#icon-check' : '#icon-x'"></use>
-							</svg>
-						</span>
-						<span class="action-name" x-text="result.title"></span>
-					</div>
-					<p class="action-bar-description" x-text="result.message"></p>
-					<p class="action-bar-target">
-						Host: <strong x-text="result.hostname"></strong>
-					</p>
-				</div>
-			</template>
-		</div>
-	</div>
-}
-
 // FleetTargetLine renders the fleet target info in the header
 templ FleetTargetLine(target FleetTarget) {
 	<div class="fleet-target">
@@ -2120,7 +1915,8 @@ templ FleetTargetLine(target FleetTarget) {
 			</a>
 			<span class="target-branch">({ target.Branch }, { target.TimeAgo })</span>
 			<span class="target-separator">•</span>
-			<span class="target-agent" title={ "Expected agent version: " + target.AgentVer }>Agent: { target.AgentVer }</span>
+			<span class="target-agent-label">Agent:</span>
+			<span class="target-agent" title={ "Expected agent version: " + target.AgentVer }>{ target.AgentVer }</span>
 		} else {
 			<span class="target-label">Target:</span>
 			<span class="target-unavailable">Version tracking not configured</span>
