@@ -3,7 +3,7 @@
 **Created**: 2025-12-19  
 **Priority**: P1020 (Critical)  
 **Status**: Ready for Development  
-**Parent**: [P1000](./P1000-reliable-agent-updates.md)  
+**Parent**: [P1000](./P1000-update-ux-overhaul.md)  
 **Estimated Effort**: 2-3 hours
 
 ---

@@ -1,11 +1,22 @@
-# P1000 - Action Bar & Update Column Refactor
+# P1000 - Update UX Overhaul
 
 **Created**: 2025-12-19  
 **Updated**: 2025-12-19  
-**Priority**: P1000 (Critical - UX Overhaul)  
+**Priority**: P1000 (Critical - UX)  
 **Status**: Design Complete  
 **Estimated Effort**: 2-3 days  
 **Depends on**: None
+
+---
+
+## Background: What We Ruled Out
+
+Originally we thought macOS agents weren't restarting after switch. **Manual testing proved this wrong**:
+
+- ✅ **macOS**: `home-manager switch` correctly restarts agent via launchd
+- ✅ **NixOS**: `nixos-rebuild switch` correctly restarts agent via systemd exit(101)
+
+**The real issue**: Users click "Pull" and think they're done, but they also need to click "Switch".
 
 ---
 
