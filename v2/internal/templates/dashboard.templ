@@ -1939,7 +1939,7 @@ templ DependencyDialog() {
 	<div
 		id="dependency-dialog"
 		class="modal-overlay"
-		x-data="dependencyDialog()"
+		x-data="dependencyDialog"
 		x-show="show"
 		x-cloak
 		@keydown.escape.window="handleEscape()"
@@ -2021,8 +2021,7 @@ templ ActionBar() {
 	<div
 		id="action-bar"
 		class="action-bar"
-		x-data="actionBar()"
-		x-init="init()"
+		x-data="actionBar"
 		@action-preview.window="handlePreview($event.detail)"
 		@action-clear.window="handleClear()"
 		@command-start.window="handleCommandStart($event.detail)"
