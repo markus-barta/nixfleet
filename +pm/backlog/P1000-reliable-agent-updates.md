@@ -1,233 +1,245 @@
-# P1000 - Reliable Agent Updates
+# P1000 - Action Bar & Update Column Refactor
 
 **Created**: 2025-12-19  
 **Updated**: 2025-12-19  
-**Priority**: P1000 (Critical - Blocking)  
-**Status**: Root Cause Confirmed - UX Issue  
-**Estimated Effort**: 2-3 hours  
+**Priority**: P1000 (Critical - UX Overhaul)  
+**Status**: Design Complete  
+**Estimated Effort**: 2-3 days  
 **Depends on**: None
 
 ---
 
 ## Executive Summary
 
-~~The agent update flow is broken on macOS.~~ **CORRECTION**: The agent update flow works correctly! The issue is **UX** — users click "Pull" but don't click "Switch", thinking the update is complete.
+Complete refactor of the update/action UX to make the dashboard self-explanatory. Users currently don't understand that they need to click both Pull AND Switch. The new design makes compartments clickable and adds an Action Bar that shows what will happen before clicking.
 
-**Verified**: Running `home-manager switch` on macOS correctly restarts the agent with the new binary via launchd's bootout/bootstrap mechanism.
+**Key Changes**:
 
----
-
-## Root Cause (Confirmed via Manual Testing)
-
-### What We Tested (2025-12-19 on imac0)
-
-1. **Before switch**: Agent running 2.0.0
-2. **After `home-manager switch`**: Agent running 2.1.0 ✅
-
-```
-1:50PM INF received signal signal=terminated
-1:50PM INF shutting down
-1:50PM INF NixFleet Agent starting ... version=2.1.0
-```
-
-home-manager's `setupLaunchAgents` correctly:
-
-- Sends SIGTERM to old agent
-- Runs `launchctl bootout`
-- Runs `launchctl bootstrap` with new plist
-- New agent starts with new binary
-
-### The ACTUAL Problem
-
-Timeline on imac0:
-
-| Event                    | Date/Time     | Result                          |
-| ------------------------ | ------------- | ------------------------------- |
-| Gen 121 created (switch) | Dec 17, 19:24 | Agent 2.0.0 installed           |
-| Commit with 2.1.0 pushed | Dec 18, 14:07 | flake.lock updated in repo      |
-| Pull via dashboard       | Dec 19, 10:58 | Agent fetched new flake.lock    |
-| **Switch NOT triggered** | -             | Gen 121 still active!           |
-| Manual switch            | Dec 19, 13:49 | Gen 122 created, Agent 2.1.0 ✅ |
-
-**The bug**: Users clicked "Pull" and assumed they were done. They didn't click "Switch".
+- Remove separate action buttons (Pull, Switch, Test)
+- Make compartments in Update column clickable
+- Add Action Bar in header showing action preview
+- Add row selection with checkboxes
+- Add dependency warnings with option dialogs
 
 ---
 
-## The UX Problem
+## Design Specification
 
-Current UI:
+### 1. Table Layout (New)
 
 ```
-[Pull]  [Switch]  [Test]   ← Three separate buttons
+┌──────────────────────────────────────────────────────────────────────────┐
+│ Host    │ Type   │ Location │ Metrics      │ Update     │ ⋮  │ ☐/☑     │
+│         │        │          │              │ [G][L][S]  │    │ [select] │
+├──────────────────────────────────────────────────────────────────────────┤
+│ hsb1    │ 🖥️    │ home     │ CPU 12%...   │ 🟢 🟢 🟡   │ ⋮  │ ☐        │
+│ gpc0    │ 🎮    │ home     │ CPU 45%...   │ 🟡 🔴 🟡   │ ⋮  │ ☐        │
+└──────────────────────────────────────────────────────────────────────────┘
+                                               ↑              ↑
+                                          Clickable!    On hover / selected
 ```
 
-User mental model:
+**Checkbox Column Header**: Mini button to select all / select none (toggles)
 
-- "I clicked Pull, my host is updated!" ❌
-- Reality: Pull just fetches code, Switch applies it
+### 2. Action Bar (Fixed in Header)
 
-### Evidence
+Position: Center of header, between logo and user menu.
 
-The UI has no combined action:
+#### Idle State
 
-```go
-// dashboard.templ lines 1279-1280
-@CommandButton(host.ID, "pull", "Pull", "btn", ...)
-@CommandButton(host.ID, "switch", "Switch", "btn", ...)  // Separate button!
+```
+┌─────────────────────────────────────────────────┐
+│          Hover a status to see actions          │
+└─────────────────────────────────────────────────┘
 ```
 
-But the agent DOES support `pull-switch`:
+#### Single Host Action Preview
 
-```go
-// commands.go line 100
-case "pull-switch":
-    // Pull first, then switch
+```
+┌─────────────────────────────────────────────────┐
+│  📥 PULL                           [▶ DO NOW]   │
+│  ─────────────────────────────────────────────  │
+│  Fetch latest code from GitHub                  │
+│  Host: hsb1                                     │
+└─────────────────────────────────────────────────┘
 ```
 
-This command exists but isn't exposed in the UI!
+#### Multi-Host Action Preview (with "Do All")
+
+```
+┌─────────────────────────────────────────────────┐
+│  📥 PULL ALL                       [▶ DO ALL]   │
+│  ─────────────────────────────────────────────  │
+│  Fetch latest code from GitHub                  │
+│  Hosts: hsb0, hsb1, gpc0 (3 selected)           │
+└─────────────────────────────────────────────────┘
+```
+
+#### Action In Progress
+
+```
+┌─────────────────────────────────────────────────┐
+│  ⟳ PULLING...                                   │
+│  ─────────────────────────────────────────────  │
+│  Fetching latest code from GitHub               │
+│  Host: hsb1                                     │
+└─────────────────────────────────────────────────┘
+```
+
+#### Action Complete
+
+```
+┌─────────────────────────────────────────────────┐
+│  ✓ PULL COMPLETE                                │
+│  ─────────────────────────────────────────────  │
+│  Successfully fetched latest code               │
+│  Host: hsb1                                     │
+└─────────────────────────────────────────────────┘
+```
+
+### 3. Compartment Actions
+
+| Compartment | Status            | Click Action                      |
+| ----------- | ----------------- | --------------------------------- |
+| **Git**     | 🟡 Behind         | `pull` command                    |
+| **Git**     | 🟢 Current        | Refresh status check              |
+| **Lock**    | 🟡 Old            | Info only (update via GitHub PR)  |
+| **Lock**    | 🔴 Agent outdated | `switch` command (same as System) |
+| **Lock**    | 🟢 Current        | Refresh status check              |
+| **System**  | 🟡 Needs rebuild  | `switch` command                  |
+| **System**  | 🟢 Current        | Refresh status check              |
+
+### 4. Row Selection
+
+**Checkbox behavior**:
+
+- Visible on row hover
+- Always visible when row is selected
+- Header has select all/none toggle button
+
+**Selection trigger**:
+
+- Clicking checkbox
+- Clicking free background area of row
+- NOT clicking: text (for copy), compartment buttons, ellipsis menu
+
+**Selected row styling**:
+
+- Brighter background
+- Checkbox checked
+
+### 5. Option Dialog (Dependency Warnings)
+
+When user clicks an action that has unmet dependencies:
+
+```
+┌─────────────────────────────────────────────────┐
+│  ⚠️ Git is behind on hsb1                       │
+│  ─────────────────────────────────────────────  │
+│  Running Switch without Pull may use old code.  │
+│                                                 │
+│  [Cancel]  [Pull]  [Switch]  [Pull + Switch]    │
+└─────────────────────────────────────────────────┘
+```
+
+**Dependency chain**:
+
+```
+Pull (Git) → Update Lock (optional) → Switch (System)
+```
+
+### 6. Ellipsis Menu (Remaining Actions)
+
+```
+┌──────────────────┐
+│ 🧪 Test          │
+│ 🔄 Restart Agent │
+│ ⏹️ Stop Command  │
+│ ─────────────────│
+│ 📋 Copy Hostname │
+│ 🔗 SSH Command   │
+│ ─────────────────│
+│ 🗑️ Remove Host   │
+└──────────────────┘
+```
+
+### 7. Animation
+
+- Action Bar content: 1s fade in, 1s fade out
+- Prevents "bouncy" updates when moving mouse between hosts
+- Total debounce: ~2s before content changes
 
 ---
 
-## Solution: Add "Update" Button
+## Implementation Sub-Items
 
-### Option A: Add "Update" Button (Recommended)
-
-Add a combined button that runs `pull-switch`:
-
-```
-[Update ▾]  [Test]   ← Single button with optional dropdown
-   └── Pull only
-   └── Switch only
-```
-
-Or simpler:
-
-```
-[Update]  [Pull]  [Switch]  [Test]   ← "Update" does both
-```
-
-### Option B: Auto-Switch After Pull
-
-When Pull completes successfully, automatically trigger Switch.
-
-**Risk**: User might want to review changes before applying. Less control.
-
-### Option C: Better Visual Feedback
-
-After Pull succeeds, show prominent message:
-
-```
-✓ Pull complete. Click [Switch] to apply changes.
-```
-
-### Recommendation
-
-**Option A** — Add "Update" button that runs `pull-switch`. Keep Pull/Switch for advanced users who want granular control.
+| ID    | Item                   | Scope                              |
+| ----- | ---------------------- | ---------------------------------- |
+| P1010 | Action Bar Component   | Header component, fade animation   |
+| P1020 | Clickable Compartments | Make Update column interactive     |
+| P1030 | Row Selection          | Checkbox, multi-select, select all |
+| P1040 | Option Dialog          | Dependency warning modal           |
+| P1050 | Remove Action Buttons  | Delete Pull/Switch/Test buttons    |
+| P1060 | Ellipsis Menu Cleanup  | Move Test, reorganize menu         |
 
 ---
 
-## Implementation
+## Removed from Scope
 
-### Step 1: Add "Update" button to UI (1 hour)
+These were in the original P1000 but are NOT needed:
 
-File: `v2/internal/templates/dashboard.templ`
-
-```go
-// In host card actions section
-@CommandButton(host.ID, "pull-switch", "Update", "btn btn-primary", host.Online && host.PendingCommand == "")
-@CommandButton(host.ID, "pull", "Pull", "btn btn-secondary", host.Online && host.PendingCommand == "")
-@CommandButton(host.ID, "switch", "Switch", "btn btn-secondary", host.Online && host.PendingCommand == "")
-```
-
-### Step 2: Update "Pull All" / "Switch All" (30 min)
-
-Add "Update All" button in header:
-
-```go
-<button class="btn btn-primary" @click="sendBroadcast('pull-switch')">
-    <svg class="icon"><use href="#icon-refresh"></use></svg>
-    Update All
-</button>
-```
-
-### Step 3: Fix button styling (30 min)
-
-Make "Update" visually prominent, Pull/Switch secondary.
-
----
-
-## What We DON'T Need to Fix
-
-Based on testing, these are NOT broken:
-
-- ~~launchd restart~~ → Works correctly
-- ~~launchctl kickstart~~ → Not needed
-- ~~Agent self-restart on macOS~~ → Not needed
+- ~~launchctl kickstart for macOS~~ → Agent restart works correctly
+- ~~Agent self-restart code~~ → Works correctly
 - ~~Activation hooks~~ → Not needed
 
-The existing code in `modules/home-manager.nix` is correct:
-
-```nix
-# NOTE: No custom activation hook needed - home-manager's setupLaunchAgents
-# already handles agent lifecycle (bootout → bootstrap) correctly.
-```
-
-This comment is ACCURATE. We just need better UX.
+The root cause was UX confusion, not technical bugs.
 
 ---
 
 ## Acceptance Criteria
 
-- [ ] "Update" button visible in host card (runs pull-switch)
-- [ ] "Update All" button in header (runs pull-switch on all hosts)
-- [ ] Pull/Switch buttons still available for granular control
-- [ ] After Update, agent version updates within 60 seconds
+- [ ] Action Bar shows in header (fixed position)
+- [ ] Hovering compartment shows action preview in Action Bar
+- [ ] Clicking compartment executes action
+- [ ] Row checkboxes appear on hover
+- [ ] Select all/none button in checkbox header
+- [ ] Multi-select enables "Do All" in Action Bar
+- [ ] Dependency warning dialog appears when needed
+- [ ] Pull/Switch/Test buttons removed from table
+- [ ] Test moved to ellipsis menu
+- [ ] 1s fade in/out animation on Action Bar
 
 ---
 
 ## Testing
 
-### Verify the fix works:
+### Manual Test Cases
 
-1. Update flake.lock in nixcfg with new agent version
-2. Push to GitHub
-3. In dashboard, click "Update" on imac0
-4. Verify: Pull runs, Switch runs, Agent restarts with new version
-
-### Regression test:
-
-1. Click "Pull" only → Agent version should NOT change
-2. Click "Switch" only → Agent should update if code was already pulled
-3. Click "Update" → Agent should update in one action
+1. **Single host pull**: Hover Git compartment → Action Bar shows "Pull" → Click → Pull runs
+2. **Multi-host switch**: Select 3 hosts → Hover "Do All" → Action Bar shows all 3 → Click → All switch
+3. **Dependency warning**: Git yellow, click System → Dialog appears → Choose "Pull + Switch"
+4. **Select all**: Click header checkbox → All rows selected
+5. **Animation**: Move mouse quickly between hosts → Action Bar doesn't flicker
 
 ---
 
 ## Files to Modify
 
-| File                                    | Change                                |
-| --------------------------------------- | ------------------------------------- |
-| `v2/internal/templates/dashboard.templ` | Add "Update" and "Update All" buttons |
-| `v2/internal/templates/styles.css`      | Style primary vs secondary buttons    |
-
----
-
-## Why Previous Analysis Was Wrong
-
-The P1000 code analysis looked at `commands.go:146`:
-
-```go
-if ... && runtime.GOOS != "darwin" {
-    os.Exit(101)  // Only for NixOS
-}
-```
-
-And concluded "macOS doesn't restart". But this code is for the AGENT to restart ITSELF after switch. It's not needed on macOS because **home-manager already handles the restart**.
-
-The confusion: We thought switch was being run and failing. Actually, **switch wasn't being run at all** — only pull was.
+| File                   | Changes                                              |
+| ---------------------- | ---------------------------------------------------- |
+| `dashboard.templ`      | Add Action Bar, modify Update column, add checkboxes |
+| `styles.css`           | Action Bar styling, selected row, animations         |
+| `dashboard.templ` (JS) | Hover handlers, selection logic, action execution    |
+| `hub.go`               | Handle multi-host commands                           |
 
 ---
 
 ## Related
 
-- [UPDATE-ARCHITECTURE.md](../../docs/UPDATE-ARCHITECTURE.md) — Documents the 5-step update flow
-- The `pull-switch` command already exists in agent code, just not exposed in UI
+- [P1010](./P1010-action-bar-component.md) — Action Bar implementation
+- [P1020](./P1020-clickable-compartments.md) — Clickable compartments
+- [P1030](./P1030-row-selection.md) — Row selection & multi-select
+- [P1040](./P1040-option-dialog.md) — Dependency warning dialog
+- [P1050](./P1050-remove-action-buttons.md) — Remove old buttons
+- [P1060](./P1060-ellipsis-menu-cleanup.md) — Ellipsis menu reorganization
+- [P6800](./P6800-mobile-card-view.md) — Mobile-specific card view
