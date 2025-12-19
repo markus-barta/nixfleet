@@ -1,223 +1,286 @@
 # P1000 - Reliable Agent Updates
 
 **Created**: 2025-12-19  
+**Updated**: 2025-12-19  
 **Priority**: P1000 (Critical - Blocking)  
 **Status**: Ready for Development  
-**Estimated Effort**: 1-2 days  
+**Estimated Effort**: 4-6 hours  
 **Depends on**: None  
-**Blocks**: All fleet update operations
+**Blocks**: Fleet management reliability
 
 ---
 
 ## Executive Summary
 
-The agent update flow is broken on macOS and unreliable across the fleet. This is the #1 blocker for fleet management. Without reliable agent updates, NixFleet cannot fulfill its core purpose.
+The agent update flow is broken on macOS. After `switch`, the agent continues running the old binary. NixOS works correctly. This is the #1 blocker for fleet management.
 
-**Goal**: After clicking "Switch" in the dashboard, the agent should automatically restart with the new binary within 60 seconds on ALL platforms.
-
----
-
-## Problem Statement
-
-Users have run `switch` multiple times via the UI AND via SSH, yet agents still report old versions:
-
-| Host  | Expected Agent | Actual Agent | Switches Run | Status    |
-| ----- | -------------- | ------------ | ------------ | --------- |
-| imac0 | 2.1.0          | 2.0.0        | Many         | ❌ Broken |
-| gpc0  | 2.1.0          | 2.0.0        | Multiple     | ❌ Broken |
-
-This breaks the fundamental value proposition of NixFleet.
+**Goal**: After `switch` completes, the agent automatically restarts with the new binary on ALL platforms.
 
 ---
 
-## Root Causes (from P1100 analysis)
+## Root Cause (Confirmed via Code Analysis)
 
-### 1. flake.lock Version Mismatch
+### The Code
 
-The isolated repo may have pulled the latest `nixcfg` commits, but the `flake.lock` inside still points to an old `nixfleet` revision.
-
-**Check**: Does `flake.lock` point to the commit with `Version = "2.1.0"`?
-
-### 2. Switch Not Creating New Generation
-
-If flake.lock hasn't changed since last switch, Nix may skip rebuilding:
-
-- "Nothing to do" = no new generation
-- Agent stays on current version
-
-**Check**: Did a new home-manager generation appear after switch?
-
-### 3. macOS launchd Not Reloading (P1100)
-
-Even when switch creates a new generation:
-
-- home-manager updates the plist file
-- launchd has old plist in memory
-- Old binary continues running
-
-**Check**: Does plist point to new store path? Is launchd running old binary?
-
-### 4. NixOS systemd Exit Code 101
-
-On NixOS, the agent exits with code 101 after switch, expecting systemd to restart it. This usually works but can fail if:
-
-- Switch fails silently
-- Agent crashes before exit(101)
-
----
-
-## Implementation Plan
-
-### Phase 1: Diagnostic Tooling (Day 1 morning)
-
-Add dashboard diagnostic endpoints to debug update issues:
+In `v2/internal/agent/commands.go` lines 144-152:
 
 ```go
-// GET /api/hosts/{id}/update-debug
-type UpdateDebugInfo struct {
-    // Isolated repo state
-    RepoCommit      string `json:"repo_commit"`
-    RepoNixfleetRev string `json:"repo_nixfleet_rev"` // from flake.lock
-
-    // Agent state
-    AgentVersion    string `json:"agent_version"`
-    AgentStorePath  string `json:"agent_store_path"` // running binary path
-    AgentPID        int    `json:"agent_pid"`
-
-    // Expected state
-    ExpectedVersion string `json:"expected_version"` // dashboard version
-
-    // Platform-specific
-    PlistStorePath  string `json:"plist_store_path,omitempty"` // macOS: what plist says
-    ServiceStatus   string `json:"service_status"` // systemd/launchd state
-
-    // Generation info
-    CurrentGen      string `json:"current_gen"` // home-manager/nixos generation
-    LastSwitchTime  string `json:"last_switch_time"`
+// Auto-restart after successful switch to pick up new binary
+// Only on NixOS - macOS is handled by home-manager's launchctl bootout/bootstrap
+if exitCode == 0 && (command == "switch" || command == "pull-switch") && runtime.GOOS != "darwin" {
+    a.log.Info().Msg("switch completed successfully, restarting to pick up new binary")
+    time.Sleep(500 * time.Millisecond)
+    a.Shutdown()
+    os.Exit(101) // Triggers RestartForceExitStatus in systemd
 }
 ```
 
-### Phase 2: macOS Auto-Restart (Day 1 afternoon)
+### The Problem
 
-Implement automatic agent restart after switch on macOS.
+**macOS is explicitly SKIPPED** from the restart logic because the comment assumes "home-manager's launchctl bootout/bootstrap" handles it.
 
-**Option A: Activation Script (preferred)**
+But it doesn't work because:
+
+1. **home-manager DOES write a new plist** pointing to the new binary in `/nix/store/...`
+2. **home-manager DOES run `launchctl bootout` then `bootstrap`** during activation
+3. **BUT**: The agent is RUNNING during switch. The bootout kills it, bootstrap starts it... but with which binary?
+
+The race condition:
+
+```
+1. Agent running (old binary)
+2. Agent executes: home-manager switch
+3. home-manager writes new plist (points to new binary)
+4. home-manager runs: launchctl bootout gui/501/com.nixfleet.agent
+5. Agent process dies (killed by bootout)
+6. home-manager runs: launchctl bootstrap gui/501 <new-plist>
+7. launchd starts new agent... but agent code never reached line 148!
+```
+
+Wait, that should work! Let me reconsider...
+
+Actually, the **real** issue is:
+
+```
+1. Agent running (old binary)
+2. Agent executes: home-manager switch
+3. home-manager writes new plist
+4. home-manager skips launchctl reload because agent is already running
+5. Switch completes, old binary continues running
+6. Agent code reaches line 146, condition is FALSE for darwin
+7. Old binary keeps running indefinitely
+```
+
+**Key insight**: home-manager's `setupLaunchAgents` only does bootout/bootstrap if the service is NOT already running OR if the plist changed AND stopOnChange is true.
+
+### Evidence from modules/home-manager.nix
 
 ```nix
-# In modules/home-manager.nix
-home.activation.restartNixfleetAgent = lib.hm.dag.entryAfter ["setupLaunchAgents"] ''
-  if [[ "$(uname)" == "Darwin" ]]; then
-    # Only restart if plist exists and agent is running
-    if launchctl list | grep -q com.nixfleet.agent; then
-      $DRY_RUN_CMD /bin/launchctl kickstart -k gui/$(id -u)/com.nixfleet.agent || true
-    fi
-  fi
-'';
+# NOTE: No custom activation hook needed - home-manager's setupLaunchAgents
+# already handles agent lifecycle (bootout → bootstrap) correctly.
+# A previous custom hook was causing double-reloads that left the agent dead.
 ```
 
-**Option B: Agent Self-Restart**
+This note is **misleading**. It was written after removing a buggy hook, but the underlying problem was never actually fixed.
+
+---
+
+## Solution: Simple Agent Self-Restart for macOS
+
+Add macOS to the restart logic. The agent should restart itself after switch, just like on NixOS.
+
+### Option A: launchctl kickstart (Recommended)
 
 ```go
-// In commands.go, after successful switch on macOS
-if runtime.GOOS == "darwin" && exitCode == 0 && command == "switch" {
-    // Check if plist points to a different binary
-    newPath := getPlistAgentPath()
-    currentPath := getCurrentBinaryPath()
-    if newPath != currentPath {
-        log.Info().Msg("plist updated, triggering restart via launchctl")
-        exec.Command("launchctl", "kickstart", "-k",
-            fmt.Sprintf("gui/%d/com.nixfleet.agent", os.Getuid())).Run()
-    }
-}
-```
+// In commands.go, after successful switch
+if exitCode == 0 && (command == "switch" || command == "pull-switch") {
+    a.log.Info().Msg("switch completed successfully, triggering restart")
+    time.Sleep(500 * time.Millisecond)
 
-### Phase 3: Version Verification (Day 2 morning)
+    if runtime.GOOS == "darwin" {
+        // macOS: Use launchctl kickstart to restart with new binary
+        // -k = kill existing, then restart
+        uid := os.Getuid()
+        serviceLabel := fmt.Sprintf("gui/%d/com.nixfleet.agent", uid)
+        a.log.Info().Str("service", serviceLabel).Msg("executing launchctl kickstart")
 
-After switch completes, verify the agent actually updated:
-
-```go
-// In flake_updates.go runDeploy()
-// After switch completes...
-
-// Wait for agent to restart and reconnect
-time.Sleep(10 * time.Second)
-
-// Verify agent version
-for _, hostID := range hosts {
-    agent := s.hub.GetAgent(hostID)
-    if agent == nil {
-        s.log.Warn().Str("host", hostID).Msg("agent not reconnected after switch")
-        continue
-    }
-
-    // Get reported version from last heartbeat
-    host := s.getHostFromDB(hostID)
-    if host.AgentVersion != Version {
-        s.log.Error().
-            Str("host", hostID).
-            Str("expected", Version).
-            Str("actual", host.AgentVersion).
-            Msg("agent version mismatch after switch")
-
-        // macOS: Try force restart
-        if host.HostType == "macos" {
-            s.hub.SendCommand(hostID, "restart")
+        cmd := exec.Command("launchctl", "kickstart", "-k", serviceLabel)
+        if err := cmd.Run(); err != nil {
+            a.log.Error().Err(err).Msg("launchctl kickstart failed")
         }
+        // The kickstart -k will kill this process, so we don't reach here
+    } else {
+        // NixOS: Exit with 101 to trigger systemd RestartForceExitStatus
+        a.Shutdown()
+        os.Exit(101)
     }
 }
 ```
 
-### Phase 4: UI Feedback (Day 2 afternoon)
+**Why this works**:
 
-Show clear feedback when agent version doesn't match:
+- `launchctl kickstart -k` kills the running agent and starts a fresh instance
+- launchd reads the NEW plist (already updated by home-manager)
+- New plist points to new binary in `/nix/store/...`
+- Agent starts with new binary
 
-1. Lock compartment tooltip shows version mismatch clearly
-2. After switch, if agent version still wrong, show warning
-3. Add "Force Restart" button for macOS hosts
+### Option B: Exit and rely on KeepAlive (Alternative)
+
+```go
+// In commands.go, after successful switch
+if exitCode == 0 && (command == "switch" || command == "pull-switch") {
+    a.log.Info().Msg("switch completed, exiting to pick up new binary")
+    time.Sleep(500 * time.Millisecond)
+    a.Shutdown()
+    os.Exit(0)  // Both platforms - launchd KeepAlive / systemd Restart=always will restart
+}
+```
+
+**Why this might work**:
+
+- Simpler code (same path for both platforms)
+- launchd's `KeepAlive = true` will restart the agent
+- launchd should read the updated plist on restart
+
+**Risk**: If launchd caches the old plist, we're back to square one.
+
+### Recommendation: Option A
+
+Option A is explicit and guaranteed to work. Option B relies on launchd behavior that we haven't verified.
+
+---
+
+## Implementation
+
+### Step 1: Fix the restart logic (30 min)
+
+File: `v2/internal/agent/commands.go`
+
+```go
+// After line 143, replace the existing restart block with:
+
+// Auto-restart after successful switch to pick up new binary
+if exitCode == 0 && (command == "switch" || command == "pull-switch") {
+    a.log.Info().Msg("switch completed successfully, triggering restart to pick up new binary")
+
+    // Give time for status message to be sent
+    time.Sleep(500 * time.Millisecond)
+
+    if runtime.GOOS == "darwin" {
+        // macOS: launchctl kickstart -k kills current and starts new
+        uid := os.Getuid()
+        service := fmt.Sprintf("gui/%d/com.nixfleet.agent", uid)
+        a.log.Info().Str("service", service).Msg("restarting via launchctl kickstart")
+
+        // Don't use exec.Command - we need Setsid so the child survives
+        cmd := exec.Command("launchctl", "kickstart", "-k", service)
+        cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+        if err := cmd.Start(); err != nil {
+            a.log.Error().Err(err).Msg("launchctl kickstart failed, agent may need manual restart")
+        }
+        // The kickstart will kill us, but just in case:
+        time.Sleep(100 * time.Millisecond)
+        os.Exit(0)
+    } else {
+        // NixOS: exit 101 triggers RestartForceExitStatus in systemd
+        a.Shutdown()
+        os.Exit(101)
+    }
+}
+```
+
+### Step 2: Update the misleading comment (5 min)
+
+File: `modules/home-manager.nix`
+
+```nix
+# Agent restart after switch is handled by the agent itself (launchctl kickstart).
+# home-manager's setupLaunchAgents updates the plist, but doesn't restart
+# a running agent reliably, so the agent triggers its own restart.
+```
+
+### Step 3: Test on both platforms (1-2 hours)
+
+1. **Before fix**: Verify agent doesn't update after switch on macOS
+2. **Deploy fix**: Push new agent code, update flake.lock
+3. **Test macOS**: Run switch, verify agent version updates
+4. **Test NixOS**: Run switch, verify agent version updates (regression test)
+5. **Test edge cases**: What if switch fails? What if network drops?
 
 ---
 
 ## Acceptance Criteria
 
-- [ ] **NixOS**: After switch, agent reports new version within 30 seconds
-- [ ] **macOS**: After switch, agent automatically restarts with new binary
-- [ ] **Verification**: Dashboard confirms agent version matches after deploy
-- [ ] **Diagnostics**: `/api/hosts/{id}/update-debug` endpoint works
-- [ ] **Fallback**: "Restart Agent" button works when auto-restart fails
+- [ ] **macOS**: After switch, agent reports new version within 30 seconds
+- [ ] **NixOS**: After switch, agent reports new version within 30 seconds (no regression)
+- [ ] **Switch failure**: If switch fails, agent keeps running (no restart)
+- [ ] **Logs**: Clear log message indicating restart reason
+- [ ] **Dashboard**: No manual intervention needed
 
 ---
 
 ## Testing Checklist
 
-### Pre-implementation (verify current state)
+### Pre-implementation (verify the bug)
 
-- [ ] Document current agent versions on all hosts
-- [ ] Document current flake.lock nixfleet revisions
-- [ ] Run switch on one macOS host, observe result
+```bash
+# On macOS host (e.g., imac0)
+# 1. Check current agent version
+pgrep -fl nixfleet
 
-### Post-implementation
+# 2. Run switch via dashboard or:
+cd ~/.local/state/nixfleet-agent/repo
+home-manager switch --flake .#hostname
 
-- [ ] NixOS: Switch via UI → agent version updates within 30s
-- [ ] macOS: Switch via UI → agent version updates within 60s
-- [ ] Fleet deploy: All hosts update correctly
-- [ ] Rollback: Old generation still works if switch fails
+# 3. Check agent version again - should be SAME (bug)
+pgrep -fl nixfleet
+```
+
+### Post-implementation (verify the fix)
+
+```bash
+# On macOS host
+# 1. Update flake.lock to include new agent with fix
+# 2. Pull and switch
+# 3. Agent should restart automatically
+# 4. Check: pgrep -fl nixfleet - should show NEW binary path
+```
 
 ---
 
 ## Files to Modify
 
-| File                                     | Changes                                 |
-| ---------------------------------------- | --------------------------------------- |
-| `modules/home-manager.nix`               | Add activation script for agent restart |
-| `v2/internal/agent/commands.go`          | Optional: self-restart logic for macOS  |
-| `v2/internal/dashboard/handlers.go`      | Add `/api/hosts/{id}/update-debug`      |
-| `v2/internal/dashboard/flake_updates.go` | Add version verification after deploy   |
-| `v2/internal/templates/dashboard.templ`  | Better version mismatch UI feedback     |
+| File                            | Change                                    |
+| ------------------------------- | ----------------------------------------- |
+| `v2/internal/agent/commands.go` | Add macOS restart via launchctl kickstart |
+| `modules/home-manager.nix`      | Update misleading comment                 |
+
+---
+
+## Risks & Mitigations
+
+| Risk                            | Mitigation                                                |
+| ------------------------------- | --------------------------------------------------------- |
+| launchctl kickstart fails       | Log error, agent continues running (no worse than before) |
+| New binary crashes on startup   | launchd KeepAlive restarts it; can rollback via SSH       |
+| Race with plist update          | 500ms delay should be sufficient                          |
+| Agent killed before status sent | Sleep ensures status is sent first                        |
+
+---
+
+## Why NOT an Activation Hook?
+
+A previous version tried adding a home.activation script. It was removed because:
+
+1. **Double-reload**: Both home-manager's setupLaunchAgents AND the custom hook tried to reload, leaving the agent dead
+2. **Timing issues**: Hook ran before plist was updated
+3. **Complexity**: Agent self-restart is simpler and more reliable
+
+The agent knows exactly when switch completed and can trigger its own restart at the right moment.
 
 ---
 
 ## Related
 
-- [P1100](./P1100-macos-agent-update-bug.md) — Root cause analysis (macOS specific)
-- [P2000](./P2000-unified-host-state-management.md) — State architecture (depends on this fix)
 - [UPDATE-ARCHITECTURE.md](../../docs/UPDATE-ARCHITECTURE.md) — Update flow documentation
+- [P2000](./P2000-unified-host-state-management.md) — Depends on this fix

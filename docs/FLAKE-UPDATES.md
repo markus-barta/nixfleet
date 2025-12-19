@@ -271,7 +271,7 @@ On macOS, even after a successful `switch`, the agent may still report the old v
 - Dashboard: **⋮** → **Restart Agent**
 - CLI: `launchctl kickstart -k gui/$(id -u)/com.nixfleet.agent`
 
-See [P1100](../+pm/backlog/P1100-macos-agent-update-bug.md) for details on this issue.
+See [P1000](../+pm/backlog/P1000-reliable-agent-updates.md) for the fix to this issue.
 
 ### Potential Issues: Browser Caching
 
@@ -303,5 +303,5 @@ See [UPDATE-ARCHITECTURE.md](./UPDATE-ARCHITECTURE.md) for complete documentatio
 
 - [UPDATE-ARCHITECTURE.md](./UPDATE-ARCHITECTURE.md) — Complete update flow and troubleshooting
 - [BUILD-DEPLOY.md](./BUILD-DEPLOY.md) — How components are built and deployed
-- [P4300](../+pm/backlog/P4300-automated-flake-updates.md) — Automated flake updates backlog item
-- [P1100](../+pm/backlog/P1100-macos-agent-update-bug.md) — macOS agent update bug
+- [P4300](../+pm/done/P4300-automated-flake-updates.md) — Automated flake updates (completed)
+- [P1000](../+pm/backlog/P1000-reliable-agent-updates.md) — Reliable agent updates (in progress)

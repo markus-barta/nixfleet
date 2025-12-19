@@ -295,5 +295,5 @@ After a fleet update, verify:
 
 - [BUILD-DEPLOY.md](./BUILD-DEPLOY.md) — How components are built
 - [FLAKE-UPDATES.md](./FLAKE-UPDATES.md) — Understanding the three compartments
-- [P4300](../+pm/backlog/P4300-automated-flake-updates.md) — Automated update feature
-- [P1100](../+pm/backlog/P1100-macos-agent-update-bug.md) — macOS agent update bug
+- [P4300](../+pm/done/P4300-automated-flake-updates.md) — Automated update feature (completed)
+- [P1000](../+pm/backlog/P1000-reliable-agent-updates.md) — Reliable agent updates (in progress)
