@@ -1787,11 +1787,56 @@ templ Base(title string, csrfToken string) {
 				font-weight: 500;
 			}
 
+			/* P2500: PR section in context bar */
+			.context-pr {
+				display: inline-flex;
+				align-items: center;
+				gap: 0.5rem;
+				padding: 0.25rem 0.5rem;
+				background: rgba(187, 154, 247, 0.1);
+				border-radius: 4px;
+				border: 1px solid rgba(187, 154, 247, 0.3);
+			}
+
+			.context-pr .icon-pr {
+				width: 14px;
+				height: 14px;
+				color: var(--purple);
+			}
+
+			.context-pr span {
+				color: var(--purple);
+				font-size: 0.85rem;
+				font-weight: 500;
+			}
+
+			.btn-merge {
+				padding: 0.2rem 0.5rem;
+				font-size: 0.75rem;
+				font-weight: 600;
+				background: var(--purple);
+				color: var(--bg);
+				border: none;
+				border-radius: 4px;
+				cursor: pointer;
+				transition: opacity 150ms;
+			}
+
+			.btn-merge:hover {
+				opacity: 0.85;
+			}
+
 			.context-host {
 				color: var(--cyan);
 				font-weight: 600;
 				font-family: 'JetBrains Mono', 'Fira Code', monospace;
 				font-size: 0.85rem;
+			}
+
+			/* P2500: Description text in hover context */
+			.context-description {
+				color: var(--fg);
+				font-size: 0.875rem;
 			}
 
 			.context-separator {
@@ -2003,7 +2048,14 @@ templ Base(title string, csrfToken string) {
 				<circle cx="7" cy="5" r="2" stroke="currentColor" stroke-width="2" fill="none"/>
 				<circle cx="7" cy="19" r="2" stroke="currentColor" stroke-width="2" fill="none"/>
 				<circle cx="17" cy="9" r="2" stroke="currentColor" stroke-width="2" fill="none"/>
-				<path stroke="currentColor" stroke-width="2" fill="none" d="M7 7v10M15 9h-4c-1.1 0-2 .9-2 2v2"/>
+			</symbol>
+			<!-- P2500: Git pull request icon for PR section in context bar -->
+			<symbol id="icon-git-pull-request" viewBox="0 0 24 24">
+				<circle cx="6" cy="6" r="3" stroke="currentColor" stroke-width="2" fill="none"/>
+				<circle cx="6" cy="18" r="3" stroke="currentColor" stroke-width="2" fill="none"/>
+				<path stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M6 9v6"/>
+				<circle cx="18" cy="18" r="3" stroke="currentColor" stroke-width="2" fill="none"/>
+				<path stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M18 9v6M18 9a3 3 0 0 0-3-3h-4"/>
 			</symbol>
 			<symbol id="icon-lock" viewBox="0 0 24 24">
 				<path fill="currentColor" d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/>

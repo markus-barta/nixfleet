@@ -3,8 +3,36 @@
 **Priority**: High  
 **Complexity**: Medium  
 **Depends On**: P1000 (Update UX Overhaul) - completed  
-**Status**: Ready for Development  
-**Updated**: 2025-12-20
+**Status**: ✅ DONE  
+**Updated**: 2025-12-20  
+**Completed**: 2025-12-20
+
+---
+
+## Completion Notes
+
+Implemented in commit on 2025-12-20:
+
+### Phase 1: Header "More" Dropdown ✅
+
+- Removed "Update All" (was duplicate of Pull All)
+- Added "Do All" (Pull → Switch → Test on all hosts)
+- Added "Restart All Agents" bulk action
+- Reordered: Do All first, then individual commands
+
+### Phase 3: Per-Host Dropdown ✅
+
+- Added Pull and Switch to dropdown (for completeness)
+- Reorganized groups: Deployment / Management / Utilities / Diagnostics / Danger
+- Better separation with dividers
+
+### Phase 5: Enhanced Context Bar ✅
+
+- Added PR section with "Merge & Deploy" button
+- Added full description text on hover (from data-description attributes)
+- Added Go functions: gitContextDescription, lockContextDescription, systemContextDescription
+- Added icon-git-pull-request SVG
+- Removed tooltips from compartment buttons (info now in context bar)
 
 ---
 

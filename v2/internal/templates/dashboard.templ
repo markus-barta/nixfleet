@@ -136,10 +136,12 @@ templ Dashboard(data DashboardData) {
 						</button>
 						<div class="dropdown-divider"></div>
 					}
-					<button class="dropdown-item" onclick="bulkCommand('update'); closeBulkMenu()">
-						<svg class="icon"><use href="#icon-refresh"></use></svg>
-						Update All
+					<!-- P2500: Reordered - Do All first, removed duplicate "Update All" -->
+					<button class="dropdown-item" onclick="bulkDoAll(); closeBulkMenu()">
+						<svg class="icon"><use href="#icon-play"></use></svg>
+						Do All
 					</button>
+					<div class="dropdown-divider"></div>
 					<button class="dropdown-item" onclick="bulkCommand('pull'); closeBulkMenu()">
 						<svg class="icon"><use href="#icon-download"></use></svg>
 						Pull All
@@ -151,6 +153,11 @@ templ Dashboard(data DashboardData) {
 					<button class="dropdown-item" onclick="bulkCommand('test'); closeBulkMenu()">
 						<svg class="icon"><use href="#icon-flask"></use></svg>
 						Test All
+					</button>
+					<div class="dropdown-divider"></div>
+					<button class="dropdown-item" onclick="bulkCommand('restart'); closeBulkMenu()">
+						<svg class="icon"><use href="#icon-refresh-cw"></use></svg>
+						Restart All Agents
 					</button>
 				</div>
 				</div>
@@ -1002,12 +1009,27 @@ templ Dashboard(data DashboardData) {
 				if (!confirm(confirmMsg)) return;
 
 				onlineHosts.forEach(host => {
-					if (command === 'update') {
-						sendCommand(host.id, 'pull');
-					} else {
-						sendCommand(host.id, command);
-					}
+					sendCommand(host.id, command);
 				});
+			}
+
+			// P2500: Do All - Pull → Switch → Test on ALL online hosts
+			async function bulkDoAll() {
+				const onlineHosts = hostStore.all().filter(h => h.online);
+				if (onlineHosts.length === 0) {
+					alert('No online hosts to send command to');
+					return;
+				}
+
+				const confirmMsg = `Run Pull → Switch → Test on ${onlineHosts.length} online host(s)?`;
+				if (!confirm(confirmMsg)) return;
+
+				// Execute Pull → Switch → Test sequentially on all hosts
+				for (const command of ['pull', 'switch', 'test']) {
+					onlineHosts.forEach(host => sendCommand(host.id, command));
+					// Wait a moment between command batches
+					await new Promise(r => setTimeout(r, 500));
+				}
 			}
 
 			function deleteHost(hostId) {
@@ -1372,17 +1394,19 @@ templ Dashboard(data DashboardData) {
 			const compartmentCooldowns = new Map();
 			const COOLDOWN_MS = 500;
 
+			// P2500: Enhanced hover with full description
 			function handleCompartmentHover(btn) {
 				const hostId = btn.dataset.hostId;
 				const hostname = btn.dataset.hostname;
 				const compartment = btn.dataset.compartment;
 				const action = btn.dataset.action;
+				const description = btn.dataset.description || '';
 
 				// Don't show preview for error/info actions
 				if (action === 'error' || action === 'info') return;
 
 				window.dispatchEvent(new CustomEvent('action-preview', {
-					detail: { hostId, hostname, command: action, compartment }
+					detail: { hostId, hostname, command: action, compartment, description }
 				}));
 			}
 
@@ -1460,6 +1484,7 @@ templ Dashboard(data DashboardData) {
 			// ═══════════════════════════════════════════════════════════════════════════
 			// CONTEXT BAR COMPONENT - Unified hover preview + selection actions
 			// ═══════════════════════════════════════════════════════════════════════════
+			// P2500: Enhanced Context Bar with full descriptions and PR support
 			document.addEventListener('alpine:init', () => {
 				Alpine.data('contextBar', () => ({
 					// Hover state
@@ -1485,8 +1510,12 @@ templ Dashboard(data DashboardData) {
 						}).length;
 					},
 
+					get pendingPR() {
+						return globalState.pendingPR;
+					},
+
 					get hasContent() {
-						return this.hoverAction !== null || this.selectedCount > 0;
+						return this.hoverAction !== null || this.selectedCount > 0 || this.pendingPR !== null;
 					},
 
 					get selectionText() {
@@ -1498,7 +1527,7 @@ templ Dashboard(data DashboardData) {
 						return `${total} ${hostWord} (${online} online)`;
 					},
 
-					// Hover handlers
+					// Hover handlers - P2500: now includes description
 					handlePreview(detail) {
 						if (this._clearTimer) {
 							clearTimeout(this._clearTimer);
@@ -1507,7 +1536,8 @@ templ Dashboard(data DashboardData) {
 						this.hoverAction = {
 							command: detail.command,
 							hostname: detail.hostname,
-							hostId: detail.hostId
+							hostId: detail.hostId,
+							description: detail.description || ''
 						};
 					},
 
@@ -1545,6 +1575,12 @@ templ Dashboard(data DashboardData) {
 							// Wait a moment between commands
 							await new Promise(r => setTimeout(r, 500));
 						}
+					},
+
+					// P2500: Merge and deploy PR
+					mergeAndDeployPR() {
+						if (!this.pendingPR) return;
+						mergeAndDeploy(this.pendingPR.number);
 					},
 
 					clearSelection() {
@@ -1769,8 +1805,7 @@ templ Dashboard(data DashboardData) {
 	}
 }
 
-// SelectionBar renders the bulk action bar when hosts are selected (P1015)
-// ContextBar - Unified bar for hover preview and selection actions
+// P2500: ContextBar - Unified bar for PR info, hover preview, and selection actions
 templ ContextBar() {
 	<div
 		id="context-bar"
@@ -1778,17 +1813,33 @@ templ ContextBar() {
 		x-data="contextBar"
 		:class="{ 'context-bar-empty': !hasContent }"
 	>
-		<!-- Left: Context info (hover + selection) -->
+		<!-- Left: Context info (PR + hover + selection) -->
 		<div class="context-info">
-			<!-- Hover context -->
-			<template x-if="hoverAction">
-				<span class="context-hover">
-					<span class="context-arrow">→</span>
-					<span class="context-action" x-text="'click to ' + hoverAction.command"></span>
-					<span class="context-host" x-text="hoverAction.hostname"></span>
+			<!-- P2500: PR info section (shows when PR is pending) -->
+			<template x-if="pendingPR && pendingPR.mergeable">
+				<span class="context-pr">
+					<svg class="icon icon-pr"><use href="#icon-git-pull-request"></use></svg>
+					<span>PR #<span x-text="pendingPR.number"></span> ready</span>
+					<button class="btn btn-sm btn-merge" @click="mergeAndDeployPR()" title="Merge PR and deploy to all hosts">
+						Merge & Deploy
+					</button>
 				</span>
 			</template>
-			<!-- Separator when both -->
+			<!-- Separator between PR and hover -->
+			<template x-if="pendingPR && pendingPR.mergeable && hoverAction">
+				<span class="context-separator">·</span>
+			</template>
+			<!-- P2500: Enhanced hover context with full description -->
+			<template x-if="hoverAction">
+				<span class="context-hover">
+					<span class="context-host" x-text="hoverAction.hostname + ':'"></span>
+					<span class="context-description" x-text="hoverAction.description"></span>
+					<template x-if="hoverAction.command && hoverAction.command !== 'refresh' && hoverAction.command !== 'info' && hoverAction.command !== 'error'">
+						<span class="context-action" x-text="'— click to ' + hoverAction.command"></span>
+					</template>
+				</span>
+			</template>
+			<!-- Separator when both hover and selection -->
 			<template x-if="hoverAction && selectedCount > 0">
 				<span class="context-separator">·</span>
 			</template>
@@ -2256,16 +2307,16 @@ templ UpdateStatusCell(host Host) {
 		data-repo-url={ host.RepoURL }
 		data-repo-dir={ host.RepoDir }
 	>
-		<!-- Git compartment -->
+		<!-- Git compartment (P2500: added data-description for context bar) -->
 		<button
 			type="button"
 			class={ compartmentButtonClass(host.UpdateStatus, "git") }
-			title={ gitTooltip(host) }
 			data-host-id={ host.ID }
 			data-hostname={ host.Hostname }
 			data-compartment="git"
 			data-status={ getCompartmentStatus(host.UpdateStatus, "git") }
 			data-action={ getCompartmentActionType(host.UpdateStatus, "git") }
+			data-description={ gitContextDescription(host) }
 			onmouseenter="handleCompartmentHover(this)"
 			onmouseleave="handleCompartmentLeave()"
 			onclick="handleCompartmentClick(this)"
@@ -2273,16 +2324,16 @@ templ UpdateStatusCell(host Host) {
 			<svg class="update-icon"><use href="#icon-git-branch"></use></svg>
 			<span class={ compartmentIndicatorClass(host.UpdateStatus, "git") }></span>
 		</button>
-		<!-- Lock compartment -->
+		<!-- Lock compartment (P2500: added data-description for context bar) -->
 		<button
 			type="button"
 			class={ lockCompartmentButtonClass(host) }
-			title={ lockTooltip(host) }
 			data-host-id={ host.ID }
 			data-hostname={ host.Hostname }
 			data-compartment="lock"
 			data-status={ getLockStatus(host) }
 			data-action={ getLockActionType(host) }
+			data-description={ lockContextDescription(host) }
 			onmouseenter="handleCompartmentHover(this)"
 			onmouseleave="handleCompartmentLeave()"
 			onclick="handleCompartmentClick(this)"
@@ -2290,16 +2341,16 @@ templ UpdateStatusCell(host Host) {
 			<svg class="update-icon"><use href="#icon-lock"></use></svg>
 			<span class={ lockIndicatorClass(host) }></span>
 		</button>
-		<!-- System compartment -->
+		<!-- System compartment (P2500: added data-description for context bar) -->
 		<button
 			type="button"
 			class={ compartmentButtonClass(host.UpdateStatus, "system") }
-			title={ systemTooltip(host) }
 			data-host-id={ host.ID }
 			data-hostname={ host.Hostname }
 			data-compartment="system"
 			data-status={ getCompartmentStatus(host.UpdateStatus, "system") }
 			data-action={ getCompartmentActionType(host.UpdateStatus, "system") }
+			data-description={ systemContextDescription(host) }
 			onmouseenter="handleCompartmentHover(this)"
 			onmouseleave="handleCompartmentLeave()"
 			onclick="handleCompartmentClick(this)"
@@ -2354,7 +2405,25 @@ templ ActionDropdown(host Host) {
 			@keydown.escape.prevent="open = false; focusedIndex = -1; $el.previousElementSibling.focus()"
 			@keydown.tab="open = false; focusedIndex = -1"
 			@click="open = false; focusedIndex = -1">
-			<!-- Actions Group -->
+			<!-- P2500: Deployment Group -->
+			<button
+				type="button"
+				class="dropdown-item"
+				onclick={ sendCommandScript(host.ID, "pull") }
+				disabled?={ !host.Online }
+			>
+				<svg class="icon"><use href="#icon-download"></use></svg>
+				<span>Pull</span>
+			</button>
+			<button
+				type="button"
+				class="dropdown-item"
+				onclick={ sendCommandScript(host.ID, "switch") }
+				disabled?={ !host.Online }
+			>
+				<svg class="icon"><use href="#icon-refresh"></use></svg>
+				<span>Switch</span>
+			</button>
 			<button
 				type="button"
 				class="dropdown-item"
@@ -2374,6 +2443,8 @@ templ ActionDropdown(host Host) {
 					<span>Stop</span>
 				</button>
 			}
+			<hr class="dropdown-divider"/>
+			<!-- P2500: Management Group -->
 			<button
 				type="button"
 				class="dropdown-item"
@@ -2384,7 +2455,7 @@ templ ActionDropdown(host Host) {
 				<span>Restart Agent</span>
 			</button>
 			<hr class="dropdown-divider"/>
-			<!-- Utilities Group -->
+			<!-- P2500: Utilities Group -->
 			<button
 				type="button"
 				class="dropdown-item"
@@ -2402,7 +2473,7 @@ templ ActionDropdown(host Host) {
 				<span>SSH Command</span>
 			</button>
 			<hr class="dropdown-divider"/>
-			<!-- Admin Group -->
+			<!-- P2500: Diagnostics Group -->
 			<button
 				type="button"
 				class="dropdown-item"
@@ -2411,6 +2482,8 @@ templ ActionDropdown(host Host) {
 				<svg class="icon"><use href="#icon-file"></use></svg>
 				<span>Download Logs</span>
 			</button>
+			<hr class="dropdown-divider"/>
+			<!-- P2500: Danger Zone -->
 			<button
 				type="button"
 				class="dropdown-item danger"
@@ -2752,6 +2825,103 @@ func getLockActionType(host Host) string {
 		return "error"
 	default:
 		return "refresh"
+	}
+}
+
+// P2500: Context bar description functions
+// These return concise, human-readable descriptions for the context bar
+
+// gitContextDescription returns a short description for context bar
+func gitContextDescription(host Host) string {
+	status := host.UpdateStatus
+	if status == nil {
+		return "Checking git status..."
+	}
+	check := status.Git
+	switch check.Status {
+	case "ok":
+		return "Code is up to date"
+	case "outdated":
+		if check.Message != "" {
+			return check.Message
+		}
+		return "Code is behind — click to pull"
+	case "error":
+		if check.Message != "" {
+			return check.Message
+		}
+		return "Git check failed"
+	default:
+		return "Checking git status..."
+	}
+}
+
+// lockContextDescription returns a short description for context bar
+func lockContextDescription(host Host) string {
+	if host.AgentOutdated {
+		return fmt.Sprintf("Agent %s → %s — click to switch", host.AgentVersion, host.ExpectedAgentVersion)
+	}
+	status := host.UpdateStatus
+	if status == nil {
+		return "Checking dependencies..."
+	}
+	check := status.Lock
+	switch check.Status {
+	case "ok":
+		return fmt.Sprintf("Dependencies up to date, agent v%s", host.AgentVersion)
+	case "outdated":
+		if check.Message != "" {
+			return check.Message
+		}
+		return "Dependencies outdated — merge PR to update"
+	case "error":
+		if check.Message != "" {
+			return check.Message
+		}
+		return "Lock check failed"
+	default:
+		return "Checking dependencies..."
+	}
+}
+
+// systemContextDescription returns a short description for context bar
+func systemContextDescription(host Host) string {
+	status := host.UpdateStatus
+	isMac := host.HostType == "macos"
+	if status == nil {
+		if isMac {
+			return "Checking Home Manager..."
+		}
+		return "Checking system..."
+	}
+	check := status.System
+	switch check.Status {
+	case "ok":
+		if host.Generation != "" {
+			return fmt.Sprintf("Configuration applied (gen %s)", host.Generation)
+		}
+		if isMac {
+			return "Home Manager up to date"
+		}
+		return "System up to date"
+	case "outdated":
+		if check.Message != "" {
+			return check.Message
+		}
+		if isMac {
+			return "Home Manager changed — click to switch"
+		}
+		return "Config changed — click to switch"
+	case "error":
+		if check.Message != "" {
+			return check.Message
+		}
+		return "System check failed"
+	default:
+		if isMac {
+			return "Checking Home Manager..."
+		}
+		return "Checking system..."
 	}
 }
 
