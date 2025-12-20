@@ -129,6 +129,8 @@ This creates cognitive overhead for both sysops (who need efficiency) and beginn
 
 ### Proposed Command Organization
 
+NOTE: Do not use emojis in the UI, use SVG-icons instead. Propsed emoji-icons below are placeholders for understanding.
+
 #### Tier 1: Primary Actions (Always Visible)
 
 | Command | Icon       | Description          | Single Host       | Bulk (Header)       | Bulk (Selection) |
@@ -141,12 +143,13 @@ This creates cognitive overhead for both sysops (who need efficiency) and beginn
 #### Tier 2: Host Management (Per-Host Dropdown)
 
 | Command       | Icon         | Description            | Category                 |
-| ------------- | ------------ | ---------------------- | ------------------------ |
-| Test          | 🧪 flask     | NixOS rebuild test     | Deployment               |
-| Restart Agent | ↻ refresh-cw | Restart NixFleet agent | Management               |
+| ------------- | ------------ | ---------------------- | ------------------------ | --------------- | ----------- |
 | Stop          | ■ stop       | Cancel running command | Management (conditional) |
-| Copy Hostname | 📋 copy      | Copy hostname          | Utilities                |
-| Copy SSH      | 💻 terminal  | Copy ssh command       | Utilities                |
+| Pull          | ↓ download   | Git pull nixcfg        | Deployment               |
+| Switch        | ↻ refresh    | NixOS rebuild switch   | Deployment               |
+| Test          | 🧪 flask     | NixOS rebuild test     | Deployment               |
+| Do All        | ▶ play      | Pull → Switch → Test   | -                        | "More" → Do All | Context Bar |
+| Restart Agent | ↻ refresh-cw | Restart NixFleet agent | Management               |
 | Download Logs | 📄 file      | Download agent logs    | Diagnostics              |
 | Remove Host   | 🗑 trash     | Remove from dashboard  | Danger                   |
 

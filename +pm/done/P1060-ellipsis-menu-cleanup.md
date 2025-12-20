@@ -1,12 +1,15 @@
 # P1060 - Ellipsis Menu Cleanup
 
 **Created**: 2025-12-19  
-**Updated**: 2025-12-19  
+**Updated**: 2025-12-20  
 **Priority**: P1060 (Medium)  
-**Status**: Ready for Development  
+**Status**: ✅ DONE  
+**Completed**: 2025-12-20  
 **Parent**: [P1000](./P1000-update-ux-overhaul.md)  
 **Estimated Effort**: 2 hours  
 **Depends on**: None
+
+> **Completion Note**: Menu reorganized with Test at top, all SVG icons (no emojis), grouped sections with dividers. Added Copy Hostname, SSH Command, Download Logs, Remove Host. Dropdown toggle styled with border. Arrow key navigation deferred to P2100.
 
 ---
 

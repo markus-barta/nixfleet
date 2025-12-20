@@ -1,11 +1,14 @@
 # P1010 - Action Bar Component
 
 **Created**: 2025-12-19  
-**Updated**: 2025-12-19  
+**Updated**: 2025-12-20  
 **Priority**: P1010 (Critical)  
-**Status**: Ready for Development  
+**Status**: ✅ DONE (superseded by Context Bar)  
+**Completed**: 2025-12-20  
 **Parent**: [P1000](./P1000-update-ux-overhaul.md)  
 **Estimated Effort**: 5 hours
+
+> **Implementation Note**: This spec was superseded by the **unified Context Bar**. Instead of a header-based Action Bar, all functionality was merged into a single bar below the table that handles both hover previews and selection actions. The state machine and event flow concepts were implemented in the Context Bar component.
 
 ---
 

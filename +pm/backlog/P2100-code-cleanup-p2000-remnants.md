@@ -1,16 +1,17 @@
-# P2100: Code Cleanup - P2000 Remnants
+# P2100: Code Cleanup - Polish & Remnants
 
 **Priority**: Low  
 **Complexity**: Low  
 **Status**: Backlog  
 **Created**: 2025-12-20  
+**Updated**: 2025-12-20  
 **Depends On**: None
 
 ---
 
 ## Summary
 
-Minor cleanup items remaining after P2000 (Unified Host State Management) was implemented. These are non-critical polish items.
+Minor cleanup and polish items remaining after P1000 (Update UX Overhaul) and P2000 (Unified Host State Management) were completed. These are non-critical improvements.
 
 ---
 
@@ -76,9 +77,25 @@ if msg["type"] == "host_update" {
 
 ---
 
+### 4. Dropdown Arrow Key Navigation (P1060)
+
+**Status**: Not implemented
+
+The P1060 spec includes keyboard navigation for dropdown menus (arrow up/down to move focus between items). This was deferred.
+
+**Action**: Add `@keydown.arrow-down`, `@keydown.arrow-up` handlers to dropdown menus with `focusNext()`/`focusPrev()` functions.
+
+**Files**:
+
+- `v2/internal/templates/dashboard.templ` - ActionDropdown component
+- `v2/internal/templates/base.templ` - dropdown CSS (optional focus styles)
+
+---
+
 ## Acceptance Criteria
 
 - [ ] Decision made on refresh button (add or remove dead CSS/JS)
 - [ ] Decision made on `handleFlakeUpdateJob` (implement or delete)
 - [ ] Integration tests updated to use `host_heartbeat`
+- [ ] Dropdown arrow key navigation added
 - [ ] No dead code remaining

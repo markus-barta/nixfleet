@@ -1,12 +1,15 @@
 # P1040 - Dependency Warning Dialog
 
 **Created**: 2025-12-19  
-**Updated**: 2025-12-19  
+**Updated**: 2025-12-20  
 **Priority**: P1040 (Critical)  
-**Status**: Ready for Development  
+**Status**: ✅ DONE  
+**Completed**: 2025-12-20  
 **Parent**: [P1000](./P1000-update-ux-overhaul.md)  
 **Estimated Effort**: 3 hours  
 **Depends on**: None (utility component)
+
+> **Completion Note**: Modal dialog implemented with `DependencyDialog` template and `dependencyDialog` Alpine component. Supports single-host (4 buttons) and multi-host (host list + 3 buttons) modes. Pull+Switch chain execution works with progress display and cancellation support.
 
 ---
 

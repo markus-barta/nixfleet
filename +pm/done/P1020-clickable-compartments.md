@@ -1,12 +1,15 @@
 # P1020 - Clickable Compartments
 
 **Created**: 2025-12-19  
-**Updated**: 2025-12-19  
+**Updated**: 2025-12-20  
 **Priority**: P1020 (Critical)  
-**Status**: Ready for Development  
+**Status**: ✅ DONE  
+**Completed**: 2025-12-20  
 **Parent**: [P1000](./P1000-update-ux-overhaul.md)  
 **Estimated Effort**: 4 hours  
 **Depends on**: P1010 (Action Bar), P1040 (Dependency Dialog)
+
+> **Completion Note**: All compartments are now `<button>` elements with proper hover/click handlers. Events dispatch to the Context Bar (unified from P1010+P1015). Toast notifications work for info/error states. Rate limiting implemented with 500ms cooldown.
 
 ---
 

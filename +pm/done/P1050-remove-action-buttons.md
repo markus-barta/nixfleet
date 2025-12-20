@@ -1,12 +1,15 @@
 # P1050 - Remove Action Buttons
 
 **Created**: 2025-12-19  
-**Updated**: 2025-12-19  
+**Updated**: 2025-12-20  
 **Priority**: P1050 (Medium)  
-**Status**: Ready for Development  
+**Status**: ✅ DONE  
+**Completed**: 2025-12-20  
 **Parent**: [P1000](./P1000-update-ux-overhaul.md)  
 **Estimated Effort**: 1 hour  
 **Depends on**: P1020 (Clickable Compartments), P1060 (Ellipsis Menu)
+
+> **Completion Note**: Actions column removed from desktop `HostRow`. CommandButtons kept in mobile `HostCard` view (intentional - mobile needs explicit buttons). Comment in code marks the removal: "P1050: Actions column removed - Pull/Switch via compartments, Test via menu".
 
 ---
 

@@ -1,12 +1,15 @@
 # P1030 - Row Selection & Multi-Select
 
 **Created**: 2025-12-19  
-**Updated**: 2025-12-19  
+**Updated**: 2025-12-20  
 **Priority**: P1030 (Critical)  
-**Status**: Ready for Development  
+**Status**: ✅ DONE  
+**Completed**: 2025-12-20  
 **Parent**: [P1000](./P1000-update-ux-overhaul.md)  
 **Estimated Effort**: 4 hours  
 **Depends on**: None (foundation component)
+
+> **Completion Note**: Implemented with checkbox column on the **right side** (per user feedback, differs from original spec). Uses subtle button-style checkboxes matching header toggle. Shift+click range selection, Ctrl/Cmd+A select all, Escape to clear all work. Header shows correct icons per state (none/some/all).
 
 ---
 

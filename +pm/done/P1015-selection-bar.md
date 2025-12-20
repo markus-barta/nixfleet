@@ -1,12 +1,15 @@
 # P1015 - Selection Bar Component
 
 **Created**: 2025-12-19  
-**Updated**: 2025-12-19  
+**Updated**: 2025-12-20  
 **Priority**: P1015 (Critical)  
-**Status**: Ready for Development  
+**Status**: ✅ DONE (superseded by Context Bar)  
+**Completed**: 2025-12-20  
 **Parent**: [P1000](./P1000-update-ux-overhaul.md)  
 **Estimated Effort**: 3 hours  
 **Depends on**: P1030 (Row Selection)
+
+> **Implementation Note**: This spec was superseded by the **unified Context Bar**. Instead of a separate Selection Bar below the header, selection actions were merged with hover preview functionality into a single Context Bar below the table. All bulk action buttons (Pull All, Switch All, Test All, Do All, Clear) are implemented in the Context Bar.
 
 ---
 
