@@ -1,14 +1,23 @@
 # P2000 - Unified Host State Management
 
 **Created**: 2025-12-18  
-**Updated**: 2025-12-19  
+**Updated**: 2025-12-20  
 **Priority**: P2000 (High - Architecture)  
-**Status**: ⚠️ NEEDS REASSESSMENT after P1000  
+**Status**: ✅ DONE  
+**Completed**: 2025-12-20  
 **Estimated Effort**: 2-3 days  
 **Breaking Change**: Yes (complete JS rewrite)  
 **Depends on**: P1000 (Reliable Agent Updates)
 
-> **Note**: The current UI is functional. Fix P1000 (agent updates) first, then evaluate if this complete rewrite is still needed or if incremental improvements suffice.
+> **Completion Note**: This work was implemented incrementally via P7000 and P1000. The architecture is now in place:
+>
+> - `hostStore` singleton for state management
+> - `renderHost()` single render function
+> - WebSocket uses `host_heartbeat`/`host_offline` (not `host_update`)
+> - Global flake banner removed, "Merge & Deploy" in bulk actions
+> - `/api/hosts/{id}/refresh` endpoint operational
+>
+> Minor remnants moved to P2100 (code cleanup).
 
 ---
 
