@@ -1583,6 +1583,29 @@ templ Dashboard(data DashboardData) {
 						mergeAndDeploy(this.pendingPR.number);
 					},
 
+					// P2500: Get human-readable PR description for sysop context
+					getPRDescription() {
+						const pr = this.pendingPR;
+						if (!pr) return '';
+						
+						// Build context-rich description
+						const parts = [];
+						if (pr.title) {
+							parts.push(pr.title);
+						} else {
+							parts.push('Ready to merge');
+						}
+						
+						// Add info about how many hosts would be affected
+						const totalHosts = hostStore.all().length;
+						const onlineHosts = hostStore.all().filter(h => h.online).length;
+						if (totalHosts > 0) {
+							parts.push(`• will deploy to ${onlineHosts}/${totalHosts} hosts`);
+						}
+						
+						return parts.join(' ');
+					},
+
 					clearSelection() {
 						Alpine.store('selection').selectNone();
 					}
@@ -1805,7 +1828,7 @@ templ Dashboard(data DashboardData) {
 	}
 }
 
-// P2500: ContextBar - Unified bar for PR info, hover preview, and selection actions
+// P2500: ContextBar - Unified bar with stacked rows for PR, hover, and selection
 templ ContextBar() {
 	<div
 		id="context-bar"
@@ -1813,91 +1836,76 @@ templ ContextBar() {
 		x-data="contextBar"
 		:class="{ 'context-bar-empty': !hasContent }"
 	>
-		<!-- Left: Context info (PR + hover + selection) -->
-		<div class="context-info">
-			<!-- P2500: PR info section (shows when PR is pending) -->
-			<template x-if="pendingPR && pendingPR.mergeable">
-				<span class="context-pr">
+		<!-- Row 1: PR info (when pending PR) -->
+		<template x-if="pendingPR && pendingPR.mergeable">
+			<div class="context-row context-row-pr">
+				<div class="context-row-info">
 					<svg class="icon icon-pr"><use href="#icon-git-pull-request"></use></svg>
-					<span>PR #<span x-text="pendingPR.number"></span> ready</span>
-					<button class="btn btn-sm btn-merge" @click="mergeAndDeployPR()" title="Merge PR and deploy to all hosts">
-						Merge & Deploy
-					</button>
-				</span>
-			</template>
-			<!-- Separator between PR and hover -->
-			<template x-if="pendingPR && pendingPR.mergeable && hoverAction">
-				<span class="context-separator">·</span>
-			</template>
-			<!-- P2500: Enhanced hover context with full description -->
-			<template x-if="hoverAction">
-				<span class="context-hover">
-					<span class="context-host" x-text="hoverAction.hostname + ':'"></span>
-					<span class="context-description" x-text="hoverAction.description"></span>
-					<template x-if="hoverAction.command && hoverAction.command !== 'refresh' && hoverAction.command !== 'info' && hoverAction.command !== 'error'">
-						<span class="context-action" x-text="'— click to ' + hoverAction.command"></span>
-					</template>
-				</span>
-			</template>
-			<!-- Separator when both hover and selection -->
-			<template x-if="hoverAction && selectedCount > 0">
-				<span class="context-separator">·</span>
-			</template>
-			<!-- Selection context -->
-			<template x-if="selectedCount > 0">
-				<span class="context-selection">
-					<svg class="icon"><use href="#icon-check-square"></use></svg>
-					<span x-text="selectionText"></span>
-				</span>
-			</template>
-		</div>
+					<span class="pr-label">PR #<span x-text="pendingPR.number"></span></span>
+					<span class="pr-detail" x-text="getPRDescription()"></span>
+				</div>
+				<button class="btn btn-merge" @click="mergeAndDeployPR()">
+					<svg class="icon"><use href="#icon-git-merge"></use></svg>
+					<span>Merge & Deploy</span>
+				</button>
+			</div>
+		</template>
 
-		<!-- Right: Actions (only when selection) -->
+		<!-- Row 2: Hover context (when hovering a compartment) -->
+		<template x-if="hoverAction">
+			<div class="context-row context-row-hover">
+				<span class="context-host" x-text="hoverAction.hostname"></span>
+				<span class="context-description" x-text="hoverAction.description"></span>
+			</div>
+		</template>
+
+		<!-- Row 3: Selection + Actions (when hosts selected) -->
 		<template x-if="selectedCount > 0">
-			<div class="context-actions">
-				<button
-					class="btn btn-context"
-					:disabled="onlineCount === 0"
-					@click="bulkCommand('pull')"
-					title="Pull on all selected hosts"
-				>
-					<svg class="icon"><use href="#icon-download"></use></svg>
-					<span class="btn-label">Pull</span>
-				</button>
-				<button
-					class="btn btn-context"
-					:disabled="onlineCount === 0"
-					@click="bulkCommand('switch')"
-					title="Switch on all selected hosts"
-				>
-					<svg class="icon"><use href="#icon-refresh"></use></svg>
-					<span class="btn-label">Switch</span>
-				</button>
-				<button
-					class="btn btn-context"
-					:disabled="onlineCount === 0"
-					@click="bulkCommand('test')"
-					title="Test on all selected hosts"
-				>
-					<svg class="icon"><use href="#icon-flask"></use></svg>
-					<span class="btn-label">Test</span>
-				</button>
-				<button
-					class="btn btn-primary btn-do-all"
-					:disabled="onlineCount === 0"
-					@click="doAll()"
-					title="Pull → Switch → Test on all selected hosts"
-				>
-					<svg class="icon"><use href="#icon-play"></use></svg>
-					<span class="btn-label">Do All</span>
-				</button>
-				<button
-					class="btn btn-clear"
-					@click="clearSelection()"
-					title="Clear selection"
-				>
-					<svg class="icon"><use href="#icon-x"></use></svg>
-				</button>
+			<div class="context-row context-row-selection">
+				<div class="context-row-info">
+					<svg class="icon icon-check"><use href="#icon-check-square"></use></svg>
+					<span x-text="selectionText"></span>
+				</div>
+				<div class="context-actions">
+					<button
+						class="btn btn-context"
+						:disabled="onlineCount === 0"
+						@click="bulkCommand('pull')"
+					>
+						<svg class="icon"><use href="#icon-download"></use></svg>
+						<span class="btn-label">Pull</span>
+					</button>
+					<button
+						class="btn btn-context"
+						:disabled="onlineCount === 0"
+						@click="bulkCommand('switch')"
+					>
+						<svg class="icon"><use href="#icon-refresh"></use></svg>
+						<span class="btn-label">Switch</span>
+					</button>
+					<button
+						class="btn btn-context"
+						:disabled="onlineCount === 0"
+						@click="bulkCommand('test')"
+					>
+						<svg class="icon"><use href="#icon-flask"></use></svg>
+						<span class="btn-label">Test</span>
+					</button>
+					<button
+						class="btn btn-primary btn-do-all"
+						:disabled="onlineCount === 0"
+						@click="doAll()"
+					>
+						<svg class="icon"><use href="#icon-play"></use></svg>
+						<span class="btn-label">Do All</span>
+					</button>
+					<button
+						class="btn btn-clear"
+						@click="clearSelection()"
+					>
+						<svg class="icon"><use href="#icon-x"></use></svg>
+					</button>
+				</div>
 			</div>
 		</template>
 	</div>
@@ -2856,11 +2864,8 @@ func gitContextDescription(host Host) string {
 	}
 }
 
-// lockContextDescription returns a short description for context bar
+// lockContextDescription returns a short description for context bar (flake.lock status)
 func lockContextDescription(host Host) string {
-	if host.AgentOutdated {
-		return fmt.Sprintf("Agent %s → %s — click to switch", host.AgentVersion, host.ExpectedAgentVersion)
-	}
 	status := host.UpdateStatus
 	if status == nil {
 		return "Checking dependencies..."
@@ -2868,12 +2873,12 @@ func lockContextDescription(host Host) string {
 	check := status.Lock
 	switch check.Status {
 	case "ok":
-		return fmt.Sprintf("Dependencies up to date, agent v%s", host.AgentVersion)
+		return fmt.Sprintf("Dependencies up to date (flake.lock synced)")
 	case "outdated":
 		if check.Message != "" {
 			return check.Message
 		}
-		return "Dependencies outdated — merge PR to update"
+		return "flake.lock outdated — merge PR to update dependencies"
 	case "error":
 		if check.Message != "" {
 			return check.Message
