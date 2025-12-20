@@ -1,9 +1,10 @@
-# P2000: Streamline and Unify Commands
+# P2500: Streamline and Unify Commands
 
 **Priority**: High  
 **Complexity**: Medium  
 **Depends On**: P1000 (Update UX Overhaul) - completed  
-**Status**: Planning
+**Status**: Ready for Development  
+**Updated**: 2025-12-20
 
 ---
 
@@ -60,20 +61,26 @@ This creates cognitive overhead for both sysops (who need efficiency) and beginn
 
 ---
 
-### 3. Context Bar (Selection Bulk Actions)
+### 3. Context Bar (Unified Info + Actions)
 
-| UI Label | Backend Command         | Description                      | Availability                 |
-| -------- | ----------------------- | -------------------------------- | ---------------------------- |
-| Pull     | `bulkCommand('pull')`   | Git pull on selected             | When hosts selected + online |
-| Switch   | `bulkCommand('switch')` | NixOS rebuild switch on selected | When hosts selected + online |
-| Test     | `bulkCommand('test')`   | NixOS rebuild test on selected   | When hosts selected + online |
-| Do All   | `doAll()`               | Pull → Switch → Test sequence    | When hosts selected + online |
-| (Clear)  | `clearSelection()`      | Deselect all                     | When hosts selected          |
+**Current content:**
+
+| Section        | Content                           | Availability                 |
+| -------------- | --------------------------------- | ---------------------------- |
+| Hover info     | "→ click to {command} {hostname}" | On compartment hover         |
+| Selection info | "{N} hosts selected ({M} online)" | When hosts selected          |
+| Pull button    | `bulkCommand('pull')`             | When hosts selected + online |
+| Switch button  | `bulkCommand('switch')`           | When hosts selected + online |
+| Test button    | `bulkCommand('test')`             | When hosts selected + online |
+| Do All button  | `doAll()`                         | When hosts selected + online |
+| Clear button   | `clearSelection()`                | When hosts selected          |
 
 **Issues:**
 
 - ✅ Well-organized for batch operations
-- ❌ Only appears when hosts are selected - not discoverable
+- ✅ Appears on hover (not just selection) — discoverable
+- ❌ Hover shows minimal info ("click to pull") — needs full detail
+- ❌ PR merge not integrated — hidden in header "More" dropdown
 - ❌ No "Restart Agent" batch
 
 ---
@@ -108,10 +115,11 @@ This creates cognitive overhead for both sysops (who need efficiency) and beginn
 **Issues:**
 
 - ❌ Actions are context-dependent → unpredictable
-- ❌ No visual indication of what clicking will do
+- ❌ No visual indication of what clicking will do → **FIXED: Context bar shows on hover**
 - ❌ Lock "outdated" shows toast instead of action - inconsistent
 - ❌ "refresh" is undocumented - users don't understand it
-- ❌ No hover state explaining the action before clicking
+- ❌ Context bar shows minimal info ("click to pull") not full detail
+- ❌ PR merge hidden in "More" dropdown, not contextual
 
 ---
 
@@ -129,7 +137,7 @@ This creates cognitive overhead for both sysops (who need efficiency) and beginn
 
 ### Proposed Command Organization
 
-NOTE: Do not use emojis in the UI, use SVG-icons instead. Propsed emoji-icons below are placeholders for understanding.
+NOTE: Do NOT use emojis in the real UI, use SVG-icons instead. Propsed emoji-icons below are placeholders for understanding.
 
 #### Tier 1: Primary Actions (Always Visible)
 
@@ -285,8 +293,132 @@ NOTE: Do not use emojis in the UI, use SVG-icons instead. Propsed emoji-icons be
 
 1. Should "Do All" be the primary/default action (most prominent button)?
 2. Should per-host dropdown include Pull/Switch for completeness?
-3. Should Context Bar appear on single-host hover (not just selection)?
+3. ~~Should Context Bar appear on single-host hover (not just selection)?~~ → YES, already implemented
 4. How to handle mixed online/offline selection in bulk actions?
+
+---
+
+## Phase 5: Enhanced Context Bar (NEW)
+
+### Design Decisions
+
+| Question        | Answer                                         |
+| --------------- | ---------------------------------------------- |
+| PR visibility   | Show as first item in context bar info section |
+| Detail level    | Full human-readable text                       |
+| Tooltips        | Remove where context bar shows the info        |
+| Multi-host + PR | Show both (PR row + selection row)             |
+
+### Context Bar Layout
+
+```
+┌────────────────────────────────────────────────────────────────────────────────┐
+│ [PR info if pending]  [Hover info]  [Selection info]           [Action buttons]│
+└────────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Three info sections (left to right, all optional):**
+
+1. **PR Section** (if `pendingPR` exists):
+   - "PR #42 ready to merge — update dependencies"
+   - Button: [Merge & Deploy]
+
+2. **Hover Section** (if hovering compartment):
+   - Full description from tooltip, e.g.:
+   - "hsb1: Agent 2.0.0 needs update to 2.1.0 — click to switch"
+   - "hsb1: Code is 3 commits behind main — click to pull"
+   - "hsb1: Dependencies outdated — merge PR #42 to update"
+
+3. **Selection Section** (if hosts selected):
+   - "3 hosts selected (2 online)"
+   - Buttons: [Pull] [Switch] [Test] [Do All] [×]
+
+### Hover Info Templates (Full Detail)
+
+| Compartment | Status           | Context Bar Text                                             |
+| ----------- | ---------------- | ------------------------------------------------------------ |
+| Git         | ok               | "hsb1: Code is up to date"                                   |
+| Git         | outdated         | "hsb1: Code is {N} commits behind main — click to pull"      |
+| Git         | error            | "hsb1: Git check failed — {error message}"                   |
+| Lock        | ok               | "hsb1: Dependencies up to date, agent v{version}"            |
+| Lock        | outdated (deps)  | "hsb1: Dependencies outdated — merge PR #{N} to update"      |
+| Lock        | outdated (agent) | "hsb1: Agent {old} → {new} needed — click to switch"         |
+| Lock        | error            | "hsb1: Lock check failed — {error message}"                  |
+| System      | ok               | "hsb1: Configuration applied (gen {N})"                      |
+| System      | outdated         | "hsb1: Config changed (gen {old} → {new}) — click to switch" |
+| System      | error            | "hsb1: System check failed — {error message}"                |
+
+### Implementation Changes
+
+1. **Add data attributes to compartment buttons:**
+
+   ```html
+   data-description="Code is 3 commits behind main" data-detail="Last commit:
+   abc1234 (2 days ago)"
+   ```
+
+2. **Update `handleCompartmentHover()` to pass description:**
+
+   ```javascript
+   window.dispatchEvent(
+     new CustomEvent("context-preview", {
+       detail: {
+         hostId,
+         hostname,
+         command,
+         description: btn.dataset.description, // NEW
+         detail: btn.dataset.detail, // NEW (optional)
+       },
+     }),
+   );
+   ```
+
+3. **Update Context Bar template:**
+
+   ```html
+   <template x-if="hoverAction">
+     <span class="context-hover">
+       <span class="context-host" x-text="hoverAction.hostname + ':'"></span>
+       <span
+         class="context-description"
+         x-text="hoverAction.description"
+       ></span>
+       <span
+         class="context-action"
+         x-text="'— click to ' + hoverAction.command"
+       ></span>
+     </span>
+   </template>
+   ```
+
+4. **Add PR section to Context Bar:**
+
+   ```html
+   <template x-if="pendingPR">
+     <span class="context-pr">
+       <span
+         >PR #<span x-text="pendingPR.number"></span> ready to merge — update
+         dependencies</span
+       >
+       <button class="btn btn-sm" @click="mergeAndDeploy(pendingPR.number)">
+         Merge & Deploy
+       </button>
+     </span>
+   </template>
+   ```
+
+5. **Remove tooltips from compartment buttons** (or simplify to just status name)
+
+### Tasks
+
+- [ ] Add `data-description` and `data-detail` to compartment buttons
+- [ ] Update Go tooltip functions to return structured data for JS
+- [ ] Update `handleCompartmentHover()` to pass description
+- [ ] Update Context Bar to show full description
+- [ ] Add PR section to Context Bar (when `pendingPR` exists)
+- [ ] Remove/simplify tooltips from compartments
+- [ ] Ensure both PR + selection show together when applicable
+- [ ] Test all compartment states with new descriptions
 
 ---
 
