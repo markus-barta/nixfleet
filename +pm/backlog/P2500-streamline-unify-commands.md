@@ -409,6 +409,11 @@ NOTE: Do NOT use emojis in the real UI, use SVG-icons instead. Propsed emoji-ico
 
 5. **Remove tooltips from compartment buttons** (or simplify to just status name)
 
+6. **Add deploy progress display** (moved from P2100):
+   - Currently `handleFlakeUpdateJob()` just logs to console
+   - Should show deploy progress in context bar or toast
+   - States: "Merging PR #42...", "Deploying to 3 hosts...", "Complete"
+
 ### Tasks
 
 - [ ] Add `data-description` and `data-detail` to compartment buttons
@@ -419,6 +424,7 @@ NOTE: Do NOT use emojis in the real UI, use SVG-icons instead. Propsed emoji-ico
 - [ ] Remove/simplify tooltips from compartments
 - [ ] Ensure both PR + selection show together when applicable
 - [ ] Test all compartment states with new descriptions
+- [ ] Implement deploy progress display (replace `handleFlakeUpdateJob()` console.log)
 
 ---
 

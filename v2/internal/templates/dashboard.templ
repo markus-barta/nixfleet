@@ -123,11 +123,11 @@ templ Dashboard(data DashboardData) {
 			</div>
 			<div class="header-actions">
 				<div class="dropdown bulk-actions-dropdown">
-					<button class="btn btn-header" onclick="toggleBulkMenu(event)">
+					<button class="btn btn-header" onclick="toggleBulkMenu(event)" onkeydown="if(event.key==='ArrowDown'){event.preventDefault();toggleBulkMenu(event);}">
 						<svg class="icon"><use href="#icon-more-vertical"></use></svg>
 						More
 					</button>
-				<div class="dropdown-menu" id="bulk-actions-menu">
+				<div class="dropdown-menu" id="bulk-actions-menu" onkeydown="handleBulkMenuKeydown(event)">
 					<!-- P7000: Merge & Deploy moved here from global banner -->
 					if data.PendingPR != nil && data.PendingPR.Mergeable {
 						<button class="dropdown-item" onclick={ templ.ComponentScript{Call: fmt.Sprintf("mergeAndDeploy(%d); closeBulkMenu()", data.PendingPR.Number)} }>
@@ -1196,15 +1196,54 @@ templ Dashboard(data DashboardData) {
 				}
 			});
 
+			// P2100: Bulk menu with keyboard navigation
+			let bulkMenuFocusedIndex = -1;
+
 			function toggleBulkMenu(e) {
 				e.stopPropagation();
 				const menu = document.getElementById('bulk-actions-menu');
+				const wasOpen = menu.classList.contains('open');
 				menu.classList.toggle('open');
+				if (!wasOpen) {
+					bulkMenuFocusedIndex = 0;
+					focusBulkMenuItem(0);
+				} else {
+					bulkMenuFocusedIndex = -1;
+				}
 			}
 
 			function closeBulkMenu() {
 				const menu = document.getElementById('bulk-actions-menu');
 				if (menu) menu.classList.remove('open');
+				bulkMenuFocusedIndex = -1;
+			}
+
+			function focusBulkMenuItem(idx) {
+				const menu = document.getElementById('bulk-actions-menu');
+				if (!menu) return;
+				const items = [...menu.querySelectorAll('.dropdown-item')];
+				if (items.length === 0) return;
+				bulkMenuFocusedIndex = ((idx % items.length) + items.length) % items.length;
+				items[bulkMenuFocusedIndex].focus();
+			}
+
+			function handleBulkMenuKeydown(e) {
+				const menu = document.getElementById('bulk-actions-menu');
+				if (!menu || !menu.classList.contains('open')) return;
+
+				if (e.key === 'ArrowDown') {
+					e.preventDefault();
+					focusBulkMenuItem(bulkMenuFocusedIndex + 1);
+				} else if (e.key === 'ArrowUp') {
+					e.preventDefault();
+					focusBulkMenuItem(bulkMenuFocusedIndex - 1);
+				} else if (e.key === 'Escape') {
+					e.preventDefault();
+					closeBulkMenu();
+					// Return focus to the button
+					const btn = document.querySelector('.bulk-actions-dropdown .btn');
+					if (btn) btn.focus();
+				}
 			}
 
 			document.addEventListener('click', (e) => {
@@ -2277,18 +2316,44 @@ templ UpdateStatusCell(host Host) {
 
 // ActionDropdown renders the per-host action dropdown menu
 // P1060: ActionDropdown with reorganized menu (Test at top, grouped items)
+// P2100: Added keyboard navigation (arrow keys, escape)
 templ ActionDropdown(host Host) {
-	<div class="dropdown" x-data="{ open: false }">
+	<div class="dropdown" x-data="{
+		open: false,
+		focusedIndex: -1,
+		get items() { return [...this.$refs.menu.querySelectorAll('.dropdown-item:not([disabled])')]; },
+		focusItem(idx) {
+			const items = this.items;
+			if (items.length === 0) return;
+			this.focusedIndex = ((idx % items.length) + items.length) % items.length;
+			items[this.focusedIndex].focus();
+		},
+		toggle() {
+			this.open = !this.open;
+			if (this.open) {
+				this.$nextTick(() => this.focusItem(0));
+			} else {
+				this.focusedIndex = -1;
+			}
+		}
+	}">
 		<button
 			type="button"
 			class="dropdown-toggle"
-			@click="open = !open"
-			@click.outside="open = false"
+			@click="toggle()"
+			@click.outside="open = false; focusedIndex = -1"
+			@keydown.arrow-down.prevent="if (!open) { toggle() } else { focusItem(focusedIndex + 1) }"
+			@keydown.escape.prevent="open = false; focusedIndex = -1"
 			title="More actions"
 		>
 			<svg class="icon"><use href="#icon-more-vertical"></use></svg>
 		</button>
-		<div class="dropdown-menu" x-show="open" x-cloak @click="open = false">
+		<div class="dropdown-menu" x-ref="menu" x-show="open" x-cloak
+			@keydown.arrow-down.prevent="focusItem(focusedIndex + 1)"
+			@keydown.arrow-up.prevent="focusItem(focusedIndex - 1)"
+			@keydown.escape.prevent="open = false; focusedIndex = -1; $el.previousElementSibling.focus()"
+			@keydown.tab="open = false; focusedIndex = -1"
+			@click="open = false; focusedIndex = -1">
 			<!-- Actions Group -->
 			<button
 				type="button"

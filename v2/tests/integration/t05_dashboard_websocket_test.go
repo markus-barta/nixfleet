@@ -306,25 +306,25 @@ func TestDashboardWebSocket_MessageRouting(t *testing.T) {
 	// Wait for message propagation
 	time.Sleep(500 * time.Millisecond)
 
-	// Check browser received host_update
+	// Check browser received host_heartbeat
 	mu.Lock()
 	defer mu.Unlock()
 
 	var foundHostUpdate bool
 	for _, msg := range browserMessages {
-		if msg["type"] == "host_update" {
+		if msg["type"] == "host_heartbeat" {
 			foundHostUpdate = true
 			payload := msg["payload"].(map[string]any)
 			if payload["host_id"] != "routing-test-host" {
 				t.Errorf("expected host_id 'routing-test-host', got %v", payload["host_id"])
 			}
-			t.Logf("browser received host_update: %v", payload)
+			t.Logf("browser received host_heartbeat: %v", payload)
 			break
 		}
 	}
 
 	if !foundHostUpdate {
-		t.Error("browser did not receive host_update")
+		t.Error("browser did not receive host_heartbeat")
 		t.Logf("received messages: %v", browserMessages)
 	}
 }
@@ -385,20 +385,20 @@ func TestDashboardWebSocket_MultipleBrowsers(t *testing.T) {
 	time.Sleep(500 * time.Millisecond)
 	close(msgChan)
 
-	// Count host_updates per browser
+	// Count host_heartbeats per browser
 	receivedByBrowser := make(map[int]bool)
 	for bm := range msgChan {
-		if bm.msg["type"] == "host_update" {
+		if bm.msg["type"] == "host_heartbeat" {
 			receivedByBrowser[bm.browserIdx] = true
 		}
 	}
 
 	for i := 0; i < numBrowsers; i++ {
 		if !receivedByBrowser[i] {
-			t.Errorf("browser %d did not receive host_update", i)
+			t.Errorf("browser %d did not receive host_heartbeat", i)
 		}
 	}
 
-	t.Logf("all %d browsers received host_update", numBrowsers)
+	t.Logf("all %d browsers received host_heartbeat", numBrowsers)
 }
 
