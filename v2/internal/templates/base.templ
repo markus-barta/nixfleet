@@ -1826,6 +1826,8 @@ templ Base(title string, csrfToken string) {
 			.context-row-hover {
 				background: rgba(125, 211, 252, 0.05);
 				border: 1px solid rgba(125, 211, 252, 0.15);
+				justify-content: flex-start; /* Keep content left-aligned */
+				gap: 0.5rem;
 			}
 
 			.context-row-hover .context-host {
@@ -1835,6 +1837,10 @@ templ Base(title string, csrfToken string) {
 				font-size: 0.875rem;
 				white-space: nowrap;
 				flex-shrink: 0;
+			}
+
+			.context-row-hover .context-host::after {
+				content: ':';
 			}
 
 			.context-row-hover .context-description {
