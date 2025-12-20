@@ -1860,7 +1860,7 @@ templ ContextBar() {
 		</template>
 
 		<!-- Row 3: Selection + Actions (when hosts selected) -->
-		<template x-if="selectedCount > 0">
+		<template x-if="$store.selection.selected.length > 0">
 			<div class="context-row context-row-selection">
 				<div class="context-row-info">
 					<svg class="icon icon-check"><use href="#icon-check-square"></use></svg>
