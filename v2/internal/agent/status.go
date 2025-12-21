@@ -74,10 +74,32 @@ func (s *StatusChecker) GetStatus(ctx context.Context) *protocol.UpdateStatus {
 
 // ForceRefresh forces an immediate refresh of all status checks.
 func (s *StatusChecker) ForceRefresh(ctx context.Context) {
+	s.RefreshLock(ctx)
+	s.RefreshSystem(ctx)
+}
+
+// P2800: RefreshLock forces an immediate refresh of just the lock status.
+func (s *StatusChecker) RefreshLock(ctx context.Context) {
+	s.a.log.Debug().Msg("force-refreshing lock status")
 	s.lockStatus = s.checkLockStatus(ctx)
 	s.lastLockCheck = time.Now()
+}
+
+// P2800: RefreshSystem forces an immediate refresh of just the system status.
+func (s *StatusChecker) RefreshSystem(ctx context.Context) {
+	s.a.log.Debug().Msg("force-refreshing system status")
 	s.systemStatus = s.checkSystemStatus(ctx)
 	s.lastSystemCheck = time.Now()
+}
+
+// P2800: GetLockStatus returns the current lock status (cached).
+func (s *StatusChecker) GetLockStatus() protocol.StatusCheck {
+	return s.lockStatus
+}
+
+// P2800: GetSystemStatus returns the current system status (cached).
+func (s *StatusChecker) GetSystemStatus() protocol.StatusCheck {
+	return s.systemStatus
 }
 
 // checkLockStatus checks how recently the flake.lock was updated.

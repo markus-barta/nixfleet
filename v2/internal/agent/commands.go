@@ -2,6 +2,7 @@ package agent
 
 import (
 	"bufio"
+	"fmt"
 	"os"
 	"os/exec"
 	"runtime"
@@ -91,6 +92,8 @@ func (a *Agent) executeCommand(command string) {
 				a.sendStatus("error", command, 1, err.Error())
 				return
 			}
+			// Force refresh status checks since repo changed
+			a.statusChecker.ForceRefresh(a.ctx)
 			a.sendStatus("ok", command, 0, "")
 			return
 		}
@@ -111,12 +114,45 @@ func (a *Agent) executeCommand(command string) {
 				return
 			}
 		}
+		// Force refresh status after pull so switch sees updated state
+		a.statusChecker.ForceRefresh(a.ctx)
 		// Then switch
 		cmd, err = a.buildSwitchCommand()
 	case "test":
 		cmd, err = a.buildTestCommand()
 	case "update":
 		cmd, err = a.buildUpdateCommand()
+
+	// P2800: Refresh commands - force update of specific status checks
+	case "refresh-git":
+		// Git status is checked by dashboard, not agent
+		a.sendOutput("Git status is checked by dashboard (GitHub API)", "stdout")
+		a.sendStatus("ok", command, 0, "git status check is dashboard-side")
+		return
+	case "refresh-lock":
+		a.sendOutput("Refreshing lock file status...", "stdout")
+		a.statusChecker.RefreshLock(a.ctx)
+		lockStatus := a.statusChecker.GetLockStatus()
+		a.sendOutput(fmt.Sprintf("✓ Lock status: %s (%s)", lockStatus.Status, lockStatus.Message), "stdout")
+		a.sendStatus("ok", command, 0, lockStatus.Status)
+		return
+	case "refresh-system":
+		a.sendOutput("Refreshing system status (this may take 30-60s)...", "stdout")
+		a.statusChecker.RefreshSystem(a.ctx)
+		sysStatus := a.statusChecker.GetSystemStatus()
+		a.sendOutput(fmt.Sprintf("✓ System status: %s (%s)", sysStatus.Status, sysStatus.Message), "stdout")
+		a.sendStatus("ok", command, 0, sysStatus.Status)
+		return
+	case "refresh-all":
+		a.sendOutput("Refreshing all status checks...", "stdout")
+		a.statusChecker.ForceRefresh(a.ctx)
+		lockStatus := a.statusChecker.GetLockStatus()
+		sysStatus := a.statusChecker.GetSystemStatus()
+		a.sendOutput(fmt.Sprintf("✓ Lock: %s (%s)", lockStatus.Status, lockStatus.Message), "stdout")
+		a.sendOutput(fmt.Sprintf("✓ System: %s (%s)", sysStatus.Status, sysStatus.Message), "stdout")
+		a.sendStatus("ok", command, 0, "all refreshed")
+		return
+
 	default:
 		a.log.Error().Str("command", command).Msg("unknown command")
 		a.sendStatus("error", command, 1, "unknown command")
@@ -137,6 +173,66 @@ func (a *Agent) executeCommand(command string) {
 	if exitCode != 0 {
 		status = "error"
 		message = "command failed"
+	}
+
+	// P2800: Post-validation - refresh status and report on goal achievement
+	if exitCode == 0 && (command == "pull" || command == "switch" || command == "pull-switch") {
+		a.sendOutput("", "stdout") // Blank line separator
+		a.sendOutput("📊 Post-validation: Checking if goal was achieved...", "stdout")
+		
+		// Force refresh to get updated state
+		a.statusChecker.ForceRefresh(a.ctx)
+		
+		lockStatus := a.statusChecker.GetLockStatus()
+		sysStatus := a.statusChecker.GetSystemStatus()
+		
+		// Report lock status
+		lockIcon := "🟢"
+		if lockStatus.Status == "outdated" {
+			lockIcon = "🟡"
+		} else if lockStatus.Status == "error" || lockStatus.Status == "unknown" {
+			lockIcon = "🔴"
+		}
+		a.sendOutput(fmt.Sprintf("%s Lock: %s", lockIcon, lockStatus.Message), "stdout")
+		
+		// Report system status
+		sysIcon := "🟢"
+		if sysStatus.Status == "outdated" {
+			sysIcon = "🟡"
+		} else if sysStatus.Status == "error" || sysStatus.Status == "unknown" {
+			sysIcon = "🔴"
+		}
+		a.sendOutput(fmt.Sprintf("%s System: %s", sysIcon, sysStatus.Message), "stdout")
+		
+		// Overall goal check based on command type
+		switch command {
+		case "pull":
+			// Goal: system should now be outdated (needs rebuild) or already current
+			a.sendOutput("", "stdout")
+			if lockStatus.Status == "ok" {
+				a.sendOutput("✅ Pull goal achieved: Lock file is current", "stdout")
+			} else {
+				a.sendOutput("⚠️  Pull completed but lock still appears outdated (cache?)", "stdout")
+			}
+		case "switch":
+			// Goal: system should now be current
+			a.sendOutput("", "stdout")
+			if sysStatus.Status == "ok" {
+				a.sendOutput("✅ Switch goal achieved: System is current", "stdout")
+			} else {
+				a.sendOutput("⚠️  Switch completed but system still shows outdated (may need agent restart)", "stdout")
+			}
+		case "pull-switch":
+			// Goal: both should be current
+			a.sendOutput("", "stdout")
+			if lockStatus.Status == "ok" && sysStatus.Status == "ok" {
+				a.sendOutput("✅ Pull+Switch goal achieved: Fully up to date", "stdout")
+			} else if sysStatus.Status == "ok" {
+				a.sendOutput("⚠️  System current but lock shows outdated (GitHub cache?)", "stdout")
+			} else {
+				a.sendOutput("⚠️  Commands completed but goals not fully achieved", "stdout")
+			}
+		}
 	}
 
 	a.sendStatus(status, command, exitCode, message)

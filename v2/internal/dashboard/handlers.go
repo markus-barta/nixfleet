@@ -935,6 +935,43 @@ func (s *Server) handleRefreshHost(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(resp)
 }
 
+// P2800: handleRefreshGit forces a refresh of the git status (version.json fetch).
+// POST /api/hosts/{hostID}/refresh-git
+func (s *Server) handleRefreshGit(w http.ResponseWriter, r *http.Request) {
+	hostID := chi.URLParam(r, "hostID")
+
+	// Get the host's generation for comparison
+	var generation *string
+	err := s.db.QueryRow(`SELECT generation FROM hosts WHERE id = ?`, hostID).Scan(&generation)
+	if err != nil {
+		http.Error(w, "Host not found", http.StatusNotFound)
+		return
+	}
+
+	// Force refresh the version fetcher
+	s.versionFetcher.ForceRefresh()
+
+	// Get the updated git status
+	gen := ""
+	if generation != nil {
+		gen = *generation
+	}
+	status, message, checkedAt := s.versionFetcher.GetGitStatus(gen)
+
+	s.log.Info().
+		Str("host_id", hostID).
+		Str("status", status).
+		Str("message", message).
+		Msg("P2800: forced git status refresh")
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"status":     status,
+		"message":    message,
+		"checked_at": checkedAt,
+	})
+}
+
 // handleGetLogs returns command logs for a host.
 func (s *Server) handleGetLogs(w http.ResponseWriter, r *http.Request) {
 	hostID := chi.URLParam(r, "hostID")

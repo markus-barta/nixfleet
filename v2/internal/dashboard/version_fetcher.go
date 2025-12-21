@@ -147,3 +147,8 @@ func (vf *VersionFetcher) HasData() bool {
 	return vf.cached != nil
 }
 
+// P2800: ForceRefresh triggers an immediate fetch of version data.
+func (vf *VersionFetcher) ForceRefresh() {
+	vf.fetch()
+}
+

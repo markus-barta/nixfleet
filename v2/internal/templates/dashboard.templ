@@ -411,6 +411,28 @@ templ Dashboard(data DashboardData) {
 			</div>
 		</div>
 
+		<!-- P2800: Pre-Check Dialog -->
+		<div class="modal-overlay hidden" id="preCheckDialog">
+			<div class="modal">
+				<div class="modal-title">
+					<svg class="modal-icon warning" style="width:24px;height:24px;margin-right:8px;color:var(--warning)">
+						<use href="#icon-alert-triangle"></use>
+					</svg>
+					Cannot <span id="preCheckCommand">Switch</span>
+				</div>
+				<div class="modal-body">
+					<p>Host: <code id="preCheckHostname">hostname</code></p>
+					<p id="preCheckMessage" style="margin-top:12px;color:var(--fg)">Pre-check message here</p>
+					<p style="margin-top:8px;font-size:0.85rem;color:var(--muted)">(Status may be cached - code: <code id="preCheckCode">code</code>)</p>
+				</div>
+				<div class="modal-actions">
+					<button class="modal-btn modal-btn-cancel" onclick="closeModal('preCheckDialog')">Cancel</button>
+					<button class="modal-btn" id="preCheckAltAction" style="background:var(--info)">Refresh Status</button>
+					<button class="modal-btn modal-btn-danger" onclick="forceCommand()">Force</button>
+				</div>
+			</div>
+		</div>
+
 		<footer class="site-footer">
 			<div class="footer-left">
 				<span class="connection-indicator" id="ws-status">
@@ -1054,7 +1076,8 @@ templ Dashboard(data DashboardData) {
 			// ═══════════════════════════════════════════════════════════════════════════
 			// ACTIONS (User-initiated)
 			// ═══════════════════════════════════════════════════════════════════════════
-			function sendCommand(hostId, command) {
+			// P2800: sendCommand with optional force flag
+			function sendCommand(hostId, command, force = false) {
 				const host = hostStore.get(hostId);
 				const hostname = host?.hostname || hostId;
 
@@ -1072,15 +1095,25 @@ templ Dashboard(data DashboardData) {
 						'Content-Type': 'application/json',
 						'X-CSRF-Token': CSRF_TOKEN
 					},
-					body: JSON.stringify({ command })
+					body: JSON.stringify({ command, force })
 				}).then(resp => {
+					if (resp.status === 409) {
+						// P2800: Pre-validation failed - show dialog
+						return resp.json().then(data => {
+							hostStore.update(hostId, { pendingCommand: null });
+							showPreCheckDialog(hostId, hostname, command, data.validation);
+							throw { handled: true }; // Skip error handling
+						});
+					}
 					if (!resp.ok) {
 						return resp.text().then(text => { throw new Error(text); });
 					}
 					return resp.json();
 				}).then(data => {
-					console.log('Command queued:', data);
+					if (data) console.log('Command queued:', data);
 				}).catch(err => {
+					if (err.handled) return; // Already handled by dialog
+					
 					console.error('Command failed:', err);
 					// P2800: Parse validation error for friendly message
 					let errorMsg = err.message || 'Unknown error';
@@ -1101,6 +1134,53 @@ templ Dashboard(data DashboardData) {
 						detail: { hostId, hostname, command, exit_code: 1, error: errorMsg }
 					}));
 				});
+			}
+
+			// P2800: Show pre-check dialog when validation fails
+			function showPreCheckDialog(hostId, hostname, command, validation) {
+				const dialog = document.getElementById('preCheckDialog');
+				if (!dialog) {
+					// Fallback to toast if dialog doesn't exist
+					showToast(`Cannot ${command}: ${validation.message}`, 'info');
+					return;
+				}
+				
+				// Populate dialog
+				document.getElementById('preCheckHostname').textContent = hostname;
+				document.getElementById('preCheckCommand').textContent = command;
+				document.getElementById('preCheckMessage').textContent = validation.message;
+				document.getElementById('preCheckCode').textContent = validation.code;
+				
+				// Store context for button actions
+				dialog.dataset.hostId = hostId;
+				dialog.dataset.command = command;
+				
+				// Show appropriate alternative actions based on code
+				const altBtn = document.getElementById('preCheckAltAction');
+				if (validation.code === 'git_outdated' && command === 'switch') {
+					altBtn.textContent = 'Pull First';
+					altBtn.onclick = () => { closeModal('preCheckDialog'); sendCommand(hostId, 'pull'); };
+					altBtn.style.display = '';
+				} else if (validation.code === 'already_current') {
+					altBtn.style.display = 'none';
+				} else {
+					altBtn.textContent = 'Refresh Status';
+					altBtn.onclick = () => { closeModal('preCheckDialog'); sendCommand(hostId, 'refresh-all'); };
+					altBtn.style.display = '';
+				}
+				
+				// Open the dialog
+				dialog.classList.remove('hidden');
+				dialog.classList.add('open');
+			}
+			
+			// P2800: Force execute despite pre-check failure
+			function forceCommand() {
+				const dialog = document.getElementById('preCheckDialog');
+				const hostId = dialog.dataset.hostId;
+				const command = dialog.dataset.command;
+				closeModal('preCheckDialog');
+				sendCommand(hostId, command, true);
 			}
 
 			function mergeAndDeploy(prNumber) {
@@ -1186,6 +1266,15 @@ templ Dashboard(data DashboardData) {
 			// ═══════════════════════════════════════════════════════════════════════════
 			function appendLog(payload) {
 				window.dispatchEvent(new CustomEvent('log-line', { detail: payload }));
+			}
+
+			// P2800: Helper to append a simple text line to the log
+			function appendLogLine(hostId, text, type = 'info') {
+				appendLog({
+					host_id: hostId,
+					output: text,
+					is_stderr: type === 'error',
+				});
 			}
 
 			function showLogPanel(hostId) {
@@ -1732,12 +1821,14 @@ templ Dashboard(data DashboardData) {
 				window.dispatchEvent(new CustomEvent('action-clear'));
 			}
 
-			// Compartment click: atomic idempotent state update only (refresh indicator color)
+			// P2800: Compartment click triggers force-refresh of that specific status check
+			// This is atomic (one check at a time) and idempotent (same state = same result)
 			function handleCompartmentClick(btn) {
 				const hostId = btn.dataset.hostId;
+				const hostname = btn.dataset.hostname;
 				const compartment = btn.dataset.compartment;
 
-				// Rate limiting
+				// Rate limiting (prevent spam clicks)
 				const cooldownKey = `${hostId}-${compartment}`;
 				if (compartmentCooldowns.has(cooldownKey)) return;
 
@@ -1748,8 +1839,31 @@ templ Dashboard(data DashboardData) {
 					btn.classList.remove('rate-limited');
 				}, COOLDOWN_MS);
 
-				// Only refresh state - no actions, just update indicator color
-				refreshHost(hostId);
+				// Open log panel to show refresh progress
+				showLogPanel(hostId);
+				
+				// Log the action
+				appendLogLine(hostId, `🔄 Force-refreshing ${compartment} status...`);
+
+				// Git is dashboard-side (GitHub API), others are agent-side
+				if (compartment === 'git') {
+					// Dashboard-side refresh via API
+					fetch(`/api/hosts/${hostId}/refresh-git`, {
+						method: 'POST',
+						headers: { 'X-CSRF-Token': CSRF_TOKEN }
+					}).then(resp => {
+						if (!resp.ok) throw new Error('Failed to refresh git status');
+						return resp.json();
+					}).then(data => {
+						appendLogLine(hostId, `✓ Git status: ${data.status} (${data.message})`);
+						refreshHost(hostId);
+					}).catch(err => {
+						appendLogLine(hostId, `✗ ${err.message}`, 'error');
+					});
+				} else {
+					// Agent-side refresh via WebSocket command
+					sendCommand(hostId, `refresh-${compartment}`);
+				}
 			}
 
 			function showToast(message, type = 'info') {
