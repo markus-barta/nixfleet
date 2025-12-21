@@ -3,8 +3,21 @@
 **Priority**: Low  
 **Complexity**: Low  
 **Depends On**: P2500 (Streamline Commands) - completed  
-**Status**: Backlog  
-**Created**: 2025-12-20
+**Status**: ✅ DONE  
+**Created**: 2025-12-20  
+**Completed**: 2025-12-21
+
+---
+
+## Completion Notes
+
+Implemented 2025-12-21:
+
+- Added subtle hairline border (8% opacity) around context bar, always visible
+- Increased min-height to 140px to prevent footer jumping with 3 rows
+- Deploy progress now shows via toast notifications
+- Green compartment click shows "Status is up to date" toast
+- Improved lock outdated message mentioning PR merge
 
 ---
 
@@ -23,25 +36,25 @@ The context bar redesign (P2500) is functionally complete, but there are polish 
 
 ### Visual Polish
 
-- [ ] Add subtle hairline border (30% opacity) around context bar area so it's always visible
-- [ ] Reserve space for 3 rows instead of 2 to prevent footer jumping
-- [ ] Consider: show faint placeholder text when context bar is empty (e.g., "Hover over compartments or select hosts")
+- [x] Add subtle hairline border (8% opacity) around context bar area so it's always visible
+- [x] Reserve space for 3 rows (140px) to prevent footer jumping
+- [ ] ~~Consider: show faint placeholder text when context bar is empty~~ — Skipped, border is sufficient
 
 ### Deploy Progress Display
 
-- [ ] Replace `handleFlakeUpdateJob()` console.log with toast/banner
-- [ ] Show states: "Merging PR #42...", "Deploying to 3 hosts...", "Complete"
-- [ ] Consider: show progress in context bar PR row during merge
+- [x] Replace `handleFlakeUpdateJob()` console.log with toast/banner
+- [x] Show states: "Merging PR...", "Deploying to X hosts...", "Complete", "Error"
+- [ ] ~~Consider: show progress in context bar PR row during merge~~ — Deferred to P2700
 
 ### Compartment UX (deferred from P2500 Phase 2)
 
-- [ ] Green compartments: clicking shows "No action needed, status refreshed" toast
-- [ ] Lock yellow: show clearer message about GitHub PR requirement in context bar
+- [x] Green compartments: clicking shows "hostname: Status is up to date" toast
+- [x] Lock yellow: show clearer message "merge the PR to update flake.lock"
 
 ### Documentation
 
-- [ ] Update RUNBOOK with command reference table
-- [ ] Document context bar behavior
+- [ ] ~~Update RUNBOOK with command reference table~~ — Separate docs task
+- [ ] ~~Document context bar behavior~~ — Separate docs task
 
 ---
 
