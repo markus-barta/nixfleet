@@ -1092,6 +1092,20 @@ func (s *Server) handleMergeAndDeploy(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// broadcastColorLog sends a log message to the host's log panel via WebSocket.
+// P2950: Verbose logging for color picker operations.
+func (s *Server) broadcastColorLog(hostID, level, message string) {
+	s.hub.BroadcastToBrowsers(map[string]any{
+		"type": "command_output",
+		"payload": map[string]any{
+			"host_id":  hostID,
+			"command":  "theme-color",
+			"line":     message,
+			"is_error": level == "error",
+		},
+	})
+}
+
 // handleSetThemeColor changes a host's theme color.
 // P2950: Updates theme-palettes.nix in nixcfg and commits.
 // POST /api/hosts/{hostID}/theme-color
@@ -1121,22 +1135,29 @@ func (s *Server) handleSetThemeColor(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Broadcast start of operation
+	s.broadcastColorLog(hostID, "info", fmt.Sprintf("🎨 Changing theme color to %s...", req.Color))
+
 	// Update database immediately (for visual feedback)
 	_, err = s.db.Exec(`UPDATE hosts SET theme_color = ? WHERE id = ?`, req.Color, hostID)
 	if err != nil {
 		s.log.Error().Err(err).Str("host", hostID).Msg("failed to update theme color in database")
+		s.broadcastColorLog(hostID, "error", "❌ Failed to update database")
 		http.Error(w, "Database error", http.StatusInternalServerError)
 		return
 	}
+	s.broadcastColorLog(hostID, "info", "✓ Database updated")
 
 	// Determine palette name: use preset or create custom-{hostname}
 	paletteName := ""
 	isCustom := false
 	if req.Palette != nil && *req.Palette != "" {
 		paletteName = *req.Palette
+		s.broadcastColorLog(hostID, "info", fmt.Sprintf("  Using preset palette: %s", paletteName))
 	} else {
 		paletteName = "custom-" + hostname
 		isCustom = true
+		s.broadcastColorLog(hostID, "info", fmt.Sprintf("  Generating custom palette: %s", paletteName))
 	}
 
 	// If nixcfg integration is enabled, update theme-palettes.nix
@@ -1145,24 +1166,36 @@ func (s *Server) handleSetThemeColor(w http.ResponseWriter, r *http.Request) {
 		var customPalette *colors.Palette
 		if isCustom {
 			// Generate custom palette from the chosen color
+			s.broadcastColorLog(hostID, "info", "  Generating gradient from primary color...")
 			var err error
 			customPalette, err = colors.GeneratePalette(hostname, req.Color)
 			if err != nil {
 				s.log.Error().Err(err).Str("color", req.Color).Msg("failed to generate palette")
+				s.broadcastColorLog(hostID, "error", fmt.Sprintf("❌ Failed to generate palette: %v", err))
 				http.Error(w, "Failed to generate color palette", http.StatusInternalServerError)
 				return
 			}
 		}
 
-		// Update nixcfg repository
-		if err := s.nixcfgRepo.UpdateHostColor(hostname, paletteName, customPalette); err != nil {
+		// Update nixcfg repository with progress callback
+		s.broadcastColorLog(hostID, "info", "📦 Updating nixcfg repository...")
+		progressFn := func(msg string) {
+			s.broadcastColorLog(hostID, "info", msg)
+		}
+		if err := s.nixcfgRepo.UpdateHostColor(hostname, paletteName, customPalette, progressFn); err != nil {
 			s.log.Error().Err(err).Str("host", hostname).Msg("failed to update nixcfg")
+			s.broadcastColorLog(hostID, "error", fmt.Sprintf("❌ nixcfg update failed: %v", err))
 			// Don't fail the request - database was already updated
 			nixcfgStatus = "error: " + err.Error()
 		} else {
 			nixcfgStatus = "committed"
+			s.broadcastColorLog(hostID, "info", "✓ nixcfg updated and pushed to GitHub")
 		}
+	} else {
+		s.broadcastColorLog(hostID, "info", "ℹ️  nixcfg integration disabled (dashboard-only update)")
 	}
+
+	s.broadcastColorLog(hostID, "info", fmt.Sprintf("✅ Theme color changed to %s (%s)", req.Color, paletteName))
 
 	s.log.Info().
 		Str("host", hostname).

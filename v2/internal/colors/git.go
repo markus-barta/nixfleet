@@ -11,6 +11,10 @@ import (
 	"github.com/rs/zerolog"
 )
 
+// ProgressFunc is a callback for reporting operation progress.
+// P2950: Used for verbose logging in the dashboard log panel.
+type ProgressFunc func(message string)
+
 // NixcfgRepo manages operations on the nixcfg repository for color changes.
 type NixcfgRepo struct {
 	repoPath    string
@@ -202,13 +206,24 @@ func (r *NixcfgRepo) CommitAndPush(hostname, paletteName string) error {
 }
 
 // UpdateHostColor updates a host's color in theme-palettes.nix and commits.
-func (r *NixcfgRepo) UpdateHostColor(hostname string, paletteName string, customPalette *Palette) error {
+// The optional progress callback receives status messages for verbose logging.
+func (r *NixcfgRepo) UpdateHostColor(hostname string, paletteName string, customPalette *Palette, progress ...ProgressFunc) error {
+	// Helper to report progress
+	report := func(msg string) {
+		if len(progress) > 0 && progress[0] != nil {
+			progress[0](msg)
+		}
+	}
+
 	// Ensure repo is up to date
+	report("  Syncing nixcfg repository...")
 	if err := r.EnsureCloned(); err != nil {
 		return err
 	}
+	report("  ✓ Repository synced")
 
 	// Read current content
+	report("  Reading theme-palettes.nix...")
 	content, err := r.ReadThemePalettes()
 	if err != nil {
 		return err
@@ -216,6 +231,7 @@ func (r *NixcfgRepo) UpdateHostColor(hostname string, paletteName string, custom
 
 	// If custom palette, insert/update the palette definition
 	if customPalette != nil {
+		report("  Inserting custom palette definition...")
 		content, err = UpdateOrInsertCustomPalette(content, hostname, customPalette)
 		if err != nil {
 			return fmt.Errorf("failed to insert custom palette: %w", err)
@@ -223,17 +239,25 @@ func (r *NixcfgRepo) UpdateHostColor(hostname string, paletteName string, custom
 	}
 
 	// Update hostPalette entry
+	report(fmt.Sprintf("  Setting %s = \"%s\"...", hostname, paletteName))
 	content, err = UpdateHostPalette(content, hostname, paletteName)
 	if err != nil {
 		return fmt.Errorf("failed to update hostPalette: %w", err)
 	}
 
 	// Write back
+	report("  Writing theme-palettes.nix...")
 	if err := r.WriteThemePalettes(content); err != nil {
 		return err
 	}
 
 	// Commit and push
-	return r.CommitAndPush(hostname, paletteName)
+	report("  Committing and pushing to GitHub...")
+	if err := r.CommitAndPush(hostname, paletteName); err != nil {
+		return err
+	}
+	report("  ✓ Pushed to GitHub")
+
+	return nil
 }
 
