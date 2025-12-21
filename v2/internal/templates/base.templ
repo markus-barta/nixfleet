@@ -1010,7 +1010,7 @@ templ Base(title string, csrfToken string) {
 			.compartment-indicator {
 				position: absolute;
 				bottom: 4px;
-				right: 4px;
+				right: 3px;
 				width: 4px;
 				height: 4px;
 				border-radius: 50%;
@@ -1565,8 +1565,8 @@ templ Base(title string, csrfToken string) {
 				display: inline-flex;
 				align-items: center;
 				justify-content: center;
-				width: 24px;
-				height: 24px;
+				width: 29px;
+				height: 29px;
 				padding: 0;
 				background: rgba(0, 0, 0, 0.1);
 				border-radius: 4px;
@@ -2111,13 +2111,13 @@ templ Base(title string, csrfToken string) {
 				stroke: var(--type-color, var(--fg));
 			}
 
-			/* Location icon - top-right superscript (2px closer, 1px down) */
+			/* Location icon - top-right superscript (moved 2px down from original) */
 			.type-loc-super {
 				position: absolute;
-				top: -1px;
+				top: 1px;
 				right: 0;
-				width: 10px;
-				height: 10px;
+				width: 12px;
+				height: 12px;
 				display: flex;
 				align-items: center;
 				justify-content: center;
@@ -2126,20 +2126,20 @@ templ Base(title string, csrfToken string) {
 
 			.type-loc-super .icon,
 			.type-loc-super .location-icon {
-				width: 8px;
-				height: 8px;
+				width: 9px;
+				height: 9px;
 				color: var(--type-color, var(--fg));
 				fill: var(--type-color, var(--fg));
 				stroke: var(--type-color, var(--fg));
 			}
 
-			/* OS icon - bottom-right subscript (2px closer, 1px up) */
+			/* OS icon - bottom-right subscript (moved 2px up from original) */
 			.type-os-sub {
 				position: absolute;
-				bottom: -1px;
+				bottom: 1px;
 				right: 0;
-				width: 10px;
-				height: 10px;
+				width: 12px;
+				height: 12px;
 				display: flex;
 				align-items: center;
 				justify-content: center;
@@ -2148,8 +2148,8 @@ templ Base(title string, csrfToken string) {
 
 			.type-os-sub .icon,
 			.type-os-sub .type-icon {
-				width: 8px;
-				height: 8px;
+				width: 9px;
+				height: 9px;
 				color: var(--type-color, var(--fg));
 				fill: var(--type-color, var(--fg));
 				stroke: var(--type-color, var(--fg));
