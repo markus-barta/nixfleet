@@ -1001,11 +1001,23 @@ templ Dashboard(data DashboardData) {
 					console.log('Command queued:', data);
 				}).catch(err => {
 					console.error('Command failed:', err);
-					alert('Command failed: ' + err.message);
+					// P2800: Parse validation error for friendly message
+					let errorMsg = err.message || 'Unknown error';
+					try {
+						const parsed = JSON.parse(errorMsg);
+						if (parsed.validation && parsed.validation.message) {
+							errorMsg = parsed.validation.message;
+						} else if (parsed.message) {
+							errorMsg = parsed.message;
+						}
+					} catch (e) {
+						// Not JSON, use original message
+					}
+					showToast(`Command failed: ${errorMsg}`, 'error');
 					hostStore.update(hostId, { pendingCommand: null });
 					// P1010: Notify Action Bar of failure
 					window.dispatchEvent(new CustomEvent('command-complete', {
-						detail: { hostId, hostname, command, exit_code: 1, error: err.message }
+						detail: { hostId, hostname, command, exit_code: 1, error: errorMsg }
 					}));
 				});
 			}

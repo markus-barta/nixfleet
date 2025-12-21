@@ -1993,70 +1993,78 @@ templ Base(title string, csrfToken string) {
 
 			.type-composite {
 				position: relative;
-				display: flex;
-				align-items: center;
-				justify-content: center;
-				width: 40px;
-				height: 32px;
+				display: inline-block;
+				width: 36px;
+				height: 28px;
 				margin: 0 auto;
 			}
 
+			/* Main location icon - fills most of the space */
 			.type-loc {
 				position: absolute;
 				left: 0;
 				top: 50%;
 				transform: translateY(-50%);
-				width: 24px;
-				height: 24px;
+				width: 22px;
+				height: 22px;
 				display: flex;
 				align-items: center;
 				justify-content: center;
+				z-index: 1;
 			}
 
 			.type-loc .icon,
 			.type-loc .location-icon {
-				width: 22px;
-				height: 22px;
+				width: 20px;
+				height: 20px;
 				color: var(--fg-dark);
-				opacity: 0.9;
+				opacity: 0.85;
 			}
 
+			/* Device icon - top-right badge */
 			.type-dev {
 				position: absolute;
-				top: -2px;
+				top: 0;
 				right: 0;
-				width: 12px;
-				height: 12px;
+				width: 14px;
+				height: 14px;
 				display: flex;
 				align-items: center;
 				justify-content: center;
+				background: var(--bg);
+				border-radius: 2px;
+				z-index: 2;
 			}
 
 			.type-dev .icon,
 			.type-dev .device-icon {
-				width: 10px;
-				height: 10px;
-				color: var(--fg-dark);
-				opacity: 0.7;
+				width: 11px;
+				height: 11px;
+				color: var(--cyan);
+				opacity: 0.9;
 			}
 
+			/* OS icon - bottom-right badge */
 			.type-os {
 				position: absolute;
-				bottom: -2px;
+				bottom: 0;
 				right: 0;
-				width: 12px;
-				height: 12px;
+				width: 14px;
+				height: 14px;
 				display: flex;
 				align-items: center;
 				justify-content: center;
+				background: var(--bg);
+				border-radius: 2px;
+				z-index: 2;
 			}
 
 			.type-os .icon,
 			.type-os .type-icon {
-				width: 10px;
-				height: 10px;
-				color: var(--fg-dark);
-				opacity: 0.7;
+				width: 11px;
+				height: 11px;
+				color: var(--blue);
+				opacity: 0.9;
 			}
 
 			/* Hover effect on composite type */
