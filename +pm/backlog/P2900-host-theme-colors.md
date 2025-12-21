@@ -1,31 +1,39 @@
-# P2900 - Host Theme Colors
+# P2900 - Host Theme Colors in Dashboard
 
 **Created**: 2025-12-21  
 **Priority**: P2900 (Medium - UI Polish)  
-**Status**: Backlog  
-**Effort**: Medium (2-4 hours)
+**Status**: Blocked by P7200 (nixcfg)  
+**Effort**: Dashboard-side: Done | nixcfg wiring: 1-2h
 
 ---
 
 ## Summary
 
-Each host should display its unique theme color (from starship config) as a subtle row gradient in the dashboard.
-
-**Current approach**: Row background gradient from left to 50%, using host's `ThemeColor`.
+Each host should display its unique theme color (from starship prompt) as a subtle row gradient in the dashboard.
 
 ---
 
-## Problem: Colors Not Working
+## Current State
 
-**Root Cause**: The NixOS/macOS modules do NOT pass the starship color to the agent.
+### Dashboard Implementation ✅ DONE
 
-### Current Data Flow (BROKEN)
+Row gradients are implemented in `dashboard.templ`:
 
 ```
-starship.toml → ??? → Agent reads NIXFLEET_THEME_COLOR (empty!) → Fallback by OS type
+0% (2%) → 25% (10%) → 50% (2%) → 100% (0%)
 ```
 
-The agent reads `NIXFLEET_THEME_COLOR` from environment (`config.go:132`), but the NixOS/macOS modules don't set this variable from starship.
+The `hostRowStyle()` function generates inline CSS using `ThemeColor` from heartbeat.
+
+### What's Missing ❌
+
+**Hosts don't report their colors!**
+
+The agent reads `NIXFLEET_THEME_COLOR`, but:
+
+- NixOS module doesn't set it
+- Home Manager module doesn't set it
+- No wiring from `theme-palettes.nix` to agent config
 
 ### Current Fallback (hub.go:573-579)
 
@@ -39,59 +47,66 @@ if themeColor == "" {
 }
 ```
 
-This means ALL NixOS hosts show blue, ALL macOS hosts show purple, regardless of their starship config.
+Result: ALL NixOS hosts show blue, ALL macOS hosts show purple.
 
 ---
 
-## Required Fix: NixOS/macOS Modules
+## Fix Required (in nixcfg, not nixfleet)
 
-### NixOS Module
+### The Color Data Exists
 
-The module needs to read starship's palette and export it:
+```
+theme-palettes.nix
+    │
+    │ hostPalette.hsb0 = "yellow"
+    │ palettes.yellow.gradient.primary = "#d4c060"
+    ▼
+Starship prompt uses this color ✅
+Zellij frame uses this color ✅
+```
+
+### Missing Wire
 
 ```nix
-# In nixfleet agent module
-environment.variables.NIXFLEET_THEME_COLOR =
-  config.programs.starship.settings.palette.primary or "#7aa2f7";
+# In theme-hm.nix (or similar):
+services.nixfleet-agent.themeColor = palette.gradient.primary;
 ```
 
-### macOS Module (launchd)
-
-Similar - read from starship.toml and set in the launchd plist.
+This auto-populates the color from the existing palette data.
 
 ---
 
-## Dashboard Implementation (DONE)
+## See Also
 
-### Row Gradient
+**P7200 (nixcfg)** - Host Colors: Single Source of Truth
 
-Each `<tr>` gets an inline style with a gradient using the host's color:
+This is the master task that covers:
 
-```
-0% (2%) → 25% (10%) → 50% (2%) → 100% (0%)
-```
-
-Implemented in `hostRowStyle()` function.
-
-### Text/Icons
-
-All text and icons use the bright default color (`--fg: #e8ecf5`), NOT the host color.
+1. **Phase 1**: Wire `theme-palettes.nix` → `nixfleet-agent.themeColor`
+2. **Phase 2**: Dashboard UI to SET colors → writes to nixcfg
 
 ---
 
 ## Acceptance Criteria
 
-- [ ] **NixOS module** sets `NIXFLEET_THEME_COLOR` from starship palette
-- [ ] **macOS module** sets `NIXFLEET_THEME_COLOR` from starship palette
+- [ ] **P7200 Phase 1 complete** (nixcfg wiring)
 - [ ] Each host row shows its unique gradient color
-- [ ] Hosts without starship config fall back to OS-based colors
-- [ ] Dashboard correctly displays per-host gradients
+- [ ] Colors match the host's starship prompt
+- [ ] Fallback still works for hosts without uzumaki
 
 ---
 
-## Related
+## Technical Reference
 
-- **P2700** - Table Column Redesign
-- **nixcfg** - NixOS module updates needed
-- Agent config: `v2/internal/config/config.go:132`
-- Hub fallback: `v2/internal/dashboard/hub.go:573-579`
+| Component         | File                                    | Notes                  |
+| ----------------- | --------------------------------------- | ---------------------- |
+| Row gradient      | `v2/internal/templates/dashboard.templ` | `hostRowStyle()`       |
+| Color fallback    | `v2/internal/dashboard/hub.go:573-579`  | OS-based default       |
+| Agent reads color | `v2/internal/config/config.go:132`      | `NIXFLEET_THEME_COLOR` |
+| Module option     | `modules/shared.nix:99-108`             | `themeColor` option    |
+
+---
+
+## Why This Task Exists
+
+The dashboard side is ready. This task tracks the dependency on nixcfg P7200 for the full feature to work.
