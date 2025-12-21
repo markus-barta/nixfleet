@@ -151,13 +151,8 @@ func GenerateCustomPalette(hostname string, palette *Palette) string {
 
 // InsertCustomPalette adds a new custom palette to the palettes block.
 // It inserts before the closing }; of the palettes block.
+// P1000: Fixed to find correct closing brace using brace counting.
 func InsertCustomPalette(content, paletteNix string) (string, error) {
-	// Find the palettes block - look for the closing }; that's followed by hostPalette
-	// This is tricky because there are nested }; in the file
-
-	// Strategy: Find "# Custom palettes (auto-generated)" marker if it exists,
-	// or insert before the closing of palettes block
-
 	// First, check if there's already a custom palettes section
 	customMarker := "# Custom palettes (auto-generated)"
 	if strings.Contains(content, customMarker) {
@@ -173,23 +168,50 @@ func InsertCustomPalette(content, paletteNix string) (string, error) {
 		return content[:insertPoint] + paletteNix + content[insertPoint:], nil
 	}
 
-	// No marker exists, find the end of the palettes block
-	// Look for the line that has just "  };" followed by a line with hostPalette
-	hostPaletteIdx := strings.Index(content, "hostPalette = {")
-	if hostPaletteIdx == -1 {
-		return "", fmt.Errorf("could not find hostPalette in theme-palettes.nix")
+	// No marker exists - find the end of the palettes block by brace counting
+	// P1000: Must find "palettes = {" and count braces to find its matching close
+	palettesStart := strings.Index(content, "palettes = {")
+	if palettesStart == -1 {
+		// Try alternate format
+		palettesStart = strings.Index(content, "palettes= {")
+		if palettesStart == -1 {
+			palettesStart = strings.Index(content, "palettes ={")
+			if palettesStart == -1 {
+				return "", fmt.Errorf("could not find palettes block in theme-palettes.nix")
+			}
+		}
 	}
 
-	// Find the }; before hostPalette
-	searchArea := content[:hostPaletteIdx]
-	lastBraceIdx := strings.LastIndex(searchArea, "};")
-	if lastBraceIdx == -1 {
-		return "", fmt.Errorf("could not find end of palettes block")
+	// Find the opening brace
+	openBraceIdx := strings.Index(content[palettesStart:], "{")
+	if openBraceIdx == -1 {
+		return "", fmt.Errorf("could not find opening brace for palettes block")
+	}
+	openBraceIdx += palettesStart
+
+	// Count braces to find the matching close
+	braceCount := 0
+	palettesEndIdx := -1
+	for i := openBraceIdx; i < len(content); i++ {
+		if content[i] == '{' {
+			braceCount++
+		} else if content[i] == '}' {
+			braceCount--
+			if braceCount == 0 {
+				palettesEndIdx = i
+				break
+			}
+		}
 	}
 
-	// Insert the custom palette section before the closing };
+	if palettesEndIdx == -1 {
+		return "", fmt.Errorf("could not find end of palettes block (unbalanced braces)")
+	}
+
+	// Insert the custom palette section before the closing }
+	// The closing is at palettesEndIdx, followed by ; at palettesEndIdx+1
 	insertion := "\n    # Custom palettes (auto-generated)\n" + paletteNix
-	return content[:lastBraceIdx] + insertion + content[lastBraceIdx:], nil
+	return content[:palettesEndIdx] + insertion + content[palettesEndIdx:], nil
 }
 
 // UpdateOrInsertCustomPalette handles updating an existing custom palette or inserting a new one.
