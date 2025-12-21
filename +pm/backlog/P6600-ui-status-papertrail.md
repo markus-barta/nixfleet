@@ -106,5 +106,18 @@ v2 status column is basic. v1 had a "papertrail" showing:
 
 ## Related
 
+- **P2800** - Command State Machine (provides validation results and command history)
+- **P4020** - Tabbed Output Panel (global System Log vs per-host papertrail here)
 - P4300 (Live Logs) - Status updates come from command output
 - T03 (Commands) - Command completion triggers status update
+
+## Note
+
+P6600 (per-host papertrail in table) and P4020 System Log (global events in output panel) are complementary:
+
+| Feature     | P6600                      | P4020 System Log          |
+| ----------- | -------------------------- | ------------------------- |
+| Scope       | Per-host                   | All hosts + system events |
+| Location    | Status column (inline)     | Output panel (tab)        |
+| Data source | P2800 CommandState history | P2800 + toasts + WS       |
+| Primary use | Quick host overview        | Full event debugging      |
