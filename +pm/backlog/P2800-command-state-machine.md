@@ -361,15 +361,186 @@ Command completes (exit code received)
 
 ### System Log Integration
 
-All validation results logged to System Log (P4020):
+**Every state transition is logged verbosely.** The System Log (P4020) becomes the authoritative record of what happened and why.
+
+---
+
+## Verbose Logging Specification
+
+### Principle: No Silent Transitions
+
+Every state machine transition MUST log:
+
+1. **What** happened (state change, validation result)
+2. **Why** it happened (the condition that triggered it)
+3. **What's next** (expected next step or required action)
+
+### Log Message Format
 
 ```
-14:23:05  ℹ  Switch started on hsb1
-14:23:05  ⚠  Pre-check: Git outdated - pull recommended
-14:24:32  ✓  Switch completed (exit 0)
-14:24:33  ✓  Post-check: System now up to date
-14:24:33  ⚠  Post-check: Agent version mismatch, awaiting restart
-14:24:35  ✓  Agent restarted with new version
+[TIMESTAMP] [ICON] [HOST] [STATE] → [MESSAGE]
+```
+
+| Component | Description                   |
+| --------- | ----------------------------- |
+| TIMESTAMP | HH:MM:SS format               |
+| ICON      | ✓ ⚠ ✗ ℹ ⧖ based on severity |
+| HOST      | Hostname (e.g., hsb1)         |
+| STATE     | Current state in brackets     |
+| MESSAGE   | Human-readable explanation    |
+
+### Complete Log Sequence Examples
+
+#### Example 1: Successful Switch
+
+```
+14:23:05  ℹ  hsb1 [IDLE→VALIDATING]     User clicked Switch
+14:23:05  ℹ  hsb1 [PRE-CHECK]           Checking CanExecuteCommand...
+14:23:05  ✓  hsb1 [PRE-CHECK]           CanExecuteCommand: PASS (host online, no pending command)
+14:23:05  ℹ  hsb1 [PRE-CHECK]           Checking CanSwitch...
+14:23:05  ✓  hsb1 [PRE-CHECK]           CanSwitch: PASS (git=ok, system=outdated)
+14:23:05  ℹ  hsb1 [PRE-CHECK]           Capturing pre-state snapshot (generation=abc1234, agentVersion=2.0.0)
+14:23:05  ℹ  hsb1 [VALIDATING→QUEUED]   Pre-checks passed, queueing command
+14:23:05  ℹ  hsb1 [QUEUED→RUNNING]      Command sent to agent: nixos-rebuild switch --flake .#hsb1
+14:23:06  ℹ  hsb1 [RUNNING]             Agent acknowledged command start
+14:23:08  ℹ  hsb1 [RUNNING]             Progress: evaluating flake...
+14:23:15  ℹ  hsb1 [RUNNING]             Progress: building derivation 1/12
+14:23:45  ℹ  hsb1 [RUNNING]             Progress: building derivation 12/12
+14:24:02  ℹ  hsb1 [RUNNING]             Progress: activating new configuration
+14:24:30  ℹ  hsb1 [RUNNING→VALIDATING]  Command completed (exit code: 0)
+14:24:30  ℹ  hsb1 [POST-CHECK]          Running ValidateSwitchResult...
+14:24:30  ℹ  hsb1 [POST-CHECK]          Comparing: system.status before=outdated, after=ok
+14:24:30  ✓  hsb1 [POST-CHECK]          ValidateSwitchResult: PASS (goal_achieved)
+14:24:30  ✓  hsb1 [VALIDATING→SUCCESS]  Switch complete - system now up to date
+14:24:31  ℹ  hsb1 [SUCCESS]             Agent version: 2.0.0 → 2.1.0 (restart expected)
+14:24:33  ✓  hsb1 [SUCCESS]             Agent reconnected with version 2.1.0
+```
+
+#### Example 2: Switch Blocked by Precondition
+
+```
+14:25:00  ℹ  gpc0 [IDLE→VALIDATING]     User clicked Switch
+14:25:00  ℹ  gpc0 [PRE-CHECK]           Checking CanExecuteCommand...
+14:25:00  ✓  gpc0 [PRE-CHECK]           CanExecuteCommand: PASS (host online, no pending command)
+14:25:00  ℹ  gpc0 [PRE-CHECK]           Checking CanSwitch...
+14:25:00  ✗  gpc0 [PRE-CHECK]           CanSwitch: FAIL (git_outdated)
+14:25:00  ⚠  gpc0 [VALIDATING→BLOCKED]  Cannot switch: Git is outdated, pull required first
+14:25:00  ℹ  gpc0 [BLOCKED]             Showing option dialog to user...
+```
+
+#### Example 3: Switch with Partial Success
+
+```
+14:30:00  ℹ  imac0 [IDLE→VALIDATING]    User clicked Switch
+14:30:00  ✓  imac0 [PRE-CHECK]          All pre-checks passed
+14:30:00  ℹ  imac0 [QUEUED→RUNNING]     Command sent: home-manager switch --flake .#imac0
+14:31:45  ℹ  imac0 [RUNNING→VALIDATING] Command completed (exit code: 0)
+14:31:45  ℹ  imac0 [POST-CHECK]         Running ValidateSwitchResult...
+14:31:45  ℹ  imac0 [POST-CHECK]         Comparing: system.status before=outdated, after=outdated
+14:31:45  ⚠  imac0 [POST-CHECK]         ValidateSwitchResult: PARTIAL (goal_not_achieved)
+14:31:45  ⚠  imac0 [VALIDATING→PARTIAL] Switch exited 0 but system still outdated
+14:31:45  ℹ  imac0 [PARTIAL]            Possible causes: nix store not updated, agent cache stale
+14:31:45  ℹ  imac0 [PARTIAL]            Suggestion: Try "Refresh Status" or re-run switch
+```
+
+#### Example 4: Command Failed
+
+```
+14:35:00  ℹ  csb0 [IDLE→VALIDATING]     User clicked Pull
+14:35:00  ✓  csb0 [PRE-CHECK]           All pre-checks passed
+14:35:00  ℹ  csb0 [QUEUED→RUNNING]      Command sent: git fetch && git reset --hard origin/main
+14:35:02  ✗  csb0 [RUNNING→VALIDATING]  Command completed (exit code: 128)
+14:35:02  ℹ  csb0 [POST-CHECK]          Running ValidatePullResult...
+14:35:02  ✗  csb0 [POST-CHECK]          ValidatePullResult: FAIL (exit_nonzero)
+14:35:02  ✗  csb0 [VALIDATING→FAILED]   Pull failed with exit code 128
+14:35:02  ℹ  csb0 [FAILED]              Check output log for error details
+```
+
+#### Example 5: Bulk Pull All
+
+```
+14:40:00  ℹ  [BULK]                     User clicked "Pull All" (5 hosts selected)
+14:40:00  ℹ  hsb0 [PRE-CHECK]           CanPull: PASS (git=outdated)
+14:40:00  ℹ  hsb1 [PRE-CHECK]           CanPull: SKIP (git=ok, already current)
+14:40:00  ℹ  gpc0 [PRE-CHECK]           CanPull: PASS (git=outdated)
+14:40:00  ℹ  imac0 [PRE-CHECK]          CanPull: PASS (git=outdated)
+14:40:00  ✗  csb0 [PRE-CHECK]           CanPull: FAIL (host offline)
+14:40:00  ℹ  [BULK]                     Executing on 3 hosts (1 skipped, 1 blocked)
+14:40:00  ℹ  hsb0 [QUEUED→RUNNING]      Pull started
+14:40:00  ℹ  gpc0 [QUEUED→RUNNING]      Pull started
+14:40:00  ℹ  imac0 [QUEUED→RUNNING]     Pull started
+14:40:05  ✓  hsb0 [SUCCESS]             Pull complete - git now up to date
+14:40:06  ✓  imac0 [SUCCESS]            Pull complete - git now up to date
+14:40:08  ✓  gpc0 [SUCCESS]             Pull complete - git now up to date
+14:40:08  ✓  [BULK]                     Pull All complete: 3 success, 1 skipped, 1 offline
+```
+
+### Log Level Configuration
+
+| Level   | Icon | When Used                               |
+| ------- | ---- | --------------------------------------- |
+| DEBUG   | ·    | Internal state details (off by default) |
+| INFO    | ℹ   | State transitions, progress updates     |
+| SUCCESS | ✓    | Validation passed, goal achieved        |
+| WARNING | ⚠   | Partial success, non-blocking issues    |
+| ERROR   | ✗    | Failures, blocked actions               |
+
+### Implementation: LogEntry Structure
+
+```go
+type LogEntry struct {
+    Timestamp time.Time
+    Level     string    // "debug", "info", "success", "warning", "error"
+    HostID    string    // Empty for bulk/system messages
+    State     string    // Current state machine state
+    Message   string    // Human-readable message
+    Code      string    // Machine-readable code for filtering
+    Details   map[string]any // Optional structured data
+}
+
+// Example usage in validation
+func (sm *CommandStateMachine) runPreChecks(host *Host, command string) {
+    sm.log(LogEntry{
+        Level:   "info",
+        HostID:  host.ID,
+        State:   "PRE-CHECK",
+        Message: "Checking CanExecuteCommand...",
+    })
+
+    result := CanExecuteCommand(host)
+
+    sm.log(LogEntry{
+        Level:   levelFromResult(result),
+        HostID:  host.ID,
+        State:   "PRE-CHECK",
+        Message: fmt.Sprintf("CanExecuteCommand: %s (%s)",
+            passOrFail(result.Valid), result.Message),
+        Code:    result.Code,
+        Details: map[string]any{
+            "valid":   result.Valid,
+            "online":  host.Online,
+            "pending": host.PendingCommand,
+        },
+    })
+}
+```
+
+### WebSocket Broadcast
+
+All log entries are broadcast to connected browsers:
+
+```json
+{
+  "type": "state_machine_log",
+  "payload": {
+    "timestamp": "2025-12-21T14:23:05Z",
+    "level": "info",
+    "host_id": "hsb1",
+    "state": "PRE-CHECK",
+    "message": "CanSwitch: PASS (git=ok, system=outdated)",
+    "code": "outdated"
+  }
+}
 ```
 
 ---
@@ -458,6 +629,17 @@ commandHistory = {
 - [ ] Running same validator twice with same state returns same result
 - [ ] Validators have no side effects
 - [ ] Validators are unit tested
+
+### Verbose Logging
+
+- [ ] Every state transition logged with WHAT, WHY, WHAT'S NEXT
+- [ ] Pre-check logs show each validator name and result
+- [ ] Post-check logs show before/after comparison values
+- [ ] Bulk actions log per-host breakdown (pass/skip/blocked)
+- [ ] Progress updates logged during command execution
+- [ ] All logs appear in System Log (P4020) in real-time
+- [ ] Log entries include machine-readable `code` for filtering
+- [ ] WebSocket broadcasts all log entries to browsers
 
 ---
 
