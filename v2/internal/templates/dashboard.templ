@@ -1190,8 +1190,28 @@ templ Dashboard(data DashboardData) {
 			}
 
 			function handleFlakeUpdateJob(job) {
-				// Could show a toast or banner for deploy progress
-				console.log('Flake update job:', job.state, job.message);
+				// P2600: Show deploy progress via toast
+				const state = job.state || 'unknown';
+				const message = job.message || '';
+				
+				switch (state) {
+					case 'merging':
+						showToast(`Merging PR #${job.pr_number || '?'}...`, 'info');
+						break;
+					case 'deploying':
+						const hostCount = job.host_count || 'all';
+						showToast(`Deploying to ${hostCount} hosts...`, 'info');
+						break;
+					case 'complete':
+						showToast(message || 'Deploy complete!', 'success');
+						break;
+					case 'error':
+						showToast(message || 'Deploy failed', 'error');
+						break;
+					default:
+						// Log unknown states for debugging
+						console.log('Flake update job:', state, message);
+				}
 			}
 
 			// ═══════════════════════════════════════════════════════════════════════════
@@ -1435,6 +1455,7 @@ templ Dashboard(data DashboardData) {
 				switch (action) {
 					case 'refresh':
 						refreshHost(hostId);
+						showToast(`${hostname}: Status is up to date`, 'success');
 						break;
 					case 'pull':
 						sendCommand(hostId, 'pull');
@@ -1443,7 +1464,7 @@ templ Dashboard(data DashboardData) {
 						sendCommand(hostId, 'switch');
 						break;
 					case 'info':
-						showToast('Dependencies outdated. Update flake.lock via GitHub PR.', 'info');
+						showToast('Dependencies outdated — merge the PR to update flake.lock', 'info');
 						break;
 					case 'error':
 						showToast(btn.title || 'Status check failed', 'error');

@@ -36,11 +36,11 @@ Redesign the host table to:
 Combine location, device, and OS type into a single cell with layered icons:
 
 ```
-┌──────────────────┐
-│              🖥️ │  ← DEV icon (25%, top-right superscript)
-│ ☁️               │  ← LOC icon (80%, center-Y, left-aligned)
-│             ❄️  │  ← TYPE icon (25%, bottom-right subscript)
-└──────────────────┘
+┌────────────────┐
+│         🖥️     │  ← DEV icon (25%, top-right superscript)
+│.   ☁️          │  ← LOC icon (80%, center-Y, left-aligned)
+│         ❄️     │  ← TYPE icon (25%, bottom-right subscript)
+└────────────────┘
 ```
 
 ### Specifications
