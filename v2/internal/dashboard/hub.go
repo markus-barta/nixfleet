@@ -528,8 +528,14 @@ func (h *Hub) handleAgentMessage(msg *agentMessage) {
 		// P2800: Operation progress for status dots
 		var payload protocol.OperationProgressPayload
 		if err := msg.message.ParsePayload(&payload); err != nil {
+			h.log.Error().Err(err).Msg("failed to parse operation_progress payload")
 			return
 		}
+
+		h.log.Debug().
+			Str("host", msg.client.clientID).
+			Interface("progress", payload.Progress).
+			Msg("operation_progress received")
 
 		// Forward to browsers for status dot animation
 		h.BroadcastToBrowsers(map[string]any{

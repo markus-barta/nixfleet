@@ -444,8 +444,16 @@ func (a *Agent) sendOperationProgress(phase, status string, current, total int) 
 	payload := protocol.OperationProgressPayload{
 		Progress: progress,
 	}
+
+	a.log.Debug().
+		Str("phase", phase).
+		Str("status", status).
+		Int("current", current).
+		Int("total", total).
+		Msg("sending operation_progress")
+
 	if err := a.ws.SendMessage(protocol.TypeOperationProgress, payload); err != nil {
-		a.log.Debug().Err(err).Msg("failed to send operation progress")
+		a.log.Error().Err(err).Msg("failed to send operation progress")
 	}
 }
 
