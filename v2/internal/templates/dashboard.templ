@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"strings"
 )
 
 // Host represents a host in the dashboard
@@ -2114,7 +2115,7 @@ templ HostCard(host Host, csrfToken string) {
 						<span class="progress-badge-mini">{ host.PendingCommand }</span>
 					}
 				</span>
-				<span style={ hostColorStyle(host) }>{ host.Hostname }</span>
+				<span class="hostname">{ host.Hostname }</span>
 			</div>
 			<span class="chevron" :class="{ 'expanded': expanded }">▼</span>
 		</div>
@@ -2196,13 +2197,14 @@ templ HostRow(host Host, csrfToken string) {
 		data-agent-outdated={ strconv.FormatBool(host.AgentOutdated) }
 		data-pending-command={ host.PendingCommand }
 		class={ templ.KV("host-offline", !host.Online) }
+		style={ hostRowStyle(host) }
 		x-data
 		x-bind:class={ selectionClassBinding(host.ID) }
 	>
 		<td class="status-cell-with-badge">
 			<span class="status-wrapper">
 				@StatusIndicator(host)
-				<span style={ hostColorStyle(host) }>{ host.Hostname }</span>
+				<span class="hostname">{ host.Hostname }</span>
 				if host.PendingCommand != "" {
 					<span class="progress-badge-mini">{ host.PendingCommand }</span>
 				}
@@ -2396,16 +2398,16 @@ templ CompositeTypeCell(host Host) {
 		data-os={ host.HostType }
 		title={ compositeTypeTitle(host) }
 	>
-		<!-- LOC icon - uses host theme color -->
-		<span class="type-loc" style={ hostColorStyle(host) }>
+		<!-- LOC icon -->
+		<span class="type-loc">
 			@locationIcon(host.Location)
 		</span>
-		<!-- DEV icon - uses host theme color -->
-		<span class="type-dev" style={ hostColorStyle(host) }>
+		<!-- DEV icon -->
+		<span class="type-dev">
 			@deviceTypeIcon(host.DeviceType)
 		</span>
-		<!-- OS icon - uses host theme color -->
-		<span class="type-os" style={ hostColorStyle(host) }>
+		<!-- OS icon -->
+		<span class="type-os">
 			@osTypeIcon(host.HostType)
 		</span>
 	</div>
@@ -2721,6 +2723,39 @@ func hostColorStyle(host Host) string {
 		return "color: " + host.ThemeColor
 	}
 	return ""
+}
+
+// hostRowStyle returns inline CSS for row gradient background using host's theme color
+func hostRowStyle(host Host) string {
+	if host.ThemeColor == "" {
+		return ""
+	}
+	// Convert hex to RGB for rgba() usage
+	rgb := hexToRGB(host.ThemeColor)
+	if rgb == "" {
+		return ""
+	}
+	// Gradient: 0% (10%) → 25% (75%) → 50% (10%) → 100% (0%)
+	return fmt.Sprintf("background: linear-gradient(to right, rgba(%s, 0.10) 0%%, rgba(%s, 0.75) 25%%, rgba(%s, 0.10) 50%%, transparent 100%%)", rgb, rgb, rgb)
+}
+
+// hexToRGB converts hex color (#rrggbb or #rgb) to "r, g, b" string for rgba()
+func hexToRGB(hex string) string {
+	hex = strings.TrimPrefix(hex, "#")
+	if len(hex) == 3 {
+		// Expand #rgb to #rrggbb
+		hex = string(hex[0]) + string(hex[0]) + string(hex[1]) + string(hex[1]) + string(hex[2]) + string(hex[2])
+	}
+	if len(hex) != 6 {
+		return ""
+	}
+	r, err1 := strconv.ParseInt(hex[0:2], 16, 64)
+	g, err2 := strconv.ParseInt(hex[2:4], 16, 64)
+	b, err3 := strconv.ParseInt(hex[4:6], 16, 64)
+	if err1 != nil || err2 != nil || err3 != nil {
+		return ""
+	}
+	return fmt.Sprintf("%d, %d, %d", r, g, b)
 }
 
 func valueOrDash(v string) string {

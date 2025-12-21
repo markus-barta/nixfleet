@@ -22,7 +22,7 @@ templ Base(title string, csrfToken string) {
 				--bg-highlight: #292e42;
 				--bg-float: #24283b;
 				--border: #3b4261;
-				--fg: #c0caf5;
+				--fg: #e8ecf5;  /* Brightened ~90% white */
 				--fg-dark: #565f89;
 				--fg-gutter: #3b4261;
 				--blue: #7aa2f7;
@@ -405,11 +405,13 @@ templ Base(title string, csrfToken string) {
 			.stat-online-positive { color: var(--green); }
 
 			.host-table tbody tr {
-				background: rgba(15, 16, 22, 0.85);
+				position: relative;
+				/* Base dark background - gradient overlays this */
+				background: rgba(10, 11, 16, 0.9);
 			}
 
 			.host-table tr:hover {
-				background: rgba(36, 40, 59, 0.9);
+				background: rgba(30, 34, 48, 0.95);
 			}
 
 			.host-table tr:last-child td {
