@@ -118,6 +118,38 @@ type TestProgressPayload struct {
 	Result  string `json:"result"`  // summary result when done
 }
 
+// CommandProgressPayload is sent during command execution (P2700/P2800).
+type CommandProgressPayload struct {
+	Command     string `json:"command"`     // "pull", "switch", etc.
+	Phase       string `json:"phase"`       // "fetch", "merge", "build", "activate"
+	Current     int    `json:"current"`     // current step within phase
+	Total       int    `json:"total"`       // total steps in phase
+	Description string `json:"description"` // e.g., "Building derivation 12/47"
+}
+
+// OperationProgress tracks detailed progress for STATUS column (P2700).
+type OperationProgress struct {
+	Pull   *PhaseProgress `json:"pull,omitempty"`
+	Lock   *PhaseProgress `json:"lock,omitempty"`
+	System *PhaseProgress `json:"system,omitempty"`
+	Tests  *TestsProgress `json:"tests,omitempty"`
+}
+
+// PhaseProgress tracks progress within a single phase.
+type PhaseProgress struct {
+	Current int    `json:"current"` // current step (0-based)
+	Total   int    `json:"total"`   // total steps
+	Status  string `json:"status"`  // "pending", "in_progress", "complete", "error"
+}
+
+// TestsProgress tracks individual test results.
+type TestsProgress struct {
+	Current int      `json:"current"` // current test number (0-based)
+	Total   int      `json:"total"`   // total tests (capped at 8 for display)
+	Results []string `json:"results"` // "pending", "pass", "fail" per test
+	Status  string   `json:"status"`  // "pending", "in_progress", "complete"
+}
+
 // UpdateStatus contains the three-compartment update status.
 type UpdateStatus struct {
 	Git    StatusCheck `json:"git"`

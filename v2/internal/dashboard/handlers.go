@@ -518,21 +518,70 @@ func (s *Server) handleGetHosts(w http.ResponseWriter, r *http.Request) {
 }
 
 // handleCommand dispatches a command to an agent.
+// P2800: Now includes pre-validation via CommandStateMachine.
 func (s *Server) handleCommand(w http.ResponseWriter, r *http.Request) {
 	hostID := chi.URLParam(r, "hostID")
 
 	var req struct {
 		Command string   `json:"command"`
 		Args    []string `json:"args,omitempty"`
+		Force   bool     `json:"force,omitempty"` // P2800: Skip pre-validation
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Bad Request", http.StatusBadRequest)
 		return
 	}
 
+	// Get host info for validation
+	host, err := s.getHostByID(hostID)
+	if err != nil {
+		http.Error(w, "Host not found", http.StatusNotFound)
+		return
+	}
+
+	// P2800: Log command initiation
+	s.cmdStateMachine.Log(LogEntry{
+		Level:   LogLevelInfo,
+		HostID:  hostID,
+		State:   "IDLE→VALIDATING",
+		Message: fmt.Sprintf("User clicked %s", req.Command),
+	})
+
+	// P2800: Run pre-validation (unless forced)
+	if !req.Force {
+		result := s.cmdStateMachine.RunPreChecks(host, req.Command)
+		if !result.Valid {
+			s.cmdStateMachine.Log(LogEntry{
+				Level:   LogLevelWarning,
+				HostID:  hostID,
+				State:   "VALIDATING→BLOCKED",
+				Message: fmt.Sprintf("Cannot %s: %s", req.Command, result.Message),
+				Code:    result.Code,
+			})
+
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusConflict)
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"status":     "blocked",
+				"validation": result,
+			})
+			return
+		}
+	}
+
+	// P2800: Capture pre-command snapshot for post-validation
+	s.cmdStateMachine.CaptureSnapshot(host)
+
 	// Find agent connection for this host
 	agent := s.hub.GetAgent(hostID)
 	if agent == nil {
+		s.cmdStateMachine.Log(LogEntry{
+			Level:   LogLevelError,
+			HostID:  hostID,
+			State:   "VALIDATING→FAILED",
+			Message: "Host offline - agent not connected",
+			Code:    "host_offline",
+		})
 		http.Error(w, "Host offline", http.StatusConflict)
 		return
 	}
@@ -554,9 +603,24 @@ func (s *Server) handleCommand(w http.ResponseWriter, r *http.Request) {
 	case agent.send <- cmdMsg:
 		// Command sent
 	default:
+		s.cmdStateMachine.Log(LogEntry{
+			Level:   LogLevelError,
+			HostID:  hostID,
+			State:   "QUEUED→FAILED",
+			Message: "Agent not responsive - send buffer full",
+			Code:    "agent_unresponsive",
+		})
 		http.Error(w, "Agent not responsive", http.StatusServiceUnavailable)
 		return
 	}
+
+	// P2800: Log successful queue
+	s.cmdStateMachine.Log(LogEntry{
+		Level:   LogLevelInfo,
+		HostID:  hostID,
+		State:   "QUEUED→RUNNING",
+		Message: fmt.Sprintf("Command sent to agent: %s", req.Command),
+	})
 
 	// Update host status
 	_, _ = s.db.Exec(`UPDATE hosts SET pending_command = ?, status = 'running' WHERE id = ?`,
@@ -576,6 +640,101 @@ func (s *Server) handleCommand(w http.ResponseWriter, r *http.Request) {
 			"command": req.Command,
 		},
 	})
+}
+
+// getHostByID fetches a single host by ID for validation.
+func (s *Server) getHostByID(hostID string) (*templates.Host, error) {
+	var h struct {
+		ID, Hostname, HostType                              string
+		AgentVersion, OSVersion, NixpkgsVersion, Generation *string
+		LastSeen                                            *string
+		Status                                              string
+		PendingCommand, ThemeColor                          *string
+		Location, DeviceType                                *string
+		LockStatusJSON, SystemStatusJSON                    *string
+		RepoURL, RepoDir                                    *string
+	}
+
+	err := s.db.QueryRow(`
+		SELECT id, hostname, host_type, agent_version, os_version,
+		       nixpkgs_version, generation, last_seen, status, pending_command,
+		       theme_color, location, device_type, lock_status_json, system_status_json,
+		       repo_url, repo_dir
+		FROM hosts WHERE id = ?
+	`, hostID).Scan(&h.ID, &h.Hostname, &h.HostType, &h.AgentVersion,
+		&h.OSVersion, &h.NixpkgsVersion, &h.Generation, &h.LastSeen,
+		&h.Status, &h.PendingCommand, &h.ThemeColor, &h.Location, &h.DeviceType,
+		&h.LockStatusJSON, &h.SystemStatusJSON, &h.RepoURL, &h.RepoDir)
+	if err != nil {
+		return nil, err
+	}
+
+	host := &templates.Host{
+		ID:       h.ID,
+		Hostname: h.Hostname,
+		HostType: h.HostType,
+		Status:   h.Status,
+		Online:   h.Status == "online" || h.Status == "running",
+	}
+	if h.AgentVersion != nil {
+		host.AgentVersion = *h.AgentVersion
+	}
+	if h.Generation != nil {
+		host.Generation = *h.Generation
+	}
+	if h.PendingCommand != nil {
+		host.PendingCommand = *h.PendingCommand
+	}
+	if h.Location != nil {
+		host.Location = *h.Location
+	}
+	if h.DeviceType != nil {
+		host.DeviceType = *h.DeviceType
+	}
+	if h.RepoURL != nil {
+		host.RepoURL = *h.RepoURL
+	}
+	if h.RepoDir != nil {
+		host.RepoDir = *h.RepoDir
+	}
+
+	// Parse lock and system status
+	var lockStatus, systemStatus *templates.StatusCheck
+	if h.LockStatusJSON != nil {
+		var ls templates.StatusCheck
+		if err := json.Unmarshal([]byte(*h.LockStatusJSON), &ls); err == nil {
+			lockStatus = &ls
+		}
+	}
+	if h.SystemStatusJSON != nil {
+		var ss templates.StatusCheck
+		if err := json.Unmarshal([]byte(*h.SystemStatusJSON), &ss); err == nil {
+			systemStatus = &ss
+		}
+	}
+
+	host.UpdateStatus = s.getUpdateStatus(host.Generation, host.RepoURL, host.RepoDir, lockStatus, systemStatus)
+	host.ExpectedAgentVersion = Version
+	if host.AgentVersion != "" && host.AgentVersion != Version {
+		host.AgentOutdated = true
+	}
+
+	return host, nil
+}
+
+// handleGetSystemLogs returns recent state machine logs (P2800).
+func (s *Server) handleGetSystemLogs(w http.ResponseWriter, r *http.Request) {
+	limit := 100
+	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
+		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 && l <= 500 {
+			limit = l
+		}
+	}
+
+	logs := s.cmdStateMachine.GetRecentLogs(limit)
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]any{"logs": logs})
 }
 
 // handleAddHost manually adds a host to the database.

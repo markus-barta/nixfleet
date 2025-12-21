@@ -1979,6 +1979,189 @@ templ Base(title string, csrfToken string) {
 			[x-cloak] {
 				display: none !important;
 			}
+
+			/* ═══════════════════════════════════════════════════════════════════════════
+			   P2700: COMPOSITE TYPE COLUMN
+			   ═══════════════════════════════════════════════════════════════════════════ */
+
+			.col-type {
+				width: 48px;
+				min-width: 48px;
+				max-width: 48px;
+				padding: 0.25rem !important;
+			}
+
+			.type-composite {
+				position: relative;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				width: 40px;
+				height: 32px;
+				margin: 0 auto;
+			}
+
+			.type-loc {
+				position: absolute;
+				left: 0;
+				top: 50%;
+				transform: translateY(-50%);
+				width: 24px;
+				height: 24px;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+			}
+
+			.type-loc .icon,
+			.type-loc .location-icon {
+				width: 22px;
+				height: 22px;
+				color: var(--fg-dark);
+				opacity: 0.9;
+			}
+
+			.type-dev {
+				position: absolute;
+				top: -2px;
+				right: 0;
+				width: 12px;
+				height: 12px;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+			}
+
+			.type-dev .icon,
+			.type-dev .device-icon {
+				width: 10px;
+				height: 10px;
+				color: var(--fg-dark);
+				opacity: 0.7;
+			}
+
+			.type-os {
+				position: absolute;
+				bottom: -2px;
+				right: 0;
+				width: 12px;
+				height: 12px;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+			}
+
+			.type-os .icon,
+			.type-os .type-icon {
+				width: 10px;
+				height: 10px;
+				color: var(--fg-dark);
+				opacity: 0.7;
+			}
+
+			/* Hover effect on composite type */
+			.type-composite:hover .type-loc .icon,
+			.type-composite:hover .type-loc .location-icon {
+				opacity: 1;
+				color: var(--cyan);
+			}
+
+			.type-composite:hover .type-dev .icon,
+			.type-composite:hover .type-dev .device-icon,
+			.type-composite:hover .type-os .icon,
+			.type-composite:hover .type-os .type-icon {
+				opacity: 0.9;
+				color: var(--fg);
+			}
+
+			/* ═══════════════════════════════════════════════════════════════════════════
+			   P2700: STATUS PROGRESS COLUMN
+			   ═══════════════════════════════════════════════════════════════════════════ */
+
+			.col-status {
+				min-width: 180px;
+				padding: 0.5rem !important;
+			}
+
+			.status-progress-cell {
+				padding: 0.25rem 0.5rem;
+			}
+
+			.status-progress {
+				display: flex;
+				align-items: center;
+				gap: 0.5rem;
+				font-family: 'JetBrains Mono', 'Fira Code', monospace;
+				font-size: 0.7rem;
+				letter-spacing: 0.05em;
+			}
+
+			.progress-segment {
+				display: flex;
+				gap: 1px;
+			}
+
+			.progress-dot {
+				display: inline-block;
+				width: 1em;
+				text-align: center;
+				transition: all 0.2s ease;
+			}
+
+			/* Dot states */
+			.dot-pending {
+				color: var(--fg-gutter);
+				opacity: 0.3;
+			}
+
+			.dot-complete {
+				color: var(--green);
+			}
+
+			.dot-idle {
+				color: var(--green);
+				opacity: 0.2;
+			}
+
+			.dot-error {
+				color: var(--red);
+			}
+
+			.dot-in-progress {
+				color: var(--cyan);
+				animation: shimmer 1.2s ease-in-out infinite;
+				text-shadow: 0 0 8px var(--cyan);
+			}
+
+			/* PS5-style shimmer animation */
+			@keyframes shimmer {
+				0% {
+					opacity: 0.4;
+					transform: scale(0.95);
+				}
+				50% {
+					opacity: 1;
+					transform: scale(1.05);
+				}
+				100% {
+					opacity: 0.4;
+					transform: scale(0.95);
+				}
+			}
+
+			.tests-dash {
+				color: var(--fg-gutter);
+				opacity: 0.5;
+			}
+
+			/* Segment hover hints */
+			.progress-segment:hover .progress-dot {
+				opacity: 1;
+			}
+
+			.progress-segment:hover .dot-idle {
+				opacity: 0.6;
+			}
 		</style>
 	</head>
 	<body data-csrf-token={ csrfToken }>

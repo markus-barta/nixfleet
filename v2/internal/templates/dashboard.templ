@@ -14,20 +14,21 @@ type Host struct {
 	Status               string
 	Online               bool
 	AgentVersion         string
-	ExpectedAgentVersion string        // Dashboard version for comparison
+	ExpectedAgentVersion string             // Dashboard version for comparison
 	OSVersion            string
 	Generation           string
 	LastSeen             string
 	PendingCommand       string
 	ThemeColor           string
 	Metrics              *Metrics
-	Location             string        // home, work, cloud
-	DeviceType           string        // server, desktop, laptop, gaming
-	TestProgress         *TestProgress // current test progress, nil if not running
-	UpdateStatus         *UpdateStatus // three-compartment status (Git/Lock/System)
-	RepoURL              string        // git repo URL (isolated mode)
-	RepoDir              string        // local repo path
-	AgentOutdated        bool          // true if agent version doesn't match dashboard version
+	Location             string             // home, work, cloud
+	DeviceType           string             // server, desktop, laptop, gaming
+	TestProgress         *TestProgress      // current test progress, nil if not running
+	UpdateStatus         *UpdateStatus      // three-compartment status (Git/Lock/System)
+	RepoURL              string             // git repo URL (isolated mode)
+	RepoDir              string             // local repo path
+	AgentOutdated        bool               // true if agent version doesn't match dashboard version
+	OperationProgress    *OperationProgress // P2700: detailed progress for STATUS column
 }
 
 // UpdateStatus contains the three-compartment update status.
@@ -61,6 +62,29 @@ type TestProgress struct {
 	Passed  int    `json:"passed"`  // passed so far
 	Running bool   `json:"running"` // true if still running
 	Result  string `json:"result"`  // summary when done (e.g., "8/10")
+}
+
+// OperationProgress tracks detailed progress for STATUS column (P2700).
+type OperationProgress struct {
+	Pull   *PhaseProgress `json:"pull,omitempty"`
+	Lock   *PhaseProgress `json:"lock,omitempty"`
+	System *PhaseProgress `json:"system,omitempty"`
+	Tests  *TestsProgress `json:"tests,omitempty"`
+}
+
+// PhaseProgress tracks progress within a single phase.
+type PhaseProgress struct {
+	Current int    `json:"current"` // current step (0-based)
+	Total   int    `json:"total"`   // total steps
+	Status  string `json:"status"`  // "pending", "in_progress", "complete", "error"
+}
+
+// TestsProgress tracks individual test results.
+type TestsProgress struct {
+	Current int      `json:"current"` // current test number (0-based)
+	Total   int      `json:"total"`   // total tests (capped at 8 for display)
+	Results []string `json:"results"` // "pending", "pass", "fail" per test
+	Status  string   `json:"status"`  // "pending", "in_progress", "complete"
 }
 
 // Stats represents dashboard statistics
@@ -177,18 +201,17 @@ templ Dashboard(data DashboardData) {
 		</div>
 
 		<!-- Desktop: Table View -->
+		<!-- P2700: Reduced from 9 to 7 columns (Loc+Dev+Type→TYPE, Tests→STATUS) -->
 		<table class="host-table" id="host-table" x-data>
 			<thead>
 				<tr>
 					<th class="col-hosts" title="Online / Total Hosts">
 						<span class={ templ.KV("stat-online-positive", data.Stats.Online > 0) } id="stat-online">{ fmt.Sprint(data.Stats.Online) }</span>/{ fmt.Sprint(data.Stats.Total) } Hosts
 					</th>
-					<th class="col-center" title="Location">Loc</th>
-					<th class="col-center" title="Device Type">Dev</th>
-					<th class="col-center" title="Host Type">Type</th>
+					<th class="col-center col-type" title="Location / Device / OS">Type</th>
 					<th>Metrics</th>
 					<th title="Update Status (Git/Lock/System)">Update</th>
-					<th class="col-center">Tests</th>
+					<th class="col-status" title="Operation Progress + Test Results">Status</th>
 					<th class="col-right">Last Seen</th>
 					<!-- P1050: Actions removed, P1060: Menu column -->
 					<th class="col-menu"></th>
@@ -929,6 +952,19 @@ templ Dashboard(data DashboardData) {
 						handleFlakeUpdateJob(payload);
 						break;
 
+					// P2800: State machine log messages
+					case 'state_machine_log':
+						handleStateMachineLog(payload);
+						break;
+
+					// P2700: Operation progress updates
+					case 'operation_progress':
+						if (!hostId) return;
+						hostStore.update(hostId, {
+							operationProgress: payload.progress
+						});
+						break;
+
 					default:
 						console.debug('Unknown WS message type:', msg.type);
 				}
@@ -1210,6 +1246,20 @@ templ Dashboard(data DashboardData) {
 					default:
 						// Log unknown states for debugging
 						console.log('Flake update job:', state, message);
+				}
+			}
+
+			// P2800: Handle state machine log messages
+			function handleStateMachineLog(log) {
+				// Dispatch to System Log component
+				window.dispatchEvent(new CustomEvent('state-machine-log', { detail: log }));
+				
+				// Show important messages as toasts
+				if (log.level === 'error') {
+					showToast(`${log.host_id || 'System'}: ${log.message}`, 'error');
+				} else if (log.level === 'warning' && log.state === 'VALIDATING→BLOCKED') {
+					// Show blocked action warnings
+					showToast(`${log.host_id}: ${log.message}`, 'info');
 				}
 			}
 
@@ -2146,9 +2196,10 @@ templ HostRow(host Host, csrfToken string) {
 				}
 			</span>
 		</td>
-		<td class="col-center" title={ host.Location }>@locationIcon(host.Location)</td>
-		<td class="col-center" title={ host.DeviceType }>@deviceTypeIcon(host.DeviceType)</td>
-		<td class="col-center">@osTypeIcon(host.HostType)</td>
+		<!-- P2700: Composite TYPE column (Location + Device + OS) -->
+		<td class="col-center col-type">
+			@CompositeTypeCell(host)
+		</td>
 		<td class="metrics-cell" data-cell="metrics">
 			if host.Metrics != nil {
 				<span class={ metricsClass("cpu", host.Metrics.CPU) } data-metric="cpu" title={ "CPU: " + formatPercent(host.Metrics.CPU) }>
@@ -2164,8 +2215,9 @@ templ HostRow(host Host, csrfToken string) {
 		<td class="update-cell" data-cell="update">
 			@UpdateStatusCell(host)
 		</td>
-		<td class="tests-cell col-center" data-cell="tests">
-			@TestsCell(host.TestProgress)
+		<!-- P2700: STATUS column replaces TESTS -->
+		<td class="status-progress-cell" data-cell="status">
+			@StatusProgressCell(host)
 		</td>
 		<td class="col-right" data-cell="last-seen" data-timestamp={ host.LastSeen }>{ valueOrDash(host.LastSeen) }</td>
 		<!-- P1050: Actions column removed - Pull/Switch via compartments, Test via menu -->
@@ -2319,6 +2371,79 @@ templ TestsCell(progress *TestProgress) {
 		}
 	} else {
 		<span class="tests-na">—</span>
+	}
+}
+
+// P2700: CompositeTypeCell renders the combined Location/Device/OS type cell
+templ CompositeTypeCell(host Host) {
+	<div
+		class="type-composite"
+		data-host-id={ host.ID }
+		data-location={ host.Location }
+		data-device={ host.DeviceType }
+		data-os={ host.HostType }
+		title={ compositeTypeTitle(host) }
+	>
+		<!-- LOC icon (80%, center-Y, left-aligned) -->
+		<span class="type-loc">
+			@locationIcon(host.Location)
+		</span>
+		<!-- DEV icon (25%, top-right superscript) -->
+		<span class="type-dev">
+			@deviceTypeIcon(host.DeviceType)
+		</span>
+		<!-- OS icon (25%, bottom-right subscript) -->
+		<span class="type-os">
+			@osTypeIcon(host.HostType)
+		</span>
+	</div>
+}
+
+// P2700: StatusProgressCell renders the segmented progress bar + test results
+templ StatusProgressCell(host Host) {
+	<div
+		class="status-progress"
+		data-host-id={ host.ID }
+		data-pending={ host.PendingCommand }
+	>
+		<!-- PULL segment (4 dots) -->
+		<span class="progress-segment segment-pull" data-phase="pull">
+			@progressDots(getPhaseProgress(host.OperationProgress, "pull"), 4)
+		</span>
+		<!-- LOCK segment (2 dots) -->
+		<span class="progress-segment segment-lock" data-phase="lock">
+			@progressDots(getPhaseProgress(host.OperationProgress, "lock"), 2)
+		</span>
+		<!-- SYSTEM segment (3 dots) -->
+		<span class="progress-segment segment-system" data-phase="system">
+			@progressDots(getPhaseProgress(host.OperationProgress, "system"), 3)
+		</span>
+		<!-- TESTS segment (variable, max 8) -->
+		<span class="progress-segment segment-tests" data-phase="tests">
+			@testsDots(host)
+		</span>
+	</div>
+}
+
+// progressDots renders dots for a progress phase
+templ progressDots(progress *PhaseProgress, total int) {
+	for i := 0; i < total; i++ {
+		<span class={ progressDotClass(progress, i) }>{ progressDotChar(progress, i) }</span>
+	}
+}
+
+// testsDots renders dots for test results
+templ testsDots(host Host) {
+	if host.TestProgress != nil && host.TestProgress.Total > 0 {
+		for i := 0; i < minInt(host.TestProgress.Total, 8); i++ {
+			<span class={ testDotClass(host.TestProgress, i) }>{ testDotChar(host.TestProgress, i) }</span>
+		}
+	} else if host.OperationProgress != nil && host.OperationProgress.Tests != nil {
+		for i := 0; i < minInt(host.OperationProgress.Tests.Total, 8); i++ {
+			<span class={ operationTestDotClass(host.OperationProgress.Tests, i) }>{ operationTestDotChar(host.OperationProgress.Tests, i) }</span>
+		}
+	} else {
+		<span class="tests-dash">—</span>
 	}
 }
 
@@ -3004,6 +3129,217 @@ func pendingPRJSON(pr *PendingPR) string {
 		return "null"
 	}
 	return string(data)
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// P2700: Composite TYPE and STATUS column helpers
+// ═══════════════════════════════════════════════════════════════════════════
+
+// compositeTypeTitle returns tooltip text for the composite type cell
+func compositeTypeTitle(host Host) string {
+	loc := host.Location
+	if loc == "" {
+		loc = "home"
+	}
+	dev := host.DeviceType
+	if dev == "" {
+		dev = "desktop"
+	}
+	os := host.HostType
+	if os == "" {
+		os = "nixos"
+	}
+	return fmt.Sprintf("%s: %s %s running %s", host.Hostname, capitalizeWord(loc), dev, os)
+}
+
+// capitalizeWord capitalizes the first letter of a word
+func capitalizeWord(s string) string {
+	if s == "" {
+		return s
+	}
+	if s[0] >= 'a' && s[0] <= 'z' {
+		return string(s[0]-32) + s[1:]
+	}
+	return s
+}
+
+// getPhaseProgress extracts phase progress from OperationProgress
+func getPhaseProgress(op *OperationProgress, phase string) *PhaseProgress {
+	if op == nil {
+		return nil
+	}
+	switch phase {
+	case "pull":
+		return op.Pull
+	case "lock":
+		return op.Lock
+	case "system":
+		return op.System
+	default:
+		return nil
+	}
+}
+
+// progressDotClass returns CSS class for a progress dot
+func progressDotClass(p *PhaseProgress, step int) string {
+	base := "progress-dot"
+	if p == nil {
+		// Idle state: show as 90% transparent green (completed)
+		return base + " dot-idle"
+	}
+	
+	switch p.Status {
+	case "complete":
+		return base + " dot-complete"
+	case "error":
+		if step < p.Current {
+			return base + " dot-complete"
+		}
+		return base + " dot-error"
+	case "in_progress":
+		if step < p.Current {
+			return base + " dot-complete"
+		}
+		if step == p.Current {
+			return base + " dot-in-progress"
+		}
+		return base + " dot-pending"
+	default: // pending
+		return base + " dot-pending"
+	}
+}
+
+// progressDotChar returns the character for a progress dot
+func progressDotChar(p *PhaseProgress, step int) string {
+	if p == nil {
+		return "●" // Idle: completed
+	}
+	
+	switch p.Status {
+	case "complete":
+		return "●"
+	case "error":
+		if step < p.Current {
+			return "●"
+		}
+		return "✗"
+	case "in_progress":
+		if step < p.Current {
+			return "●"
+		}
+		if step == p.Current {
+			return "◐"
+		}
+		return "○"
+	default:
+		return "○"
+	}
+}
+
+// testDotClass returns CSS class for a test result dot
+func testDotClass(tp *TestProgress, idx int) string {
+	base := "progress-dot test-dot"
+	if tp == nil {
+		return base + " dot-pending"
+	}
+	
+	if tp.Running {
+		if idx < tp.Current-1 {
+			// Already ran
+			if idx < tp.Passed {
+				return base + " dot-complete"
+			}
+			return base + " dot-error"
+		}
+		if idx == tp.Current-1 {
+			return base + " dot-in-progress"
+		}
+		return base + " dot-pending"
+	}
+	
+	// Completed: show results
+	if idx < tp.Passed {
+		return base + " dot-complete"
+	}
+	if idx < tp.Total {
+		return base + " dot-error"
+	}
+	return base + " dot-pending"
+}
+
+// testDotChar returns character for a test result dot
+func testDotChar(tp *TestProgress, idx int) string {
+	if tp == nil {
+		return "○"
+	}
+	
+	if tp.Running {
+		if idx < tp.Current-1 {
+			if idx < tp.Passed {
+				return "●"
+			}
+			return "✗"
+		}
+		if idx == tp.Current-1 {
+			return "◐"
+		}
+		return "○"
+	}
+	
+	if idx < tp.Passed {
+		return "●"
+	}
+	if idx < tp.Total {
+		return "✗"
+	}
+	return "○"
+}
+
+// operationTestDotClass returns CSS class for operation test dots
+func operationTestDotClass(tp *TestsProgress, idx int) string {
+	base := "progress-dot test-dot"
+	if tp == nil || idx >= len(tp.Results) {
+		return base + " dot-pending"
+	}
+	
+	switch tp.Results[idx] {
+	case "pass":
+		return base + " dot-complete"
+	case "fail":
+		return base + " dot-error"
+	default:
+		if tp.Status == "in_progress" && idx == tp.Current {
+			return base + " dot-in-progress"
+		}
+		return base + " dot-pending"
+	}
+}
+
+// operationTestDotChar returns character for operation test dots
+func operationTestDotChar(tp *TestsProgress, idx int) string {
+	if tp == nil || idx >= len(tp.Results) {
+		return "○"
+	}
+	
+	switch tp.Results[idx] {
+	case "pass":
+		return "●"
+	case "fail":
+		return "✗"
+	default:
+		if tp.Status == "in_progress" && idx == tp.Current {
+			return "◐"
+		}
+		return "○"
+	}
+}
+
+// minInt returns the minimum of two integers
+func minInt(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 // updateCompartmentTitle returns the tooltip for an update status compartment (legacy, kept for JS)

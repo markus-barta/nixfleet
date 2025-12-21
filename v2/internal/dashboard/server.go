@@ -20,7 +20,8 @@ type Server struct {
 	hub            *Hub
 	logStore       *LogStore
 	versionFetcher *VersionFetcher
-	flakeUpdates   *FlakeUpdateService // P5300: Automated flake updates
+	flakeUpdates   *FlakeUpdateService  // P5300: Automated flake updates
+	cmdStateMachine *CommandStateMachine // P2800: Command validation state machine
 	router         *chi.Mux
 	wsUpgrader     *websocket.Upgrader
 	httpServer     *http.Server
@@ -71,17 +72,21 @@ func New(cfg *Config, db *sql.DB, log zerolog.Logger) *Server {
 		log.Info().Str("repo", cfg.GitHubRepo).Msg("GitHub flake updates enabled")
 	}
 
+	// Create command state machine (P2800)
+	cmdStateMachine := NewCommandStateMachine(log, hub)
+
 	s := &Server{
-		cfg:            cfg,
-		db:             db,
-		log:            log.With().Str("component", "dashboard").Logger(),
-		auth:           NewAuthService(cfg, db),
-		hub:            hub,
-		logStore:       logStore,
-		versionFetcher: versionFetcher,
-		flakeUpdates:   flakeUpdates,
-		hubCtx:         hubCtx,
-		hubCancel:      hubCancel,
+		cfg:             cfg,
+		db:              db,
+		log:             log.With().Str("component", "dashboard").Logger(),
+		auth:            NewAuthService(cfg, db),
+		hub:             hub,
+		logStore:        logStore,
+		versionFetcher:  versionFetcher,
+		flakeUpdates:    flakeUpdates,
+		cmdStateMachine: cmdStateMachine,
+		hubCtx:          hubCtx,
+		hubCancel:       hubCancel,
 	}
 
 	s.setupRouter()
@@ -137,6 +142,9 @@ func (s *Server) setupRouter() {
 			r.Post("/hosts/{hostID}/refresh", s.handleRefreshHost) // P7000: Per-host status refresh
 			r.Delete("/hosts/{hostID}", s.handleDeleteHost)
 			r.Get("/hosts/{hostID}/logs", s.handleGetLogs)
+
+			// System log (P2800)
+			r.Get("/system-log", s.handleGetSystemLogs)
 
 			// Flake updates (P5300)
 			r.Route("/flake-updates", func(r chi.Router) {
