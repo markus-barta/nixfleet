@@ -47,9 +47,11 @@ RUN CGO_ENABLED=0 GOOS=linux go build \
 FROM alpine:3.20
 
 # Install runtime dependencies
+# git is required for color picker nixcfg integration (P2950)
 RUN apk add --no-cache \
     ca-certificates \
     tzdata \
+    git \
     && rm -rf /var/cache/apk/*
 
 # Create non-root user
