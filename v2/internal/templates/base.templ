@@ -2,2449 +2,2578 @@ package templates
 
 // Base layout with Tokyo Night theme and responsive design
 templ Base(title string, csrfToken string) {
-	<!DOCTYPE html>
-	<html lang="en">
-	<head>
-		<meta charset="UTF-8"/>
-		<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-		<title>{ title }</title>
-		<link rel="icon" type="image/png" href="/static/nixfleet_favicon.png"/>
-		<link rel="preconnect" href="https://fonts.googleapis.com"/>
-		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-		<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
-		<script src="https://unpkg.com/htmx.org@1.9.10"></script>
-		<script defer src="https://unpkg.com/alpinejs@3.13.3/dist/cdn.min.js"></script>
-		<style>
-			/* Tokyo Night Color Palette */
-			:root {
-				--bg: #1a1b26;
-				--bg-dark: #16161e;
-				--bg-highlight: #292e42;
-				--bg-float: #24283b;
-				--border: #3b4261;
-				--fg: #e8ecf5;  /* Brightened ~90% white */
-				--fg-dark: #565f89;
-				--fg-gutter: #3b4261;
-				--blue: #7aa2f7;
-				--cyan: #7dcfff;
-				--green: #9ece6a;
-				--yellow: #e0af68;
-				--orange: #ff9e64;
-				--red: #f7768e;
-				--purple: #bb9af7;
-				--magenta: #bb9af7;
-			}
+<!DOCTYPE html>
+<html lang="en">
 
-			* {
-				margin: 0;
-				padding: 0;
-				box-sizing: border-box;
-			}
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<title>{ title }</title>
+	<link rel="icon" type="image/png" href="/static/nixfleet_favicon.png" />
+	<link rel="preconnect" href="https://fonts.googleapis.com" />
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+	<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap"
+		rel="stylesheet" />
+	<script src="https://unpkg.com/htmx.org@1.9.10"></script>
+	<script defer src="https://unpkg.com/alpinejs@3.13.3/dist/cdn.min.js"></script>
+	<style>
+		/* Tokyo Night Color Palette */
+		:root {
+			--bg: #1a1b26;
+			--bg-dark: #16161e;
+			--bg-highlight: #292e42;
+			--bg-float: #24283b;
+			--border: #3b4261;
+			--fg: #e8ecf5;
+			/* Brightened ~90% white */
+			--fg-dark: #565f89;
+			--fg-gutter: #3b4261;
+			--blue: #7aa2f7;
+			--cyan: #7dcfff;
+			--green: #9ece6a;
+			--yellow: #e0af68;
+			--orange: #ff9e64;
+			--red: #f7768e;
+			--purple: #bb9af7;
+			--magenta: #bb9af7;
+		}
 
-			body {
-				font-family: "JetBrains Mono", "Fira Code", "SF Mono", monospace;
-				background: var(--bg);
-				color: var(--fg);
-				line-height: 1.6;
-				min-height: 100vh;
-			}
+		* {
+			margin: 0;
+			padding: 0;
+			box-sizing: border-box;
+		}
 
-			/* Background watermark - shows through semi-transparent table */
-			body::after {
-				content: "";
-				position: fixed;
-				top: 50%;
-				left: 50%;
-				transform: translate(-50%, -50%);
-				width: 500px;
-				height: 440px;
-				background: url("/static/nixfleet_fade_1k.png") no-repeat center center;
-				background-size: contain;
-				opacity: 0.06;
-				pointer-events: none;
-				z-index: 100;
-			}
+		body {
+			font-family: "JetBrains Mono", "Fira Code", "SF Mono", monospace;
+			background: var(--bg);
+			color: var(--fg);
+			line-height: 1.6;
+			min-height: 100vh;
+		}
 
-			/* Container */
+		/* Background watermark - shows through semi-transparent table */
+		body::after {
+			content: "";
+			position: fixed;
+			top: 50%;
+			left: 50%;
+			transform: translate(-50%, -50%);
+			width: 500px;
+			height: 440px;
+			background: url("/static/nixfleet_fade_1k.png") no-repeat center center;
+			background-size: contain;
+			opacity: 0.06;
+			pointer-events: none;
+			z-index: 100;
+		}
+
+		/* Container */
+		.container {
+			max-width: 1400px;
+			margin: 0 auto;
+			padding: 1rem;
+		}
+
+		@media (min-width: 768px) {
 			.container {
-				max-width: 1400px;
-				margin: 0 auto;
-				padding: 1rem;
+				padding: 1.5rem 2rem;
 			}
+		}
 
-			@media (min-width: 768px) {
-				.container {
-					padding: 1.5rem 2rem;
-				}
-			}
+		/* Header - Single line layout */
+		header {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			padding-bottom: 1rem;
+			margin-bottom: 1.5rem;
+			border-bottom: 1px solid var(--border);
+			gap: 1rem;
+			min-height: 48px;
+		}
 
-			/* Header - Single line layout */
-			header {
-				display: flex;
-				justify-content: space-between;
-				align-items: center;
-				padding-bottom: 1rem;
-				margin-bottom: 1.5rem;
-				border-bottom: 1px solid var(--border);
-				gap: 1rem;
-				min-height: 48px;
-			}
+		.header-brand {
+			display: flex;
+			align-items: center;
+			gap: 0.5rem;
+			flex-shrink: 0;
+		}
 
-			.header-brand {
-				display: flex;
-				align-items: center;
-				gap: 0.5rem;
-				flex-shrink: 0;
-			}
+		.brand-title {
+			color: var(--blue);
+			font-size: 1.25rem;
+			font-weight: 600;
+		}
 
+		.brand-logo {
+			height: 28px;
+			width: 28px;
+			border-radius: 4px;
+		}
+
+		.header-center {
+			flex: 1;
+			display: flex;
+			justify-content: center;
+			min-width: 0;
+		}
+
+		.header-actions {
+			display: flex;
+			align-items: center;
+			gap: 0.5rem;
+			flex-shrink: 0;
+		}
+
+		@media (min-width: 768px) {
 			.brand-title {
-				color: var(--blue);
-				font-size: 1.25rem;
-				font-weight: 600;
+				font-size: 1.5rem;
 			}
 
 			.brand-logo {
-				height: 28px;
-				width: 28px;
-				border-radius: 4px;
+				height: 32px;
+				width: 32px;
 			}
+		}
 
+		@media (max-width: 900px) {
 			.header-center {
-				flex: 1;
-				display: flex;
-				justify-content: center;
-				min-width: 0;
+				display: none;
 			}
+		}
 
-			.header-actions {
-				display: flex;
-				align-items: center;
-				gap: 0.5rem;
-				flex-shrink: 0;
-			}
+		/* Fleet Target line (replaces subtitle) */
+		.fleet-target {
+			font-size: 0.75rem;
+			color: var(--fg-dark);
+			display: flex;
+			align-items: center;
+			gap: 0.4rem;
+			flex-wrap: wrap;
+		}
 
-			@media (min-width: 768px) {
-				.brand-title {
-					font-size: 1.5rem;
-				}
+		.target-label {
+			color: var(--fg-muted);
+		}
 
-				.brand-logo {
-					height: 32px;
-					width: 32px;
-				}
-			}
+		.target-icon {
+			width: 12px;
+			height: 12px;
+			fill: var(--cyan);
+			opacity: 0.7;
+		}
 
-			@media (max-width: 900px) {
-				.header-center {
-					display: none;
-				}
-			}
+		.target-commit {
+			font-family: 'JetBrains Mono', 'Fira Code', monospace;
+			font-size: 0.7rem;
+			color: var(--cyan);
+			background: rgba(125, 207, 255, 0.1);
+			padding: 0.15rem 0.4rem;
+			border-radius: 3px;
+			text-decoration: none;
+			transition: all 0.2s ease;
+		}
 
-			/* Fleet Target line (replaces subtitle) */
-			.fleet-target {
-				font-size: 0.75rem;
-				color: var(--fg-dark);
-				display: flex;
-				align-items: center;
-				gap: 0.4rem;
-				flex-wrap: wrap;
-			}
+		.target-commit:hover {
+			background: rgba(125, 207, 255, 0.2);
+			color: var(--cyan);
+		}
 
-			.target-label {
-				color: var(--fg-muted);
-			}
+		.target-branch {
+			color: var(--fg-muted);
+			font-size: 0.7rem;
+		}
 
-			.target-icon {
-				width: 12px;
-				height: 12px;
-				fill: var(--cyan);
-				opacity: 0.7;
-			}
+		.target-separator {
+			color: var(--border);
+			margin: 0 0.1rem;
+		}
 
-			.target-commit {
-				font-family: 'JetBrains Mono', 'Fira Code', monospace;
-				font-size: 0.7rem;
-				color: var(--cyan);
-				background: rgba(125, 207, 255, 0.1);
-				padding: 0.15rem 0.4rem;
-				border-radius: 3px;
-				text-decoration: none;
-				transition: all 0.2s ease;
-			}
+		.target-agent-label {
+			font-size: 0.7rem;
+			color: var(--fg-muted);
+			margin-right: 0.25rem;
+		}
 
-			.target-commit:hover {
-				background: rgba(125, 207, 255, 0.2);
-				color: var(--cyan);
-			}
+		.target-agent {
+			font-family: 'JetBrains Mono', 'Fira Code', monospace;
+			font-size: 0.7rem;
+			color: var(--purple);
+			background: rgba(187, 154, 247, 0.15);
+			padding: 0.15rem 0.4rem;
+			border-radius: 3px;
+		}
 
-			.target-branch {
-				color: var(--fg-muted);
-				font-size: 0.7rem;
-			}
+		.target-unavailable {
+			color: var(--fg-muted);
+			font-style: italic;
+		}
 
-			.target-separator {
-				color: var(--border);
-				margin: 0 0.1rem;
-			}
+		/* Buttons */
+		.btn {
+			display: inline-flex;
+			align-items: center;
+			gap: 0.4rem;
+			padding: 0.5rem 0.75rem;
+			border: 1px solid var(--border);
+			border-radius: 6px;
+			font-size: 0.8rem;
+			font-family: inherit;
+			background: var(--bg-highlight);
+			color: var(--fg);
+			cursor: pointer;
+			transition: all 0.2s ease;
+			text-decoration: none;
+		}
 
-			.target-agent-label {
-				font-size: 0.7rem;
-				color: var(--fg-muted);
-				margin-right: 0.25rem;
-			}
+		.btn:hover {
+			border-color: var(--blue);
+			background: rgba(122, 162, 247, 0.1);
+		}
 
-			.target-agent {
-				font-family: 'JetBrains Mono', 'Fira Code', monospace;
-				font-size: 0.7rem;
-				color: var(--purple);
-				background: rgba(187, 154, 247, 0.15);
-				padding: 0.15rem 0.4rem;
-				border-radius: 3px;
-			}
+		.btn-primary {
+			background: var(--blue);
+			border-color: var(--blue);
+			color: var(--bg);
+		}
 
-			.target-unavailable {
-				color: var(--fg-muted);
-				font-style: italic;
-			}
+		.btn-primary:hover {
+			background: #8aacf7;
+		}
 
-			/* Buttons */
-			.btn {
-				display: inline-flex;
-				align-items: center;
-				gap: 0.4rem;
-				padding: 0.5rem 0.75rem;
-				border: 1px solid var(--border);
-				border-radius: 6px;
-				font-size: 0.8rem;
-				font-family: inherit;
-				background: var(--bg-highlight);
-				color: var(--fg);
-				cursor: pointer;
-				transition: all 0.2s ease;
-				text-decoration: none;
-			}
+		.btn-danger {
+			border-color: var(--red);
+			color: var(--red);
+		}
 
-			.btn:hover {
-				border-color: var(--blue);
-				background: rgba(122, 162, 247, 0.1);
-			}
+		.btn-danger:hover {
+			background: var(--red);
+			color: var(--bg);
+		}
 
-			.btn-primary {
-				background: var(--blue);
-				border-color: var(--blue);
-				color: var(--bg);
-			}
+		/* Header actions container */
+		.header-actions {
+			display: flex;
+			align-items: center;
+			gap: 0;
+		}
 
-			.btn-primary:hover {
-				background: #8aacf7;
-			}
+		/* Header action buttons - consistent sizing */
+		.btn-header {
+			height: 36px;
+			padding: 0.5rem 1rem;
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			gap: 0.5rem;
+			box-sizing: border-box;
+		}
 
-			.btn-danger {
-				border-color: var(--red);
-				color: var(--red);
-			}
+		.bulk-actions-dropdown {
+			margin-right: 10px;
+		}
 
-			.btn-danger:hover {
-				background: var(--red);
-				color: var(--bg);
-			}
+		.header-actions form {
+			display: inline-flex;
+			align-items: center;
+			margin: 0;
+		}
 
-			/* Header actions container */
-			.header-actions {
-				display: flex;
-				align-items: center;
-				gap: 0;
-			}
+		.btn:disabled {
+			opacity: 0.5;
+			cursor: not-allowed;
+		}
 
-			/* Header action buttons - consistent sizing */
-			.btn-header {
-				height: 36px;
-				padding: 0.5rem 1rem;
-				display: inline-flex;
-				align-items: center;
-				justify-content: center;
-				gap: 0.5rem;
-				box-sizing: border-box;
-			}
+		/* Cards (mobile-first) */
+		.host-grid {
+			display: grid;
+			gap: 1rem;
+		}
 
-			.bulk-actions-dropdown {
-				margin-right: 10px;
-			}
-
-			.header-actions form {
-				display: inline-flex;
-				align-items: center;
-				margin: 0;
-			}
-
-			.btn:disabled {
-				opacity: 0.5;
-				cursor: not-allowed;
-			}
-
-			/* Cards (mobile-first) */
+		/* Desktop: table layout */
+		@media (min-width: 1024px) {
 			.host-grid {
-				display: grid;
-				gap: 1rem;
-			}
-
-			/* Desktop: table layout */
-			@media (min-width: 1024px) {
-				.host-grid {
-					display: none;
-				}
-				.host-table {
-					display: table;
-				}
-			}
-
-			/* Mobile: card layout */
-			@media (max-width: 1023px) {
-				.host-table {
-					display: none;
-				}
-			}
-
-			/* Host Card (mobile) */
-			.host-card {
-				background: rgba(36, 40, 59, 0.9); /* bg-float with 90% opacity */
-				border: 1px solid var(--border);
-				border-radius: 8px;
-				overflow: hidden;
-				position: relative;
-				z-index: 1;
-			}
-
-			.host-card-header {
-				display: flex;
-				justify-content: space-between;
-				align-items: center;
-				padding: 0.75rem 1rem;
-				background: var(--bg-highlight);
-				cursor: pointer;
-			}
-
-			.host-card-header:hover {
-				background: var(--bg);
-			}
-
-			.host-name {
-				font-weight: 600;
-				display: flex;
-				align-items: center;
-				gap: 0.5rem;
-			}
-
-			.host-card-body {
-				padding: 1rem;
 				display: none;
 			}
 
-			.host-card.expanded .host-card-body {
-				display: block;
-			}
-
-			.host-card-row {
-				display: flex;
-				justify-content: space-between;
-				padding: 0.5rem 0;
-				border-bottom: 1px solid var(--border);
-			}
-
-			.host-card-row:last-child {
-				border-bottom: none;
-			}
-
-			.host-card-label {
-				color: var(--fg-dark);
-				font-size: 0.8rem;
-			}
-
-			.host-card-actions {
-				display: flex;
-				gap: 0.5rem;
-				flex-wrap: wrap;
-				margin-top: 1rem;
-			}
-
-			/* Host Table (desktop) */
 			.host-table {
-				width: 100%;
-				border-collapse: collapse;
-				background: rgba(36, 40, 59, 0.9); /* bg-float with 90% opacity */
-				border-radius: 8px;
-				overflow: visible; /* Allow dropdown menus to extend beyond table */
-				position: relative;
-				z-index: 1;
+				display: table;
 			}
+		}
 
-			.host-table th,
-			.host-table td {
-				padding: 0.75rem 1rem;
-				text-align: left;
-				border-bottom: 1px solid var(--border);
-				font-size: 13px;
-				vertical-align: middle;
+		/* Mobile: card layout */
+		@media (max-width: 1023px) {
+			.host-table {
+				display: none;
 			}
+		}
 
-			.host-table th {
-				background: var(--bg-highlight);
-				font-weight: 500;
-				color: var(--fg-dark);
-				font-size: 0.8rem;
-				text-transform: uppercase;
-				letter-spacing: 0.05em;
-			}
+		/* Host Card (mobile) */
+		.host-card {
+			background: rgba(36, 40, 59, 0.9);
+			/* bg-float with 90% opacity */
+			border: 1px solid var(--border);
+			border-radius: 8px;
+			overflow: hidden;
+			position: relative;
+			z-index: 1;
+		}
 
-			/* Column alignment classes */
-			.col-center { text-align: center; }
-			.col-right { text-align: right; }
-			.col-hosts { white-space: nowrap; }
+		.host-card-header {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			padding: 0.75rem 1rem;
+			background: var(--bg-highlight);
+			cursor: pointer;
+		}
 
-			/* Online count highlight */
-			.stat-online-positive { color: var(--green); }
+		.host-card-header:hover {
+			background: var(--bg);
+		}
 
-			.host-table tbody tr {
-				position: relative;
-				/* Base dark background - gradient overlays this */
-				background: rgba(10, 11, 16, 0.9);
-			}
+		.host-name {
+			font-weight: 600;
+			display: flex;
+			align-items: center;
+			gap: 0.5rem;
+		}
 
-			.host-table tr:hover {
-				background: rgba(30, 34, 48, 0.95);
-			}
+		.host-card-body {
+			padding: 1rem;
+			display: none;
+		}
 
-			.host-table tr:last-child td {
-				border-bottom: none;
-			}
+		.host-card.expanded .host-card-body {
+			display: block;
+		}
 
-			/* Offline host row overlay */
-			.host-table tr.host-offline {
-				position: relative;
-			}
+		.host-card-row {
+			display: flex;
+			justify-content: space-between;
+			padding: 0.5rem 0;
+			border-bottom: 1px solid var(--border);
+		}
 
-			.host-table tr.host-offline::after {
-				content: '';
-				position: absolute;
-				top: 0;
-				left: 0;
-				right: 0;
-				bottom: 0;
-				background: rgba(0, 0, 0, 0.2);
-				pointer-events: none;
-			}
+		.host-card-row:last-child {
+			border-bottom: none;
+		}
 
-			/* Location, Device Type, and Host Type icons */
-			.location-icon, .device-icon, .type-icon {
-				width: 16px;
-				height: 16px;
-				color: var(--fg);
-				opacity: 0.85;
-			}
+		.host-card-label {
+			color: var(--fg-dark);
+			font-size: 0.8rem;
+		}
 
-			.location-icon:hover, .device-icon:hover, .type-icon:hover {
+		.host-card-actions {
+			display: flex;
+			gap: 0.5rem;
+			flex-wrap: wrap;
+			margin-top: 1rem;
+		}
+
+		/* Host Table (desktop) */
+		.host-table {
+			width: 100%;
+			border-collapse: collapse;
+			background: rgba(36, 40, 59, 0.9);
+			/* bg-float with 90% opacity */
+			border-radius: 8px;
+			overflow: visible;
+			/* Allow dropdown menus to extend beyond table */
+			position: relative;
+			z-index: 1;
+		}
+
+		.host-table th,
+		.host-table td {
+			padding: 0.75rem 1rem;
+			text-align: left;
+			border-bottom: 1px solid var(--border);
+			font-size: 13px;
+			vertical-align: middle;
+		}
+
+		.host-table th {
+			background: var(--bg-highlight);
+			font-weight: 500;
+			color: var(--fg-dark);
+			font-size: 0.8rem;
+			text-transform: uppercase;
+			letter-spacing: 0.05em;
+		}
+
+		/* Column alignment classes */
+		.col-center {
+			text-align: center;
+		}
+
+		.col-right {
+			text-align: right;
+		}
+
+		.col-hosts {
+			white-space: nowrap;
+		}
+
+		/* Online count highlight */
+		.stat-online-positive {
+			color: var(--green);
+		}
+
+		.host-table tbody tr {
+			position: relative;
+			/* Base dark background - gradient overlays this */
+			background: rgba(10, 11, 16, 0.9);
+		}
+
+		.host-table tr:hover {
+			background: rgba(30, 34, 48, 0.95);
+		}
+
+		.host-table tr:last-child td {
+			border-bottom: none;
+		}
+
+		/* Offline host row overlay */
+		.host-table tr.host-offline {
+			position: relative;
+		}
+
+		.host-table tr.host-offline::after {
+			content: '';
+			position: absolute;
+			top: 0;
+			left: 0;
+			right: 0;
+			bottom: 0;
+			background: rgba(0, 0, 0, 0.2);
+			pointer-events: none;
+		}
+
+		/* Location, Device Type, and Host Type icons */
+		.location-icon,
+		.device-icon,
+		.type-icon {
+			width: 16px;
+			height: 16px;
+			color: var(--fg);
+			opacity: 0.85;
+		}
+
+		.location-icon:hover,
+		.device-icon:hover,
+		.type-icon:hover {
+			opacity: 1;
+			color: var(--fg);
+		}
+
+		/* Tests cell */
+		.tests-cell {
+			font-size: 0.85rem;
+			text-align: center;
+		}
+
+		.test-progress {
+			color: var(--yellow);
+			font-weight: 500;
+		}
+
+		.test-result {
+			font-weight: 500;
+			padding: 2px 6px;
+			border-radius: 4px;
+		}
+
+		.test-result.pass {
+			color: var(--green);
+			background: rgba(158, 206, 106, 0.15);
+		}
+
+		.test-result.fail {
+			color: var(--red);
+			background: rgba(247, 118, 142, 0.15);
+		}
+
+		.tests-na {
+			color: var(--fg-dark);
+			opacity: 0.5;
+		}
+
+		/* Status indicators */
+		.status-dot {
+			width: 12px;
+			height: 12px;
+			min-width: 12px;
+			min-height: 12px;
+			border-radius: 50%;
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			vertical-align: middle;
+			flex-shrink: 0;
+			position: relative;
+		}
+
+		.status-online {
+			background: var(--green);
+			box-shadow: 0 0 6px var(--green);
+		}
+
+		.status-offline {
+			/* Smaller muted dot - more visible */
+			background: #6b7280;
+			width: 6px !important;
+			height: 6px !important;
+			min-width: 6px !important;
+			min-height: 6px !important;
+			margin: 3px;
+			box-shadow: none;
+		}
+
+		.status-running {
+			background: var(--yellow);
+			animation: pulse 1.5s infinite;
+			box-shadow: 0 0 4px var(--yellow);
+		}
+
+		.status-error {
+			background: var(--red);
+		}
+
+		@keyframes pulse {
+
+			0%,
+			100% {
 				opacity: 1;
-				color: var(--fg);
 			}
 
-			/* Tests cell */
-			.tests-cell {
-				font-size: 0.85rem;
-				text-align: center;
-			}
-
-			.test-progress {
-				color: var(--yellow);
-				font-weight: 500;
-			}
-
-			.test-result {
-				font-weight: 500;
-				padding: 2px 6px;
-				border-radius: 4px;
-			}
-
-			.test-result.pass {
-				color: var(--green);
-				background: rgba(158, 206, 106, 0.15);
-			}
-
-			.test-result.fail {
-				color: var(--red);
-				background: rgba(247, 118, 142, 0.15);
-			}
-
-			.tests-na {
-				color: var(--fg-dark);
+			50% {
 				opacity: 0.5;
 			}
+		}
 
-			/* Status indicators */
-			.status-dot {
-				width: 12px;
-				height: 12px;
-				min-width: 12px;
-				min-height: 12px;
-				border-radius: 50%;
-				display: inline-flex;
-				align-items: center;
-				justify-content: center;
-				vertical-align: middle;
-				flex-shrink: 0;
-				position: relative;
-			}
+		/* Heartbeat indicator for online hosts */
+		.status-ripple {
+			width: 12px;
+			height: 12px;
+			position: relative;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			color: var(--green);
+		}
 
-			.status-online { background: var(--green); box-shadow: 0 0 6px var(--green); }
-			.status-offline { 
-				/* Smaller muted dot - more visible */
-				background: #6b7280;
-				width: 6px !important;
-				height: 6px !important;
-				min-width: 6px !important;
-				min-height: 6px !important;
-				margin: 3px;
-				box-shadow: none;
-			}
-			.status-running { background: var(--yellow); animation: pulse 1.5s infinite; box-shadow: 0 0 4px var(--yellow); }
-			.status-error { background: var(--red); }
+		.status-ripple .hb-core {
+			width: 8px;
+			height: 8px;
+			background: currentColor;
+			border-radius: 50%;
+			position: relative;
+			z-index: 2;
+			box-shadow: 0 0 6px currentColor;
+		}
 
-			@keyframes pulse {
-				0%, 100% { opacity: 1; }
-				50% { opacity: 0.5; }
-			}
+		/* Waves hidden by default - only show on heartbeat */
+		.status-ripple .hb-wave {
+			position: absolute;
+			top: 50%;
+			left: 50%;
+			width: 8px;
+			height: 8px;
+			margin: -4px 0 0 -4px;
+			background: currentColor;
+			border-radius: 50%;
+			opacity: 0;
+			/* No animation by default */
+		}
 
-			/* Heartbeat indicator for online hosts */
-			.status-ripple {
-				width: 12px;
-				height: 12px;
-				position: relative;
-				display: flex;
-				align-items: center;
-				justify-content: center;
-				color: var(--green);
-			}
+		/* Animate only when .heartbeat class is present */
+		.status-ripple.heartbeat .hb-wave {
+			animation: ripple-wave 1.5s ease-out forwards;
+		}
 
-			.status-ripple .hb-core {
-				width: 8px;
-				height: 8px;
-				background: currentColor;
-				border-radius: 50%;
-				position: relative;
-				z-index: 2;
-				box-shadow: 0 0 6px currentColor;
-			}
+		.status-ripple.heartbeat .hb-wave:nth-child(2) {
+			animation-delay: 0.3s;
+		}
 
-			/* Waves hidden by default - only show on heartbeat */
-			.status-ripple .hb-wave {
-				position: absolute;
-				top: 50%;
-				left: 50%;
+		.status-ripple.heartbeat .hb-wave:nth-child(3) {
+			animation-delay: 0.6s;
+		}
+
+		@keyframes ripple-wave {
+			0% {
 				width: 8px;
 				height: 8px;
 				margin: -4px 0 0 -4px;
-				background: currentColor;
-				border-radius: 50%;
-				opacity: 0;
-				/* No animation by default */
-			}
-
-			/* Animate only when .heartbeat class is present */
-			.status-ripple.heartbeat .hb-wave {
-				animation: ripple-wave 1.5s ease-out forwards;
-			}
-
-			.status-ripple.heartbeat .hb-wave:nth-child(2) { animation-delay: 0.3s; }
-			.status-ripple.heartbeat .hb-wave:nth-child(3) { animation-delay: 0.6s; }
-
-			@keyframes ripple-wave {
-				0% {
-					width: 8px;
-					height: 8px;
-					margin: -4px 0 0 -4px;
-					opacity: 0.8;
-				}
-				100% {
-					width: 20px;
-					height: 20px;
-					margin: -10px 0 0 -10px;
-					opacity: 0;
-				}
-			}
-
-			/* Offline host dimming */
-			tr.host-offline,
-			.host-card.host-offline {
-				opacity: 0.5;
-			}
-
-			tr.host-offline:hover,
-			.host-card.host-offline:hover {
 				opacity: 0.8;
 			}
 
-			/* Log viewer */
-			.log-panel {
-				margin-top: 1rem;
-				background: var(--bg-dark);
-				border: 1px solid var(--border);
-				border-radius: 6px;
-				overflow: hidden;
-			}
-
-			.log-header {
-				display: flex;
-				justify-content: space-between;
-				align-items: center;
-				padding: 0.5rem 1rem;
-				background: var(--bg-highlight);
-				cursor: pointer;
-			}
-
-			.log-content {
-				max-height: 300px;
-				overflow-y: auto;
-				padding: 0.75rem;
-				font-size: 0.8rem;
-				line-height: 1.4;
-			}
-
-			.log-line {
-				padding: 0.1rem 0;
-				white-space: pre-wrap;
-				word-break: break-all;
-			}
-
-			.log-line.error {
-				color: var(--red);
-			}
-
-			.log-line.success {
-				color: var(--green);
-			}
-
-			/* Progress indicator */
-			.progress-badge {
-				display: inline-flex;
-				align-items: center;
-				gap: 0.3rem;
-				padding: 0.25rem 0.5rem;
-				background: rgba(224, 175, 104, 0.15);
-				border: 1px solid var(--yellow);
-				border-radius: 4px;
-				font-size: 0.75rem;
-				color: var(--yellow);
-			}
-
-			/* Mini progress badge (next to status dot) */
-			.status-with-badge {
-				display: inline-flex;
-				align-items: center;
-				gap: 0.25rem;
-			}
-
-			/* For table cells: use flexbox for consistent status + badge alignment */
-			td.status-cell-with-badge {
-				vertical-align: middle;
-			}
-
-			td.status-cell-with-badge .status-wrapper {
-				display: inline-flex;
-				align-items: center;
-				gap: 0.5rem;
-			}
-
-			.progress-badge-mini {
-				display: inline-flex;
-				align-items: center;
-				padding: 0.15rem 0.3rem;
-				background: rgba(224, 175, 104, 0.15);
-				border: 1px solid var(--yellow);
-				border-radius: 3px;
-				font-size: 0.5rem;
-				color: var(--yellow);
-				line-height: 1;
-				text-transform: uppercase;
-				font-weight: 600;
-			}
-
-			/* Footer */
-			footer {
-				margin-top: 2rem;
-				padding-top: 1rem;
-				border-top: 1px solid var(--border);
-				color: var(--fg-dark);
-				font-size: 0.75rem;
-			}
-
-			.site-footer {
-				display: flex;
-				justify-content: space-between;
-				align-items: center;
-				flex-wrap: wrap;
-				gap: 0.5rem;
-			}
-
-			.footer-left, .footer-right {
-				display: flex;
-				align-items: center;
-				gap: 0.5rem;
-				flex-wrap: wrap;
-			}
-
-			.footer-sep {
-				color: var(--fg-gutter);
-			}
-
-			.footer-link {
-				display: inline-flex;
-				align-items: center;
-				gap: 0.2rem;
-				color: var(--fg-dark);
-				text-decoration: none;
-				transition: color 0.2s;
-			}
-
-			.footer-link:hover {
-				color: var(--blue);
-			}
-
-			.footer-link .icon {
-				width: 12px;
-				height: 12px;
-			}
-
-			.made-with {
-				display: flex;
-				align-items: center;
-				gap: 0.3rem;
-			}
-
-			.made-with a {
-				color: var(--blue);
-				text-decoration: none;
-			}
-
-			.made-with a:hover {
-				text-decoration: underline;
-			}
-
-			.made-with .heart {
-				color: var(--red);
-				animation: heartbeat 1.5s ease-in-out infinite;
-			}
-
-			@keyframes heartbeat {
-				0%, 100% { transform: scale(1); }
-				50% { transform: scale(1.15); }
-			}
-
-			@media (max-width: 640px) {
-				.site-footer {
-					flex-direction: column;
-					text-align: center;
-				}
-
-				.footer-left, .footer-right {
-					justify-content: center;
-				}
-			}
-
-			/* Stats bar */
-			.stats-bar {
-				display: flex;
-				gap: 1rem;
-				margin-bottom: 1rem;
-				flex-wrap: wrap;
-			}
-
-			.stat {
-				display: flex;
-				align-items: center;
-				gap: 0.5rem;
-				padding: 0.5rem 1rem;
-				background: var(--bg-float);
-				border: 1px solid var(--border);
-				border-radius: 6px;
-				font-size: 0.85rem;
-			}
-
-			.stat-value {
-				font-weight: 600;
-			}
-
-			.stat-value.online { color: var(--green); }
-			.stat-value.offline { color: var(--fg-dark); }
-
-			/* Connection indicator */
-			.connection-indicator {
-				display: inline-flex;
-				align-items: center;
-				gap: 0.25rem;
-				font-size: 0.75rem;
-				color: var(--fg-dark);
-			}
-
-			.connection-indicator .status-dot {
-				width: 6px;
-				height: 6px;
-				min-width: 6px;
-				min-height: 6px;
-				background: currentColor;
-				margin: 0;
-			}
-
-			.connection-indicator.connected {
-				color: var(--green);
-			}
-
-			.connection-indicator.disconnected {
-				color: var(--red);
-			}
-
-
-			/* Chevron icon */
-			.chevron {
-				transition: transform 0.2s ease;
-			}
-
-			.expanded .chevron {
-				transform: rotate(180deg);
-			}
-
-			/* Hide utility */
-			.hidden { display: none !important; }
-
-			/* Icon styles */
-			.icon {
-				width: 14px;
-				height: 14px;
-				flex-shrink: 0;
-			}
-
-			.btn .icon {
-				width: 12px;
-				height: 12px;
-			}
-
-			.metric-icon {
-				width: 10px;
-				height: 10px;
-				opacity: 0.7;
-				flex-shrink: 0;
-				margin-right: -10px;
-			}
-
-			/* Metrics display */
-			td.metrics-cell {
-				font-size: 0.85rem;
-				font-family: var(--font-mono);
-				vertical-align: middle;
-			}
-
-			td.metrics-cell > span,
-			span.metrics-cell {
-				display: inline-flex;
-				align-items: center;
-				gap: 25px;
-			}
-
-			.metric {
-				display: inline-flex;
-				align-items: center;
-				gap: 0;
-				color: var(--fg);
-			}
-
-			.metric-val {
-				display: inline-block;
-				width: 4ch;
-				text-align: right;
-			}
-
-			.metric.high {
-				color: var(--red);
-				font-weight: 600;
-			}
-
-			.metric.high .metric-icon {
-				opacity: 1;
-			}
-
-			.metrics-na {
-				color: var(--fg-gutter);
-			}
-
-			/* Last seen time colors */
-			.last-seen-ok {
-				color: var(--fg);
-			}
-			.last-seen-warn {
-				color: var(--yellow);
-			}
-			.last-seen-stale {
-				color: var(--red);
-			}
-
-			/* Update Status Three-Compartment Indicator (P5000) */
-			.update-status {
-				display: inline-flex;
-				gap: 2px;
-			}
-
-			.update-compartment {
-				position: relative;
-				display: inline-flex;
-				align-items: center;
-				justify-content: center;
-				width: 24px;
-				height: 24px;
-				background: #374151;
-				border-radius: 4px;
-				cursor: pointer;
-				transition: all 0.2s ease;
-			}
-
-			.update-compartment:hover {
-				background: #4b5563;
-			}
-
-			.update-compartment .update-icon {
-				position: relative;
-				top: -2px;
-				left: -2px;
-				width: 11px;
-				height: 11px;
-				fill: #1f2937;
-				stroke: #1f2937;
-				color: #1f2937;
-			}
-
-			/* P5100: Simplified - icon always dark, only indicator dot shows status */
-			/* Unknown state: same background, slightly dimmed to hint at stale data */
-			.update-compartment.unknown {
-				opacity: 0.6;
-			}
-
-
-			/* Flake Update Banner (P5300) */
-			.flake-update-banner {
-				background: linear-gradient(135deg, #1e3a5f, #0d1a2d);
-				border: 1px solid #3b82f6;
-				border-radius: 8px;
-				margin: 0 1rem 1rem;
-				padding: 0;
-				box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
-			}
-
-			.flake-update-content {
-				display: flex;
-				align-items: center;
-				gap: 1rem;
-				padding: 0.75rem 1rem;
-				flex-wrap: wrap;
-			}
-
-			.flake-update-icon {
-				font-size: 1.25rem;
-			}
-
-			.flake-update-text {
-				flex: 1;
-				min-width: 200px;
-				color: #e2e8f0;
-			}
-
-			.flake-update-text a {
-				color: #60a5fa;
-				text-decoration: none;
-			}
-
-			.flake-update-text a:hover {
-				text-decoration: underline;
-			}
-
-			.flake-update-success {
-				border-color: #22c55e;
-				background: linear-gradient(135deg, #14532d, #052e16);
-			}
-
-			.flake-update-error {
-				border-color: #ef4444;
-				background: linear-gradient(135deg, #7f1d1d, #450a0a);
-			}
-
-			.flake-update-progress {
-				animation: flake-update-pulse 2s ease-in-out infinite;
-			}
-
-			.flake-update-spinner {
-				animation: flake-update-spin 1.5s linear infinite;
-			}
-
-			@keyframes flake-update-pulse {
-				0%, 100% { opacity: 0.9; }
-				50% { opacity: 1; }
-			}
-
-			@keyframes flake-update-spin {
-				from { transform: rotate(0deg); }
-				to { transform: rotate(360deg); }
-			}
-
-			.btn-sm {
-				padding: 0.35rem 0.75rem;
-				font-size: 0.8rem;
-			}
-
-			@keyframes pulse-glow {
-				0%, 100% { opacity: 0.3; }
-				50% { opacity: 1; }
-			}
-
-			@keyframes indicator-pulse {
-				0%, 100% { opacity: 0.4; }
-				50% { opacity: 1; }
-			}
-
-			/* Compartment Status Indicator (P5010) */
-			.compartment-indicator {
-				position: absolute;
-				bottom: 4px;
-				right: 3px;
-				width: 4px;
-				height: 4px;
-				border-radius: 50%;
-				pointer-events: none;
-			}
-
-			/* OK state (green) - 3D gradient */
-			.compartment-indicator--ok {
-				background: linear-gradient(
-					to bottom,
-					hsl(142, 71%, 55%),
-					hsl(142, 71%, 35%)
-				);
-				box-shadow: 0 0 1px hsla(142, 71%, 45%, 0.5);
-			}
-
-			/* Warning/outdated state (yellow) - 3D gradient + pulse */
-			.compartment-indicator--warning {
-				background: linear-gradient(
-					to bottom,
-					hsl(45, 90%, 60%),
-					hsl(45, 90%, 40%)
-				);
-				box-shadow: 0 0 1px hsla(45, 90%, 50%, 0.5);
-				animation: indicator-pulse 2s ease-in-out infinite;
-			}
-
-			/* Error state (red) - 3D gradient + pulse */
-			.compartment-indicator--error {
-				background: linear-gradient(
-					to bottom,
-					hsl(0, 70%, 60%),
-					hsl(0, 70%, 40%)
-				);
-				box-shadow: 0 0 1px hsla(0, 70%, 50%, 0.5);
-				animation: indicator-pulse 2s ease-in-out infinite;
-			}
-
-			/* Unknown state (gray) - subtle */
-			.compartment-indicator--unknown {
-				background: linear-gradient(
-					to bottom,
-					hsl(220, 10%, 50%),
-					hsl(220, 10%, 35%)
-				);
-				box-shadow: 0 0 1px hsla(220, 10%, 40%, 0.3);
-				opacity: 0.6;
-			}
-
-			/* Action Dropdown (P4380) */
-			.action-buttons {
-				display: flex;
-				gap: 0.25rem;
-				align-items: center;
-			}
-
-			.dropdown {
-				position: relative;
-				display: inline-block;
-			}
-
-			.btn-more {
-				padding: 0.4rem;
-				margin-left: 10px;
-				min-width: 30px;
-				min-height: 30px;
-				height: 30px;
-				display: flex;
-				align-items: center;
-				justify-content: center;
-			}
-
-			/* Stop button - replaces cmd buttons when command running */
-			.btn-stop {
-				background: var(--red);
-				color: white;
-				border: none;
-				border-radius: 4px;
-				padding: 0.25rem 0.5rem;
-				cursor: pointer;
-				display: flex;
-				align-items: center;
-				gap: 0.25rem;
-				font-size: 0.75rem;
-			}
-
-			.btn-stop:hover {
-				background: hsl(0, 70%, 50%);
-			}
-
-			/* P7000: PR indicator on Lock compartment */
-			.update-compartment.has-pr {
-				position: relative;
-			}
-
-			.update-compartment.has-pr::after {
-				content: "";
-				position: absolute;
-				top: -2px;
-				right: -2px;
-				width: 6px;
-				height: 6px;
-				background: var(--color-blue);
-				border-radius: 50%;
-			}
-
-			.dropdown-menu {
-				position: absolute;
-				right: 0;
-				top: 100%;
-				margin-top: 4px;
-				background: var(--bg-dark);
-				border: 1px solid var(--border);
-				border-radius: 6px;
-				min-width: 160px;
-				box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-				z-index: 9999;
-			}
-
-			/* Header dropdown (id-based) starts hidden, uses .open class */
-			#bulk-actions-menu {
-				display: none;
-			}
-
-			#bulk-actions-menu.open {
-				display: block;
-			}
-
-			/* x-cloak hides Alpine elements until initialized */
-			[x-cloak] { display: none !important; }
-
-			/* Bulk Actions dropdown in header */
-			.bulk-actions-dropdown {
-				position: relative;
-			}
-
-			.bulk-actions-dropdown .dropdown-menu {
-				right: auto;
-				left: 0;
-			}
-
-			.dropdown-item {
-				display: flex;
-				align-items: center;
-				gap: 0.5rem;
-				padding: 0.5rem 0.75rem;
-				cursor: pointer;
-				width: 100%;
-				background: none;
-				border: none;
-				color: var(--fg);
-				font-size: 0.85rem;
-				font-family: inherit;
-				text-align: left;
-			}
-
-			.dropdown-item:hover {
-				background: var(--bg-highlight);
-			}
-
-			.dropdown-item.danger {
-				color: var(--red);
-			}
-
-			.dropdown-item.danger:hover {
-				background: rgba(247, 118, 142, 0.1);
-			}
-
-			.dropdown-item:disabled {
-				opacity: 0.5;
-				cursor: not-allowed;
-			}
-
-			.dropdown-item .icon {
-				width: 16px;
-				height: 16px;
-				flex-shrink: 0;
-				color: var(--fg-muted);
-			}
-
-			.dropdown-item:hover:not(:disabled) .icon {
-				color: var(--fg);
-			}
-
-			.dropdown-divider {
-				height: 1px;
-				background: var(--border);
-				margin: 0.25rem 0;
-				border: none;
-			}
-
-			/* P1060: Dropdown toggle button */
-			.col-menu {
-				width: 48px;
-				min-width: 48px;
-				text-align: center;
-				padding: 0 !important;
-			}
-
-			.dropdown-toggle {
-				display: inline-flex;
-				align-items: center;
-				justify-content: center;
-				width: 28px;
-				height: 28px;
-				padding: 0;
-				background: transparent;
-				border: 1px solid var(--border);
-				border-radius: 4px;
-				color: var(--fg-muted);
-				cursor: pointer;
-				transition: all 150ms ease;
-			}
-
-			.dropdown-toggle:hover {
-				color: var(--fg);
-				background: var(--bg-highlight);
-				border-color: var(--fg-dim);
-			}
-
-			.dropdown-toggle:focus-visible {
-				outline: 2px solid var(--blue);
-				outline-offset: 2px;
-			}
-
-			.dropdown-toggle .icon {
-				width: 16px;
-				height: 16px;
-			}
-
-			/* Modals (P4390) */
-			.modal-overlay {
-				display: none;
-				position: fixed;
-				inset: 0;
-				background: rgba(0, 0, 0, 0.6);
-				z-index: 10000;
-				align-items: center;
-				justify-content: center;
-			}
-
-			.modal-overlay.open {
-				display: flex;
-			}
-
-			.modal {
-				background: var(--bg-dark);
-				border: 1px solid var(--border);
-				border-radius: 8px;
-				padding: 1.5rem;
-				max-width: 400px;
-				width: 90%;
-				box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
-			}
-
-			.modal-wide {
-				max-width: 500px;
-			}
-
-			.modal-title {
-				font-size: 1.1rem;
-				font-weight: 600;
-				margin-bottom: 1rem;
-				color: var(--fg);
-			}
-
-			.modal-body {
-				margin-bottom: 1.5rem;
-				color: var(--fg-dark);
-			}
-
-			.modal-actions {
-				display: flex;
-				gap: 0.5rem;
-				justify-content: flex-end;
-			}
-
-			.modal-btn {
-				padding: 0.5rem 1rem;
-				border-radius: 6px;
-				font-size: 0.85rem;
-				font-family: inherit;
-				cursor: pointer;
-				transition: all 0.2s ease;
-			}
-
-			.modal-btn-cancel {
-				background: var(--bg-highlight);
-				border: 1px solid var(--border);
-				color: var(--fg);
-			}
-
-			.modal-btn-cancel:hover {
-				background: var(--bg);
-			}
-
-			.modal-btn-primary {
-				background: var(--blue);
-				border: 1px solid var(--blue);
-				color: var(--bg);
-			}
-
-			.modal-btn-primary:hover {
-				background: #8aacf7;
-			}
-
-			.modal-btn-danger {
-				background: rgba(247, 118, 142, 0.15);
-				border: 1px solid rgba(247, 118, 142, 0.3);
-				color: var(--red);
-			}
-
-			.modal-btn-danger:hover {
-				background: rgba(247, 118, 142, 0.25);
-			}
-
-			/* Form styles for modals */
-			.form-group {
-				margin-bottom: 1rem;
-			}
-
-			.form-group label {
-				display: block;
-				margin-bottom: 0.25rem;
-				font-size: 0.85rem;
-				color: var(--fg-dark);
-			}
-
-			.form-group input,
-			.form-group select {
-				width: 100%;
-				padding: 0.5rem;
-				background: var(--bg);
-				border: 1px solid var(--border);
-				border-radius: 4px;
-				color: var(--fg);
-				font-family: inherit;
-				font-size: 0.9rem;
-			}
-
-			.form-group input:focus,
-			.form-group select:focus {
-				outline: none;
-				border-color: var(--blue);
-			}
-
-			.form-row {
-				display: grid;
-				grid-template-columns: 1fr 1fr;
-				gap: 1rem;
-			}
-
-			/* P2950: Color Picker Styles */
-			.color-picker-host {
-				margin-bottom: 1rem;
-				color: var(--fg-dark);
-			}
-
-			.color-picker-host code {
-				color: var(--blue);
-				font-weight: 600;
-			}
-
-			.color-presets {
-				display: flex;
-				flex-wrap: wrap;
-				gap: 0.5rem;
-			}
-
-			.color-preset {
-				width: 36px;
-				height: 36px;
-				border: 2px solid transparent;
-				border-radius: 6px;
-				padding: 2px;
-				cursor: pointer;
-				background: var(--bg);
-				transition: all 0.15s ease;
-			}
-
-			.color-preset:hover {
-				border-color: var(--fg-dark);
-			}
-
-			.color-preset.selected {
-				border-color: var(--blue);
-				box-shadow: 0 0 0 2px rgba(122, 162, 247, 0.3);
-			}
-
-			.color-swatch {
-				display: block;
-				width: 100%;
-				height: 100%;
-				border-radius: 4px;
-			}
-
-			.custom-color-row {
-				display: flex;
-				gap: 0.75rem;
-				align-items: center;
-			}
-
-			.custom-color-row input[type="color"] {
-				width: 48px;
-				height: 36px;
-				padding: 0;
-				border: 1px solid var(--border);
-				border-radius: 6px;
-				cursor: pointer;
-				background: transparent;
-			}
-
-			.custom-color-row input[type="color"]::-webkit-color-swatch-wrapper {
-				padding: 2px;
-			}
-
-			.custom-color-row input[type="color"]::-webkit-color-swatch {
-				border: none;
-				border-radius: 4px;
-			}
-
-			.custom-color-row input[type="text"] {
-				width: 100px;
-				font-family: var(--mono-font, monospace);
-				text-transform: uppercase;
-			}
-
-			.color-preview-row {
-				display: flex;
-				height: 32px;
-				border-radius: 6px;
-				overflow: hidden;
-			}
-
-			.preview-segment {
-				flex: 1;
-			}
-
-			/* Bulk Actions */
-			.bulk-actions {
-				display: inline-flex;
-				gap: 0.5rem;
-				margin-left: 1rem;
-			}
-
-			.bulk-btn {
-				padding: 0.4rem 0.75rem;
-				font-size: 0.75rem;
-			}
-
-			/* Loading spinner */
-			.spinner {
-				width: 16px;
-				height: 16px;
-				border: 2px solid var(--border);
-				border-top-color: var(--blue);
-				border-radius: 50%;
-				animation: spin 0.8s linear infinite;
-			}
-
-			@keyframes spin {
-				to { transform: rotate(360deg); }
-			}
-
-			/* ═══════════════════════════════════════════════════════════════════════════
-			   ROW SELECTION (P1030)
-			   ═══════════════════════════════════════════════════════════════════════════ */
-
-			/* Checkbox Column */
-			.col-select {
-				width: 40px;
-				min-width: 40px;
-				max-width: 40px;
-				padding: 0 8px !important;
-				text-align: center;
-			}
-
-			/* Header Toggle */
-			.select-toggle {
-				display: inline-flex;
-				align-items: center;
-				justify-content: center;
-				padding: 4px;
-				background: transparent;
-				border: none;
-				border-radius: 4px;
-				cursor: pointer;
-				color: var(--fg-dark);
-				transition: color 150ms ease, background 150ms ease;
-			}
-
-			.select-toggle:hover {
-				color: var(--fg);
-				background: var(--bg-highlight);
-			}
-
-			.select-toggle:focus-visible {
-				outline: 2px solid var(--blue);
-				outline-offset: 2px;
-			}
-
-			.select-toggle .icon {
-				width: 18px;
-				height: 18px;
-			}
-
-			/* Row Toggle (button style, matching header) */
-			.row-select-toggle {
-				opacity: 0;
-				transition: opacity 150ms ease;
-			}
-
-			/* Show toggle on row hover or when selected */
-			tr:hover .row-select-toggle,
-			tr.selected .row-select-toggle,
-			.row-select-toggle.is-selected {
-				opacity: 1;
-			}
-
-			/* Selected indicator */
-			.row-select-toggle.is-selected {
-				color: var(--blue);
-			}
-
-			/* Selected Row */
-			tr.selected {
-				background: var(--bg-highlight) !important;
-			}
-
-			tr.selected:hover {
-				background: rgba(41, 46, 66, 0.9) !important;
-			}
-
-			/* Allow text selection everywhere (no row click selection) */
-			tr[data-host-id] .host-name {
-				user-select: text;
-				cursor: text;
-			}
-
-			/* ═══════════════════════════════════════════════════════════════════════════
-			   CLICKABLE COMPARTMENTS (P1020)
-			   ═══════════════════════════════════════════════════════════════════════════ */
-
-			.compartment-btn {
-				appearance: none;
-				border-style: solid;
-				border-color: rgba(232, 236, 245, 0.05);
-				margin: 0;
-				font: inherit;
-				color: inherit;
-				position: relative;
-				display: inline-flex;
-				align-items: center;
-				justify-content: center;
-				width: 29px;
-				height: 29px;
-				padding: 0;
-				background: rgba(0, 0, 0, 0.1);
-				border-radius: 4px;
-				cursor: pointer;
-				transition: all 0.2s ease;
-			}
-
-			.compartment-btn:hover {
-				transform: scale(1.1);
-				background: rgba(0, 0, 0, 0.7);
-			}
-
-			.compartment-btn:active {
-				transform: scale(0.95);
-			}
-
-			.compartment-btn:focus-visible {
-				outline: 2px solid var(--blue);
-				outline-offset: 2px;
-			}
-
-			.compartment-btn .update-icon {
-				position: relative;
-				top: -2px;
-				left: -2px;
-				width: 11px;
-				height: 11px;
-				fill: var(--fg);
-				stroke: var(--fg);
-				color: var(--fg);
-			}
-
-			.compartment-btn.unknown {
-				opacity: 0.6;
-			}
-
-			.compartment-btn.info-only {
-				cursor: help;
-			}
-
-			.compartment-btn.info-only:hover {
-				transform: none;
-				background: rgba(0, 0, 0, 0.5);
-			}
-
-			.compartment-btn.info-only:active {
-				transform: none;
-			}
-
-			.compartment-btn.rate-limited {
-				pointer-events: none;
-				opacity: 0.7;
-			}
-
-			/* ═══════════════════════════════════════════════════════════════════════════
-			   TOAST NOTIFICATIONS (P1020)
-			   ═══════════════════════════════════════════════════════════════════════════ */
-
-			.toast {
-				position: fixed;
-				bottom: 20px;
-				left: 50%;
-				transform: translateX(-50%) translateY(20px);
-				background: var(--bg-elevated);
-				border: 1px solid var(--border);
-				border-radius: 8px;
-				padding: 12px 20px;
-				font-size: 0.875rem;
-				opacity: 0;
-				transition: transform 300ms ease, opacity 300ms ease;
-				z-index: 2000;
-				max-width: 90%;
-				text-align: center;
-			}
-
-			.toast.show {
-				transform: translateX(-50%) translateY(0);
-				opacity: 1;
-			}
-
-			.toast-info {
-				border-color: var(--blue);
-			}
-
-			.toast-error {
-				border-color: var(--red);
-				color: var(--red);
-			}
-
-			.toast-success {
-				border-color: var(--green);
-				color: var(--green);
-			}
-
-			/* ═══════════════════════════════════════════════════════════════════════════
-			   DEPENDENCY DIALOG (P1040)
-			   ═══════════════════════════════════════════════════════════════════════════ */
-
-			.dialog-modal {
-				max-width: 500px;
-				width: 90%;
-				position: relative;
-			}
-
-			.dialog-header {
-				display: flex;
-				align-items: center;
-				gap: 12px;
-				margin-bottom: 16px;
-			}
-
-			.dialog-icon {
-				width: 24px;
-				height: 24px;
-				flex-shrink: 0;
-			}
-
-			.dialog-icon.warning {
-				color: var(--yellow);
-			}
-
-			.dialog-title {
-				font-size: 1.125rem;
-				font-weight: 600;
-				margin: 0;
-			}
-
-			.dialog-body {
-				margin-bottom: 20px;
-			}
-
-			.dialog-message {
-				color: var(--fg-muted);
-				margin: 0 0 16px 0;
-				line-height: 1.5;
-			}
-
-			.dialog-host-list {
-				list-style: none;
-				padding: 0;
-				margin: 0;
-				border: 1px solid var(--border);
-				border-radius: 6px;
-				overflow: hidden;
-				max-height: 200px;
-				overflow-y: auto;
-			}
-
-			.dialog-host-list li {
-				display: flex;
-				justify-content: space-between;
-				align-items: center;
-				padding: 10px 12px;
-				border-bottom: 1px solid var(--border);
-			}
-
-			.dialog-host-list li:last-child {
-				border-bottom: none;
-			}
-
-			.dialog-host-list li.needs-action {
-				background: rgba(250, 204, 21, 0.1);
-			}
-
-			.dialog-host-list .host-name {
-				font-weight: 500;
-			}
-
-			.dialog-host-list .host-status {
-				font-size: 0.8125rem;
-				color: var(--fg-muted);
-			}
-
-			.dialog-footer {
-				display: flex;
-				justify-content: space-between;
-				align-items: center;
-				gap: 12px;
-			}
-
-			.dialog-action-group {
-				display: flex;
-				gap: 8px;
-				flex-wrap: wrap;
-			}
-
-			@media (max-width: 480px) {
-				.dialog-footer {
-					flex-direction: column;
-					align-items: stretch;
-				}
-				.dialog-action-group {
-					justify-content: flex-end;
-				}
-				.btn-cancel {
-					order: 1;
-				}
-			}
-
-			.btn-primary {
-				background: var(--blue);
-				color: var(--bg);
-			}
-
-			.btn-primary:hover {
-				filter: brightness(1.1);
-			}
-
-			.dialog-progress {
-				position: absolute;
-				inset: 0;
-				background: rgba(26, 27, 38, 0.95);
-				display: flex;
-				align-items: center;
-				justify-content: center;
-				border-radius: inherit;
-			}
-
-			.progress-content {
-				display: flex;
-				flex-direction: column;
-				align-items: center;
-				gap: 12px;
-				text-align: center;
-			}
-
-			.progress-content .icon {
-				width: 32px;
-				height: 32px;
-				color: var(--blue);
-			}
-
-			.btn-cancel-small {
-				font-size: 0.8125rem;
-				padding: 4px 12px;
-			}
-
-			/* ═══════════════════════════════════════════════════════════════════════════
-			   CONTEXT BAR - Unified hover preview + selection actions
-			   ═══════════════════════════════════════════════════════════════════════════ */
-
-			/* ═══════════════════════════════════════════════════════════════════════════
-			   CONTEXT BAR - Stacked rows for PR, hover, and selection
-			   ═══════════════════════════════════════════════════════════════════════════ */
-
-			.context-bar {
-				display: flex;
-				flex-direction: column;
-				padding: 0.5rem 1.5rem;
-				background: var(--bg-elevated);
-				border: 1px solid rgba(255, 255, 255, 0.08);
-				border-radius: 8px;
-				gap: 0.375rem;
-				margin: 1rem 0 0 0;
-				min-height: 170px; /* Reserve space for 3 rows */
-			}
-
-			/* When empty, show subtle border outline */
-			.context-bar-empty {
-				border-color: rgba(255, 255, 255, 0.03);
-				background: transparent;
-			}
-
-			.context-bar-empty * {
-				opacity: 0;
-				pointer-events: none;
-			}
-
-			@media (max-width: 768px) {
-				.context-bar {
-					padding: 0.5rem 1rem;
-					min-height: 160px;
-				}
-			}
-
-			/* Each row in the context bar */
-			.context-row {
-				display: flex;
-				align-items: center;
-				justify-content: space-between;
-				padding: 0.5rem 0.75rem;
-				border-radius: 6px;
-				gap: 1rem;
-				min-height: 36px;
-			}
-
-			.context-row-info {
-				display: flex;
-				align-items: center;
-				gap: 0.5rem;
-				flex: 1;
-				min-width: 0;
-			}
-
-			/* Row 1: PR row styling */
-			.context-row-pr {
-				background: rgba(187, 154, 247, 0.08);
-				border: 1px solid rgba(187, 154, 247, 0.25);
-			}
-
-			.context-row-pr .icon-pr {
-				width: 16px;
-				height: 16px;
-				color: var(--purple);
-				flex-shrink: 0;
-			}
-
-			.context-row-pr .pr-label {
-				color: var(--purple);
-				font-weight: 600;
-				font-size: 0.875rem;
-				white-space: nowrap;
-			}
-
-			.context-row-pr .pr-detail {
-				color: var(--fg-muted);
-				font-size: 0.8125rem;
-				overflow: hidden;
-				text-overflow: ellipsis;
-				white-space: nowrap;
-			}
-
-			.btn-merge {
-				display: inline-flex;
-				align-items: center;
-				gap: 0.375rem;
-				padding: 0.375rem 0.75rem;
-				font-size: 0.8125rem;
-				font-weight: 600;
-				background: var(--purple);
-				color: var(--bg);
-				border: none;
-				border-radius: 5px;
-				cursor: pointer;
-				transition: all 150ms;
-				white-space: nowrap;
-			}
-
-			.btn-merge .icon {
-				width: 14px;
-				height: 14px;
-			}
-
-			.btn-merge:hover {
-				filter: brightness(1.1);
-			}
-
-			/* Row 2: Hover row styling */
-			.context-row-hover {
-				background: rgba(125, 211, 252, 0.05);
-				border: 1px solid rgba(125, 211, 252, 0.15);
-				justify-content: flex-start; /* Keep content left-aligned */
-				gap: 0.5rem;
-			}
-
-			.context-row-hover .context-host {
-				color: var(--cyan);
-				font-weight: 600;
-				font-family: 'JetBrains Mono', 'Fira Code', monospace;
-				font-size: 0.875rem;
-				white-space: nowrap;
-				flex-shrink: 0;
-			}
-
-			.context-row-hover .context-host::after {
-				content: ':';
-			}
-
-			.context-row-hover .context-description {
-				color: var(--fg);
-				font-size: 0.875rem;
-			}
-
-			/* Row 3: Selection row styling */
-			.context-row-selection {
-				background: rgba(122, 162, 247, 0.08);
-				border: 1px solid rgba(122, 162, 247, 0.2);
-			}
-
-			.context-row-selection .icon-check {
-				width: 16px;
-				height: 16px;
-				color: var(--blue);
-				flex-shrink: 0;
-			}
-
-			/* Actions in selection row */
-			.context-actions {
-				display: flex;
-				gap: 0.5rem;
-				flex-wrap: wrap;
-				align-items: center;
-			}
-
-			@media (max-width: 768px) {
-				.context-row {
-					flex-direction: column;
-					align-items: stretch;
-					gap: 0.5rem;
-				}
-				.context-actions {
-					justify-content: center;
-				}
-			}
-
-			/* Context Buttons */
-			.btn-context {
-				display: inline-flex;
-				align-items: center;
-				gap: 0.375rem;
-				padding: 0.4rem 0.75rem;
-				font-size: 0.8125rem;
-				font-weight: 500;
-				background: transparent;
-				border: 1px solid var(--border);
-				border-radius: 6px;
-				color: var(--fg);
-				cursor: pointer;
-				transition: all 150ms ease;
-				font-family: inherit;
-			}
-
-			.btn-context:hover:not(:disabled) {
-				background: var(--bg-highlight);
-				border-color: var(--fg-dim);
-			}
-
-			.btn-context:active:not(:disabled) {
-				background: var(--bg);
-			}
-
-			.btn-context:disabled {
-				opacity: 0.4;
-				cursor: not-allowed;
-			}
-
-			.btn-context .icon {
-				width: 14px;
-				height: 14px;
-			}
-
-			@media (max-width: 480px) {
-				.btn-context .btn-label {
-					display: none;
-				}
-				.btn-context {
-					padding: 0.5rem;
-				}
-				.btn-context .icon {
-					width: 18px;
-					height: 18px;
-				}
-			}
-
-			/* DO ALL Button - matches other context buttons but green accent */
-			.btn-do-all {
-				background: transparent;
-				border: 1px solid var(--green);
-				color: var(--green);
-				/* Same padding as .btn-context */
-				padding: 0.4rem 0.75rem;
-				font-weight: 500;
-			}
-
-			.btn-do-all:hover:not(:disabled) {
-				background: var(--green);
-				color: var(--bg);
-			}
-
-			.btn-do-all .icon {
-				width: 14px;
-				height: 14px;
-			}
-
-			.btn-clear {
-				display: inline-flex;
-				align-items: center;
-				justify-content: center;
-				padding: 0.375rem;
-				background: transparent;
-				border: 1px solid transparent;
-				border-radius: 4px;
-				cursor: pointer;
-				color: var(--fg-dark);
-				transition: color 150ms ease, background 150ms ease;
-			}
-
-			.btn-clear:hover {
-				color: var(--red);
-				background: var(--bg-highlight);
-			}
-
-			.btn-clear .icon {
-				width: 18px;
-				height: 18px;
-			}
-
-			/* Alpine.js cloak for transition elements */
-			[x-cloak] {
-				display: none !important;
-			}
-
-			/* ═══════════════════════════════════════════════════════════════════════════
-			   P2700: COMPOSITE TYPE COLUMN
-			   ═══════════════════════════════════════════════════════════════════════════ */
-
-			.col-type {
-				width: 48px;
-				min-width: 48px;
-				max-width: 48px;
-				padding: 0.25rem !important;
-			}
-
-			.type-composite {
-				position: relative;
-				display: inline-block;
-				width: 32px;
-				height: 24px;
-				margin: 0 auto;
-			}
-
-			/* Main device icon - fills most of the space */
-			.type-dev-main {
-				position: absolute;
-				left: 0;
-				top: 50%;
-				transform: translateY(-50%);
+			100% {
 				width: 20px;
 				height: 20px;
-				display: flex;
-				align-items: center;
+				margin: -10px 0 0 -10px;
+				opacity: 0;
+			}
+		}
+
+		/* Offline host dimming */
+		tr.host-offline,
+		.host-card.host-offline {
+			opacity: 0.5;
+		}
+
+		tr.host-offline:hover,
+		.host-card.host-offline:hover {
+			opacity: 0.8;
+		}
+
+		/* Log viewer */
+		.log-panel {
+			margin-top: 1rem;
+			background: var(--bg-dark);
+			border: 1px solid var(--border);
+			border-radius: 6px;
+			overflow: hidden;
+		}
+
+		.log-header {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			padding: 0.5rem 1rem;
+			background: var(--bg-highlight);
+			cursor: pointer;
+		}
+
+		.log-content {
+			max-height: 300px;
+			overflow-y: auto;
+			padding: 0.75rem;
+			font-size: 0.8rem;
+			line-height: 1.4;
+		}
+
+		.log-line {
+			padding: 0.1rem 0;
+			white-space: pre-wrap;
+			word-break: break-all;
+		}
+
+		.log-line.error {
+			color: var(--red);
+		}
+
+		.log-line.success {
+			color: var(--green);
+		}
+
+		/* Progress indicator */
+		.progress-badge {
+			display: inline-flex;
+			align-items: center;
+			gap: 0.3rem;
+			padding: 0.25rem 0.5rem;
+			background: rgba(224, 175, 104, 0.15);
+			border: 1px solid var(--yellow);
+			border-radius: 4px;
+			font-size: 0.75rem;
+			color: var(--yellow);
+		}
+
+		/* Mini progress badge (next to status dot) */
+		.status-with-badge {
+			display: inline-flex;
+			align-items: center;
+			gap: 0.25rem;
+		}
+
+		/* For table cells: use flexbox for consistent status + badge alignment */
+		td.status-cell-with-badge {
+			vertical-align: middle;
+		}
+
+		td.status-cell-with-badge .status-wrapper {
+			display: inline-flex;
+			align-items: center;
+			gap: 0.5rem;
+		}
+
+		.progress-badge-mini {
+			display: inline-flex;
+			align-items: center;
+			padding: 0.15rem 0.3rem;
+			background: rgba(224, 175, 104, 0.15);
+			border: 1px solid var(--yellow);
+			border-radius: 3px;
+			font-size: 0.5rem;
+			color: var(--yellow);
+			line-height: 1;
+			text-transform: uppercase;
+			font-weight: 600;
+		}
+
+		/* Footer */
+		footer {
+			margin-top: 2rem;
+			padding-top: 1rem;
+			border-top: 1px solid var(--border);
+			color: var(--fg-dark);
+			font-size: 0.75rem;
+		}
+
+		.site-footer {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			flex-wrap: wrap;
+			gap: 0.5rem;
+		}
+
+		.footer-left,
+		.footer-right {
+			display: flex;
+			align-items: center;
+			gap: 0.5rem;
+			flex-wrap: wrap;
+		}
+
+		.footer-sep {
+			color: var(--fg-gutter);
+		}
+
+		.footer-link {
+			display: inline-flex;
+			align-items: center;
+			gap: 0.2rem;
+			color: var(--fg-dark);
+			text-decoration: none;
+			transition: color 0.2s;
+		}
+
+		.footer-link:hover {
+			color: var(--blue);
+		}
+
+		.footer-link .icon {
+			width: 12px;
+			height: 12px;
+		}
+
+		.made-with {
+			display: flex;
+			align-items: center;
+			gap: 0.3rem;
+		}
+
+		.made-with a {
+			color: var(--blue);
+			text-decoration: none;
+		}
+
+		.made-with a:hover {
+			text-decoration: underline;
+		}
+
+		.made-with .heart {
+			color: var(--red);
+			animation: heartbeat 1.5s ease-in-out infinite;
+		}
+
+		@keyframes heartbeat {
+
+			0%,
+			100% {
+				transform: scale(1);
+			}
+
+			50% {
+				transform: scale(1.15);
+			}
+		}
+
+		@media (max-width: 640px) {
+			.site-footer {
+				flex-direction: column;
+				text-align: center;
+			}
+
+			.footer-left,
+			.footer-right {
 				justify-content: center;
-				z-index: 1;
 			}
+		}
 
-			.type-dev-main .icon,
-			.type-dev-main .device-icon {
-				width: 18px;
-				height: 18px;
-				color: var(--type-color, var(--fg));
-				fill: var(--type-color, var(--fg));
-				stroke: var(--type-color, var(--fg));
-			}
+		/* Stats bar */
+		.stats-bar {
+			display: flex;
+			gap: 1rem;
+			margin-bottom: 1rem;
+			flex-wrap: wrap;
+		}
 
-			/* Location icon - top-right superscript (moved 2px down from original) */
-			.type-loc-super {
-				position: absolute;
-				top: 1px;
-				right: 0;
-				width: 12px;
-				height: 12px;
-				display: flex;
-				align-items: center;
-				justify-content: center;
-				z-index: 2;
-			}
+		.stat {
+			display: flex;
+			align-items: center;
+			gap: 0.5rem;
+			padding: 0.5rem 1rem;
+			background: var(--bg-float);
+			border: 1px solid var(--border);
+			border-radius: 6px;
+			font-size: 0.85rem;
+		}
 
-			.type-loc-super .icon,
-			.type-loc-super .location-icon {
-				width: 9px;
-				height: 9px;
-				color: var(--type-color, var(--fg));
-				fill: var(--type-color, var(--fg));
-				stroke: var(--type-color, var(--fg));
-			}
+		.stat-value {
+			font-weight: 600;
+		}
 
-			/* OS icon - bottom-right subscript (moved 2px up from original) */
-			.type-os-sub {
-				position: absolute;
-				bottom: 1px;
-				right: 0;
-				width: 12px;
-				height: 12px;
-				display: flex;
-				align-items: center;
-				justify-content: center;
-				z-index: 2;
-			}
+		.stat-value.online {
+			color: var(--green);
+		}
 
-			.type-os-sub .icon,
-			.type-os-sub .type-icon {
-				width: 9px;
-				height: 9px;
-				color: var(--type-color, var(--fg));
-				fill: var(--type-color, var(--fg));
-				stroke: var(--type-color, var(--fg));
-			}
+		.stat-value.offline {
+			color: var(--fg-dark);
+		}
 
-			/* Hover effect on composite type */
-			.type-composite:hover .type-dev-main .icon,
-			.type-composite:hover .type-dev-main .device-icon {
-				opacity: 1;
-			}
+		/* Connection indicator */
+		.connection-indicator {
+			display: inline-flex;
+			align-items: center;
+			gap: 0.25rem;
+			font-size: 0.75rem;
+			color: var(--fg-dark);
+		}
 
-			.type-composite:hover .type-loc-super .icon,
-			.type-composite:hover .type-loc-super .location-icon,
-			.type-composite:hover .type-os-sub .icon,
-			.type-composite:hover .type-os-sub .type-icon {
+		.connection-indicator .status-dot {
+			width: 6px;
+			height: 6px;
+			min-width: 6px;
+			min-height: 6px;
+			background: currentColor;
+			margin: 0;
+		}
+
+		.connection-indicator.connected {
+			color: var(--green);
+		}
+
+		.connection-indicator.disconnected {
+			color: var(--red);
+		}
+
+
+		/* Chevron icon */
+		.chevron {
+			transition: transform 0.2s ease;
+		}
+
+		.expanded .chevron {
+			transform: rotate(180deg);
+		}
+
+		/* Hide utility */
+		.hidden {
+			display: none !important;
+		}
+
+		/* Icon styles */
+		.icon {
+			width: 14px;
+			height: 14px;
+			flex-shrink: 0;
+		}
+
+		.btn .icon {
+			width: 12px;
+			height: 12px;
+		}
+
+		.metric-icon {
+			width: 10px;
+			height: 10px;
+			opacity: 0.7;
+			flex-shrink: 0;
+			margin-right: -10px;
+		}
+
+		/* Metrics display */
+		td.metrics-cell {
+			font-size: 0.85rem;
+			font-family: var(--font-mono);
+			vertical-align: middle;
+		}
+
+		td.metrics-cell>span,
+		span.metrics-cell {
+			display: inline-flex;
+			align-items: center;
+			gap: 25px;
+		}
+
+		.metric {
+			display: inline-flex;
+			align-items: center;
+			gap: 0;
+			color: var(--fg);
+		}
+
+		.metric-val {
+			display: inline-block;
+			width: 4ch;
+			text-align: right;
+		}
+
+		.metric.high {
+			color: var(--red);
+			font-weight: 600;
+		}
+
+		.metric.high .metric-icon {
+			opacity: 1;
+		}
+
+		.metrics-na {
+			color: var(--fg-gutter);
+		}
+
+		/* Last seen time colors */
+		.last-seen-ok {
+			color: var(--fg);
+		}
+
+		.last-seen-warn {
+			color: var(--yellow);
+		}
+
+		.last-seen-stale {
+			color: var(--red);
+		}
+
+		/* Update Status Three-Compartment Indicator (P5000) */
+		.update-status {
+			display: inline-flex;
+			gap: 2px;
+		}
+
+		.update-compartment {
+			position: relative;
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			width: 24px;
+			height: 24px;
+			background: #374151;
+			border-radius: 4px;
+			cursor: pointer;
+			transition: all 0.2s ease;
+		}
+
+		.update-compartment:hover {
+			background: #4b5563;
+		}
+
+		.update-compartment .update-icon {
+			position: relative;
+			top: -2px;
+			left: -2px;
+			width: 11px;
+			height: 11px;
+			fill: #1f2937;
+			stroke: #1f2937;
+			color: #1f2937;
+		}
+
+		/* P5100: Simplified - icon always dark, only indicator dot shows status */
+		/* Unknown state: same background, slightly dimmed to hint at stale data */
+		.update-compartment.unknown {
+			opacity: 0.6;
+		}
+
+
+		/* Flake Update Banner (P5300) */
+		.flake-update-banner {
+			background: linear-gradient(135deg, #1e3a5f, #0d1a2d);
+			border: 1px solid #3b82f6;
+			border-radius: 8px;
+			margin: 0 1rem 1rem;
+			padding: 0;
+			box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
+		}
+
+		.flake-update-content {
+			display: flex;
+			align-items: center;
+			gap: 1rem;
+			padding: 0.75rem 1rem;
+			flex-wrap: wrap;
+		}
+
+		.flake-update-icon {
+			font-size: 1.25rem;
+		}
+
+		.flake-update-text {
+			flex: 1;
+			min-width: 200px;
+			color: #e2e8f0;
+		}
+
+		.flake-update-text a {
+			color: #60a5fa;
+			text-decoration: none;
+		}
+
+		.flake-update-text a:hover {
+			text-decoration: underline;
+		}
+
+		.flake-update-success {
+			border-color: #22c55e;
+			background: linear-gradient(135deg, #14532d, #052e16);
+		}
+
+		.flake-update-error {
+			border-color: #ef4444;
+			background: linear-gradient(135deg, #7f1d1d, #450a0a);
+		}
+
+		.flake-update-progress {
+			animation: flake-update-pulse 2s ease-in-out infinite;
+		}
+
+		.flake-update-spinner {
+			animation: flake-update-spin 1.5s linear infinite;
+		}
+
+		@keyframes flake-update-pulse {
+
+			0%,
+			100% {
 				opacity: 0.9;
 			}
 
-			/* ═══════════════════════════════════════════════════════════════════════════
-			   P2700: STATUS PROGRESS COLUMN
-			   ═══════════════════════════════════════════════════════════════════════════ */
+			50% {
+				opacity: 1;
+			}
+		}
 
-			.col-status {
-				min-width: 180px;
-				padding: 0.5rem !important;
+		@keyframes flake-update-spin {
+			from {
+				transform: rotate(0deg);
 			}
 
-			.status-progress-cell {
-				padding: 0.25rem 0.5rem;
+			to {
+				transform: rotate(360deg);
 			}
+		}
 
-			.status-progress {
-				display: flex;
-				align-items: center;
-				gap: 0.5rem;
-				font-family: 'JetBrains Mono', 'Fira Code', monospace;
-				font-size: 0.7rem;
-				letter-spacing: 0.05em;
-			}
+		.btn-sm {
+			padding: 0.35rem 0.75rem;
+			font-size: 0.8rem;
+		}
 
-			.progress-segment {
-				display: flex;
-				gap: 1px;
-			}
+		@keyframes pulse-glow {
 
-			.progress-dot {
-				display: inline-block;
-				width: 1em;
-				text-align: center;
-				transition: all 0.2s ease;
-			}
-
-			/* Dot states */
-			.dot-pending {
-				color: var(--fg-gutter);
+			0%,
+			100% {
 				opacity: 0.3;
 			}
 
-			.dot-complete {
-				color: var(--green);
-			}
-
-			.dot-idle {
-				color: var(--green);
-				opacity: 0.2;
-			}
-
-			.dot-error {
-				color: var(--red);
-			}
-
-			.dot-in-progress {
-				color: var(--cyan);
-				animation: shimmer 1.2s ease-in-out infinite;
-				text-shadow: 0 0 8px var(--cyan);
-			}
-
-			/* PS5-style shimmer animation */
-			@keyframes shimmer {
-				0% {
-					opacity: 0.4;
-					transform: scale(0.95);
-				}
-				50% {
-					opacity: 1;
-					transform: scale(1.05);
-				}
-				100% {
-					opacity: 0.4;
-					transform: scale(0.95);
-				}
-			}
-
-			.tests-dash {
-				color: var(--fg-gutter);
-				opacity: 0.5;
-			}
-
-			/* Segment hover hints */
-			.progress-segment:hover .progress-dot {
+			50% {
 				opacity: 1;
 			}
+		}
 
-			.progress-segment:hover .dot-idle {
-				opacity: 0.6;
+		@keyframes indicator-pulse {
+
+			0%,
+			100% {
+				opacity: 0.4;
 			}
-		</style>
-	</head>
-	<body data-csrf-token={ csrfToken }>
-		<!-- SVG icon definitions -->
-		<svg class="svg-defs" aria-hidden="true" style="display: none;">
-			<!-- OS Types -->
-			<symbol id="icon-nixos" viewBox="0 0 24 24">
-				<path fill="currentColor" d="M12 2L2.5 7v10L12 22l9.5-5V7L12 2zm0 2.16l6.86 3.62-2.14 1.13-4.72-2.5-4.72 2.5-2.14-1.13L12 4.16zM5.5 8.84l2.14 1.13v5l4.36 2.3 4.36-2.3v-5l2.14-1.13v7.32L12 19.84l-6.5-3.68V8.84z"/>
-			</symbol>
-			<symbol id="icon-apple" viewBox="0 0 24 24">
-				<path fill="currentColor" d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
-			</symbol>
-			<!-- Locations -->
-			<symbol id="icon-cloud" viewBox="0 0 24 24">
-				<path fill="currentColor" d="M19.35 10.04A7.49 7.49 0 0 0 12 4C9.11 4 6.6 5.64 5.35 8.04A5.994 5.994 0 0 0 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96z"/>
-			</symbol>
-			<symbol id="icon-home" viewBox="0 0 24 24">
-				<path fill="currentColor" d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
-			</symbol>
-			<symbol id="icon-office" viewBox="0 0 24 24">
-				<path fill="currentColor" d="M12 7V3H2v18h20V7H12zM6 19H4v-2h2v2zm0-4H4v-2h2v2zm0-4H4V9h2v2zm0-4H4V5h2v2zm4 12H8v-2h2v2zm0-4H8v-2h2v2zm0-4H8V9h2v2zm0-4H8V5h2v2zm10 12h-8v-2h2v-2h-2v-2h2v-2h-2V9h8v10zm-2-8h-2v2h2v-2zm0 4h-2v2h2v-2z"/>
-			</symbol>
-			<!-- Device Types -->
-			<symbol id="icon-server" viewBox="0 0 24 24">
-				<path fill="currentColor" d="M2 2h20v6H2V2zm2 2v2h16V4H4zm-2 8h20v6H2v-6zm2 2v2h16v-2H4zm-2 8h20v2H2v-2z"/>
-			</symbol>
-			<symbol id="icon-desktop" viewBox="0 0 24 24">
-				<path fill="currentColor" d="M21 2H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h7v2H8v2h8v-2h-2v-2h7c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H3V4h18v12z"/>
-			</symbol>
-			<symbol id="icon-laptop" viewBox="0 0 24 24">
-				<path fill="currentColor" d="M20 18c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2H0v2h24v-2h-4zM4 6h16v10H4V6z"/>
-			</symbol>
-			<symbol id="icon-game" viewBox="0 0 24 24">
-				<path fill="currentColor" d="M21 6H3c-1.1 0-2 .9-2 2v8c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-10 7H8v3H6v-3H3v-2h3V8h2v3h3v2zm4.5 2c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm4-3c-.83 0-1.5-.67-1.5-1.5S18.67 9 19.5 9s1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/>
-			</symbol>
-			<!-- Actions -->
-			<symbol id="icon-download" viewBox="0 0 24 24">
-				<path fill="currentColor" d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
-			</symbol>
-			<symbol id="icon-refresh" viewBox="0 0 24 24">
-				<path fill="currentColor" d="M17.65 6.35A7.958 7.958 0 0 0 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0 1 12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
-			</symbol>
-			<symbol id="icon-flask" viewBox="0 0 24 24">
-				<path fill="currentColor" d="M6 22a3 3 0 0 1-3-3c0-.6.18-1.16.5-1.63L9 7.81V6a1 1 0 0 1-1-1V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v1a1 1 0 0 1-1 1v1.81l5.5 9.56c.32.47.5 1.03.5 1.63a3 3 0 0 1-3 3H6zm1.77-6h8.46l-3.23-5.6V6h-2v4.4L7.77 16z"/>
-			</symbol>
-			<symbol id="icon-stop" viewBox="0 0 24 24">
-				<path fill="currentColor" d="M6 6h12v12H6z"/>
-			</symbol>
-			<symbol id="icon-plus" viewBox="0 0 24 24">
-				<path fill="currentColor" d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
-			</symbol>
-			<symbol id="icon-trash" viewBox="0 0 24 24">
-				<path fill="currentColor" d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
-			</symbol>
-			<symbol id="icon-more" viewBox="0 0 24 24">
-				<path fill="currentColor" d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
-			</symbol>
-			<!-- Fleet/grid icon for bulk actions -->
-			<symbol id="icon-fleet" viewBox="0 0 24 24">
-				<rect x="3" y="3" width="7" height="7" rx="1" fill="currentColor"/>
-				<rect x="14" y="3" width="7" height="7" rx="1" fill="currentColor"/>
-				<rect x="3" y="14" width="7" height="7" rx="1" fill="currentColor"/>
-				<rect x="14" y="14" width="7" height="7" rx="1" fill="currentColor"/>
-			</symbol>
-			<symbol id="icon-check" viewBox="0 0 24 24">
-				<path fill="currentColor" d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
-			</symbol>
-			<symbol id="icon-chevron" viewBox="0 0 24 24">
-				<path fill="currentColor" d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/>
-			</symbol>
-			<symbol id="icon-file" viewBox="0 0 24 24">
-				<path fill="currentColor" d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/>
-			</symbol>
-			<!-- Update Status Icons (P5000) -->
-			<!-- Git icon - branch with connecting lines -->
-			<symbol id="icon-git-branch" viewBox="0 0 24 24">
-				<circle cx="7" cy="5" r="2" stroke="currentColor" stroke-width="2" fill="none"/>
-				<circle cx="7" cy="19" r="2" stroke="currentColor" stroke-width="2" fill="none"/>
-				<circle cx="17" cy="12" r="2" stroke="currentColor" stroke-width="2" fill="none"/>
-				<!-- Vertical line from top to bottom circle -->
-				<path stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M7 7v10"/>
-				<!-- Branch line from main to side circle -->
-				<path stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M7 9c0 2 3 3 8 3"/>
-			</symbol>
-			<!-- P2500: Git pull request icon for PR section in context bar -->
-			<symbol id="icon-git-pull-request" viewBox="0 0 24 24">
-				<circle cx="6" cy="6" r="3" stroke="currentColor" stroke-width="2" fill="none"/>
-				<circle cx="6" cy="18" r="3" stroke="currentColor" stroke-width="2" fill="none"/>
-				<path stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M6 9v6"/>
-				<circle cx="18" cy="18" r="3" stroke="currentColor" stroke-width="2" fill="none"/>
-				<path stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M18 9v6M18 9a3 3 0 0 0-3-3h-4"/>
-			</symbol>
-			<!-- P2500: Git merge icon for PR merge button -->
-			<symbol id="icon-git-merge" viewBox="0 0 24 24">
-				<circle cx="18" cy="18" r="3" stroke="currentColor" stroke-width="2" fill="none"/>
-				<circle cx="6" cy="6" r="3" stroke="currentColor" stroke-width="2" fill="none"/>
-				<path stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M6 21V9a9 9 0 0 0 9 9"/>
-			</symbol>
-			<symbol id="icon-lock" viewBox="0 0 24 24">
-				<path fill="currentColor" d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/>
-			</symbol>
-			<!-- Metrics -->
-			<symbol id="icon-cpu" viewBox="0 0 24 24">
-				<path fill="currentColor" d="M6 18h12V6H6v12zm4-8h4v4h-4v-4zM1 9h2V7H1v2zm0 4h2v-2H1v2zm0 4h2v-2H1v2zm0-12h2V3H1v2zm20 8h2v-2h-2v2zm0 4h2v-2h-2v2zM21 5h2V3h-2v2zm0 12h2v-2h-2v2zm0 4h2v-2h-2v2zM9 1v2h2V1H9zm4 0v2h2V1h-2zm0 20v2h2v-2h-2zM9 21v2h2v-2H9zm8 0v2h2v-2h-2zM5 1v2h2V1H5zM5 21v2h2v-2H5zM17 1v2h2V1h-2z"/>
-			</symbol>
-			<symbol id="icon-ram" viewBox="0 0 24 24">
-				<path fill="currentColor" d="M2 7v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2zm3 2h2v4H5V9zm4 0h2v4H9V9zm4 0h2v4h-2V9zm4 0h2v4h-2V9z"/>
-			</symbol>
-			<!-- Branding -->
-			<symbol id="icon-github" viewBox="0 0 24 24">
-				<path fill="currentColor" d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33.85 0 1.71.11 2.5.33 1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2z"/>
-			</symbol>
-			<symbol id="icon-heart" viewBox="0 0 24 24">
-				<path fill="currentColor" d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
-			</symbol>
-			<symbol id="icon-license" viewBox="0 0 24 24">
-				<path fill="currentColor" d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/>
-			</symbol>
-			<!-- P1030: Selection icons -->
-			<symbol id="icon-square" viewBox="0 0 24 24">
-				<rect x="3" y="3" width="18" height="18" rx="2" ry="2" fill="none" stroke="currentColor" stroke-width="2"></rect>
-			</symbol>
-			<symbol id="icon-check-square" viewBox="0 0 24 24">
-				<rect x="3" y="3" width="18" height="18" rx="2" ry="2" fill="none" stroke="currentColor" stroke-width="2"></rect>
-				<polyline points="9 11 12 14 22 4" fill="none" stroke="currentColor" stroke-width="2"></polyline>
-			</symbol>
-			<symbol id="icon-minus-square" viewBox="0 0 24 24">
-				<rect x="3" y="3" width="18" height="18" rx="2" ry="2" fill="none" stroke="currentColor" stroke-width="2"></rect>
-				<line x1="8" y1="12" x2="16" y2="12" stroke="currentColor" stroke-width="2"></line>
-			</symbol>
-			<!-- P1015: X icon for clear selection -->
-			<symbol id="icon-x" viewBox="0 0 24 24">
-				<line x1="18" y1="6" x2="6" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"></line>
-				<line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"></line>
-			</symbol>
-			<!-- P1010: Action Bar icons -->
-			<symbol id="icon-play" viewBox="0 0 24 24">
-				<polygon points="5 3 19 12 5 21 5 3" fill="currentColor"></polygon>
-			</symbol>
-			<!-- P1040: Alert triangle for dependency dialog -->
-			<symbol id="icon-alert-triangle" viewBox="0 0 24 24">
-				<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
-				<line x1="12" y1="9" x2="12" y2="13" stroke="currentColor" stroke-width="2" stroke-linecap="round"></line>
-				<line x1="12" y1="17" x2="12.01" y2="17" stroke="currentColor" stroke-width="2" stroke-linecap="round"></line>
-			</symbol>
-			<!-- P1060: Dropdown menu icons -->
-			<symbol id="icon-copy" viewBox="0 0 24 24">
-				<rect x="9" y="9" width="13" height="13" rx="2" ry="2" fill="none" stroke="currentColor" stroke-width="2"></rect>
-				<path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" fill="none" stroke="currentColor" stroke-width="2"></path>
-			</symbol>
-			<symbol id="icon-terminal" viewBox="0 0 24 24">
-				<polyline points="4 17 10 11 4 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></polyline>
-				<line x1="12" y1="19" x2="20" y2="19" stroke="currentColor" stroke-width="2" stroke-linecap="round"></line>
-			</symbol>
-			<symbol id="icon-more-vertical" viewBox="0 0 24 24">
-				<circle cx="12" cy="12" r="1.5" fill="currentColor"></circle>
-				<circle cx="12" cy="5" r="1.5" fill="currentColor"></circle>
-				<circle cx="12" cy="19" r="1.5" fill="currentColor"></circle>
-			</symbol>
-			<symbol id="icon-loader" viewBox="0 0 24 24">
-				<line x1="12" y1="2" x2="12" y2="6" stroke="currentColor" stroke-width="2" stroke-linecap="round"></line>
-				<line x1="12" y1="18" x2="12" y2="22" stroke="currentColor" stroke-width="2" stroke-linecap="round"></line>
-				<line x1="4.93" y1="4.93" x2="7.76" y2="7.76" stroke="currentColor" stroke-width="2" stroke-linecap="round"></line>
-				<line x1="16.24" y1="16.24" x2="19.07" y2="19.07" stroke="currentColor" stroke-width="2" stroke-linecap="round"></line>
-				<line x1="2" y1="12" x2="6" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"></line>
-				<line x1="18" y1="12" x2="22" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"></line>
-				<line x1="4.93" y1="19.07" x2="7.76" y2="16.24" stroke="currentColor" stroke-width="2" stroke-linecap="round"></line>
-				<line x1="16.24" y1="7.76" x2="19.07" y2="4.93" stroke="currentColor" stroke-width="2" stroke-linecap="round"></line>
-			</symbol>
-			<symbol id="icon-refresh-cw" viewBox="0 0 24 24">
-				<polyline points="23 4 23 10 17 10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></polyline>
-				<polyline points="1 20 1 14 7 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></polyline>
-				<path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
-			</symbol>
-			<!-- P2950: Palette icon for color picker -->
-			<symbol id="icon-palette" viewBox="0 0 24 24">
-				<circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"></circle>
-				<circle cx="12" cy="7" r="1.5" fill="currentColor"></circle>
-				<circle cx="7.5" cy="10.5" r="1.5" fill="currentColor"></circle>
-				<circle cx="8.5" cy="15" r="1.5" fill="currentColor"></circle>
-				<circle cx="16.5" cy="10.5" r="1.5" fill="currentColor"></circle>
-				<circle cx="15" cy="15" r="2" fill="currentColor"></circle>
-			</symbol>
-		</svg>
-		<div class="container">
-			{ children... }
-		</div>
-	</body>
-	</html>
+
+			50% {
+				opacity: 1;
+			}
+		}
+
+		/* Compartment Status Indicator (P5010) */
+		.compartment-indicator {
+			position: absolute;
+			bottom: 4px;
+			right: 3px;
+			width: 4px;
+			height: 4px;
+			border-radius: 50%;
+			pointer-events: none;
+		}
+
+		/* OK state (green) - 3D gradient */
+		.compartment-indicator--ok {
+			background: linear-gradient(to bottom,
+					hsl(142, 71%, 55%),
+					hsl(142, 71%, 35%));
+			box-shadow: 0 0 1px hsla(142, 71%, 45%, 0.5);
+		}
+
+		/* Warning/outdated state (yellow) - 3D gradient + pulse */
+		.compartment-indicator--warning {
+			background: linear-gradient(to bottom,
+					hsl(45, 90%, 60%),
+					hsl(45, 90%, 40%));
+			box-shadow: 0 0 1px hsla(45, 90%, 50%, 0.5);
+			animation: indicator-pulse 2s ease-in-out infinite;
+		}
+
+		/* Error state (red) - 3D gradient + pulse */
+		.compartment-indicator--error {
+			background: linear-gradient(to bottom,
+					hsl(0, 70%, 60%),
+					hsl(0, 70%, 40%));
+			box-shadow: 0 0 1px hsla(0, 70%, 50%, 0.5);
+			animation: indicator-pulse 2s ease-in-out infinite;
+		}
+
+		/* Unknown state (gray) - subtle */
+		.compartment-indicator--unknown {
+			background: linear-gradient(to bottom,
+					hsl(220, 10%, 50%),
+					hsl(220, 10%, 35%));
+			box-shadow: 0 0 1px hsla(220, 10%, 40%, 0.3);
+			opacity: 0.6;
+		}
+
+		/* Action Dropdown (P4380) */
+		.action-buttons {
+			display: flex;
+			gap: 0.25rem;
+			align-items: center;
+		}
+
+		.dropdown {
+			position: relative;
+			display: inline-block;
+		}
+
+		.btn-more {
+			padding: 0.4rem;
+			margin-left: 10px;
+			min-width: 30px;
+			min-height: 30px;
+			height: 30px;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+		}
+
+		/* Stop button - replaces cmd buttons when command running */
+		.btn-stop {
+			background: var(--red);
+			color: white;
+			border: none;
+			border-radius: 4px;
+			padding: 0.25rem 0.5rem;
+			cursor: pointer;
+			display: flex;
+			align-items: center;
+			gap: 0.25rem;
+			font-size: 0.75rem;
+		}
+
+		.btn-stop:hover {
+			background: hsl(0, 70%, 50%);
+		}
+
+		/* P7000: PR indicator on Lock compartment */
+		.update-compartment.has-pr {
+			position: relative;
+		}
+
+		.update-compartment.has-pr::after {
+			content: "";
+			position: absolute;
+			top: -2px;
+			right: -2px;
+			width: 6px;
+			height: 6px;
+			background: var(--color-blue);
+			border-radius: 50%;
+		}
+
+		.dropdown-menu {
+			position: absolute;
+			right: 0;
+			top: 100%;
+			margin-top: 4px;
+			background: var(--bg-dark);
+			border: 1px solid var(--border);
+			border-radius: 6px;
+			min-width: 160px;
+			box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+			z-index: 9999;
+		}
+
+		/* Header dropdown (id-based) starts hidden, uses .open class */
+		#bulk-actions-menu {
+			display: none;
+		}
+
+		#bulk-actions-menu.open {
+			display: block;
+		}
+
+		/* x-cloak hides Alpine elements until initialized */
+		[x-cloak] {
+			display: none !important;
+		}
+
+		/* Bulk Actions dropdown in header */
+		.bulk-actions-dropdown {
+			position: relative;
+		}
+
+		.bulk-actions-dropdown .dropdown-menu {
+			right: auto;
+			left: 0;
+		}
+
+		.dropdown-item {
+			display: flex;
+			align-items: center;
+			gap: 0.5rem;
+			padding: 0.5rem 0.75rem;
+			cursor: pointer;
+			width: 100%;
+			background: none;
+			border: none;
+			color: var(--fg);
+			font-size: 0.85rem;
+			font-family: inherit;
+			text-align: left;
+		}
+
+		.dropdown-item:hover {
+			background: var(--bg-highlight);
+		}
+
+		.dropdown-item.danger {
+			color: var(--red);
+		}
+
+		.dropdown-item.danger:hover {
+			background: rgba(247, 118, 142, 0.1);
+		}
+
+		.dropdown-item:disabled {
+			opacity: 0.5;
+			cursor: not-allowed;
+		}
+
+		.dropdown-item .icon {
+			width: 16px;
+			height: 16px;
+			flex-shrink: 0;
+			color: var(--fg-muted);
+		}
+
+		.dropdown-item:hover:not(:disabled) .icon {
+			color: var(--fg);
+		}
+
+		.dropdown-divider {
+			height: 1px;
+			background: var(--border);
+			margin: 0.25rem 0;
+			border: none;
+		}
+
+		/* P1060: Dropdown toggle button */
+		.col-menu {
+			width: 48px;
+			min-width: 48px;
+			text-align: center;
+			padding: 0 !important;
+		}
+
+		.dropdown-toggle {
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			width: 28px;
+			height: 28px;
+			padding: 0;
+			background: transparent;
+			border: 1px solid var(--border);
+			border-radius: 4px;
+			color: var(--fg-muted);
+			cursor: pointer;
+			transition: all 150ms ease;
+		}
+
+		.dropdown-toggle:hover {
+			color: var(--fg);
+			background: var(--bg-highlight);
+			border-color: var(--fg-dim);
+		}
+
+		.dropdown-toggle:focus-visible {
+			outline: 2px solid var(--blue);
+			outline-offset: 2px;
+		}
+
+		.dropdown-toggle .icon {
+			width: 16px;
+			height: 16px;
+		}
+
+		/* Modals (P4390) */
+		.modal-overlay {
+			display: none;
+			position: fixed;
+			inset: 0;
+			background: rgba(0, 0, 0, 0.6);
+			z-index: 10000;
+			align-items: center;
+			justify-content: center;
+		}
+
+		.modal-overlay.open {
+			display: flex;
+		}
+
+		.modal {
+			background: var(--bg-dark);
+			border: 1px solid var(--border);
+			border-radius: 8px;
+			padding: 1.5rem;
+			max-width: 400px;
+			width: 90%;
+			box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+		}
+
+		.modal-wide {
+			max-width: 500px;
+		}
+
+		.modal-title {
+			font-size: 1.1rem;
+			font-weight: 600;
+			margin-bottom: 1rem;
+			color: var(--fg);
+		}
+
+		.modal-body {
+			margin-bottom: 1.5rem;
+			color: var(--fg-dark);
+		}
+
+		.modal-actions {
+			display: flex;
+			gap: 0.5rem;
+			justify-content: flex-end;
+		}
+
+		.modal-btn {
+			padding: 0.5rem 1rem;
+			border-radius: 6px;
+			font-size: 0.85rem;
+			font-family: inherit;
+			cursor: pointer;
+			transition: all 0.2s ease;
+		}
+
+		.modal-btn-cancel {
+			background: var(--bg-highlight);
+			border: 1px solid var(--border);
+			color: var(--fg);
+		}
+
+		.modal-btn-cancel:hover {
+			background: var(--bg);
+		}
+
+		.modal-btn-primary {
+			background: var(--blue);
+			border: 1px solid var(--blue);
+			color: var(--bg);
+		}
+
+		.modal-btn-primary:hover {
+			background: #8aacf7;
+		}
+
+		.modal-btn-danger {
+			background: rgba(247, 118, 142, 0.15);
+			border: 1px solid rgba(247, 118, 142, 0.3);
+			color: var(--red);
+		}
+
+		.modal-btn-danger:hover {
+			background: rgba(247, 118, 142, 0.25);
+		}
+
+		/* Form styles for modals */
+		.form-group {
+			margin-bottom: 1rem;
+		}
+
+		.form-group label {
+			display: block;
+			margin-bottom: 0.25rem;
+			font-size: 0.85rem;
+			color: var(--fg-dark);
+		}
+
+		.form-group input,
+		.form-group select {
+			width: 100%;
+			padding: 0.5rem;
+			background: var(--bg);
+			border: 1px solid var(--border);
+			border-radius: 4px;
+			color: var(--fg);
+			font-family: inherit;
+			font-size: 0.9rem;
+		}
+
+		.form-group input:focus,
+		.form-group select:focus {
+			outline: none;
+			border-color: var(--blue);
+		}
+
+		.form-row {
+			display: grid;
+			grid-template-columns: 1fr 1fr;
+			gap: 1rem;
+		}
+
+		/* P2950: Color Picker Styles */
+		.color-picker-host {
+			margin-bottom: 1rem;
+			color: var(--fg-dark);
+		}
+
+		.color-picker-host code {
+			color: var(--blue);
+			font-weight: 600;
+		}
+
+		.color-presets {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 0.5rem;
+		}
+
+		.color-preset {
+			width: 36px;
+			height: 36px;
+			border: 2px solid transparent;
+			border-radius: 6px;
+			padding: 2px;
+			cursor: pointer;
+			background: var(--bg);
+			transition: all 0.15s ease;
+		}
+
+		.color-preset:hover {
+			border-color: var(--fg-dark);
+		}
+
+		.color-preset.selected {
+			border-color: var(--blue);
+			box-shadow: 0 0 0 2px rgba(122, 162, 247, 0.3);
+		}
+
+		.color-swatch {
+			display: block;
+			width: 100%;
+			height: 100%;
+			border-radius: 4px;
+		}
+
+		.custom-color-row {
+			display: flex;
+			gap: 0.75rem;
+			align-items: center;
+		}
+
+		.custom-color-row input[type="color"] {
+			width: 48px;
+			height: 36px;
+			padding: 0;
+			border: 1px solid var(--border);
+			border-radius: 6px;
+			cursor: pointer;
+			background: transparent;
+		}
+
+		.custom-color-row input[type="color"]::-webkit-color-swatch-wrapper {
+			padding: 2px;
+		}
+
+		.custom-color-row input[type="color"]::-webkit-color-swatch {
+			border: none;
+			border-radius: 4px;
+		}
+
+		.custom-color-row input[type="text"] {
+			width: 100px;
+			font-family: var(--mono-font, monospace);
+			text-transform: uppercase;
+		}
+
+		.color-preview-row {
+			display: flex;
+			height: 32px;
+			border-radius: 6px;
+			overflow: hidden;
+		}
+
+		.preview-segment {
+			flex: 1;
+		}
+
+		/* Bulk Actions */
+		.bulk-actions {
+			display: inline-flex;
+			gap: 0.5rem;
+			margin-left: 1rem;
+		}
+
+		.bulk-btn {
+			padding: 0.4rem 0.75rem;
+			font-size: 0.75rem;
+		}
+
+		/* Loading spinner */
+		.spinner {
+			width: 16px;
+			height: 16px;
+			border: 2px solid var(--border);
+			border-top-color: var(--blue);
+			border-radius: 50%;
+			animation: spin 0.8s linear infinite;
+		}
+
+		@keyframes spin {
+			to {
+				transform: rotate(360deg);
+			}
+		}
+
+		/* ═══════════════════════════════════════════════════════════════════════════
+			   ROW SELECTION (P1030)
+			   ═══════════════════════════════════════════════════════════════════════════ */
+
+		/* Checkbox Column */
+		.col-select {
+			width: 40px;
+			min-width: 40px;
+			max-width: 40px;
+			padding: 0 8px !important;
+			text-align: center;
+		}
+
+		/* Header Toggle */
+		.select-toggle {
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			padding: 4px;
+			background: transparent;
+			border: none;
+			border-radius: 4px;
+			cursor: pointer;
+			color: var(--fg-dark);
+			transition: color 150ms ease, background 150ms ease;
+		}
+
+		.select-toggle:hover {
+			color: var(--fg);
+			background: var(--bg-highlight);
+		}
+
+		.select-toggle:focus-visible {
+			outline: 2px solid var(--blue);
+			outline-offset: 2px;
+		}
+
+		.select-toggle .icon {
+			width: 18px;
+			height: 18px;
+		}
+
+		/* Row Toggle (button style, matching header) */
+		.row-select-toggle {
+			opacity: 0;
+			transition: opacity 150ms ease;
+		}
+
+		/* Show toggle on row hover or when selected */
+		tr:hover .row-select-toggle,
+		tr.selected .row-select-toggle,
+		.row-select-toggle.is-selected {
+			opacity: 1;
+		}
+
+		/* Selected indicator */
+		.row-select-toggle.is-selected {
+			color: var(--blue);
+		}
+
+		/* Selected Row */
+		tr.selected {
+			background: var(--bg-highlight) !important;
+		}
+
+		tr.selected:hover {
+			background: rgba(41, 46, 66, 0.9) !important;
+		}
+
+		/* Allow text selection everywhere (no row click selection) */
+		tr[data-host-id] .host-name {
+			user-select: text;
+			cursor: text;
+		}
+
+		/* ═══════════════════════════════════════════════════════════════════════════
+			   CLICKABLE COMPARTMENTS (P1020)
+			   ═══════════════════════════════════════════════════════════════════════════ */
+
+		.compartment-btn {
+			appearance: none;
+			border-style: solid;
+			border-color: rgba(232, 236, 245, 0.05);
+			margin: 0;
+			font: inherit;
+			color: inherit;
+			position: relative;
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			width: 29px;
+			height: 29px;
+			padding: 0;
+			background: rgba(0, 0, 0, 0.1);
+			border-radius: 4px;
+			cursor: pointer;
+			transition: all 0.2s ease;
+		}
+
+		.compartment-btn:hover {
+			transform: scale(1.1);
+			background: rgba(0, 0, 0, 0.7);
+		}
+
+		.compartment-btn:active {
+			transform: scale(0.95);
+		}
+
+		.compartment-btn:focus-visible {
+			outline: 2px solid var(--blue);
+			outline-offset: 2px;
+		}
+
+		.compartment-btn .update-icon {
+			position: relative;
+			top: -2px;
+			left: -2px;
+			width: 11px;
+			height: 11px;
+			fill: var(--fg);
+			stroke: var(--fg);
+			color: var(--fg);
+		}
+
+		.compartment-btn.unknown {
+			opacity: 0.6;
+		}
+
+		.compartment-btn.info-only {
+			cursor: help;
+		}
+
+		.compartment-btn.info-only:hover {
+			transform: none;
+			background: rgba(0, 0, 0, 0.5);
+		}
+
+		.compartment-btn.info-only:active {
+			transform: none;
+		}
+
+		.compartment-btn.rate-limited {
+			pointer-events: none;
+			opacity: 0.7;
+		}
+
+		/* ═══════════════════════════════════════════════════════════════════════════
+			   TOAST NOTIFICATIONS (P1020)
+			   ═══════════════════════════════════════════════════════════════════════════ */
+
+		.toast {
+			position: fixed;
+			bottom: 20px;
+			left: 50%;
+			transform: translateX(-50%) translateY(20px);
+			background: var(--bg-elevated);
+			border: 1px solid var(--border);
+			border-radius: 8px;
+			padding: 12px 20px;
+			font-size: 0.875rem;
+			opacity: 0;
+			transition: transform 300ms ease, opacity 300ms ease;
+			z-index: 2000;
+			max-width: 90%;
+			text-align: center;
+		}
+
+		.toast.show {
+			transform: translateX(-50%) translateY(0);
+			opacity: 1;
+		}
+
+		.toast-info {
+			border-color: var(--blue);
+		}
+
+		.toast-error {
+			border-color: var(--red);
+			color: var(--red);
+		}
+
+		.toast-success {
+			border-color: var(--green);
+			color: var(--green);
+		}
+
+		/* ═══════════════════════════════════════════════════════════════════════════
+			   DEPENDENCY DIALOG (P1040)
+			   ═══════════════════════════════════════════════════════════════════════════ */
+
+		.dialog-modal {
+			max-width: 500px;
+			width: 90%;
+			position: relative;
+		}
+
+		.dialog-header {
+			display: flex;
+			align-items: center;
+			gap: 12px;
+			margin-bottom: 16px;
+		}
+
+		.dialog-icon {
+			width: 24px;
+			height: 24px;
+			flex-shrink: 0;
+		}
+
+		.dialog-icon.warning {
+			color: var(--yellow);
+		}
+
+		.dialog-title {
+			font-size: 1.125rem;
+			font-weight: 600;
+			margin: 0;
+		}
+
+		.dialog-body {
+			margin-bottom: 20px;
+		}
+
+		.dialog-message {
+			color: var(--fg-muted);
+			margin: 0 0 16px 0;
+			line-height: 1.5;
+		}
+
+		.dialog-host-list {
+			list-style: none;
+			padding: 0;
+			margin: 0;
+			border: 1px solid var(--border);
+			border-radius: 6px;
+			overflow: hidden;
+			max-height: 200px;
+			overflow-y: auto;
+		}
+
+		.dialog-host-list li {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			padding: 10px 12px;
+			border-bottom: 1px solid var(--border);
+		}
+
+		.dialog-host-list li:last-child {
+			border-bottom: none;
+		}
+
+		.dialog-host-list li.needs-action {
+			background: rgba(250, 204, 21, 0.1);
+		}
+
+		.dialog-host-list .host-name {
+			font-weight: 500;
+		}
+
+		.dialog-host-list .host-status {
+			font-size: 0.8125rem;
+			color: var(--fg-muted);
+		}
+
+		.dialog-footer {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			gap: 12px;
+		}
+
+		.dialog-action-group {
+			display: flex;
+			gap: 8px;
+			flex-wrap: wrap;
+		}
+
+		@media (max-width: 480px) {
+			.dialog-footer {
+				flex-direction: column;
+				align-items: stretch;
+			}
+
+			.dialog-action-group {
+				justify-content: flex-end;
+			}
+
+			.btn-cancel {
+				order: 1;
+			}
+		}
+
+		.btn-primary {
+			background: var(--blue);
+			color: var(--bg);
+		}
+
+		.btn-primary:hover {
+			filter: brightness(1.1);
+		}
+
+		.dialog-progress {
+			position: absolute;
+			inset: 0;
+			background: rgba(26, 27, 38, 0.95);
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			border-radius: inherit;
+		}
+
+		.progress-content {
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			gap: 12px;
+			text-align: center;
+		}
+
+		.progress-content .icon {
+			width: 32px;
+			height: 32px;
+			color: var(--blue);
+		}
+
+		.btn-cancel-small {
+			font-size: 0.8125rem;
+			padding: 4px 12px;
+		}
+
+		/* ═══════════════════════════════════════════════════════════════════════════
+			   CONTEXT BAR - Unified hover preview + selection actions
+			   ═══════════════════════════════════════════════════════════════════════════ */
+
+		/* ═══════════════════════════════════════════════════════════════════════════
+			   CONTEXT BAR - Stacked rows for PR, hover, and selection
+			   ═══════════════════════════════════════════════════════════════════════════ */
+
+		.context-bar {
+			display: flex;
+			flex-direction: column;
+			padding: 0.5rem 1.5rem;
+			background: var(--bg-elevated);
+			border: 1px solid rgba(255, 255, 255, 0.08);
+			border-radius: 8px;
+			gap: 0.375rem;
+			margin: 1rem 0 0 0;
+			min-height: 170px;
+			/* Reserve space for 3 rows */
+		}
+
+		/* When empty, show subtle border outline */
+		.context-bar-empty {
+			border-color: rgba(255, 255, 255, 0.03);
+			background: transparent;
+		}
+
+		.context-bar-empty * {
+			opacity: 0;
+			pointer-events: none;
+		}
+
+		@media (max-width: 768px) {
+			.context-bar {
+				padding: 0.5rem 1rem;
+				min-height: 160px;
+			}
+		}
+
+		/* Each row in the context bar */
+		.context-row {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			padding: 0.5rem 0.75rem;
+			border-radius: 6px;
+			gap: 1rem;
+			min-height: 36px;
+		}
+
+		.context-row-info {
+			display: flex;
+			align-items: center;
+			gap: 0.5rem;
+			flex: 1;
+			min-width: 0;
+		}
+
+		/* Row 1: PR row styling */
+		.context-row-pr {
+			background: rgba(187, 154, 247, 0.08);
+			border: 1px solid rgba(187, 154, 247, 0.25);
+		}
+
+		.context-row-pr .icon-pr {
+			width: 16px;
+			height: 16px;
+			color: var(--purple);
+			flex-shrink: 0;
+		}
+
+		.context-row-pr .pr-label {
+			color: var(--purple);
+			font-weight: 600;
+			font-size: 0.875rem;
+			white-space: nowrap;
+		}
+
+		.context-row-pr .pr-detail {
+			color: var(--fg-muted);
+			font-size: 0.8125rem;
+			overflow: hidden;
+			text-overflow: ellipsis;
+			white-space: nowrap;
+		}
+
+		.btn-merge {
+			display: inline-flex;
+			align-items: center;
+			gap: 0.375rem;
+			padding: 0.375rem 0.75rem;
+			font-size: 0.8125rem;
+			font-weight: 600;
+			background: var(--purple);
+			color: var(--bg);
+			border: none;
+			border-radius: 5px;
+			cursor: pointer;
+			transition: all 150ms;
+			white-space: nowrap;
+		}
+
+		.btn-merge .icon {
+			width: 14px;
+			height: 14px;
+		}
+
+		.btn-merge:hover {
+			filter: brightness(1.1);
+		}
+
+		/* Row 2: Hover row styling */
+		.context-row-hover {
+			background: rgba(125, 211, 252, 0.05);
+			border: 1px solid rgba(125, 211, 252, 0.15);
+			justify-content: flex-start;
+			/* Keep content left-aligned */
+			gap: 0.5rem;
+		}
+
+		.context-row-hover .context-host {
+			color: var(--cyan);
+			font-weight: 600;
+			font-family: 'JetBrains Mono', 'Fira Code', monospace;
+			font-size: 0.875rem;
+			white-space: nowrap;
+			flex-shrink: 0;
+		}
+
+		.context-row-hover .context-host::after {
+			content: ':';
+		}
+
+		.context-row-hover .context-description {
+			color: var(--fg);
+			font-size: 0.875rem;
+		}
+
+		/* Row 3: Selection row styling */
+		.context-row-selection {
+			background: rgba(122, 162, 247, 0.08);
+			border: 1px solid rgba(122, 162, 247, 0.2);
+		}
+
+		.context-row-selection .icon-check {
+			width: 16px;
+			height: 16px;
+			color: var(--blue);
+			flex-shrink: 0;
+		}
+
+		/* Actions in selection row */
+		.context-actions {
+			display: flex;
+			gap: 0.5rem;
+			flex-wrap: wrap;
+			align-items: center;
+		}
+
+		@media (max-width: 768px) {
+			.context-row {
+				flex-direction: column;
+				align-items: stretch;
+				gap: 0.5rem;
+			}
+
+			.context-actions {
+				justify-content: center;
+			}
+		}
+
+		/* Context Buttons */
+		.btn-context {
+			display: inline-flex;
+			align-items: center;
+			gap: 0.375rem;
+			padding: 0.4rem 0.75rem;
+			font-size: 0.8125rem;
+			font-weight: 500;
+			background: transparent;
+			border: 1px solid var(--border);
+			border-radius: 6px;
+			color: var(--fg);
+			cursor: pointer;
+			transition: all 150ms ease;
+			font-family: inherit;
+		}
+
+		.btn-context:hover:not(:disabled) {
+			background: var(--bg-highlight);
+			border-color: var(--fg-dim);
+		}
+
+		.btn-context:active:not(:disabled) {
+			background: var(--bg);
+		}
+
+		.btn-context:disabled {
+			opacity: 0.4;
+			cursor: not-allowed;
+		}
+
+		.btn-context .icon {
+			width: 14px;
+			height: 14px;
+		}
+
+		@media (max-width: 480px) {
+			.btn-context .btn-label {
+				display: none;
+			}
+
+			.btn-context {
+				padding: 0.5rem;
+			}
+
+			.btn-context .icon {
+				width: 18px;
+				height: 18px;
+			}
+		}
+
+		/* DO ALL Button - matches other context buttons but green accent */
+		.btn-do-all {
+			background: transparent;
+			border: 1px solid var(--green);
+			color: var(--green);
+			/* Same padding as .btn-context */
+			padding: 0.4rem 0.75rem;
+			font-weight: 500;
+		}
+
+		.btn-do-all:hover:not(:disabled) {
+			background: var(--green);
+			color: var(--bg);
+		}
+
+		.btn-do-all .icon {
+			width: 14px;
+			height: 14px;
+		}
+
+		.btn-clear {
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			padding: 0.375rem;
+			background: transparent;
+			border: 1px solid transparent;
+			border-radius: 4px;
+			cursor: pointer;
+			color: var(--fg-dark);
+			transition: color 150ms ease, background 150ms ease;
+		}
+
+		.btn-clear:hover {
+			color: var(--red);
+			background: var(--bg-highlight);
+		}
+
+		.btn-clear .icon {
+			width: 18px;
+			height: 18px;
+		}
+
+		/* Alpine.js cloak for transition elements */
+		[x-cloak] {
+			display: none !important;
+		}
+
+		/* ═══════════════════════════════════════════════════════════════════════════
+			   P2700: COMPOSITE TYPE COLUMN
+			   ═══════════════════════════════════════════════════════════════════════════ */
+
+		.col-type {
+			width: 48px;
+			min-width: 48px;
+			max-width: 48px;
+			padding: 0.25rem !important;
+		}
+
+		.type-composite {
+			position: relative;
+			display: inline-block;
+			width: 32px;
+			height: 24px;
+			margin: 0 auto;
+		}
+
+		/* Main device icon - fills most of the space */
+		.type-dev-main {
+			position: absolute;
+			left: 0;
+			top: 50%;
+			transform: translateY(-50%);
+			width: 20px;
+			height: 20px;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			z-index: 1;
+		}
+
+		.type-dev-main .icon,
+		.type-dev-main .device-icon {
+			width: 18px;
+			height: 18px;
+			color: var(--type-color, var(--fg));
+			fill: var(--type-color, var(--fg));
+			stroke: var(--type-color, var(--fg));
+		}
+
+		/* Location icon - top-right superscript (moved 2px down from original) */
+		.type-loc-super {
+			position: absolute;
+			top: 1px;
+			right: 0;
+			width: 12px;
+			height: 12px;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			z-index: 2;
+		}
+
+		.type-loc-super .icon,
+		.type-loc-super .location-icon {
+			width: 9px;
+			height: 9px;
+			color: var(--type-color, var(--fg));
+			fill: var(--type-color, var(--fg));
+			stroke: var(--type-color, var(--fg));
+		}
+
+		/* OS icon - bottom-right subscript (moved 2px up from original) */
+		.type-os-sub {
+			position: absolute;
+			bottom: 1px;
+			right: 0;
+			width: 12px;
+			height: 12px;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			z-index: 2;
+		}
+
+		.type-os-sub .icon,
+		.type-os-sub .type-icon {
+			width: 9px;
+			height: 9px;
+			color: var(--type-color, var(--fg));
+			fill: var(--type-color, var(--fg));
+			stroke: var(--type-color, var(--fg));
+		}
+
+		/* Hover effect on composite type */
+		.type-composite:hover .type-dev-main .icon,
+		.type-composite:hover .type-dev-main .device-icon {
+			opacity: 1;
+		}
+
+		.type-composite:hover .type-loc-super .icon,
+		.type-composite:hover .type-loc-super .location-icon,
+		.type-composite:hover .type-os-sub .icon,
+		.type-composite:hover .type-os-sub .type-icon {
+			opacity: 0.9;
+		}
+
+		/* ═══════════════════════════════════════════════════════════════════════════
+			   P2700: STATUS PROGRESS COLUMN
+			   ═══════════════════════════════════════════════════════════════════════════ */
+
+		.col-status {
+			min-width: 180px;
+			padding: 0.5rem !important;
+		}
+
+		.status-progress-cell {
+			padding: 0.25rem 0.5rem;
+		}
+
+		.status-progress {
+			display: flex;
+			align-items: center;
+			gap: 0.5rem;
+			font-family: 'JetBrains Mono', 'Fira Code', monospace;
+			font-size: 0.7rem;
+			letter-spacing: 0.05em;
+		}
+
+		.progress-segment {
+			display: flex;
+			gap: 1px;
+		}
+
+		.progress-dot {
+			display: inline-block;
+			width: 1em;
+			text-align: center;
+			transition: all 0.2s ease;
+		}
+
+		/* Dot states */
+		.dot-pending {
+			color: var(--fg-gutter);
+			opacity: 0.3;
+		}
+
+		.dot-complete {
+			color: var(--green);
+		}
+
+		.dot-idle {
+			color: var(--green);
+			opacity: 0.2;
+		}
+
+		.dot-error {
+			color: var(--red);
+		}
+
+		.dot-in-progress {
+			color: var(--cyan);
+			animation: shimmer 1.2s ease-in-out infinite;
+			text-shadow: 0 0 8px var(--cyan);
+		}
+
+		/* PS5-style shimmer animation */
+		@keyframes shimmer {
+			0% {
+				opacity: 0.4;
+				transform: scale(0.95);
+			}
+
+			50% {
+				opacity: 1;
+				transform: scale(1.05);
+			}
+
+			100% {
+				opacity: 0.4;
+				transform: scale(0.95);
+			}
+		}
+
+		.tests-dash {
+			color: var(--fg-gutter);
+			opacity: 0.5;
+		}
+
+		/* Segment hover hints */
+		.progress-segment:hover .progress-dot {
+			opacity: 1;
+		}
+
+		.progress-segment:hover .dot-idle {
+			opacity: 0.6;
+		}
+	</style>
+</head>
+
+<body data-csrf-token={ csrfToken }>
+	<!-- SVG icon definitions -->
+	<svg class="svg-defs" aria-hidden="true" style="display: none;">
+		<!-- OS Types -->
+		<symbol id="icon-nixos" viewBox="0 0 24 24">
+			<path fill="currentColor"
+				d="M12 2L2.5 7v10L12 22l9.5-5V7L12 2zm0 2.16l6.86 3.62-2.14 1.13-4.72-2.5-4.72 2.5-2.14-1.13L12 4.16zM5.5 8.84l2.14 1.13v5l4.36 2.3 4.36-2.3v-5l2.14-1.13v7.32L12 19.84l-6.5-3.68V8.84z" />
+		</symbol>
+		<symbol id="icon-apple" viewBox="0 0 24 24">
+			<path fill="currentColor"
+				d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z" />
+		</symbol>
+		<!-- Locations -->
+		<symbol id="icon-cloud" viewBox="0 0 24 24">
+			<path fill="currentColor"
+				d="M19.35 10.04A7.49 7.49 0 0 0 12 4C9.11 4 6.6 5.64 5.35 8.04A5.994 5.994 0 0 0 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96z" />
+		</symbol>
+		<symbol id="icon-home" viewBox="0 0 24 24">
+			<path fill="currentColor" d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" />
+		</symbol>
+		<symbol id="icon-office" viewBox="0 0 24 24">
+			<path fill="currentColor"
+				d="M12 7V3H2v18h20V7H12zM6 19H4v-2h2v2zm0-4H4v-2h2v2zm0-4H4V9h2v2zm0-4H4V5h2v2zm4 12H8v-2h2v2zm0-4H8v-2h2v2zm0-4H8V9h2v2zm0-4H8V5h2v2zm10 12h-8v-2h2v-2h-2v-2h2v-2h-2V9h8v10zm-2-8h-2v2h2v-2zm0 4h-2v2h2v-2z" />
+		</symbol>
+		<!-- Device Types -->
+		<symbol id="icon-server" viewBox="0 0 24 24">
+			<path fill="currentColor" d="M2 2h20v6H2V2zm2 2v2h16V4H4zm-2 8h20v6H2v-6zm2 2v2h16v-2H4zm-2 8h20v2H2v-2z" />
+		</symbol>
+		<symbol id="icon-desktop" viewBox="0 0 24 24">
+			<path fill="currentColor"
+				d="M21 2H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h7v2H8v2h8v-2h-2v-2h7c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H3V4h18v12z" />
+		</symbol>
+		<symbol id="icon-laptop" viewBox="0 0 24 24">
+			<path fill="currentColor"
+				d="M20 18c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2H0v2h24v-2h-4zM4 6h16v10H4V6z" />
+		</symbol>
+		<symbol id="icon-game" viewBox="0 0 24 24">
+			<path fill="currentColor"
+				d="M21 6H3c-1.1 0-2 .9-2 2v8c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-10 7H8v3H6v-3H3v-2h3V8h2v3h3v2zm4.5 2c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm4-3c-.83 0-1.5-.67-1.5-1.5S18.67 9 19.5 9s1.5.67 1.5 1.5-.67 1.5-1.5 1.5z" />
+		</symbol>
+		<!-- Actions -->
+		<symbol id="icon-download" viewBox="0 0 24 24">
+			<path fill="currentColor" d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z" />
+		</symbol>
+		<symbol id="icon-refresh" viewBox="0 0 24 24">
+			<path fill="currentColor"
+				d="M17.65 6.35A7.958 7.958 0 0 0 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0 1 12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z" />
+		</symbol>
+		<symbol id="icon-flask" viewBox="0 0 24 24">
+			<path fill="currentColor"
+				d="M6 22a3 3 0 0 1-3-3c0-.6.18-1.16.5-1.63L9 7.81V6a1 1 0 0 1-1-1V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v1a1 1 0 0 1-1 1v1.81l5.5 9.56c.32.47.5 1.03.5 1.63a3 3 0 0 1-3 3H6zm1.77-6h8.46l-3.23-5.6V6h-2v4.4L7.77 16z" />
+		</symbol>
+		<symbol id="icon-stop" viewBox="0 0 24 24">
+			<path fill="currentColor" d="M6 6h12v12H6z" />
+		</symbol>
+		<symbol id="icon-plus" viewBox="0 0 24 24">
+			<path fill="currentColor" d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
+		</symbol>
+		<symbol id="icon-trash" viewBox="0 0 24 24">
+			<path fill="currentColor"
+				d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" />
+		</symbol>
+		<symbol id="icon-more" viewBox="0 0 24 24">
+			<path fill="currentColor"
+				d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z" />
+		</symbol>
+		<!-- Fleet/grid icon for bulk actions -->
+		<symbol id="icon-fleet" viewBox="0 0 24 24">
+			<rect x="3" y="3" width="7" height="7" rx="1" fill="currentColor" />
+			<rect x="14" y="3" width="7" height="7" rx="1" fill="currentColor" />
+			<rect x="3" y="14" width="7" height="7" rx="1" fill="currentColor" />
+			<rect x="14" y="14" width="7" height="7" rx="1" fill="currentColor" />
+		</symbol>
+		<symbol id="icon-check" viewBox="0 0 24 24">
+			<path fill="currentColor" d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
+		</symbol>
+		<symbol id="icon-chevron" viewBox="0 0 24 24">
+			<path fill="currentColor" d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
+		</symbol>
+		<symbol id="icon-file" viewBox="0 0 24 24">
+			<path fill="currentColor"
+				d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z" />
+		</symbol>
+		<!-- Update Status Icons (P5000) -->
+		<!-- Git icon - branch with connecting lines -->
+		<symbol id="icon-git-branch" viewBox="0 0 24 24">
+			<circle cx="7" cy="5" r="2" stroke="currentColor" stroke-width="2" fill="none" />
+			<circle cx="7" cy="19" r="2" stroke="currentColor" stroke-width="2" fill="none" />
+			<circle cx="17" cy="12" r="2" stroke="currentColor" stroke-width="2" fill="none" />
+			<!-- Vertical line from top to bottom circle -->
+			<path stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M7 7v10" />
+			<!-- Branch line from main to side circle -->
+			<path stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M7 9c0 2 3 3 8 3" />
+		</symbol>
+		<!-- P2500: Git pull request icon for PR section in context bar -->
+		<symbol id="icon-git-pull-request" viewBox="0 0 24 24">
+			<circle cx="6" cy="6" r="3" stroke="currentColor" stroke-width="2" fill="none" />
+			<circle cx="6" cy="18" r="3" stroke="currentColor" stroke-width="2" fill="none" />
+			<path stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M6 9v6" />
+			<circle cx="18" cy="18" r="3" stroke="currentColor" stroke-width="2" fill="none" />
+			<path stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M18 9v6M18 9a3 3 0 0 0-3-3h-4" />
+		</symbol>
+		<!-- P2500: Git merge icon for PR merge button -->
+		<symbol id="icon-git-merge" viewBox="0 0 24 24">
+			<circle cx="18" cy="18" r="3" stroke="currentColor" stroke-width="2" fill="none" />
+			<circle cx="6" cy="6" r="3" stroke="currentColor" stroke-width="2" fill="none" />
+			<path stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M6 21V9a9 9 0 0 0 9 9" />
+		</symbol>
+		<symbol id="icon-lock" viewBox="0 0 24 24">
+			<path fill="currentColor"
+				d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z" />
+		</symbol>
+		<!-- Metrics -->
+		<symbol id="icon-cpu" viewBox="0 0 24 24">
+			<path fill="currentColor"
+				d="M6 18h12V6H6v12zm4-8h4v4h-4v-4zM1 9h2V7H1v2zm0 4h2v-2H1v2zm0 4h2v-2H1v2zm0-12h2V3H1v2zm20 8h2v-2h-2v2zm0 4h2v-2h-2v2zM21 5h2V3h-2v2zm0 12h2v-2h-2v2zm0 4h2v-2h-2v2zM9 1v2h2V1H9zm4 0v2h2V1h-2zm0 20v2h2v-2h-2zM9 21v2h2v-2H9zm8 0v2h2v-2h-2zM5 1v2h2V1H5zM5 21v2h2v-2H5zM17 1v2h2V1h-2z" />
+		</symbol>
+		<symbol id="icon-ram" viewBox="0 0 24 24">
+			<path fill="currentColor"
+				d="M2 7v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2zm3 2h2v4H5V9zm4 0h2v4H9V9zm4 0h2v4h-2V9zm4 0h2v4h-2V9z" />
+		</symbol>
+		<!-- Branding -->
+		<symbol id="icon-github" viewBox="0 0 24 24">
+			<path fill="currentColor"
+				d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33.85 0 1.71.11 2.5.33 1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2z" />
+		</symbol>
+		<symbol id="icon-heart" viewBox="0 0 24 24">
+			<path fill="currentColor"
+				d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+		</symbol>
+		<symbol id="icon-license" viewBox="0 0 24 24">
+			<path fill="currentColor"
+				d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z" />
+		</symbol>
+		<!-- P1030: Selection icons -->
+		<symbol id="icon-square" viewBox="0 0 24 24">
+			<rect x="3" y="3" width="18" height="18" rx="2" ry="2" fill="none" stroke="currentColor" stroke-width="2">
+			</rect>
+		</symbol>
+		<symbol id="icon-check-square" viewBox="0 0 24 24">
+			<rect x="3" y="3" width="18" height="18" rx="2" ry="2" fill="none" stroke="currentColor" stroke-width="2">
+			</rect>
+			<polyline points="9 11 12 14 22 4" fill="none" stroke="currentColor" stroke-width="2"></polyline>
+		</symbol>
+		<symbol id="icon-minus-square" viewBox="0 0 24 24">
+			<rect x="3" y="3" width="18" height="18" rx="2" ry="2" fill="none" stroke="currentColor" stroke-width="2">
+			</rect>
+			<line x1="8" y1="12" x2="16" y2="12" stroke="currentColor" stroke-width="2"></line>
+		</symbol>
+		<!-- P1015: X icon for clear selection -->
+		<symbol id="icon-x" viewBox="0 0 24 24">
+			<line x1="18" y1="6" x2="6" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"></line>
+			<line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"></line>
+		</symbol>
+		<!-- P1010: Action Bar icons -->
+		<symbol id="icon-play" viewBox="0 0 24 24">
+			<polygon points="5 3 19 12 5 21 5 3" fill="currentColor"></polygon>
+		</symbol>
+		<!-- P1040: Alert triangle for dependency dialog -->
+		<symbol id="icon-alert-triangle" viewBox="0 0 24 24">
+			<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"
+				fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+			</path>
+			<line x1="12" y1="9" x2="12" y2="13" stroke="currentColor" stroke-width="2" stroke-linecap="round"></line>
+			<line x1="12" y1="17" x2="12.01" y2="17" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+			</line>
+		</symbol>
+		<!-- P1060: Dropdown menu icons -->
+		<symbol id="icon-copy" viewBox="0 0 24 24">
+			<rect x="9" y="9" width="13" height="13" rx="2" ry="2" fill="none" stroke="currentColor" stroke-width="2">
+			</rect>
+			<path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" fill="none" stroke="currentColor"
+				stroke-width="2"></path>
+		</symbol>
+		<symbol id="icon-terminal" viewBox="0 0 24 24">
+			<polyline points="4 17 10 11 4 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+				stroke-linejoin="round"></polyline>
+			<line x1="12" y1="19" x2="20" y2="19" stroke="currentColor" stroke-width="2" stroke-linecap="round"></line>
+		</symbol>
+		<symbol id="icon-more-vertical" viewBox="0 0 24 24">
+			<circle cx="12" cy="12" r="1.5" fill="currentColor"></circle>
+			<circle cx="12" cy="5" r="1.5" fill="currentColor"></circle>
+			<circle cx="12" cy="19" r="1.5" fill="currentColor"></circle>
+		</symbol>
+		<symbol id="icon-loader" viewBox="0 0 24 24">
+			<line x1="12" y1="2" x2="12" y2="6" stroke="currentColor" stroke-width="2" stroke-linecap="round"></line>
+			<line x1="12" y1="18" x2="12" y2="22" stroke="currentColor" stroke-width="2" stroke-linecap="round"></line>
+			<line x1="4.93" y1="4.93" x2="7.76" y2="7.76" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+			</line>
+			<line x1="16.24" y1="16.24" x2="19.07" y2="19.07" stroke="currentColor" stroke-width="2"
+				stroke-linecap="round"></line>
+			<line x1="2" y1="12" x2="6" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"></line>
+			<line x1="18" y1="12" x2="22" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"></line>
+			<line x1="4.93" y1="19.07" x2="7.76" y2="16.24" stroke="currentColor" stroke-width="2"
+				stroke-linecap="round"></line>
+			<line x1="16.24" y1="7.76" x2="19.07" y2="4.93" stroke="currentColor" stroke-width="2"
+				stroke-linecap="round"></line>
+		</symbol>
+		<symbol id="icon-refresh-cw" viewBox="0 0 24 24">
+			<polyline points="23 4 23 10 17 10" fill="none" stroke="currentColor" stroke-width="2"
+				stroke-linecap="round" stroke-linejoin="round"></polyline>
+			<polyline points="1 20 1 14 7 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+				stroke-linejoin="round"></polyline>
+			<path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" fill="none"
+				stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+		</symbol>
+		<!-- P2950: Palette icon for color picker -->
+		<symbol id="icon-palette" viewBox="0 0 24 24">
+			<circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"></circle>
+			<circle cx="12" cy="7" r="1.5" fill="currentColor"></circle>
+			<circle cx="7.5" cy="10.5" r="1.5" fill="currentColor"></circle>
+			<circle cx="8.5" cy="15" r="1.5" fill="currentColor"></circle>
+			<circle cx="16.5" cy="10.5" r="1.5" fill="currentColor"></circle>
+			<circle cx="15" cy="15" r="2" fill="currentColor"></circle>
+		</symbol>
+	</svg>
+	<div class="container">
+		{ children... }
+	</div>
+</body>
+
+</html>
 }
-
-
