@@ -2396,16 +2396,16 @@ templ CompositeTypeCell(host Host) {
 		data-os={ host.HostType }
 		title={ compositeTypeTitle(host) }
 	>
-		<!-- LOC icon (80%, center-Y, left-aligned) -->
-		<span class="type-loc">
+		<!-- LOC icon - uses host theme color -->
+		<span class="type-loc" style={ hostColorStyle(host) }>
 			@locationIcon(host.Location)
 		</span>
-		<!-- DEV icon (25%, top-right superscript) -->
-		<span class="type-dev">
+		<!-- DEV icon - uses host theme color -->
+		<span class="type-dev" style={ hostColorStyle(host) }>
 			@deviceTypeIcon(host.DeviceType)
 		</span>
-		<!-- OS icon (25%, bottom-right subscript) -->
-		<span class="type-os">
+		<!-- OS icon - uses host theme color -->
+		<span class="type-os" style={ hostColorStyle(host) }>
 			@osTypeIcon(host.HostType)
 		</span>
 	</div>

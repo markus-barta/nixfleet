@@ -405,11 +405,11 @@ templ Base(title string, csrfToken string) {
 			.stat-online-positive { color: var(--green); }
 
 			.host-table tbody tr {
-				background: rgba(26, 27, 38, 0.6);
+				background: rgba(15, 16, 22, 0.85);
 			}
 
 			.host-table tr:hover {
-				background: var(--bg-highlight);
+				background: rgba(36, 40, 59, 0.9);
 			}
 
 			.host-table tr:last-child td {
@@ -1994,8 +1994,8 @@ templ Base(title string, csrfToken string) {
 			.type-composite {
 				position: relative;
 				display: inline-block;
-				width: 36px;
-				height: 28px;
+				width: 32px;
+				height: 24px;
 				margin: 0 auto;
 			}
 
@@ -2005,8 +2005,8 @@ templ Base(title string, csrfToken string) {
 				left: 0;
 				top: 50%;
 				transform: translateY(-50%);
-				width: 22px;
-				height: 22px;
+				width: 20px;
+				height: 20px;
 				display: flex;
 				align-items: center;
 				justify-content: center;
@@ -2015,56 +2015,52 @@ templ Base(title string, csrfToken string) {
 
 			.type-loc .icon,
 			.type-loc .location-icon {
-				width: 20px;
-				height: 20px;
-				color: var(--fg-dark);
-				opacity: 0.85;
+				width: 18px;
+				height: 18px;
+				/* Uses host theme color via inline style */
+				opacity: 0.9;
 			}
 
-			/* Device icon - top-right badge */
+			/* Device icon - top-right badge (70% smaller, transparent) */
 			.type-dev {
 				position: absolute;
-				top: 0;
-				right: 0;
-				width: 14px;
-				height: 14px;
+				top: -2px;
+				right: -2px;
+				width: 10px;
+				height: 10px;
 				display: flex;
 				align-items: center;
 				justify-content: center;
-				background: var(--bg);
-				border-radius: 2px;
 				z-index: 2;
 			}
 
 			.type-dev .icon,
 			.type-dev .device-icon {
-				width: 11px;
-				height: 11px;
-				color: var(--cyan);
-				opacity: 0.9;
+				width: 8px;
+				height: 8px;
+				/* Uses host theme color via inline style */
+				opacity: 0.85;
 			}
 
-			/* OS icon - bottom-right badge */
+			/* OS icon - bottom-right badge (70% smaller, transparent) */
 			.type-os {
 				position: absolute;
-				bottom: 0;
-				right: 0;
-				width: 14px;
-				height: 14px;
+				bottom: -2px;
+				right: -2px;
+				width: 10px;
+				height: 10px;
 				display: flex;
 				align-items: center;
 				justify-content: center;
-				background: var(--bg);
-				border-radius: 2px;
 				z-index: 2;
 			}
 
 			.type-os .icon,
 			.type-os .type-icon {
-				width: 11px;
-				height: 11px;
-				color: var(--blue);
-				opacity: 0.9;
+				width: 8px;
+				height: 8px;
+				/* Uses host theme color via inline style */
+				opacity: 0.85;
 			}
 
 			/* Hover effect on composite type */
@@ -2244,11 +2240,15 @@ templ Base(title string, csrfToken string) {
 				<path fill="currentColor" d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/>
 			</symbol>
 			<!-- Update Status Icons (P5000) -->
-			<!-- Git icon - simple merge/fork shape -->
+			<!-- Git icon - branch with connecting lines -->
 			<symbol id="icon-git-branch" viewBox="0 0 24 24">
 				<circle cx="7" cy="5" r="2" stroke="currentColor" stroke-width="2" fill="none"/>
 				<circle cx="7" cy="19" r="2" stroke="currentColor" stroke-width="2" fill="none"/>
-				<circle cx="17" cy="9" r="2" stroke="currentColor" stroke-width="2" fill="none"/>
+				<circle cx="17" cy="12" r="2" stroke="currentColor" stroke-width="2" fill="none"/>
+				<!-- Vertical line from top to bottom circle -->
+				<path stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M7 7v10"/>
+				<!-- Branch line from main to side circle -->
+				<path stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M7 9c0 2 3 3 8 3"/>
 			</symbol>
 			<!-- P2500: Git pull request icon for PR section in context bar -->
 			<symbol id="icon-git-pull-request" viewBox="0 0 24 24">
