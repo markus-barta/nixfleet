@@ -438,8 +438,8 @@ templ Base(title string, csrfToken string) {
 			.location-icon, .device-icon, .type-icon {
 				width: 16px;
 				height: 16px;
-				color: var(--fg-dark);
-				opacity: 0.8;
+				color: var(--fg);
+				opacity: 0.85;
 			}
 
 			.location-icon:hover, .device-icon:hover, .type-icon:hover {
@@ -852,7 +852,7 @@ templ Base(title string, csrfToken string) {
 				display: inline-flex;
 				align-items: center;
 				gap: 0;
-				color: var(--fg-dark);
+				color: var(--fg);
 			}
 
 			.metric-val {
@@ -876,7 +876,7 @@ templ Base(title string, csrfToken string) {
 
 			/* Last seen time colors */
 			.last-seen-ok {
-				color: var(--fg-dark);
+				color: var(--fg);
 			}
 			.last-seen-warn {
 				color: var(--yellow);
@@ -2019,8 +2019,8 @@ templ Base(title string, csrfToken string) {
 			.type-loc .location-icon {
 				width: 18px;
 				height: 18px;
-				/* Uses host theme color via inline style */
-				opacity: 0.9;
+				color: var(--fg);
+				opacity: 0.85;
 			}
 
 			/* Device icon - top-right badge (70% smaller, transparent) */
@@ -2040,8 +2040,8 @@ templ Base(title string, csrfToken string) {
 			.type-dev .device-icon {
 				width: 8px;
 				height: 8px;
-				/* Uses host theme color via inline style */
-				opacity: 0.85;
+				color: var(--fg);
+				opacity: 0.75;
 			}
 
 			/* OS icon - bottom-right badge (70% smaller, transparent) */
@@ -2061,8 +2061,8 @@ templ Base(title string, csrfToken string) {
 			.type-os .type-icon {
 				width: 8px;
 				height: 8px;
-				/* Uses host theme color via inline style */
-				opacity: 0.85;
+				color: var(--fg);
+				opacity: 0.75;
 			}
 
 			/* Hover effect on composite type */

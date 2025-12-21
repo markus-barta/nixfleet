@@ -3,92 +3,95 @@
 **Created**: 2025-12-21  
 **Priority**: P2900 (Medium - UI Polish)  
 **Status**: Backlog  
-**Effort**: Small (1-2 hours)
+**Effort**: Medium (2-4 hours)
 
 ---
 
 ## Summary
 
-Apply each host's primary theme color (from starship config) consistently across the dashboard UI. The color is already passed from the agent to the dashboard and stored in `host.ThemeColor`.
+Each host should display its unique theme color (from starship config) as a subtle row gradient in the dashboard.
+
+**Current approach**: Row background gradient from left to 50%, using host's `ThemeColor`.
 
 ---
 
-## Requirements
+## Problem: Colors Not Working
 
-### 1. Hostname Text
+**Root Cause**: The NixOS/macOS modules do NOT pass the starship color to the agent.
 
-The hostname text in the HOSTS column should use the host's theme color.
+### Current Data Flow (BROKEN)
 
-**Current**: All hostnames use the same color  
-**Target**: Each hostname uses its `ThemeColor` (e.g., `#7aa2f7` for NixOS blue, `#bb9af7` for macOS purple)
+```
+starship.toml → ??? → Agent reads NIXFLEET_THEME_COLOR (empty!) → Fallback by OS type
+```
 
-### 2. TYPE Column Icons
+The agent reads `NIXFLEET_THEME_COLOR` from environment (`config.go:132`), but the NixOS/macOS modules don't set this variable from starship.
 
-All icons in the composite TYPE column should use the host's theme color:
+### Current Fallback (hub.go:573-579)
 
-- **Location icon** (home/cloud/office) - main icon
-- **Device icon** (server/desktop/laptop) - top-right badge
-- **OS icon** (NixOS/Apple) - bottom-right badge
+```go
+if themeColor == "" {
+    if payload.HostType == "macos" {
+        themeColor = "#bb9af7" // Tokyo Night purple
+    } else {
+        themeColor = "#7aa2f7" // Tokyo Night blue
+    }
+}
+```
 
-**Status**: ✅ Partially implemented in P2700 polish commit (`e9d0449`)
-
-### 3. Fallback Behavior
-
-If `ThemeColor` is empty or not set, fall back to the default color (`var(--fg-dark)` or similar).
+This means ALL NixOS hosts show blue, ALL macOS hosts show purple, regardless of their starship config.
 
 ---
 
-## Data Flow
+## Required Fix: NixOS/macOS Modules
 
-```
-starship.toml → Agent reads palette.primary → Agent sends to Dashboard → Stored in host.ThemeColor
+### NixOS Module
+
+The module needs to read starship's palette and export it:
+
+```nix
+# In nixfleet agent module
+environment.variables.NIXFLEET_THEME_COLOR =
+  config.programs.starship.settings.palette.primary or "#7aa2f7";
 ```
 
-The `ThemeColor` field already exists in the `Host` struct and is populated by agents.
+### macOS Module (launchd)
+
+Similar - read from starship.toml and set in the launchd plist.
 
 ---
 
-## Implementation Notes
+## Dashboard Implementation (DONE)
 
-### Hostname (not yet done)
+### Row Gradient
 
-The hostname is rendered in `HostRow` template. Currently uses:
+Each `<tr>` gets an inline style with a gradient using the host's color:
 
-```html
-<span style="{" hostColorStyle(host) }>{ host.Hostname }</span>
+```
+0% (2%) → 25% (10%) → 50% (2%) → 100% (0%)
 ```
 
-This should already work if `hostColorStyle()` returns `color: #xxxxxx`. Verify it's being applied.
+Implemented in `hostRowStyle()` function.
 
-### TYPE Column Icons (done)
+### Text/Icons
 
-Added in polish commit:
-
-```html
-<span class="type-loc" style="{" hostColorStyle(host) }>
-  <span class="type-dev" style="{" hostColorStyle(host) }>
-    <span class="type-os" style="{" hostColorStyle(host) }></span></span
-></span>
-```
-
-### CSS Inheritance
-
-The `style="color: #xxx"` on the span should cascade to child SVG icons via `fill: currentColor` or `color: currentColor`.
+All text and icons use the bright default color (`--fg: #e8ecf5`), NOT the host color.
 
 ---
 
 ## Acceptance Criteria
 
-- [ ] Hostname text uses host's theme color
-- [ ] Location icon uses host's theme color
-- [ ] Device badge icon uses host's theme color
-- [ ] OS badge icon uses host's theme color
-- [ ] Hosts without a theme color fall back gracefully
-- [ ] Colors match starship config (NixOS = blue, macOS = purple, etc.)
+- [ ] **NixOS module** sets `NIXFLEET_THEME_COLOR` from starship palette
+- [ ] **macOS module** sets `NIXFLEET_THEME_COLOR` from starship palette
+- [ ] Each host row shows its unique gradient color
+- [ ] Hosts without starship config fall back to OS-based colors
+- [ ] Dashboard correctly displays per-host gradients
 
 ---
 
 ## Related
 
-- **P2700** - Table Column Redesign (parent task)
-- **Starship integration** - Theme colors come from starship palette
+- **P2700** - Table Column Redesign
+- **nixcfg** - NixOS module updates needed
+- Agent config: `v2/internal/config/config.go:132`
+- Hub fallback: `v2/internal/dashboard/hub.go:573-579`

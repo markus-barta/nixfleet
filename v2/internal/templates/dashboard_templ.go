@@ -3042,8 +3042,8 @@ func hostRowStyle(host Host) string {
 	if rgb == "" {
 		return ""
 	}
-	// Gradient: 0% (10%) → 25% (75%) → 50% (10%) → 100% (0%)
-	return fmt.Sprintf("background: linear-gradient(to right, rgba(%s, 0.10) 0%%, rgba(%s, 0.75) 25%%, rgba(%s, 0.10) 50%%, transparent 100%%)", rgb, rgb, rgb)
+	// Gradient: 0% (2%) → 25% (10%) → 50% (2%) → 100% (0%) - subtle tint
+	return fmt.Sprintf("background: linear-gradient(to right, rgba(%s, 0.02) 0%%, rgba(%s, 0.10) 25%%, rgba(%s, 0.02) 50%%, transparent 100%%)", rgb, rgb, rgb)
 }
 
 // hexToRGB converts hex color (#rrggbb or #rgb) to "r, g, b" string for rgba()
