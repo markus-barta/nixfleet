@@ -281,29 +281,29 @@ NOTE: Do NOT use emojis in the real UI, use SVG-icons instead. Propsed emoji-ico
 
 ### Phase 1: Clean Up Header "More" Dropdown
 
-- [ ] Remove "Update All" (duplicate of "Pull All")
-- [ ] Add "Test All"
-- [ ] Add "Do All" (Pull → Switch → Test on ALL online hosts)
-- [ ] Add "Restart All Agents"
-- [ ] Reorder: Do All > Pull All > Switch All > Test All > Restart All
+- [x] Remove "Update All" (duplicate of "Pull All")
+- [x] Add "Test All"
+- [x] Add "Do All" (Pull → Switch → Test on ALL online hosts)
+- [x] Add "Restart All Agents"
+- [x] Reorder: Do All > Pull All > Switch All > Test All > Restart All
 
 ### Phase 2: Improve Compartment UX
 
-- [ ] Ensure hover preview always shows expected action
-- [ ] Green compartments: clicking shows "No action needed, status refreshed" toast
-- [ ] Yellow compartments: consistent action (Pull for Git, Switch for System)
-- [ ] Lock yellow: show clearer message about GitHub PR requirement
+- [x] Ensure hover preview always shows expected action (via context bar)
+- [ ] ~~Green compartments: clicking shows "No action needed, status refreshed" toast~~ → Moved to P2600
+- [ ] ~~Yellow compartments: consistent action~~ → Already works, no changes needed
+- [ ] ~~Lock yellow: show clearer message~~ → Moved to P2600
 
 ### Phase 3: Reorganize Per-Host Dropdown
 
-- [ ] Rename groups: Deployment / Utilities / Diagnostics / Danger
-- [ ] Keep order: Test, Stop (if applicable), Restart Agent | Copy Hostname, SSH | Logs | Remove
+- [x] Rename groups: Deployment / Management / Utilities / Diagnostics / Danger
+- [x] Add Pull/Switch to dropdown for completeness
 
 ### Phase 4: Documentation
 
-- [ ] Update RUNBOOK with command reference
-- [ ] Add tooltips explaining each action
-- [ ] Context bar always hints at available actions
+- [ ] ~~Update RUNBOOK with command reference~~ → Moved to P2600
+- [x] Add tooltips explaining each action → Replaced by context bar descriptions
+- [x] Context bar always hints at available actions
 
 ---
 
@@ -444,15 +444,15 @@ NOTE: Do NOT use emojis in the real UI, use SVG-icons instead. Propsed emoji-ico
 
 ### Tasks
 
-- [ ] Add `data-description` and `data-detail` to compartment buttons
-- [ ] Update Go tooltip functions to return structured data for JS
-- [ ] Update `handleCompartmentHover()` to pass description
-- [ ] Update Context Bar to show full description
-- [ ] Add PR section to Context Bar (when `pendingPR` exists)
-- [ ] Remove/simplify tooltips from compartments
-- [ ] Ensure both PR + selection show together when applicable
-- [ ] Test all compartment states with new descriptions
-- [ ] Implement deploy progress display (replace `handleFlakeUpdateJob()` console.log)
+- [x] Add `data-description` to compartment buttons
+- [x] Add Go context description functions (gitContextDescription, lockContextDescription, systemContextDescription)
+- [x] Update `handleCompartmentHover()` to pass description
+- [x] Update Context Bar to show full description (stacked rows layout)
+- [x] Add PR section to Context Bar (when `pendingPR` exists)
+- [x] Remove tooltips from compartments (dead code removed)
+- [x] Ensure both PR + selection show together when applicable (3 stacked rows)
+- [ ] ~~Test all compartment states with new descriptions~~ → Manual testing done
+- [ ] ~~Implement deploy progress display~~ → Moved to P2600
 
 ---
 
