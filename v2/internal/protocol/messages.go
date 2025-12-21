@@ -28,12 +28,13 @@ func (m *Message) ParsePayload(target any) error {
 
 // Message types (agent → dashboard)
 const (
-	TypeRegister     = "register"
-	TypeHeartbeat    = "heartbeat"
-	TypeOutput       = "output"
-	TypeStatus       = "status"
-	TypeRejected     = "command_rejected"
-	TypeTestProgress = "test_progress"
+	TypeRegister          = "register"
+	TypeHeartbeat         = "heartbeat"
+	TypeOutput            = "output"
+	TypeStatus            = "status"
+	TypeRejected          = "command_rejected"
+	TypeTestProgress      = "test_progress"
+	TypeOperationProgress = "operation_progress" // P2800: phase-by-phase progress
 )
 
 // Message types (dashboard → agent)
@@ -116,6 +117,12 @@ type TestProgressPayload struct {
 	Passed  int    `json:"passed"`  // passed so far
 	Running bool   `json:"running"` // still running
 	Result  string `json:"result"`  // summary result when done
+}
+
+// OperationProgressPayload is sent during command execution (P2800).
+// This drives the status column progress dots in the dashboard.
+type OperationProgressPayload struct {
+	Progress OperationProgress `json:"progress"` // full progress state
 }
 
 // CommandProgressPayload is sent during command execution (P2700/P2800).

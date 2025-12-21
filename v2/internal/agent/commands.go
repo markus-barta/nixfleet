@@ -86,39 +86,54 @@ func (a *Agent) executeCommand(command string) {
 
 	switch command {
 	case "pull":
+		// P2800: Signal pull phase starting
+		a.sendOperationProgress("pull", "in_progress", 0, 4)
 		if a.cfg.RepoURL != "" {
 			// Isolated mode: fetch + reset --hard (clean slate)
 			if err := a.runIsolatedPull(); err != nil {
+				a.sendOperationProgress("pull", "error", 0, 4)
 				a.sendStatus("error", command, 1, err.Error())
 				return
 			}
 			// Force refresh status checks since repo changed
 			a.statusChecker.ForceRefresh(a.ctx)
+			a.sendOperationProgress("pull", "complete", 4, 4)
 			a.sendStatus("ok", command, 0, "")
 			return
 		}
 		cmd, err = a.buildPullCommand()
 	case "switch":
+		// P2800: Signal system phase starting
+		a.sendOperationProgress("system", "in_progress", 0, 3)
 		cmd, err = a.buildSwitchCommand()
 	case "pull-switch":
+		// P2800: Signal pull phase starting
+		a.sendOperationProgress("pull", "in_progress", 0, 4)
 		// Pull first
 		if a.cfg.RepoURL != "" {
 			// Isolated mode: fetch + reset --hard (clean slate)
 			if err := a.runIsolatedPull(); err != nil {
+				a.sendOperationProgress("pull", "error", 0, 4)
 				a.sendStatus("error", command, 1, err.Error())
 				return
 			}
 		} else {
 			if err := a.runCommandWithOutput("pull", a.buildPullCommandArgs()); err != nil {
+				a.sendOperationProgress("pull", "error", 0, 4)
 				a.sendStatus("error", command, 1, err.Error())
 				return
 			}
 		}
+		// P2800: Pull complete, system starting
+		a.sendOperationProgress("pull", "complete", 4, 4)
+		a.sendOperationProgress("system", "in_progress", 0, 3)
 		// Force refresh status after pull so switch sees updated state
 		a.statusChecker.ForceRefresh(a.ctx)
 		// Then switch
 		cmd, err = a.buildSwitchCommand()
 	case "test":
+		// P2800: Signal tests phase starting
+		a.sendOperationProgress("tests", "in_progress", 0, 8)
 		cmd, err = a.buildTestCommand()
 	case "update":
 		cmd, err = a.buildUpdateCommand()
@@ -173,6 +188,35 @@ func (a *Agent) executeCommand(command string) {
 	if exitCode != 0 {
 		status = "error"
 		message = "command failed"
+	}
+
+	// P2800: Send completion progress based on command type
+	switch command {
+	case "pull":
+		if exitCode == 0 {
+			a.sendOperationProgress("pull", "complete", 4, 4)
+		} else {
+			a.sendOperationProgress("pull", "error", 0, 4)
+		}
+	case "switch":
+		if exitCode == 0 {
+			a.sendOperationProgress("system", "complete", 3, 3)
+		} else {
+			a.sendOperationProgress("system", "error", 0, 3)
+		}
+	case "pull-switch":
+		// Pull already marked complete, now mark system
+		if exitCode == 0 {
+			a.sendOperationProgress("system", "complete", 3, 3)
+		} else {
+			a.sendOperationProgress("system", "error", 0, 3)
+		}
+	case "test":
+		if exitCode == 0 {
+			a.sendOperationProgress("tests", "complete", 8, 8)
+		} else {
+			a.sendOperationProgress("tests", "error", 0, 8)
+		}
 	}
 
 	// P2800: Post-validation - refresh status and report on goal achievement
@@ -366,6 +410,43 @@ func (a *Agent) sendStatus(status, command string, exitCode int, message string)
 		Str("command", command).
 		Int("exit_code", exitCode).
 		Msg("command completed")
+}
+
+// sendOperationProgress sends progress updates for the status dots (P2800).
+// phase: "pull", "lock", "system", "tests"
+// status: "pending", "in_progress", "complete", "error"
+// current/total: progress within the phase
+func (a *Agent) sendOperationProgress(phase, status string, current, total int) {
+	// Build operation progress based on which phase we're in
+	progress := protocol.OperationProgress{}
+
+	phaseProgress := &protocol.PhaseProgress{
+		Current: current,
+		Total:   total,
+		Status:  status,
+	}
+
+	switch phase {
+	case "pull":
+		progress.Pull = phaseProgress
+	case "lock":
+		progress.Lock = phaseProgress
+	case "system":
+		progress.System = phaseProgress
+	case "tests":
+		progress.Tests = &protocol.TestsProgress{
+			Current: current,
+			Total:   total,
+			Status:  status,
+		}
+	}
+
+	payload := protocol.OperationProgressPayload{
+		Progress: progress,
+	}
+	if err := a.ws.SendMessage(protocol.TypeOperationProgress, payload); err != nil {
+		a.log.Debug().Err(err).Msg("failed to send operation progress")
+	}
 }
 
 // handleStop kills the currently running command.

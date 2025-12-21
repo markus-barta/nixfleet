@@ -730,6 +730,11 @@ templ Dashboard(data DashboardData) {
 						renderUpdateStatus(el, host);
 					}
 
+					// 5b. P2800: Operation progress dots
+					if (host.operationProgress) {
+						renderOperationProgress(el, host.operationProgress);
+					}
+
 					// 6. Button states: swap between cmd-buttons and stop button
 					const cmdButtons = el.querySelector('.cmd-buttons');
 					const stopBtn = el.querySelector('.btn-stop');
@@ -883,6 +888,71 @@ templ Dashboard(data DashboardData) {
 						// Pending PR indicator (small dot at top-right)
 						comp.classList.toggle('has-pr', !!globalState.pendingPR);
 					}
+				});
+			}
+
+			// P2800: Render operation progress dots in Status column
+			function renderOperationProgress(el, progress) {
+				const container = el.querySelector('.status-progress');
+				if (!container) return;
+
+				// Phase mapping: name → segment class
+				const phases = {
+					pull: { selector: '.segment-pull', total: 4 },
+					lock: { selector: '.segment-lock', total: 2 },
+					system: { selector: '.segment-system', total: 3 },
+					tests: { selector: '.segment-tests', total: 8 }
+				};
+
+				Object.entries(phases).forEach(([name, config]) => {
+					const segment = container.querySelector(config.selector);
+					if (!segment) return;
+
+					const phaseData = progress[name];
+					const dots = segment.querySelectorAll('.progress-dot');
+
+					dots.forEach((dot, i) => {
+						// Reset classes
+						dot.className = 'progress-dot';
+
+						if (!phaseData) {
+							// No data = idle state
+							dot.classList.add('dot-idle');
+							dot.textContent = '●';
+							return;
+						}
+
+						switch (phaseData.status) {
+							case 'complete':
+								dot.classList.add('dot-complete');
+								dot.textContent = '●';
+								break;
+							case 'error':
+								if (i < phaseData.current) {
+									dot.classList.add('dot-complete');
+									dot.textContent = '●';
+								} else {
+									dot.classList.add('dot-error');
+									dot.textContent = '✗';
+								}
+								break;
+							case 'in_progress':
+								if (i < phaseData.current) {
+									dot.classList.add('dot-complete');
+									dot.textContent = '●';
+								} else if (i === phaseData.current) {
+									dot.classList.add('dot-in-progress');
+									dot.textContent = '◐';
+								} else {
+									dot.classList.add('dot-pending');
+									dot.textContent = '○';
+								}
+								break;
+							default: // pending
+								dot.classList.add('dot-pending');
+								dot.textContent = '○';
+						}
+					});
 				});
 			}
 

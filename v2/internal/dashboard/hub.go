@@ -523,6 +523,22 @@ func (h *Hub) handleAgentMessage(msg *agentMessage) {
 				"result":  payload.Result,
 			},
 		})
+
+	case protocol.TypeOperationProgress:
+		// P2800: Operation progress for status dots
+		var payload protocol.OperationProgressPayload
+		if err := msg.message.ParsePayload(&payload); err != nil {
+			return
+		}
+
+		// Forward to browsers for status dot animation
+		h.BroadcastToBrowsers(map[string]any{
+			"type": "operation_progress",
+			"payload": map[string]any{
+				"host_id":  msg.client.clientID,
+				"progress": payload.Progress,
+			},
+		})
 	}
 }
 
