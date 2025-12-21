@@ -1567,7 +1567,7 @@ templ Base(title string, csrfToken string) {
 				width: 24px;
 				height: 24px;
 				padding: 0;
-				background: #374151;
+				background: rgba(0, 0, 0, 0.5);
 				border-radius: 4px;
 				cursor: pointer;
 				transition: all 0.2s ease;
@@ -1575,7 +1575,7 @@ templ Base(title string, csrfToken string) {
 
 			.compartment-btn:hover {
 				transform: scale(1.1);
-				background: #4b5563;
+				background: rgba(0, 0, 0, 0.7);
 			}
 
 			.compartment-btn:active {
@@ -1593,9 +1593,9 @@ templ Base(title string, csrfToken string) {
 				left: -2px;
 				width: 11px;
 				height: 11px;
-				fill: #1f2937;
-				stroke: #1f2937;
-				color: #1f2937;
+				fill: var(--fg);
+				stroke: var(--fg);
+				color: var(--fg);
 			}
 
 			.compartment-btn.unknown {
@@ -1608,7 +1608,7 @@ templ Base(title string, csrfToken string) {
 
 			.compartment-btn.info-only:hover {
 				transform: none;
-				background: #374151;
+				background: rgba(0, 0, 0, 0.5);
 			}
 
 			.compartment-btn.info-only:active {
@@ -2087,8 +2087,8 @@ templ Base(title string, csrfToken string) {
 				margin: 0 auto;
 			}
 
-			/* Main location icon - fills most of the space */
-			.type-loc {
+			/* Main device icon - fills most of the space */
+			.type-dev-main {
 				position: absolute;
 				left: 0;
 				top: 50%;
@@ -2101,19 +2101,20 @@ templ Base(title string, csrfToken string) {
 				z-index: 1;
 			}
 
-			.type-loc .icon,
-			.type-loc .location-icon {
+			.type-dev-main .icon,
+			.type-dev-main .device-icon {
 				width: 18px;
 				height: 18px;
-				color: var(--fg);
-				opacity: 0.85;
+				color: var(--type-color, var(--fg));
+				fill: var(--type-color, var(--fg));
+				stroke: var(--type-color, var(--fg));
 			}
 
-			/* Device icon - top-right badge (70% smaller, transparent) */
-			.type-dev {
+			/* Location icon - top-right superscript (2px closer, 1px down) */
+			.type-loc-super {
 				position: absolute;
-				top: -2px;
-				right: -2px;
+				top: -1px;
+				right: 0;
 				width: 10px;
 				height: 10px;
 				display: flex;
@@ -2122,19 +2123,20 @@ templ Base(title string, csrfToken string) {
 				z-index: 2;
 			}
 
-			.type-dev .icon,
-			.type-dev .device-icon {
+			.type-loc-super .icon,
+			.type-loc-super .location-icon {
 				width: 8px;
 				height: 8px;
-				color: var(--fg);
-				opacity: 0.75;
+				color: var(--type-color, var(--fg));
+				fill: var(--type-color, var(--fg));
+				stroke: var(--type-color, var(--fg));
 			}
 
-			/* OS icon - bottom-right badge (70% smaller, transparent) */
-			.type-os {
+			/* OS icon - bottom-right subscript (2px closer, 1px up) */
+			.type-os-sub {
 				position: absolute;
-				bottom: -2px;
-				right: -2px;
+				bottom: -1px;
+				right: 0;
 				width: 10px;
 				height: 10px;
 				display: flex;
@@ -2143,27 +2145,26 @@ templ Base(title string, csrfToken string) {
 				z-index: 2;
 			}
 
-			.type-os .icon,
-			.type-os .type-icon {
+			.type-os-sub .icon,
+			.type-os-sub .type-icon {
 				width: 8px;
 				height: 8px;
-				color: var(--fg);
-				opacity: 0.75;
+				color: var(--type-color, var(--fg));
+				fill: var(--type-color, var(--fg));
+				stroke: var(--type-color, var(--fg));
 			}
 
 			/* Hover effect on composite type */
-			.type-composite:hover .type-loc .icon,
-			.type-composite:hover .type-loc .location-icon {
+			.type-composite:hover .type-dev-main .icon,
+			.type-composite:hover .type-dev-main .device-icon {
 				opacity: 1;
-				color: var(--cyan);
 			}
 
-			.type-composite:hover .type-dev .icon,
-			.type-composite:hover .type-dev .device-icon,
-			.type-composite:hover .type-os .icon,
-			.type-composite:hover .type-os .type-icon {
+			.type-composite:hover .type-loc-super .icon,
+			.type-composite:hover .type-loc-super .location-icon,
+			.type-composite:hover .type-os-sub .icon,
+			.type-composite:hover .type-os-sub .type-icon {
 				opacity: 0.9;
-				color: var(--fg);
 			}
 
 			/* ═══════════════════════════════════════════════════════════════════════════

@@ -1624,6 +1624,9 @@ templ Dashboard(data DashboardData) {
 				const color = document.getElementById('colorPickerHex').value;
 				const palette = document.getElementById('colorPickerPalette').value;
 				
+				// Open log panel to show progress
+				showLogPanel(hostId);
+				
 				fetch(`/api/hosts/${hostId}/theme-color`, {
 					method: 'POST',
 					headers: {
@@ -1729,11 +1732,10 @@ templ Dashboard(data DashboardData) {
 				window.dispatchEvent(new CustomEvent('action-clear'));
 			}
 
+			// Compartment click: atomic idempotent state update only (refresh indicator color)
 			function handleCompartmentClick(btn) {
 				const hostId = btn.dataset.hostId;
-				const hostname = btn.dataset.hostname;
 				const compartment = btn.dataset.compartment;
-				const action = btn.dataset.action;
 
 				// Rate limiting
 				const cooldownKey = `${hostId}-${compartment}`;
@@ -1746,27 +1748,8 @@ templ Dashboard(data DashboardData) {
 					btn.classList.remove('rate-limited');
 				}, COOLDOWN_MS);
 
-				// Execute action
-				switch (action) {
-					case 'refresh':
-						refreshHost(hostId);
-						showToast(`${hostname}: Status is up to date`, 'success');
-						break;
-					case 'pull':
-						sendCommand(hostId, 'pull');
-						break;
-					case 'switch':
-						sendCommand(hostId, 'switch');
-						break;
-					case 'info':
-						showToast('Dependencies outdated — merge the PR to update flake.lock', 'info');
-						break;
-					case 'error':
-						showToast(btn.title || 'Status check failed', 'error');
-						break;
-					default:
-						refreshHost(hostId);
-				}
+				// Only refresh state - no actions, just update indicator color
+				refreshHost(hostId);
 			}
 
 			function showToast(message, type = 'info') {
@@ -2348,7 +2331,7 @@ templ HostCard(host Host, csrfToken string) {
 						<span class="progress-badge-mini">{ host.PendingCommand }</span>
 					}
 				</span>
-				<span class="hostname">{ host.Hostname }</span>
+				<span class="hostname" style={ hostnameColorStyle(host.ThemeColor) }>{ host.Hostname }</span>
 			</div>
 			<span class="chevron" :class="{ 'expanded': expanded }">▼</span>
 		</div>
@@ -2437,7 +2420,7 @@ templ HostRow(host Host, csrfToken string) {
 		<td class="status-cell-with-badge">
 			<span class="status-wrapper">
 				@StatusIndicator(host)
-				<span class="hostname">{ host.Hostname }</span>
+				<span class="hostname" style={ hostnameColorStyle(host.ThemeColor) }>{ host.Hostname }</span>
 				if host.PendingCommand != "" {
 					<span class="progress-badge-mini">{ host.PendingCommand }</span>
 				}
@@ -2622,6 +2605,8 @@ templ TestsCell(progress *TestProgress) {
 }
 
 // P2700: CompositeTypeCell renders the combined Location/Device/OS type cell
+// Main icon is device type, superscript is location, subscript is OS
+// All icons use 100% primary host theme color
 templ CompositeTypeCell(host Host) {
 	<div
 		class="type-composite"
@@ -2630,20 +2615,37 @@ templ CompositeTypeCell(host Host) {
 		data-device={ host.DeviceType }
 		data-os={ host.HostType }
 		title={ compositeTypeTitle(host) }
+		style={ typeIconColorStyle(host.ThemeColor) }
 	>
-		<!-- LOC icon -->
-		<span class="type-loc">
-			@locationIcon(host.Location)
-		</span>
-		<!-- DEV icon -->
-		<span class="type-dev">
+		<!-- DEV icon (main) -->
+		<span class="type-dev-main">
 			@deviceTypeIcon(host.DeviceType)
 		</span>
-		<!-- OS icon -->
-		<span class="type-os">
+		<!-- LOC icon (superscript) -->
+		<span class="type-loc-super">
+			@locationIcon(host.Location)
+		</span>
+		<!-- OS icon (subscript) -->
+		<span class="type-os-sub">
 			@osTypeIcon(host.HostType)
 		</span>
 	</div>
+}
+
+// typeIconColorStyle returns inline style for type column icons
+func typeIconColorStyle(themeColor string) string {
+	if themeColor == "" {
+		themeColor = "#7aa2f7" // Default blue
+	}
+	return fmt.Sprintf("--type-color: %s", themeColor)
+}
+
+// hostnameColorStyle returns inline style for hostname text color
+func hostnameColorStyle(themeColor string) string {
+	if themeColor == "" {
+		themeColor = "#7aa2f7" // Default blue
+	}
+	return fmt.Sprintf("color: %s", themeColor)
 }
 
 // P2700: StatusProgressCell renders the segmented progress bar + test results
@@ -2886,6 +2888,14 @@ templ ActionDropdown(host Host) {
 			<button
 				type="button"
 				class="dropdown-item"
+				onclick={ showLogsScript(host.ID) }
+			>
+				<svg class="icon"><use href="#icon-terminal"></use></svg>
+				<span>Show Logs</span>
+			</button>
+			<button
+				type="button"
+				class="dropdown-item"
 				onclick={ downloadLogsScript(host.ID) }
 			>
 				<svg class="icon"><use href="#icon-file"></use></svg>
@@ -2925,6 +2935,10 @@ func copySSHScript(host Host) templ.ComponentScript {
 
 func downloadLogsScript(hostID string) templ.ComponentScript {
 	return templ.ComponentScript{Call: fmt.Sprintf("downloadLogs('%s')", hostID)}
+}
+
+func showLogsScript(hostID string) templ.ComponentScript {
+	return templ.ComponentScript{Call: fmt.Sprintf("showLogPanel('%s')", hostID)}
 }
 
 func removeHostScript(hostID, hostname string) templ.ComponentScript {
