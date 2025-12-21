@@ -12,6 +12,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/gorilla/websocket"
+	"github.com/markus-barta/nixfleet/v2/internal/colors"
 	"github.com/markus-barta/nixfleet/v2/internal/templates"
 )
 
@@ -685,6 +686,9 @@ func (s *Server) getHostByID(hostID string) (*templates.Host, error) {
 	if h.PendingCommand != nil {
 		host.PendingCommand = *h.PendingCommand
 	}
+	if h.ThemeColor != nil {
+		host.ThemeColor = *h.ThemeColor
+	}
 	if h.Location != nil {
 		host.Location = *h.Location
 	}
@@ -1086,5 +1090,111 @@ func (s *Server) handleMergeAndDeploy(w http.ResponseWriter, r *http.Request) {
 		"status": "started",
 		"job_id": jobID,
 	})
+}
+
+// handleSetThemeColor changes a host's theme color.
+// P2950: Updates theme-palettes.nix in nixcfg and commits.
+// POST /api/hosts/{hostID}/theme-color
+func (s *Server) handleSetThemeColor(w http.ResponseWriter, r *http.Request) {
+	hostID := chi.URLParam(r, "hostID")
+
+	var req struct {
+		Color   string  `json:"color"`   // Hex color like #7aa2f7
+		Palette *string `json:"palette"` // Optional: preset palette name (null for custom)
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Bad Request", http.StatusBadRequest)
+		return
+	}
+
+	// Validate color format
+	if !isValidHexColor(req.Color) {
+		http.Error(w, "Invalid color format (expected #rrggbb)", http.StatusBadRequest)
+		return
+	}
+
+	// Get hostname from database
+	var hostname string
+	err := s.db.QueryRow(`SELECT hostname FROM hosts WHERE id = ?`, hostID).Scan(&hostname)
+	if err != nil {
+		http.Error(w, "Host not found", http.StatusNotFound)
+		return
+	}
+
+	// Update database immediately (for visual feedback)
+	_, err = s.db.Exec(`UPDATE hosts SET theme_color = ? WHERE id = ?`, req.Color, hostID)
+	if err != nil {
+		s.log.Error().Err(err).Str("host", hostID).Msg("failed to update theme color in database")
+		http.Error(w, "Database error", http.StatusInternalServerError)
+		return
+	}
+
+	// Determine palette name: use preset or create custom-{hostname}
+	paletteName := ""
+	isCustom := false
+	if req.Palette != nil && *req.Palette != "" {
+		paletteName = *req.Palette
+	} else {
+		paletteName = "custom-" + hostname
+		isCustom = true
+	}
+
+	// If nixcfg integration is enabled, update theme-palettes.nix
+	nixcfgStatus := "disabled"
+	if s.nixcfgRepo != nil {
+		var customPalette *colors.Palette
+		if isCustom {
+			// Generate custom palette from the chosen color
+			var err error
+			customPalette, err = colors.GeneratePalette(hostname, req.Color)
+			if err != nil {
+				s.log.Error().Err(err).Str("color", req.Color).Msg("failed to generate palette")
+				http.Error(w, "Failed to generate color palette", http.StatusInternalServerError)
+				return
+			}
+		}
+
+		// Update nixcfg repository
+		if err := s.nixcfgRepo.UpdateHostColor(hostname, paletteName, customPalette); err != nil {
+			s.log.Error().Err(err).Str("host", hostname).Msg("failed to update nixcfg")
+			// Don't fail the request - database was already updated
+			nixcfgStatus = "error: " + err.Error()
+		} else {
+			nixcfgStatus = "committed"
+		}
+	}
+
+	s.log.Info().
+		Str("host", hostname).
+		Str("color", req.Color).
+		Str("palette", paletteName).
+		Str("nixcfg", nixcfgStatus).
+		Msg("theme color updated")
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"status":   "updated",
+		"host_id":  hostID,
+		"color":    req.Color,
+		"palette":  paletteName,
+		"nixcfg":   nixcfgStatus,
+	})
+}
+
+// isValidHexColor checks if a string is a valid hex color (#rrggbb or #rgb).
+func isValidHexColor(color string) bool {
+	if len(color) == 0 || color[0] != '#' {
+		return false
+	}
+	color = color[1:]
+	if len(color) != 6 && len(color) != 3 {
+		return false
+	}
+	for _, c := range color {
+		if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')) {
+			return false
+		}
+	}
+	return true
 }
 

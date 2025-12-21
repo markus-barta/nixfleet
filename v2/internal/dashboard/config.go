@@ -47,6 +47,10 @@ type Config struct {
 	GitHubAPIURL  string        // Optional: override API URL (for testing)
 	GitHubPollTTL time.Duration // How often to check for update PRs (default: 1h)
 
+	// Color Picker / nixcfg Integration (P2950)
+	NixcfgRepoPath   string // Local path to clone/use nixcfg (default: /data/nixcfg)
+	ColorCommitMode  string // "push" or "pr" (default: "push")
+
 	// Stale command cleanup (PRD FR-2.13)
 	// Uses multiplier × heartbeat_interval with a floor (like Kubernetes liveness probes)
 	HeartbeatInterval    time.Duration // Reference interval for stale detection (default: 5s)
@@ -82,6 +86,10 @@ func LoadConfig() (*Config, error) {
 		GitHubRepo:    os.Getenv("NIXFLEET_GITHUB_REPO"), // e.g., "markus-barta/nixcfg"
 		GitHubAPIURL:  getEnv("NIXFLEET_GITHUB_API_URL", "https://api.github.com"),
 		GitHubPollTTL: parseDuration("NIXFLEET_GITHUB_POLL_TTL", 1*time.Hour),
+
+		// Color Picker / nixcfg Integration (P2950)
+		NixcfgRepoPath:  getEnv("NIXFLEET_NIXCFG_PATH", dataDir+"/nixcfg"),
+		ColorCommitMode: getEnv("NIXFLEET_COLOR_COMMIT_MODE", "push"),
 
 		// Stale command cleanup defaults (PRD FR-2.13)
 		HeartbeatInterval:    parseDuration("NIXFLEET_HEARTBEAT_INTERVAL", 5*time.Second),
@@ -134,6 +142,13 @@ func (c *Config) Warnings() []string {
 		warnings = append(warnings, "NIXFLEET_VERSION_URL not set; Git status tracking disabled")
 	}
 
+	// Color picker integration (P2950)
+	if !c.HasColorPickerIntegration() {
+		warnings = append(warnings, "Color picker nixcfg integration disabled (requires NIXFLEET_GITHUB_TOKEN and NIXFLEET_GITHUB_REPO)")
+	} else if c.ColorCommitMode != "push" && c.ColorCommitMode != "pr" {
+		warnings = append(warnings, "NIXFLEET_COLOR_COMMIT_MODE must be 'push' or 'pr'; using 'push'")
+	}
+
 	return warnings
 }
 
@@ -150,6 +165,12 @@ func (c *Config) HasVersionTracking() bool {
 // HasGitHubIntegration returns true if GitHub integration is configured.
 func (c *Config) HasGitHubIntegration() bool {
 	return c.GitHubToken != "" && c.GitHubRepo != ""
+}
+
+// HasColorPickerIntegration returns true if color picker can modify nixcfg.
+// Requires GitHub integration (for token/repo) and a valid commit mode.
+func (c *Config) HasColorPickerIntegration() bool {
+	return c.HasGitHubIntegration() && (c.ColorCommitMode == "push" || c.ColorCommitMode == "pr")
 }
 
 // GitHubOwnerRepo parses the GitHubRepo into owner and repo parts.

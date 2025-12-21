@@ -331,6 +331,86 @@ templ Dashboard(data DashboardData) {
 			</div>
 		</div>
 
+		<!-- P2950: Color Picker Modal -->
+		<div class="modal-overlay" id="colorPickerModal">
+			<div class="modal modal-wide">
+				<div class="modal-title">Change Theme Color</div>
+				<div class="modal-body">
+					<p class="color-picker-host">Host: <code id="colorPickerHostname"></code></p>
+					
+					<!-- Preset palettes -->
+					<div class="form-group">
+						<label>Presets</label>
+						<div class="color-presets">
+							<button type="button" class="color-preset" data-color="#98b8d8" data-palette="iceBlue" title="Ice Blue (cloud)" onclick="selectPreset(this)">
+								<span class="color-swatch" style="background: #98b8d8"></span>
+							</button>
+							<button type="button" class="color-preset" data-color="#769ff0" data-palette="blue" title="Blue (cloud)" onclick="selectPreset(this)">
+								<span class="color-swatch" style="background: #769ff0"></span>
+							</button>
+							<button type="button" class="color-preset" data-color="#d4c060" data-palette="yellow" title="Yellow (home)" onclick="selectPreset(this)">
+								<span class="color-swatch" style="background: #d4c060"></span>
+							</button>
+							<button type="button" class="color-preset" data-color="#68c878" data-palette="green" title="Green (home)" onclick="selectPreset(this)">
+								<span class="color-swatch" style="background: #68c878"></span>
+							</button>
+							<button type="button" class="color-preset" data-color="#e09050" data-palette="orange" title="Orange (home)" onclick="selectPreset(this)">
+								<span class="color-swatch" style="background: #e09050"></span>
+							</button>
+							<button type="button" class="color-preset" data-color="#9868d0" data-palette="purple" title="Purple (gaming)" onclick="selectPreset(this)">
+								<span class="color-swatch" style="background: #9868d0"></span>
+							</button>
+							<button type="button" class="color-preset" data-color="#e070a0" data-palette="pink" title="Pink (gaming)" onclick="selectPreset(this)">
+								<span class="color-swatch" style="background: #e070a0"></span>
+							</button>
+							<button type="button" class="color-preset" data-color="#a8aeb8" data-palette="lightGray" title="Light Gray (work)" onclick="selectPreset(this)">
+								<span class="color-swatch" style="background: #a8aeb8"></span>
+							</button>
+							<button type="button" class="color-preset" data-color="#686c70" data-palette="darkGray" title="Dark Gray (work)" onclick="selectPreset(this)">
+								<span class="color-swatch" style="background: #686c70"></span>
+							</button>
+							<button type="button" class="color-preset" data-color="#a8a098" data-palette="warmGray" title="Warm Gray (work)" onclick="selectPreset(this)">
+								<span class="color-swatch" style="background: #a8a098"></span>
+							</button>
+							<button type="button" class="color-preset" data-color="#c8a8a0" data-palette="roseGold" title="Rose Gold (work)" onclick="selectPreset(this)">
+								<span class="color-swatch" style="background: #c8a8a0"></span>
+							</button>
+						</div>
+					</div>
+
+					<!-- Custom color picker -->
+					<div class="form-group">
+						<label>Custom Color</label>
+						<div class="custom-color-row">
+							<input type="color" id="colorPickerInput" value="#7aa2f7" onchange="updateColorPreview(this.value)"/>
+							<input type="text" id="colorPickerHex" value="#7aa2f7" pattern="^#[0-9a-fA-F]{6}$" placeholder="#rrggbb" oninput="syncHexInput(this.value)"/>
+						</div>
+					</div>
+
+					<!-- Preview -->
+					<div class="form-group">
+						<label>Preview</label>
+						<div class="color-preview-row" id="colorPreviewRow">
+							<span class="preview-segment preview-lightest"></span>
+							<span class="preview-segment preview-primary"></span>
+							<span class="preview-segment preview-secondary"></span>
+							<span class="preview-segment preview-midDark"></span>
+							<span class="preview-segment preview-dark"></span>
+							<span class="preview-segment preview-darker"></span>
+							<span class="preview-segment preview-darkest"></span>
+						</div>
+					</div>
+
+					<input type="hidden" id="colorPickerHostId"/>
+					<input type="hidden" id="colorPickerPalette" value=""/>
+				</div>
+				<div class="modal-actions">
+					<button class="modal-btn modal-btn-cancel" onclick="closeModal('colorPickerModal')">Cancel</button>
+					<button class="modal-btn modal-btn-primary" onclick="applyColor()">Apply Color</button>
+				</div>
+			</div>
+		</div>
+
 		<footer class="site-footer">
 			<div class="footer-left">
 				<span class="connection-indicator" id="ws-status">
@@ -1427,6 +1507,159 @@ templ Dashboard(data DashboardData) {
 					if (e.target === overlay) overlay.classList.remove('open');
 				});
 			});
+
+			// ═══════════════════════════════════════════════════════════════════════════
+			// P2950: COLOR PICKER
+			// ═══════════════════════════════════════════════════════════════════════════
+			function openColorPicker(hostId, hostname, currentColor) {
+				document.getElementById('colorPickerHostId').value = hostId;
+				document.getElementById('colorPickerHostname').textContent = hostname;
+				document.getElementById('colorPickerInput').value = currentColor;
+				document.getElementById('colorPickerHex').value = currentColor;
+				document.getElementById('colorPickerPalette').value = '';
+				
+				// Clear previous selection
+				document.querySelectorAll('.color-preset.selected').forEach(btn => btn.classList.remove('selected'));
+				
+				// Check if current color matches a preset
+				document.querySelectorAll('.color-preset').forEach(btn => {
+					if (btn.dataset.color.toLowerCase() === currentColor.toLowerCase()) {
+						btn.classList.add('selected');
+						document.getElementById('colorPickerPalette').value = btn.dataset.palette;
+					}
+				});
+				
+				updateColorPreview(currentColor);
+				document.getElementById('colorPickerModal').classList.add('open');
+			}
+
+			function selectPreset(btn) {
+				document.querySelectorAll('.color-preset.selected').forEach(b => b.classList.remove('selected'));
+				btn.classList.add('selected');
+				const color = btn.dataset.color;
+				document.getElementById('colorPickerInput').value = color;
+				document.getElementById('colorPickerHex').value = color;
+				document.getElementById('colorPickerPalette').value = btn.dataset.palette;
+				updateColorPreview(color);
+			}
+
+			function syncHexInput(value) {
+				if (/^#[0-9a-fA-F]{6}$/.test(value)) {
+					document.getElementById('colorPickerInput').value = value;
+					document.getElementById('colorPickerPalette').value = ''; // Custom color
+					document.querySelectorAll('.color-preset.selected').forEach(b => b.classList.remove('selected'));
+					updateColorPreview(value);
+				}
+			}
+
+			function updateColorPreview(hex) {
+				// Generate gradient preview using HSL manipulation
+				const hsl = hexToHSL(hex);
+				const row = document.getElementById('colorPreviewRow');
+				
+				// Generate gradient stops
+				const stops = [
+					hslToHex(hsl.h, hsl.s, 0.75),      // lightest
+					hex,                                 // primary
+					hslToHex(hsl.h, hsl.s, hsl.l * 0.75), // secondary
+					hslToHex(hsl.h, hsl.s, 0.20),      // midDark
+					hslToHex(hsl.h, hsl.s, 0.12),      // dark
+					hslToHex(hsl.h, hsl.s, 0.08),      // darker
+					hslToHex(hsl.h, hsl.s, 0.05),      // darkest
+				];
+				
+				const segments = row.querySelectorAll('.preview-segment');
+				segments.forEach((seg, i) => {
+					seg.style.background = stops[i];
+				});
+			}
+
+			function hexToHSL(hex) {
+				hex = hex.replace('#', '');
+				const r = parseInt(hex.substr(0, 2), 16) / 255;
+				const g = parseInt(hex.substr(2, 2), 16) / 255;
+				const b = parseInt(hex.substr(4, 2), 16) / 255;
+				
+				const max = Math.max(r, g, b), min = Math.min(r, g, b);
+				const l = (max + min) / 2;
+				let h, s;
+				
+				if (max === min) {
+					h = s = 0;
+				} else {
+					const d = max - min;
+					s = d / (1 - Math.abs(2 * l - 1));
+					switch (max) {
+						case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
+						case g: h = ((b - r) / d + 2) / 6; break;
+						case b: h = ((r - g) / d + 4) / 6; break;
+					}
+				}
+				return { h: h * 360, s, l };
+			}
+
+			function hslToHex(h, s, l) {
+				h = ((h % 360) + 360) % 360;
+				s = Math.max(0, Math.min(1, s));
+				l = Math.max(0, Math.min(1, l));
+				
+				const c = (1 - Math.abs(2 * l - 1)) * s;
+				const x = c * (1 - Math.abs((h / 60) % 2 - 1));
+				const m = l - c / 2;
+				let r, g, b;
+				
+				if (h < 60) { r = c; g = x; b = 0; }
+				else if (h < 120) { r = x; g = c; b = 0; }
+				else if (h < 180) { r = 0; g = c; b = x; }
+				else if (h < 240) { r = 0; g = x; b = c; }
+				else if (h < 300) { r = x; g = 0; b = c; }
+				else { r = c; g = 0; b = x; }
+				
+				const toHex = v => Math.round((v + m) * 255).toString(16).padStart(2, '0');
+				return '#' + toHex(r) + toHex(g) + toHex(b);
+			}
+
+			function applyColor() {
+				const hostId = document.getElementById('colorPickerHostId').value;
+				const color = document.getElementById('colorPickerHex').value;
+				const palette = document.getElementById('colorPickerPalette').value;
+				
+				fetch(`/api/hosts/${hostId}/theme-color`, {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+						'X-CSRF-Token': CSRF_TOKEN
+					},
+					body: JSON.stringify({ 
+						color: color,
+						palette: palette || null  // null means custom color
+					})
+				}).then(resp => {
+					if (!resp.ok) return resp.text().then(t => { throw new Error(t); });
+					return resp.json();
+				}).then(data => {
+					closeModal('colorPickerModal');
+					showToast(`Color updated for ${hostId}. Changes will apply after rebuild.`, 'success');
+					
+					// Update the row's gradient immediately for visual feedback
+					const row = document.querySelector(`tr[data-host-id="${hostId}"]`);
+					if (row) {
+						row.dataset.themeColor = color;
+						const rgb = hexToRGB(color);
+						row.style.background = `linear-gradient(to right, rgba(${rgb}, 0.02) 0%, rgba(${rgb}, 0.10) 25%, rgba(${rgb}, 0.02) 50%, transparent 100%)`;
+					}
+				}).catch(err => {
+					alert('Failed to apply color: ' + err.message);
+				});
+			}
+
+			function hexToRGB(hex) {
+				hex = hex.replace('#', '');
+				const r = parseInt(hex.substr(0, 2), 16);
+				const g = parseInt(hex.substr(2, 2), 16);
+				const b = parseInt(hex.substr(4, 2), 16);
+				return `${r}, ${g}, ${b}`;
+			}
 
 			// ═══════════════════════════════════════════════════════════════════════════
 			// ROW SELECTION HANDLERS (P1030)
@@ -2639,6 +2872,15 @@ templ ActionDropdown(host Host) {
 				<svg class="icon"><use href="#icon-terminal"></use></svg>
 				<span>SSH Command</span>
 			</button>
+			<!-- P2950: Color picker -->
+			<button
+				type="button"
+				class="dropdown-item"
+				onclick={ openColorPickerScript(host.ID, host.Hostname, host.ThemeColor) }
+			>
+				<svg class="icon"><use href="#icon-palette"></use></svg>
+				<span>Change Color</span>
+			</button>
 			<hr class="dropdown-divider"/>
 			<!-- P2500: Diagnostics Group -->
 			<button
@@ -2687,6 +2929,14 @@ func downloadLogsScript(hostID string) templ.ComponentScript {
 
 func removeHostScript(hostID, hostname string) templ.ComponentScript {
 	return templ.ComponentScript{Call: fmt.Sprintf("confirmRemoveHost('%s', '%s')", hostID, hostname)}
+}
+
+// P2950: Open color picker modal
+func openColorPickerScript(hostID, hostname, currentColor string) templ.ComponentScript {
+	if currentColor == "" {
+		currentColor = "#7aa2f7" // Default blue
+	}
+	return templ.ComponentScript{Call: fmt.Sprintf("openColorPicker('%s', '%s', '%s')", hostID, hostname, currentColor)}
 }
 
 // DeleteButton renders a delete button for offline hosts

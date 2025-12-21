@@ -8,6 +8,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/gorilla/websocket"
+	"github.com/markus-barta/nixfleet/v2/internal/colors"
 	"github.com/rs/zerolog"
 )
 
@@ -22,6 +23,7 @@ type Server struct {
 	versionFetcher *VersionFetcher
 	flakeUpdates   *FlakeUpdateService  // P5300: Automated flake updates
 	cmdStateMachine *CommandStateMachine // P2800: Command validation state machine
+	nixcfgRepo     *colors.NixcfgRepo   // P2950: Color picker nixcfg integration
 	router         *chi.Mux
 	wsUpgrader     *websocket.Upgrader
 	httpServer     *http.Server
@@ -75,6 +77,22 @@ func New(cfg *Config, db *sql.DB, log zerolog.Logger) *Server {
 	// Create command state machine (P2800)
 	cmdStateMachine := NewCommandStateMachine(log, hub)
 
+	// Create nixcfg repo manager if color picker integration is configured (P2950)
+	var nixcfgRepo *colors.NixcfgRepo
+	if cfg.HasColorPickerIntegration() {
+		nixcfgRepo = colors.NewNixcfgRepo(
+			cfg.NixcfgRepoPath,
+			cfg.GitHubRepo,
+			cfg.GitHubToken,
+			cfg.ColorCommitMode,
+			log,
+		)
+		log.Info().
+			Str("path", cfg.NixcfgRepoPath).
+			Str("mode", cfg.ColorCommitMode).
+			Msg("color picker nixcfg integration enabled")
+	}
+
 	s := &Server{
 		cfg:             cfg,
 		db:              db,
@@ -85,6 +103,7 @@ func New(cfg *Config, db *sql.DB, log zerolog.Logger) *Server {
 		versionFetcher:  versionFetcher,
 		flakeUpdates:    flakeUpdates,
 		cmdStateMachine: cmdStateMachine,
+		nixcfgRepo:      nixcfgRepo,
 		hubCtx:          hubCtx,
 		hubCancel:       hubCancel,
 	}
@@ -140,6 +159,7 @@ func (s *Server) setupRouter() {
 			r.Post("/hosts", s.handleAddHost)
 			r.Post("/hosts/{hostID}/command", s.handleCommand)
 			r.Post("/hosts/{hostID}/refresh", s.handleRefreshHost) // P7000: Per-host status refresh
+			r.Post("/hosts/{hostID}/theme-color", s.handleSetThemeColor) // P2950: Color picker
 			r.Delete("/hosts/{hostID}", s.handleDeleteHost)
 			r.Get("/hosts/{hostID}/logs", s.handleGetLogs)
 

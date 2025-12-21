@@ -1363,6 +1363,92 @@ templ Base(title string, csrfToken string) {
 				gap: 1rem;
 			}
 
+			/* P2950: Color Picker Styles */
+			.color-picker-host {
+				margin-bottom: 1rem;
+				color: var(--fg-dark);
+			}
+
+			.color-picker-host code {
+				color: var(--blue);
+				font-weight: 600;
+			}
+
+			.color-presets {
+				display: flex;
+				flex-wrap: wrap;
+				gap: 0.5rem;
+			}
+
+			.color-preset {
+				width: 36px;
+				height: 36px;
+				border: 2px solid transparent;
+				border-radius: 6px;
+				padding: 2px;
+				cursor: pointer;
+				background: var(--bg);
+				transition: all 0.15s ease;
+			}
+
+			.color-preset:hover {
+				border-color: var(--fg-dark);
+			}
+
+			.color-preset.selected {
+				border-color: var(--blue);
+				box-shadow: 0 0 0 2px rgba(122, 162, 247, 0.3);
+			}
+
+			.color-swatch {
+				display: block;
+				width: 100%;
+				height: 100%;
+				border-radius: 4px;
+			}
+
+			.custom-color-row {
+				display: flex;
+				gap: 0.75rem;
+				align-items: center;
+			}
+
+			.custom-color-row input[type="color"] {
+				width: 48px;
+				height: 36px;
+				padding: 0;
+				border: 1px solid var(--border);
+				border-radius: 6px;
+				cursor: pointer;
+				background: transparent;
+			}
+
+			.custom-color-row input[type="color"]::-webkit-color-swatch-wrapper {
+				padding: 2px;
+			}
+
+			.custom-color-row input[type="color"]::-webkit-color-swatch {
+				border: none;
+				border-radius: 4px;
+			}
+
+			.custom-color-row input[type="text"] {
+				width: 100px;
+				font-family: var(--mono-font, monospace);
+				text-transform: uppercase;
+			}
+
+			.color-preview-row {
+				display: flex;
+				height: 32px;
+				border-radius: 6px;
+				overflow: hidden;
+			}
+
+			.preview-segment {
+				flex: 1;
+			}
+
 			/* Bulk Actions */
 			.bulk-actions {
 				display: inline-flex;
@@ -2341,6 +2427,15 @@ templ Base(title string, csrfToken string) {
 				<polyline points="23 4 23 10 17 10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></polyline>
 				<polyline points="1 20 1 14 7 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></polyline>
 				<path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+			</symbol>
+			<!-- P2950: Palette icon for color picker -->
+			<symbol id="icon-palette" viewBox="0 0 24 24">
+				<circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"></circle>
+				<circle cx="12" cy="7" r="1.5" fill="currentColor"></circle>
+				<circle cx="7.5" cy="10.5" r="1.5" fill="currentColor"></circle>
+				<circle cx="8.5" cy="15" r="1.5" fill="currentColor"></circle>
+				<circle cx="16.5" cy="10.5" r="1.5" fill="currentColor"></circle>
+				<circle cx="15" cy="15" r="2" fill="currentColor"></circle>
 			</symbol>
 		</svg>
 		<div class="container">
