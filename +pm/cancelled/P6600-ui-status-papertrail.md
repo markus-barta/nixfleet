@@ -1,9 +1,14 @@
 # P6600 - UI: Status Papertrail
 
 **Priority**: P6600 (Low)  
-**Status**: Backlog  
+**Status**: Merged into P4020  
 **Effort**: Medium  
-**Created**: 2025-12-15
+**Created**: 2025-12-15  
+**Merged**: 2025-01-XX
+
+> **⚠️ This item has been merged into P4020 - Tabbed Output Panel.**  
+> Status history functionality is now part of P4020's host tabs (see FR-9).  
+> The inline papertrail concept was replaced with status history summary at the top of each host tab in the output panel.
 
 ## Problem
 
@@ -106,18 +111,20 @@ v2 status column is basic. v1 had a "papertrail" showing:
 
 ## Related
 
+- **P4020** - Tabbed Output Panel (status history merged here - see FR-9)
 - **P2800** - Command State Machine (provides validation results and command history)
-- **P4020** - Tabbed Output Panel (global System Log vs per-host papertrail here)
 - P4300 (Live Logs) - Status updates come from command output
 - T03 (Commands) - Command completion triggers status update
 
-## Note
+## Merge Notes
 
-P6600 (per-host papertrail in table) and P4020 System Log (global events in output panel) are complementary:
+This item has been merged into P4020 - Tabbed Output Panel.
 
-| Feature     | P6600                      | P4020 System Log          |
-| ----------- | -------------------------- | ------------------------- |
-| Scope       | Per-host                   | All hosts + system events |
-| Location    | Status column (inline)     | Output panel (tab)        |
-| Data source | P2800 CommandState history | P2800 + toasts + WS       |
-| Primary use | Quick host overview        | Full event debugging      |
+The status history papertrail concept has been integrated into P4020's host tabs:
+
+- **Status history** now appears at the top of each host tab (not inline in Status column)
+- **Icons and event types** preserved (✓ ✗ ⧖ ✦ •)
+- **Backend storage** (`status_history` array) included in P4020 requirements
+- **Real-time updates** via WebSocket integrated into P4020's tab system
+
+**Rationale**: The inline papertrail in the Status column was redundant with the output panel tabs. Showing status history at the top of host tabs provides better context while viewing command output, and avoids cluttering the table view.

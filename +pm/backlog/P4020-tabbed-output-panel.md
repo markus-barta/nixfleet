@@ -159,6 +159,41 @@ A special tab that captures all ephemeral UI events (toasts, errors, system mess
 | Agent version mismatch        | ✅      |
 | Git/Lock/System status change | ❌      |
 
+### FR-9: Status History in Host Tabs (merged from P6600)
+
+Each host tab displays a compact status history summary at the top, showing recent status updates before the full command output.
+
+| ID     | Requirement                                                      |
+| ------ | ---------------------------------------------------------------- |
+| FR-9.1 | Status history appears at top of host tab (above command output) |
+| FR-9.2 | Shows last N status entries (default: 10, configurable)          |
+| FR-9.3 | Each entry shows: timestamp (HH:MM), icon, truncated message     |
+| FR-9.4 | Entries scrollable if history exceeds visible area               |
+| FR-9.5 | Most recent entry highlighted (bold or brighter color)           |
+| FR-9.6 | Error entries shown in red (matching System Log styling)         |
+| FR-9.7 | Status history updates in real-time via WebSocket                |
+| FR-9.8 | History persists across tab close/reopen (session storage)       |
+
+**Status History Icons** (merged from P6600):
+
+| Event   | Icon | Color  | Description                    |
+| ------- | ---- | ------ | ------------------------------ |
+| Success | ✓    | Green  | Command completed successfully |
+| Error   | ✗    | Red    | Command failed                 |
+| Pending | ⧖    | Yellow | Command queued/in progress     |
+| Testing | ✦    | Blue   | Test execution in progress     |
+| Info    | •    | Gray   | General status update          |
+
+**Status History Events**:
+
+- ✅ Command queued ("⏳ Pulling...")
+- ✅ Command started (agent picked it up)
+- ✅ Command completed ("✓ Switch complete")
+- ✅ Command failed ("✗ Switch failed: <truncated>")
+- ✅ Test progress ("✦ Testing 3/8")
+- ✅ Test result ("✓ Tests: 8/8 passed")
+- ❌ Heartbeats (too noisy, excluded)
+
 ### Session Behavior
 
 **Output is session-only.** On page refresh:
@@ -178,6 +213,13 @@ A special tab that captures all ephemeral UI events (toasts, errors, system mess
 │ │ 📋 Log ×│ │ hsb0  × │ │ hsb1 🔴│ │ gpc0 ●  │               [▼ Hide] │
 │ └─────────┘ └─────────┘ └─────────┘ └─────────┘                         │
 ├─────────────────────────────────────────────────────────────────────────┤
+│ Status History (last 10):                                                │
+│   14:23 ✓ Switch complete                                                │
+│   14:22 ⧖ Switching...                                                  │
+│   14:20 ✓ Pull complete                                                  │
+│   14:19 ⧖ Pulling...                                                     │
+│ ──────────────────────────────────────────────────────────────────────── │
+│ Command Output:                                                          │
 │ $ nixos-rebuild switch --flake .#hsb0                                   │
 │ building the system configuration...                                    │
 │ these 12 derivations will be built:                                     │
@@ -187,6 +229,8 @@ A special tab that captures all ephemeral UI events (toasts, errors, system mess
 │                                                          [Clear] [Copy] │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
+
+**Note**: Status history section is collapsible (click to expand/collapse) and shows truncated messages (≤100 chars). Full details available in command output below.
 
 ### Output Panel (Bottom) - System Log Tab
 
@@ -265,6 +309,22 @@ const outputTabs = {
     command: "switch",
     status: "running", // running, ok, error, idle
     output: [...lines],
+    statusHistory: [
+      // Merged from P6600: compact status history
+      {
+        timestamp: "2025-12-17T14:23:05Z",
+        icon: "✓",
+        message: "Switch complete",
+        category: "success",
+      },
+      {
+        timestamp: "2025-12-17T14:22:31Z",
+        icon: "⧖",
+        message: "Switching...",
+        category: "pending",
+      },
+      // ... last N entries (default: 10)
+    ],
     scrollPosition: 0,
     hasUnread: false,
     startedAt: "2025-12-17T18:00:00Z",
@@ -299,13 +359,17 @@ function formatRelativeTime(timestamp) {
 - Subscribe to output for all tabs, not just active one
 - Buffer output per host
 - Update tab state on command start/complete
+- Broadcast status history updates (merged from P6600)
+- Status history entries appended on: command start, command complete, command fail, test progress
 
 ### Memory Management
 
 - Limit output lines per tab (default: 1000 lines, oldest lines trimmed)
+- Limit status history entries per host (default: 50 entries, oldest trimmed) (merged from P6600)
 - No limit on number of tabs (user controls tab lifecycle)
 - Output buffer persists even after command completes
-- Buffer cleared only when tab is closed or "Clear" button clicked
+- Status history persists across tab close/reopen (session storage)
+- Buffers cleared only when tab is closed or "Clear" button clicked
 
 ## Implementation Order
 
@@ -327,16 +391,25 @@ function formatRelativeTime(timestamp) {
    - Reverse chronological order (newest at top)
    - Hook into toast system to capture messages
 
-4. **Phase 4: Panel Controls**
+4. **Phase 4: Status History in Host Tabs** (merged from P6600)
+   - Backend: Store status_history array per host (in-memory, session-only)
+   - Backend: Broadcast status history updates via WebSocket
+   - Frontend: Render status history summary at top of host tabs
+   - Frontend: Status history icons and styling
+   - Frontend: Collapsible status history section
+   - Frontend: Real-time updates as commands progress
+
+5. **Phase 5: Panel Controls**
    - Collapse/expand
    - Resize by drag
    - Clear/Copy buttons
    - LocalStorage persistence for panel state
    - Rename "Bark Actions" → "Bulk Actions" with sections
 
-5. **Phase 5: Polish**
+6. **Phase 6: Polish**
    - Keyboard shortcuts (Ctrl+1-9 for tabs)
    - Settings for buffer size
+   - Settings for status history retention (default: 50 entries)
 
 ## Priority
 
@@ -346,7 +419,10 @@ function formatRelativeTime(timestamp) {
 
 - Host Update Status - completed (built into dashboard)
 - Existing WebSocket output streaming
+- P2800 Command State Machine (for status history data source) - optional but recommended
 
 ## Related
 
+- **P6600** - Status Papertrail (merged into this item - status history in host tabs)
+- **P2800** - Command State Machine (provides validation results and command history for status entries)
 - P5010 - Compartment Status Indicator (visual status patterns)

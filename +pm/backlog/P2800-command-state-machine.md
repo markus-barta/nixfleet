@@ -647,4 +647,4 @@ commandHistory = {
 
 - **P2000** - Unified Host State (provides hostStore foundation) - Done
 - **P4020** - Tabbed Output Panel (displays progress, logs validations)
-- **P6600** - Status Papertrail (may be merged into P4020)
+- **P6600** - Status Papertrail (merged into P4020 - status history in host tabs)
