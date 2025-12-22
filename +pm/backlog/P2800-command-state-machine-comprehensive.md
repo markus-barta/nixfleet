@@ -18,13 +18,14 @@
 5. [Validators Specification](#validators-specification)
 6. [Agent Binary Freshness Detection](#agent-binary-freshness-detection-p2810)
 7. [Command Timeout & Abort](#command-timeout--abort)
-8. [Protocol Changes](#protocol-changes)
-9. [UI Integration](#ui-integration)
-10. [Full Success Criteria](#full-success-criteria)
-11. [Test Strategy](#test-strategy-165-tests)
-12. [Implementation Plan](#implementation-plan)
-13. [Acceptance Criteria](#acceptance-criteria)
-14. [Risk Mitigation](#risk-mitigation)
+8. [Reboot Integration (P6900)](#reboot-integration-p6900)
+9. [Protocol Changes](#protocol-changes)
+10. [UI Integration](#ui-integration)
+11. [Full Success Criteria](#full-success-criteria)
+12. [Test Strategy](#test-strategy-170-tests)
+13. [Implementation Plan](#implementation-plan)
+14. [Acceptance Criteria](#acceptance-criteria)
+15. [Risk Mitigation](#risk-mitigation)
 
 ---
 
@@ -834,6 +835,204 @@ Every timeout event is logged verbosely:
 
 ---
 
+## Reboot Integration (P6900)
+
+P6900 (Forced Reboot with TOTP) is the **nuclear option** for completely stuck hosts. It bypasses the command state machine but P2800 must be aware of it.
+
+### Escalation Path
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    TIMEOUT ESCALATION PATH                                  │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│   Command Running                                                           │
+│        │                                                                    │
+│        ▼                                                                    │
+│   ┌────────────────┐                                                        │
+│   │ TIMEOUT_PENDING│                                                        │
+│   └───────┬────────┘                                                        │
+│           │                                                                 │
+│           ├──── Wait ────▶ Continue monitoring                              │
+│           │                                                                 │
+│           ├──── Kill ────▶ Send SIGTERM/SIGKILL                            │
+│           │                     │                                           │
+│           │                     ├── Success ──▶ Command terminated          │
+│           │                     │                                           │
+│           │                     └── Failed ───▶ ┌──────────────────────┐   │
+│           │                          (no resp)   │ KILL_FAILED          │   │
+│           │                                      │ "Agent unresponsive" │   │
+│           │                                      │                      │   │
+│           │                                      │ [Reboot Host] ◀──────│   │
+│           │                                      │ (requires TOTP)      │   │
+│           │                                      └──────────┬───────────┘   │
+│           │                                                 │               │
+│           │                                                 ▼               │
+│           │                                      ┌──────────────────────┐   │
+│           │                                      │ ABORTED_BY_REBOOT    │   │
+│           │                                      │ (host rebooting)     │   │
+│           │                                      └──────────────────────┘   │
+│           │                                                                 │
+│           └──── Ignore ──▶ Stop monitoring, mark IGNORED                   │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### UI: Timeout Dialog with Reboot Option
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│              ⚠ Command Timeout                                  │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  Switch on hsb1 has exceeded the 30-minute timeout.            │
+│                                                                 │
+│  [Wait +5min] [Wait +30min] [Kill Process] [Ignore]            │
+│                                                                 │
+│  ─────────────────────────────────────────────────────────────  │
+│                                                                 │
+│  If Kill Process fails (agent unresponsive):                   │
+│                                                                 │
+│  [🔒 Reboot Host]  ← Requires TOTP, last resort                │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+After Kill fails:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│              ⚠ Kill Failed - Agent Unresponsive                 │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  The agent on hsb1 is not responding to kill command.          │
+│  The process may be stuck in an uninterruptible state.         │
+│                                                                 │
+│  Options:                                                       │
+│  • Wait for the process to complete naturally                   │
+│  • SSH to host and manually investigate                         │
+│  • Reboot the host (nuclear option)                             │
+│                                                                 │
+│  [Wait] [SSH Guide] [🔒 Reboot Host]                           │
+│                                                                 │
+│  ⚠ Reboot requires TOTP and will immediately restart the host │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### State: ABORTED_BY_REBOOT
+
+When reboot is triggered via P6900, P2800 must:
+
+```go
+// Called when reboot command is sent to a host with pending command
+func (sm *CommandStateMachine) HandleRebootTriggered(hostID string) {
+    state := sm.GetState(hostID)
+
+    if state == nil || state.State == "idle" {
+        // No pending command, nothing to clean up
+        return
+    }
+
+    // Log the abort
+    sm.Log(LogEntry{
+        Level:   LogLevelWarning,
+        HostID:  hostID,
+        State:   fmt.Sprintf("%s→ABORTED_BY_REBOOT", state.State),
+        Message: fmt.Sprintf("Command '%s' aborted due to host reboot", state.Command),
+        Code:    "aborted_by_reboot",
+    })
+
+    // Clear snapshot (no longer valid after reboot)
+    sm.ClearSnapshot(hostID)
+
+    // Mark state
+    sm.TransitionTo(hostID, "ABORTED_BY_REBOOT", "Host reboot initiated")
+
+    // Store the aborted command for post-reboot logging
+    sm.SetPendingRebootRecovery(hostID, state.Command)
+}
+```
+
+### Post-Reboot Detection
+
+When agent reconnects after a reboot:
+
+```go
+func (s *Server) handleAgentRegistration(conn *WebSocket, reg RegistrationPayload) {
+    host := s.getOrCreateHost(reg.HostID)
+
+    // Check for pending reboot recovery
+    if abortedCommand := s.cmdStateMachine.GetPendingRebootRecovery(host.ID); abortedCommand != "" {
+        // Log the recovery
+        s.cmdStateMachine.Log(LogEntry{
+            Level:   LogLevelWarning,
+            HostID:  host.ID,
+            State:   "POST_REBOOT",
+            Message: fmt.Sprintf("Host rebooted during '%s'. Manual verification may be needed.", abortedCommand),
+            Code:    "post_reboot_recovery",
+        })
+
+        // Clear the pending recovery marker
+        s.cmdStateMachine.ClearPendingRebootRecovery(host.ID)
+
+        // Transition to IDLE (don't auto-retry!)
+        s.cmdStateMachine.TransitionTo(host.ID, "IDLE", "Recovered after reboot")
+
+        // Notify UI
+        s.broadcastToast(host.ID, "warning",
+            fmt.Sprintf("%s rebooted during %s. Verify system state manually.",
+                host.Hostname, abortedCommand))
+    }
+
+    // Continue with normal registration...
+}
+```
+
+### Logging: Reboot Events
+
+```
+15:30:00  ⧖  hsb1 [RUNNING]           Switch running for 30m (hard timeout)
+15:30:00  ✗  hsb1 [TIMEOUT_PENDING]   Awaiting user action
+15:30:15  ℹ  hsb1 [TIMEOUT_PENDING]   User selected: Kill Process
+15:30:15  ℹ  hsb1 [KILLING]           Sending SIGTERM to PID 12345
+15:30:20  ⧖  hsb1 [KILLING]           Waiting for process to terminate...
+15:30:35  ✗  hsb1 [KILL_FAILED]       Process not responding after 20s
+15:31:00  ⚠  hsb1 [KILL_FAILED]       User selected: Reboot Host
+15:31:00  ⚠  hsb1 [RUNNING→ABORTED]   Command 'switch' aborted due to host reboot
+15:31:00  ℹ  hsb1 [ABORTED_BY_REBOOT] Snapshot cleared, awaiting host reconnection
+... host reboots ...
+15:32:30  ℹ  hsb1 [POST_REBOOT]       Host reconnected after reboot
+15:32:30  ⚠  hsb1 [POST_REBOOT]       Host rebooted during 'switch'. Manual verification may be needed.
+15:32:30  ✓  hsb1 [POST_REBOOT→IDLE]  Recovered after reboot
+```
+
+### Important: No Auto-Retry
+
+After reboot recovery, we explicitly **do NOT auto-retry** the command because:
+
+1. **Unknown State**: We don't know if the command partially completed
+2. **User Intent**: User chose to reboot, not retry
+3. **Safety**: Auto-retry could cause loops (reboot → retry → stuck → reboot)
+4. **Manual Check**: User should verify system state before re-running
+
+If the user wants to retry, they click the command button again (goes through normal pre-validation).
+
+### P6900 Integration Point
+
+P6900 must call `HandleRebootTriggered()` before sending reboot command:
+
+```go
+// In P6900's handleReboot handler, before sending command to agent
+if cmdState := s.cmdStateMachine.GetState(hostID); cmdState != nil && cmdState.State != "idle" {
+    s.cmdStateMachine.HandleRebootTriggered(hostID)
+}
+
+// Then send reboot command to agent
+```
+
+---
+
 ## Protocol Changes
 
 ### command_complete Message (Agent → Dashboard)
@@ -1109,7 +1308,7 @@ Every state machine transition MUST log:
 
 ---
 
-## Test Strategy (165+ Tests)
+## Test Strategy (170+ Tests)
 
 ### Test Summary
 
@@ -1121,11 +1320,12 @@ Every state machine transition MUST log:
 | Post-Validation Timing       | 7       | -      | -      | **7**   |
 | Timeout & Abort Tests        | -       | -      | 8      | **8**   |
 | Reconnection Tests           | -       | -      | 7      | **7**   |
+| Reboot Integration Tests     | -       | -      | 5      | **5**   |
 | Integration Tests            | 17      | 11     | -      | **28**  |
 | E2E Mock Tests               | 6       | 3      | -      | **9**   |
 | E2E Fleet Tests              | 6       | 3      | -      | **9**   |
 | E2E Known Failure Mode Tests | -       | -      | 12     | **12**  |
-| **TOTAL**                    | **103** | **35** | **27** | **165** |
+| **TOTAL**                    | **103** | **35** | **32** | **170** |
 
 ### File Structure
 
@@ -1138,6 +1338,7 @@ v2/tests/integration/
 ├── t13_post_validation_timing_test.go    # Timing tests
 ├── t13_timeout_abort_test.go             # NEW: Timeout & abort handling
 ├── t13_reconnection_test.go              # NEW: Agent reconnection verification
+├── t13_reboot_integration_test.go        # NEW: P6900 reboot integration
 ├── t13_e2e_mock_test.go                  # Mock E2E tests
 ├── t13_e2e_fleet_test.go                 # Real fleet tests
 ├── t13_known_failures_test.go            # NEW: PRD failure mode tests
@@ -1228,6 +1429,14 @@ tests/specs/
 | Stale Binary      | 2     | Agent reconnects but binary unchanged → detected |
 | Reconnect Timeout | 2     | Agent fails to reconnect → TIMEOUT state         |
 | macOS Launchd     | 1     | Agent survives home-manager switch via Setsid    |
+
+### Reboot Integration Tests (5 tests)
+
+| Scenario                   | Tests | Description                                     |
+| -------------------------- | ----- | ----------------------------------------------- |
+| Reboot During Command      | 2     | Triggers ABORTED_BY_REBOOT, clears snapshot     |
+| Post-Reboot Recovery       | 2     | Agent reconnects, logs warning, returns to IDLE |
+| No Auto-Retry After Reboot | 1     | Verify command is NOT auto-retried after reboot |
 
 ### E2E Known Failure Mode Tests (12 tests)
 
@@ -1451,6 +1660,17 @@ cd v2 && go test -v -tags=fleet ./tests/integration/... -run "Fleet"
 - [ ] Pull-Switch SUCCESS requires all of the above combined
 - [ ] Test SUCCESS requires exit 0 for all test scripts
 
+### Reboot Integration (P6900)
+
+- [ ] Reboot Host option shown in KILL_FAILED state
+- [ ] Reboot triggers ABORTED_BY_REBOOT state transition
+- [ ] Pending snapshot is cleared on reboot
+- [ ] Aborted command is logged with clear message
+- [ ] Post-reboot: agent reconnection detected
+- [ ] Post-reboot: warning logged about manual verification
+- [ ] Post-reboot: state transitions to IDLE (not auto-retry)
+- [ ] Post-reboot: UI toast notification shown
+
 ### Idempotency
 
 - [ ] Running same validator twice with same state returns same result
@@ -1467,11 +1687,12 @@ cd v2 && go test -v -tags=fleet ./tests/integration/... -run "Fleet"
 
 ### Test Coverage
 
-- [ ] All 165 tests passing
+- [ ] All 170 tests passing
 - [ ] No race detector warnings
 - [ ] No flaky tests (run 3x, all pass)
 - [ ] Fleet tests pass on gpc0 and imac0
 - [ ] All PRD Known Failure Modes have E2E test coverage
+- [ ] Reboot integration tests pass
 
 ---
 
@@ -1547,16 +1768,19 @@ cd v2 && go test -v -tags=fleet ./tests/integration/... -run "Fleet"
 - [T14 Spec](../../tests/specs/T14-agent-binary-freshness.md) - P2810 test specification
 - [PRD Agent Resilience](../PRD.md#critical-requirement-agent-resilience) - Why this matters
 - [P4020 Tabbed Output Panel](./P4020-tabbed-output-panel.md) - Displays state machine logs
+- [P6900 Forced Reboot](./P6900-forced-reboot-with-totp.md) - Nuclear option for stuck hosts (integrated)
 
 ---
 
 ## Revision History
 
-| Date       | Changes                                                         |
-| ---------- | --------------------------------------------------------------- |
-| 2025-12-21 | Initial P2800, P2810, test strategy created as separate files   |
-| 2025-12-22 | Refined test strategy with design decisions, 138 tests          |
-| 2025-12-22 | Consolidated into single comprehensive document                 |
-| 2025-12-22 | Major expansion: Agent Lifecycle Integration, Timeout/Abort,    |
-|            | Full Success Criteria, Known Failure Mode E2E tests (165 tests) |
-|            | Changed to reconnection-based completion for switch commands    |
+| Date       | Changes                                                            |
+| ---------- | ------------------------------------------------------------------ |
+| 2025-12-21 | Initial P2800, P2810, test strategy created as separate files      |
+| 2025-12-22 | Refined test strategy with design decisions, 138 tests             |
+| 2025-12-22 | Consolidated into single comprehensive document                    |
+| 2025-12-22 | Major expansion: Agent Lifecycle Integration, Timeout/Abort,       |
+|            | Full Success Criteria, Known Failure Mode E2E tests (165 tests)    |
+|            | Changed to reconnection-based completion for switch commands       |
+| 2025-12-22 | Added P6900 Reboot Integration: escalation path, ABORTED_BY_REBOOT |
+|            | state, post-reboot detection, no auto-retry policy (170 tests)     |
