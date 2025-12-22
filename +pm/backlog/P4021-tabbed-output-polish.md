@@ -6,16 +6,21 @@ Continuation of **P4020** (Tabbed Output Panel) - completing remaining features.
 
 ## Status
 
-**Ready** - P4020 core functionality complete, this item covers polish and remaining features.
+**Complete** - All features implemented.
 
 ## Context
 
-P4020 was implemented with core functionality (Phases 1-2 complete), but several features were deferred:
+P4020 was implemented with core functionality (Phases 1-2 complete), but several features were deferred.
 
-- Tab overflow dropdown for mobile/many hosts
-- Resize panel by dragging
-- Status History section (FR-9, merged from P6600)
-- Minor polish items
+**All features now implemented:**
+
+- ✅ Tab overflow dropdown for mobile/many hosts (FR-5)
+- ✅ Resize panel by dragging (FR-4.2)
+- ✅ Panel height persistence (FR-4.4)
+- ✅ Status History section (FR-9, merged from P6600)
+- ✅ Dual timestamp format (FR-6.7)
+- ✅ Show Output menu option (FR-1.6/1.7)
+- ✅ Keyboard shortcuts (Ctrl+1-9, Ctrl+W, Escape)
 
 ## Remaining Features
 

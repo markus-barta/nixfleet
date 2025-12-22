@@ -242,7 +242,13 @@ templ Dashboard(data DashboardData) {
 		@ContextBar()
 
 		<!-- P4020: Tabbed Output Panel -->
-		<div class="output-panel hidden" id="output-panel" x-data="outputPanel()">
+		<div class="output-panel hidden" id="output-panel" x-data="outputPanel()" @keydown.window="handleKeyboard($event)">
+			<!-- P4021: Resize Handle -->
+			<div 
+				class="output-resize-handle" 
+				:class="{ 'resizing': isResizing }"
+				@mousedown="startResize($event)"
+			></div>
 			<!-- Tab Bar -->
 			<div class="output-tabs">
 				<div class="tab-list">
@@ -259,7 +265,7 @@ templ Dashboard(data DashboardData) {
 						<span class="tab-close" @click.stop="closeTab('system')" title="Close">×</span>
 					</button>
 					<!-- Host Tabs -->
-					<template x-for="tab in tabs" :key="tab.hostId">
+					<template x-for="(tab, index) in tabs" :key="tab.hostId">
 						<button
 							type="button"
 							class="output-tab"
@@ -271,6 +277,39 @@ templ Dashboard(data DashboardData) {
 							<span class="tab-close" @click.stop="closeTab(tab.hostId)" title="Close">×</span>
 						</button>
 					</template>
+				</div>
+				<!-- P4021: Tab Overflow Dropdown -->
+				<div class="tab-overflow" x-show="tabs.length > 0">
+					<button 
+						type="button" 
+						class="tab-overflow-btn"
+						@click="overflowOpen = !overflowOpen"
+						x-show="tabs.length > 1"
+					>
+						<span x-text="tabs.length + ' tabs'"></span>
+						<span>▼</span>
+					</button>
+					<div class="tab-overflow-menu" x-show="overflowOpen" @click.away="overflowOpen = false">
+						<button 
+							type="button"
+							class="tab-overflow-item"
+							@click="switchTab('system'); overflowOpen = false"
+							x-show="systemLog.length > 0"
+						>
+							<span class="tab-indicator" :class="systemLogIndicator"></span>
+							<span>📋 System Log</span>
+						</button>
+						<template x-for="tab in tabs" :key="'overflow-' + tab.hostId">
+							<button 
+								type="button"
+								class="tab-overflow-item"
+								@click="switchTab(tab.hostId); overflowOpen = false"
+							>
+								<span class="tab-indicator" :class="tab.indicator"></span>
+								<span x-text="tab.hostname"></span>
+							</button>
+						</template>
+					</div>
 				</div>
 				<!-- Panel Actions -->
 				<div class="tab-actions">
@@ -284,14 +323,17 @@ templ Dashboard(data DashboardData) {
 			</div>
 
 			<!-- Content Area -->
-			<div class="output-content" x-show="!collapsed" x-ref="outputContent">
+			<div class="output-content" x-show="!collapsed" x-ref="outputContent" :style="{ maxHeight: panelHeight + 'px' }">
 				<!-- System Log Content -->
 				<template x-if="activeTab === 'system'">
 					<div>
 						<template x-for="entry in systemLog" :key="entry.id">
 							<div class="system-log-entry" :class="entry.category">
 								<span class="log-icon" x-text="entry.icon"></span>
-								<span class="log-time" x-text="entry.timeDisplay"></span>
+								<span class="log-time">
+									<span x-text="entry.timeDisplay"></span>
+									<span class="log-time-relative" x-text="'(' + entry.relativeTime + ')'"></span>
+								</span>
 								<span class="log-message" x-text="entry.message"></span>
 							</div>
 						</template>
@@ -303,6 +345,25 @@ templ Dashboard(data DashboardData) {
 				<!-- Host Output Content -->
 				<template x-if="activeTab !== 'system' && getActiveTabData()">
 					<div>
+						<!-- P4021: Status History -->
+						<div class="status-history" x-show="getActiveTabData().statusHistory.length > 0">
+							<div class="status-history-header" @click="statusHistoryExpanded = !statusHistoryExpanded">
+								<span>Status History</span>
+								<span x-text="statusHistoryExpanded ? '▲' : '▼'"></span>
+							</div>
+							<template x-if="statusHistoryExpanded">
+								<div>
+									<template x-for="entry in getActiveTabData().statusHistory.slice(0, 10)" :key="entry.id">
+										<div class="status-history-entry" :class="entry.category">
+											<span class="sh-time" x-text="entry.time"></span>
+											<span class="sh-icon" x-text="entry.icon"></span>
+											<span class="sh-message" x-text="entry.message"></span>
+										</div>
+									</template>
+								</div>
+							</template>
+						</div>
+						<!-- Command Output Lines -->
 						<template x-for="line in getActiveTabData().lines" :key="line.id">
 							<div class="log-line" :class="{ 'error': line.isError, 'success': line.isSuccess, 'command-separator': line.isSeparator }" x-text="line.text"></div>
 						</template>
@@ -1414,7 +1475,8 @@ templ Dashboard(data DashboardData) {
 			function showLogPanel(hostId) {
 				const panel = document.getElementById('output-panel');
 				panel.classList.remove('hidden');
-				window.dispatchEvent(new CustomEvent('output-start', { detail: { hostId } }));
+				// P4021: Switch to host tab without triggering command start
+				window.dispatchEvent(new CustomEvent('show-output-tab', { detail: { hostId } }));
 			}
 
 			// P4020: Add system log entry
@@ -1426,18 +1488,30 @@ templ Dashboard(data DashboardData) {
 
 			document.addEventListener('alpine:init', () => {
 				Alpine.data('outputPanel', () => ({
-					tabs: [],           // Array of { hostId, hostname, lines, indicator, phase, ... }
+					tabs: [],           // Array of { hostId, hostname, lines, indicator, phase, statusHistory, ... }
 					activeTab: null,    // 'system' or hostId
 					systemLog: [],      // System log entries
 					collapsed: false,
 					lineCounter: 0,
 					logCounter: 0,
+					// P4021: New state
+					panelHeight: 300,   // Default height in pixels
+					isResizing: false,
+					overflowOpen: false,
+					statusHistoryExpanded: true,
+					relativeTimeInterval: null,
 
 					init() {
 						// Restore panel state from localStorage
 						const savedCollapsed = localStorage.getItem('outputPanel.collapsed');
 						if (savedCollapsed !== null) {
 							this.collapsed = savedCollapsed === 'true';
+						}
+
+						// P4021: Restore panel height
+						const savedHeight = localStorage.getItem('outputPanel.height');
+						if (savedHeight !== null) {
+							this.panelHeight = parseInt(savedHeight, 10) || 300;
 						}
 
 						// Listen for output lines
@@ -1454,6 +1528,52 @@ templ Dashboard(data DashboardData) {
 
 						// P2800: Listen for state machine log messages
 						window.addEventListener('state-machine-log', (e) => this.handleStateMachineLog(e.detail));
+
+						// P4021: Resize event handlers
+						window.addEventListener('mousemove', (e) => this.handleResize(e));
+						window.addEventListener('mouseup', () => this.stopResize());
+
+						// P4021: Show output tab (from "View Output" menu)
+						window.addEventListener('show-output-tab', (e) => this.showOutputTab(e.detail));
+
+						// P4021: Update relative times every 30 seconds
+						this.relativeTimeInterval = setInterval(() => this.updateRelativeTimes(), 30000);
+					},
+
+					// P4021: Show or switch to a host's output tab
+					showOutputTab(detail) {
+						const { hostId } = detail;
+						if (!hostId) return;
+
+						// Get or create tab (but don't reset it)
+						let tab = this.tabs.find(t => t.hostId === hostId);
+						if (!tab) {
+							const host = hostStore.get(hostId);
+							tab = {
+								hostId: hostId,
+								hostname: host?.hostname || hostId,
+								lines: [],
+								indicator: 'success',
+								hasUnread: false,
+								phase: '',
+								phaseIcon: '',
+								buildCount: 0,
+								buildCurrent: 0,
+								lastCommand: null,
+								statusHistory: [],
+							};
+							this.tabs.push(tab);
+						}
+
+						// Switch to this tab
+						this.activeTab = hostId;
+						tab.hasUnread = false;
+
+						// Uncollapse if collapsed
+						if (this.collapsed) {
+							this.collapsed = false;
+							localStorage.setItem('outputPanel.collapsed', 'false');
+						}
 					},
 
 					// Get or create tab for a host
@@ -1472,10 +1592,112 @@ templ Dashboard(data DashboardData) {
 								buildCount: 0,
 								buildCurrent: 0,
 								lastCommand: null,
+								statusHistory: [],  // P4021: Status history entries
 							};
 							this.tabs.push(tab);
 						}
 						return tab;
+					},
+
+					// P4021: Resize handlers
+					startResize(e) {
+						this.isResizing = true;
+						this.resizeStartY = e.clientY;
+						this.resizeStartHeight = this.panelHeight;
+						e.preventDefault();
+					},
+
+					handleResize(e) {
+						if (!this.isResizing) return;
+						const delta = this.resizeStartY - e.clientY;
+						const newHeight = Math.max(100, Math.min(600, this.resizeStartHeight + delta));
+						this.panelHeight = newHeight;
+					},
+
+					stopResize() {
+						if (this.isResizing) {
+							this.isResizing = false;
+							localStorage.setItem('outputPanel.height', this.panelHeight);
+						}
+					},
+
+					// P4021: Keyboard shortcuts
+					handleKeyboard(e) {
+						// Only handle if panel is visible
+						const panel = document.getElementById('output-panel');
+						if (panel.classList.contains('hidden')) return;
+
+						// Ctrl+1-9 for tabs
+						if (e.ctrlKey && e.key >= '1' && e.key <= '9') {
+							const index = parseInt(e.key, 10) - 1;
+							if (index === 0 && this.systemLog.length > 0) {
+								this.switchTab('system');
+								e.preventDefault();
+							} else {
+								const tabIndex = this.systemLog.length > 0 ? index - 1 : index;
+								if (tabIndex >= 0 && tabIndex < this.tabs.length) {
+									this.switchTab(this.tabs[tabIndex].hostId);
+									e.preventDefault();
+								}
+							}
+						}
+
+						// Ctrl+W to close active tab
+						if (e.ctrlKey && e.key === 'w' && this.activeTab) {
+							this.closeTab(this.activeTab);
+							e.preventDefault();
+						}
+
+						// Escape to collapse
+						if (e.key === 'Escape' && !this.collapsed) {
+							this.toggleCollapse();
+							e.preventDefault();
+						}
+					},
+
+					// P4021: Update relative times for system log
+					updateRelativeTimes() {
+						const now = new Date();
+						this.systemLog.forEach(entry => {
+							entry.relativeTime = this.formatRelativeTime(entry.timestamp, now);
+						});
+					},
+
+					// P4021: Format relative time
+					formatRelativeTime(timestamp, now = new Date()) {
+						const diffMs = now - new Date(timestamp);
+						const diffSec = Math.floor(diffMs / 1000);
+						const diffMin = Math.floor(diffSec / 60);
+						const diffHour = Math.floor(diffMin / 60);
+
+						if (diffSec < 5) return 'just now';
+						if (diffSec < 60) return diffSec + 's ago';
+						if (diffMin < 60) return diffMin + ' min ago';
+						if (diffHour < 24) return diffHour + 'h ago';
+						return Math.floor(diffHour / 24) + 'd ago';
+					},
+
+					// P4021: Add status history entry to a host tab
+					addStatusHistory(hostId, category, icon, message) {
+						const tab = this.tabs.find(t => t.hostId === hostId);
+						if (!tab) return;
+
+						const now = new Date();
+						const timeStr = now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
+
+						tab.statusHistory.unshift({
+							id: ++this.logCounter,
+							category: category,
+							icon: icon,
+							message: message,
+							time: timeStr,
+							timestamp: now,
+						});
+
+						// Keep only last 50 entries
+						if (tab.statusHistory.length > 50) {
+							tab.statusHistory = tab.statusHistory.slice(0, 50);
+						}
 					},
 
 					handleCommandStart(detail) {
@@ -1503,6 +1725,9 @@ templ Dashboard(data DashboardData) {
 
 						// Switch to this tab
 						this.activeTab = hostId;
+
+						// P4021: Add to status history
+						this.addStatusHistory(hostId, 'pending', '⧖', `${command || 'Command'} started`);
 
 						// Add to system log
 						const host = hostStore.get(hostId);
@@ -1575,11 +1800,15 @@ templ Dashboard(data DashboardData) {
 							isError: !success,
 						});
 
+						// P4021: Add to status history
+						const statusMsg = `${tab.lastCommand || 'Command'} ${success ? 'completed' : 'failed'} (exit ${exitCode})`;
+						this.addStatusHistory(hostId, success ? 'success' : 'error', success ? '✓' : '✗', statusMsg);
+
 						// Add to system log
 						const host = hostStore.get(hostId);
 						this.addSystemLog({
 							category: success ? 'success' : 'error',
-							message: `${host?.hostname || hostId}: ${tab.lastCommand || 'Command'} ${success ? 'completed' : 'failed'} (exit ${exitCode})`,
+							message: `${host?.hostname || hostId}: ${statusMsg}`,
 							icon: success ? '✓' : '✗'
 						});
 					},
@@ -1623,6 +1852,7 @@ templ Dashboard(data DashboardData) {
 							icon: detail.icon || 'ℹ',
 							timestamp: now,
 							timeDisplay: timeStr,
+							relativeTime: 'just now',  // P4021: Dual timestamp format
 						});
 
 						// Trim old entries
@@ -1645,11 +1875,17 @@ templ Dashboard(data DashboardData) {
 						};
 						const mapping = levelMap[detail.level?.toLowerCase()] || levelMap.info;
 
+						// Add to system log
 						this.addSystemLog({
 							category: mapping.category,
 							message: `${detail.host_id}: ${detail.message}`,
 							icon: mapping.icon,
 						});
+
+						// P4021: Also add to host's status history
+						if (detail.host_id) {
+							this.addStatusHistory(detail.host_id, mapping.category, mapping.icon, detail.message);
+						}
 					},
 
 					switchTab(tabId) {

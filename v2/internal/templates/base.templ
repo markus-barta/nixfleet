@@ -892,6 +892,192 @@ templ Base(title string, csrfToken string) {
 			border-top: 1px solid var(--border);
 		}
 
+		/* P4021: Tab overflow dropdown */
+		.tab-overflow {
+			position: relative;
+			display: flex;
+			align-items: center;
+		}
+
+		.tab-overflow-btn {
+			display: flex;
+			align-items: center;
+			gap: 0.25rem;
+			padding: 0.4rem 0.6rem;
+			background: transparent;
+			border: 1px solid var(--border);
+			border-radius: 4px;
+			color: var(--fg-muted);
+			font-size: 0.75rem;
+			cursor: pointer;
+			white-space: nowrap;
+			transition: all 0.15s;
+		}
+
+		.tab-overflow-btn:hover {
+			background: rgba(255,255,255,0.05);
+			color: var(--fg);
+		}
+
+		.tab-overflow-menu {
+			position: absolute;
+			bottom: 100%;
+			right: 0;
+			margin-bottom: 4px;
+			background: var(--bg-dark);
+			border: 1px solid var(--border);
+			border-radius: 6px;
+			min-width: 180px;
+			max-height: 300px;
+			overflow-y: auto;
+			box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+			z-index: 100;
+		}
+
+		.tab-overflow-item {
+			display: flex;
+			align-items: center;
+			gap: 0.5rem;
+			padding: 0.5rem 0.75rem;
+			cursor: pointer;
+			width: 100%;
+			background: none;
+			border: none;
+			color: var(--fg);
+			font-size: 0.8rem;
+			font-family: inherit;
+			text-align: left;
+		}
+
+		.tab-overflow-item:hover {
+			background: var(--bg-highlight);
+		}
+
+		.tab-overflow-item .tab-indicator {
+			width: 8px;
+			height: 8px;
+			border-radius: 50%;
+			flex-shrink: 0;
+		}
+
+		/* P4021: Resize handle */
+		.output-resize-handle {
+			height: 6px;
+			background: transparent;
+			cursor: ns-resize;
+			position: relative;
+			transition: background 0.15s;
+		}
+
+		.output-resize-handle:hover,
+		.output-resize-handle.resizing {
+			background: rgba(122, 162, 247, 0.3);
+		}
+
+		.output-resize-handle::after {
+			content: '';
+			position: absolute;
+			left: 50%;
+			top: 50%;
+			transform: translate(-50%, -50%);
+			width: 40px;
+			height: 3px;
+			background: var(--border);
+			border-radius: 2px;
+			opacity: 0;
+			transition: opacity 0.15s;
+		}
+
+		.output-resize-handle:hover::after {
+			opacity: 1;
+		}
+
+		/* P4021: Status History section */
+		.status-history {
+			padding: 0.5rem 0.75rem;
+			border-bottom: 1px solid var(--border);
+			background: rgba(0,0,0,0.2);
+			max-height: 120px;
+			overflow-y: auto;
+		}
+
+		.status-history-header {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			margin-bottom: 0.25rem;
+			font-size: 0.7rem;
+			color: var(--fg-muted);
+			text-transform: uppercase;
+			letter-spacing: 0.05em;
+			cursor: pointer;
+		}
+
+		.status-history-header:hover {
+			color: var(--fg);
+		}
+
+		.status-history-entry {
+			display: flex;
+			align-items: center;
+			gap: 0.5rem;
+			padding: 0.15rem 0;
+			font-size: 0.75rem;
+		}
+
+		.status-history-entry:first-child {
+			font-weight: 500;
+			color: var(--fg);
+		}
+
+		.status-history-entry .sh-time {
+			color: var(--fg-muted);
+			flex-shrink: 0;
+			width: 40px;
+		}
+
+		.status-history-entry .sh-icon {
+			width: 1rem;
+			text-align: center;
+			flex-shrink: 0;
+		}
+
+		.status-history-entry .sh-message {
+			flex: 1;
+			overflow: hidden;
+			text-overflow: ellipsis;
+			white-space: nowrap;
+		}
+
+		.status-history-entry.success .sh-icon { color: var(--green); }
+		.status-history-entry.warning .sh-icon { color: var(--orange); }
+		.status-history-entry.error .sh-icon { color: var(--red); }
+		.status-history-entry.info .sh-icon { color: var(--blue); }
+		.status-history-entry.pending .sh-icon { color: var(--yellow); }
+
+		/* P4021: Mobile tab behavior */
+		@media (max-width: 640px) {
+			.tab-list .output-tab:not(.active) {
+				display: none;
+			}
+			.tab-overflow {
+				display: flex;
+			}
+		}
+
+		@media (min-width: 641px) {
+			.tab-list .output-tab {
+				display: flex;
+			}
+		}
+
+		/* P4021: Relative time styling */
+		.log-time-relative {
+			color: var(--fg-gutter);
+			font-size: 0.65rem;
+			margin-left: 0.25rem;
+		}
+
 		/* Progress indicator */
 		.progress-badge {
 			display: inline-flex;
