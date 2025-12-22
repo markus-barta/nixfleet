@@ -206,24 +206,34 @@ Each host tab displays a compact status history summary at the top, showing rece
 | FR-9.7 | Status history updates in real-time via WebSocket                |
 | FR-9.8 | History persists across tab close/reopen (session storage)       |
 
-**Status History Icons** (merged from P6600):
+**Status History Icons** (aligned with P2800 verbose logging):
 
 | Event   | Icon | Color  | Description                    |
 | ------- | ---- | ------ | ------------------------------ |
 | Success | ✓    | Green  | Command completed successfully |
-| Error   | ✗    | Red    | Command failed                 |
-| Pending | ⧖    | Yellow | Command queued/in progress     |
-| Testing | ✦    | Blue   | Test execution in progress     |
-| Info    | •    | Gray   | General status update          |
+| Warning | ⚠   | Orange | Partial, stale binary, timeout |
+| Error   | ✗    | Red    | Command failed, blocked        |
+| Pending | ⧖    | Yellow | Running, awaiting reconnect    |
+| Info    | ℹ   | Blue   | State transitions, progress    |
+| Testing | ✦    | Cyan   | Test execution in progress     |
 
-**Status History Events**:
+**Status History Events** (from P2800 state machine):
 
-- ✅ Command queued ("⏳ Pulling...")
-- ✅ Command started (agent picked it up)
-- ✅ Command completed ("✓ Switch complete")
-- ✅ Command failed ("✗ Switch failed: <truncated>")
-- ✅ Test progress ("✦ Testing 3/8")
-- ✅ Test result ("✓ Tests: 8/8 passed")
+- ✅ Command queued (VALIDATING → QUEUED)
+- ✅ Pre-check passed/failed
+- ✅ Command started (RUNNING)
+- ✅ Awaiting reconnect (switch-specific)
+- ✅ Command completed (SUCCESS)
+- ✅ Partial success (PARTIAL)
+- ✅ Command failed (FAILED)
+- ✅ Command blocked (BLOCKED + reason)
+- ✅ Timeout warning (RUNNING_WARNING)
+- ✅ Timeout pending (TIMEOUT_PENDING)
+- ✅ Kill attempt/failed
+- ✅ Stale binary detected (STALE_BINARY)
+- ✅ Post-reboot recovery (ABORTED_BY_REBOOT → IDLE)
+- ✅ Test progress ("Testing 3/8")
+- ✅ Test result ("Tests: 8/8 passed")
 - ❌ Heartbeats (too noisy, excluded)
 
 ### Session Behavior
@@ -391,8 +401,45 @@ function formatRelativeTime(timestamp) {
 - Subscribe to output for all tabs, not just active one
 - Buffer output per host
 - Update tab state on command start/complete
-- Broadcast status history updates (merged from P6600)
-- Status history entries appended on: command start, command complete, command fail, test progress
+- Broadcast status history updates (from P2800 state machine)
+
+**P2800 State Machine Log Messages:**
+
+The dashboard broadcasts `state_machine_log` messages that P4020 consumes:
+
+```json
+{
+  "type": "state_machine_log",
+  "payload": {
+    "timestamp": "2025-12-21T14:23:05Z",
+    "level": "info",
+    "host_id": "hsb1",
+    "state": "PRE-CHECK",
+    "message": "CanSwitch: PASS (git=ok, system=outdated)",
+    "code": "outdated"
+  }
+}
+```
+
+**Level Mapping to Status History Icons:**
+
+| P2800 Level | P4020 Icon | Color  |
+| ----------- | ---------- | ------ |
+| SUCCESS     | ✓          | Green  |
+| WARNING     | ⚠         | Orange |
+| ERROR       | ✗          | Red    |
+| INFO        | ℹ         | Blue   |
+| DEBUG       | (skip)     | -      |
+
+**Events Consumed from P2800:**
+
+- All state transitions (IDLE → VALIDATING → QUEUED → RUNNING → ...)
+- Pre-check validation results
+- Post-check validation results
+- Timeout events
+- Kill command events
+- Reboot abort/recovery events
+- Binary freshness checks
 
 ### Memory Management
 
@@ -451,10 +498,11 @@ function formatRelativeTime(timestamp) {
 
 - Host Update Status - completed (built into dashboard)
 - Existing WebSocket output streaming
-- P2800 Command State Machine (for status history data source) - optional but recommended
+- **P2800 Command State Machine** - REQUIRED (provides state transitions, validation results, timeout events)
 
 ## Related
 
+- **P2800** - Command State Machine (comprehensive spec - source of all state machine events)
 - **P6600** - Status Papertrail (merged into this item - status history in host tabs)
-- **P2800** - Command State Machine (provides validation results and command history for status entries)
+- **P6900** - Forced Reboot (reboot abort/recovery events displayed in System Log)
 - P5010 - Compartment Status Indicator (visual status patterns)
