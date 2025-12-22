@@ -1217,7 +1217,12 @@ templ Dashboard(data DashboardData) {
 						hostStore.update(hostId, {
 							pendingCommand: payload.command
 						});
-						showLogPanel(hostId);
+						// Show panel and trigger command start (not just show existing output)
+						const panel = document.getElementById('output-panel');
+						panel.classList.remove('hidden');
+						window.dispatchEvent(new CustomEvent('output-start', { 
+							detail: { hostId, command: payload.command } 
+						}));
 						break;
 
 					case 'command_output':
