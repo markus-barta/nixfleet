@@ -5,6 +5,9 @@
 {
   lib,
   buildGoModule,
+  # P2810: Source commit for binary freshness verification
+  # Passed from flake.nix when building from a clean git state
+  sourceCommit ? "unknown",
   ...
 }:
 buildGoModule rec {
@@ -24,6 +27,8 @@ buildGoModule rec {
     "-s"
     "-w"
     "-X main.Version=${version}"
+    # P2810: Embed source commit for binary freshness verification
+    "-X github.com/markus-barta/nixfleet/v2/internal/agent.SourceCommit=${sourceCommit}"
   ];
 
   meta = with lib; {

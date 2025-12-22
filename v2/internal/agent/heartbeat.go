@@ -45,6 +45,9 @@ func (a *Agent) sendHeartbeat() {
 		updateStatus = a.statusChecker.GetStatus(a.ctx)
 	}
 
+	// Get binary freshness data (P2810)
+	freshness := GetFreshness()
+
 	payload := protocol.HeartbeatPayload{
 		Generation:     a.generation,
 		NixpkgsVersion: a.nixpkgsVersion,
@@ -52,6 +55,10 @@ func (a *Agent) sendHeartbeat() {
 		CommandPID:     commandPID,
 		Metrics:        a.readMetrics(),
 		UpdateStatus:   updateStatus,
+		// P2810: 3-layer binary freshness
+		SourceCommit: freshness.SourceCommit,
+		StorePath:    freshness.StorePath,
+		BinaryHash:   freshness.BinaryHash,
 	}
 
 	if err := a.ws.SendMessage(protocol.TypeHeartbeat, payload); err != nil {

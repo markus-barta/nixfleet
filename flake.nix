@@ -30,8 +30,11 @@
         else
           "2.1.0-dev";
 
+      # P2810: Source commit for binary freshness verification
+      sourceCommit = self.shortRev or self.rev or "unknown";
+
       # Helper to create the Go agent package
-      mkAgentPackage = pkgs: pkgs.callPackage ./packages/nixfleet-agent-v2.nix { };
+      mkAgentPackage = pkgs: pkgs.callPackage ./packages/nixfleet-agent-v2.nix { inherit sourceCommit; };
     in
     {
       # ════════════════════════════════════════════════════════════════════════

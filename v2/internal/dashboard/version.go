@@ -4,7 +4,7 @@ package dashboard
 // Example: go build -ldflags "-X github.com/markus-barta/nixfleet/v2/internal/dashboard.Version=2.0.1"
 var (
 	// Version is the semantic version, set via ldflags at build time
-	Version = "dev"
+	Version = "2.2.0"
 
 	// GitCommit is the git commit hash, set via ldflags at build time
 	GitCommit = "unknown"

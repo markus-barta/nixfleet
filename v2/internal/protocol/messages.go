@@ -35,12 +35,14 @@ const (
 	TypeRejected          = "command_rejected"
 	TypeTestProgress      = "test_progress"
 	TypeOperationProgress = "operation_progress" // P2800: phase-by-phase progress
+	TypeCommandComplete   = "command_complete"   // P2800: command completion with fresh status
 )
 
 // Message types (dashboard → agent)
 const (
-	TypeRegistered = "registered"
-	TypeCommand    = "command"
+	TypeRegistered  = "registered"
+	TypeCommand     = "command"
+	TypeKillCommand = "kill_command" // P2800: kill running command
 )
 
 // RegisterPayload is sent by the agent when connecting.
@@ -57,6 +59,11 @@ type RegisterPayload struct {
 	DeviceType        string `json:"device_type"` // server, desktop, laptop, gaming
 	RepoURL           string `json:"repo_url"`    // git repo URL (isolated mode)
 	RepoDir           string `json:"repo_dir"`    // local repo path
+
+	// P2800: 3-layer binary freshness detection
+	SourceCommit string `json:"source_commit,omitempty"` // Git commit agent was built from (ldflags)
+	StorePath    string `json:"store_path,omitempty"`    // Nix store path of running binary
+	BinaryHash   string `json:"binary_hash,omitempty"`   // SHA256 of agent binary
 }
 
 // RegisteredPayload is sent by the dashboard to confirm registration.
@@ -72,6 +79,11 @@ type HeartbeatPayload struct {
 	CommandPID      *int          `json:"command_pid"`      // nil if no command running
 	Metrics         *Metrics      `json:"metrics"`          // nil if StaSysMo not available
 	UpdateStatus    *UpdateStatus `json:"update_status"`    // Lock and System status from agent
+
+	// P2800: 3-layer binary freshness detection
+	SourceCommit string `json:"source_commit,omitempty"` // Git commit agent was built from (ldflags)
+	StorePath    string `json:"store_path,omitempty"`    // Nix store path of running binary
+	BinaryHash   string `json:"binary_hash,omitempty"`   // SHA256 of agent binary
 }
 
 // Metrics contains system metrics from StaSysMo.
@@ -169,5 +181,31 @@ type StatusCheck struct {
 	Status    string `json:"status"`     // "ok", "outdated", "error", "unknown"
 	Message   string `json:"message"`    // Human-readable detail
 	CheckedAt string `json:"checked_at"` // ISO timestamp
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// P2800: NEW MESSAGE TYPES
+// ═══════════════════════════════════════════════════════════════════════════
+
+// CommandCompletePayload is sent by agent when a non-switch command completes.
+// For switch commands, the agent exits and reconnection is used instead.
+type CommandCompletePayload struct {
+	Command     string        `json:"command"`
+	ExitCode    int           `json:"exit_code"`
+	FreshStatus *UpdateStatus `json:"fresh_status,omitempty"` // Updated status after command
+}
+
+// KillCommandPayload is sent by dashboard to kill a running command.
+type KillCommandPayload struct {
+	Signal string `json:"signal"` // "SIGTERM" or "SIGKILL"
+	PID    int    `json:"pid"`    // Optional: specific PID (0 = current command)
+}
+
+// AgentFreshness contains the 3-layer binary freshness data.
+// Used for stale binary detection after switch.
+type AgentFreshness struct {
+	SourceCommit string `json:"source_commit"` // Layer 1: Git commit (ldflags)
+	StorePath    string `json:"store_path"`    // Layer 2: Nix store path
+	BinaryHash   string `json:"binary_hash"`   // Layer 3: SHA256 of binary
 }
 

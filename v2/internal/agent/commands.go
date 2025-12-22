@@ -530,6 +530,94 @@ func (a *Agent) handleRestart() {
 	os.Exit(0)
 }
 
+// handleKillCommand handles kill command from dashboard (P2800).
+// This is different from handleStop - it's initiated by the dashboard
+// when a command exceeds timeout and user requests termination.
+func (a *Agent) handleKillCommand(signal string, requestedPID int) {
+	a.mu.RLock()
+	pid := a.commandPID
+	currentCmd := a.pendingCommand
+	a.mu.RUnlock()
+
+	// Use provided PID or current command PID
+	targetPID := requestedPID
+	if targetPID == 0 && pid != nil {
+		targetPID = *pid
+	}
+
+	if targetPID == 0 {
+		a.log.Warn().Msg("kill_command received but no PID to kill")
+		a.sendOutput("⚠️ No command running to kill", "stderr")
+		return
+	}
+
+	cmdName := "unknown"
+	if currentCmd != nil {
+		cmdName = *currentCmd
+	}
+
+	a.log.Info().
+		Int("pid", targetPID).
+		Str("signal", signal).
+		Str("command", cmdName).
+		Msg("kill_command received from dashboard")
+
+	a.sendOutput(fmt.Sprintf("⚠️ Received kill command: %s (PID %d)", signal, targetPID), "stderr")
+
+	// Get process group for killing children too
+	pgid, err := syscall.Getpgid(targetPID)
+	if err != nil {
+		pgid = targetPID // Fallback to just the process
+	}
+
+	switch signal {
+	case "SIGTERM":
+		// Send SIGTERM first
+		if err := syscall.Kill(-pgid, syscall.SIGTERM); err != nil {
+			if err := syscall.Kill(targetPID, syscall.SIGTERM); err != nil {
+				a.log.Error().Err(err).Int("pid", targetPID).Msg("failed to send SIGTERM")
+				a.sendOutput(fmt.Sprintf("❌ Failed to send SIGTERM: %v", err), "stderr")
+				return
+			}
+		}
+		a.sendOutput("✓ SIGTERM sent, waiting for process to terminate...", "stderr")
+
+		// Start goroutine to SIGKILL if not dead in 5s
+		go func() {
+			select {
+			case <-a.ctx.Done():
+				return
+			case <-timeAfter(5):
+				a.mu.RLock()
+				stillRunning := a.commandPID != nil && *a.commandPID == targetPID
+				a.mu.RUnlock()
+
+				if stillRunning {
+					a.log.Warn().Int("pid", targetPID).Msg("process didn't respond to SIGTERM, sending SIGKILL")
+					a.sendOutput("⚠️ Process didn't terminate, sending SIGKILL...", "stderr")
+					_ = syscall.Kill(-pgid, syscall.SIGKILL)
+					_ = syscall.Kill(targetPID, syscall.SIGKILL)
+				}
+			}
+		}()
+
+	case "SIGKILL":
+		// Immediate SIGKILL
+		if err := syscall.Kill(-pgid, syscall.SIGKILL); err != nil {
+			if err := syscall.Kill(targetPID, syscall.SIGKILL); err != nil {
+				a.log.Error().Err(err).Int("pid", targetPID).Msg("failed to send SIGKILL")
+				a.sendOutput(fmt.Sprintf("❌ Failed to send SIGKILL: %v", err), "stderr")
+				return
+			}
+		}
+		a.sendOutput("✓ SIGKILL sent", "stderr")
+
+	default:
+		a.log.Warn().Str("signal", signal).Msg("unknown signal requested")
+		a.sendOutput(fmt.Sprintf("❌ Unknown signal: %s", signal), "stderr")
+	}
+}
+
 // Command builders
 
 // runIsolatedPull performs a clean-slate pull for isolated mode:

@@ -118,6 +118,12 @@ type Hub struct {
 	// Log storage for command output
 	logStore *LogStore
 
+	// P2800: Command state machine reference (set by Server after creation)
+	cmdStateMachine *CommandStateMachine
+
+	// P2810: Last known agent freshness (updated on register/heartbeat)
+	agentFreshness map[string]AgentFreshness
+
 	// Command completion subscribers (P5300 - proper deploy tracking)
 	completionSubs   map[string][]chan CommandCompletion
 	completionSubsMu sync.Mutex
@@ -153,6 +159,7 @@ func NewHub(log zerolog.Logger, db *sql.DB, cfg *Config, vf *VersionFetcher) *Hu
 		agentMessages:  make(chan *agentMessage, 256),
 		broadcasts:     make(chan []byte, broadcastQueueSize),
 		completionSubs: make(map[string][]chan CommandCompletion),
+		agentFreshness: make(map[string]AgentFreshness), // P2810
 	}
 }
 
@@ -160,6 +167,22 @@ func NewHub(log zerolog.Logger, db *sql.DB, cfg *Config, vf *VersionFetcher) *Hu
 // Called after FlakeUpdateService is created to avoid circular dependencies.
 func (h *Hub) SetFlakeUpdates(fu flakeUpdateGetter) {
 	h.flakeUpdates = fu
+}
+
+// SetCommandStateMachine sets the command state machine reference (P2800).
+// Called by Server after creation to avoid circular dependencies.
+func (h *Hub) SetCommandStateMachine(sm *CommandStateMachine) {
+	h.cmdStateMachine = sm
+}
+
+// GetAgentFreshness returns the last known freshness data for an agent (P2810).
+func (h *Hub) GetAgentFreshness(hostID string) *AgentFreshness {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	if f, ok := h.agentFreshness[hostID]; ok {
+		return &f
+	}
+	return nil
 }
 
 // Run starts the hub's main loop with panic recovery and context support.
@@ -550,6 +573,7 @@ func (h *Hub) handleAgentMessage(msg *agentMessage) {
 
 // handleAgentRegister processes agent registration.
 // CRITICAL: External operations happen OUTSIDE the mutex lock.
+// P2800: Also handles reconnection-based switch completion verification.
 func (h *Hub) handleAgentRegister(msg *agentMessage) {
 	var payload protocol.RegisterPayload
 	if err := msg.message.ParsePayload(&payload); err != nil {
@@ -587,7 +611,30 @@ func (h *Hub) handleAgentRegister(msg *agentMessage) {
 	h.log.Info().
 		Str("hostname", payload.Hostname).
 		Str("agent_version", payload.AgentVersion).
+		Str("source_commit", payload.SourceCommit).
 		Msg("agent registered")
+
+	// P2810: Store agent freshness for pre-switch snapshot capture
+	freshness := AgentFreshness{
+		SourceCommit: payload.SourceCommit,
+		StorePath:    payload.StorePath,
+		BinaryHash:   payload.BinaryHash,
+	}
+	h.mu.Lock()
+	h.agentFreshness[payload.Hostname] = freshness
+	h.mu.Unlock()
+
+	// P2800: Check for reconnection after switch (binary freshness verification)
+	// Also check for post-reboot recovery
+	if h.cmdStateMachine != nil {
+		// Check post-reboot recovery first
+		if h.cmdStateMachine.HandlePostRebootReconnect(payload.Hostname) {
+			return // Already handled
+		}
+
+		// Check for awaiting reconnect (switch completion)
+		h.cmdStateMachine.HandleAgentReconnect(payload.Hostname, freshness)
+	}
 }
 
 func (h *Hub) updateHost(payload protocol.RegisterPayload) {
@@ -706,6 +753,17 @@ func (h *Hub) handleHeartbeat(hostID string, payload protocol.HeartbeatPayload) 
 		Str("generation", payload.Generation).
 		Msg("heartbeat received")
 
+	// P2810: Update agent freshness (for pre-switch snapshot capture)
+	if payload.SourceCommit != "" || payload.StorePath != "" || payload.BinaryHash != "" {
+		h.mu.Lock()
+		h.agentFreshness[hostID] = AgentFreshness{
+			SourceCommit: payload.SourceCommit,
+			StorePath:    payload.StorePath,
+			BinaryHash:   payload.BinaryHash,
+		}
+		h.mu.Unlock()
+	}
+
 	// P7000: Broadcast minimal heartbeat to browsers (only realtime data)
 	// Full update status is fetched on-demand via /api/hosts/{id}/refresh
 	h.BroadcastToBrowsers(map[string]any{
@@ -724,12 +782,20 @@ func (h *Hub) handleStatus(hostID string, payload protocol.StatusPayload) {
 		Str("host", hostID).
 		Str("command", payload.Command).
 		Str("status", payload.Status).
+		Int("exit_code", payload.ExitCode).
 		Msg("command status")
 
-	// Clear pending_command in database - command is complete
-	_, err := h.db.Exec(`UPDATE hosts SET pending_command = NULL WHERE hostname = ?`, hostID)
-	if err != nil {
-		h.log.Error().Err(err).Str("host", hostID).Msg("failed to clear pending_command")
+	// P2800: For switch commands with exit 0, don't clear pending_command yet
+	// The agent will exit 101 and we need to verify reconnection
+	isSwitch := payload.Command == "switch" || payload.Command == "pull-switch"
+	isSwitchSuccess := isSwitch && payload.ExitCode == 0
+
+	if !isSwitchSuccess {
+		// Clear pending_command in database - command is complete
+		_, err := h.db.Exec(`UPDATE hosts SET pending_command = NULL WHERE hostname = ?`, hostID)
+		if err != nil {
+			h.log.Error().Err(err).Str("host", hostID).Msg("failed to clear pending_command")
+		}
 	}
 
 	// Complete the log file
@@ -739,6 +805,32 @@ func (h *Hub) handleStatus(hostID string, payload protocol.StatusPayload) {
 
 	// Notify completion subscribers (P5300 - deploy tracking)
 	h.notifyCommandCompletion(hostID, payload.Command, payload.ExitCode)
+
+	// P2800: Handle command completion via state machine
+	if h.cmdStateMachine != nil {
+		if isSwitchSuccess {
+			// For successful switch, enter AWAITING_RECONNECT state
+			// The agent will exit 101 and we verify binary freshness on reconnect
+			h.log.Info().
+				Str("host", hostID).
+				Str("command", payload.Command).
+				Msg("switch completed, entering AWAITING_RECONNECT for binary verification")
+			h.cmdStateMachine.EnterAwaitingReconnect(hostID)
+		} else if isSwitch && payload.ExitCode != 0 {
+			// Switch failed
+			h.cmdStateMachine.TransitionTo(hostID, StateFailed,
+				fmt.Sprintf("Switch failed with exit code %d", payload.ExitCode))
+		} else {
+			// Non-switch commands (pull, test): transition based on exit code
+			if payload.ExitCode == 0 {
+				h.cmdStateMachine.TransitionTo(hostID, StateSuccess,
+					fmt.Sprintf("%s completed successfully", payload.Command))
+			} else {
+				h.cmdStateMachine.TransitionTo(hostID, StateFailed,
+					fmt.Sprintf("%s failed with exit code %d", payload.Command, payload.ExitCode))
+			}
+		}
+	}
 
 	// Broadcast to browsers
 	h.BroadcastToBrowsers(map[string]any{

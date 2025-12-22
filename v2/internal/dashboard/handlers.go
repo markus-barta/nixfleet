@@ -552,13 +552,9 @@ func (s *Server) handleCommand(w http.ResponseWriter, r *http.Request) {
 	if !req.Force {
 		result := s.cmdStateMachine.RunPreChecks(host, req.Command)
 		if !result.Valid {
-			s.cmdStateMachine.Log(LogEntry{
-				Level:   LogLevelWarning,
-				HostID:  hostID,
-				State:   "VALIDATING→BLOCKED",
-				Message: fmt.Sprintf("Cannot %s: %s", req.Command, result.Message),
-				Code:    result.Code,
-			})
+			// Transition to BLOCKED state
+			s.cmdStateMachine.TransitionTo(hostID, StateBlocked,
+				fmt.Sprintf("Cannot %s: %s", req.Command, result.Message))
 
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusConflict)
@@ -571,7 +567,17 @@ func (s *Server) handleCommand(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// P2800: Capture pre-command snapshot for post-validation
-	s.cmdStateMachine.CaptureSnapshot(host)
+	// P2810: For switch commands, also capture binary freshness for stale binary detection
+	isSwitch := req.Command == "switch" || req.Command == "pull-switch"
+	if isSwitch {
+		if freshness := s.hub.GetAgentFreshness(hostID); freshness != nil {
+			s.cmdStateMachine.CaptureSnapshotWithFreshness(host, freshness)
+		} else {
+			s.cmdStateMachine.CaptureSnapshot(host)
+		}
+	} else {
+		s.cmdStateMachine.CaptureSnapshot(host)
+	}
 
 	// Find agent connection for this host
 	agent := s.hub.GetAgent(hostID)
@@ -615,13 +621,9 @@ func (s *Server) handleCommand(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// P2800: Log successful queue
-	s.cmdStateMachine.Log(LogEntry{
-		Level:   LogLevelInfo,
-		HostID:  hostID,
-		State:   "QUEUED→RUNNING",
-		Message: fmt.Sprintf("Command sent to agent: %s", req.Command),
-	})
+	// P2800: Transition to RUNNING state
+	s.cmdStateMachine.TransitionTo(hostID, StateRunning,
+		fmt.Sprintf("Command sent to agent: %s", req.Command))
 
 	// Update host status
 	_, _ = s.db.Exec(`UPDATE hosts SET pending_command = ?, status = 'running' WHERE id = ?`,
@@ -1266,5 +1268,146 @@ func isValidHexColor(color string) bool {
 		}
 	}
 	return true
+}
+
+// =============================================================================
+// P2800: Command State Machine Handlers
+// =============================================================================
+
+// handleKillCommand sends a kill signal to a running command.
+// POST /api/hosts/{hostID}/kill
+func (s *Server) handleKillCommand(w http.ResponseWriter, r *http.Request) {
+	hostID := chi.URLParam(r, "hostID")
+
+	var req struct {
+		Signal string `json:"signal"` // "SIGTERM" or "SIGKILL"
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Bad Request", http.StatusBadRequest)
+		return
+	}
+
+	// Default to SIGTERM
+	if req.Signal == "" {
+		req.Signal = "SIGTERM"
+	}
+	if req.Signal != "SIGTERM" && req.Signal != "SIGKILL" {
+		http.Error(w, "Invalid signal (must be SIGTERM or SIGKILL)", http.StatusBadRequest)
+		return
+	}
+
+	// Get agent connection
+	agent := s.hub.GetAgent(hostID)
+	if agent == nil {
+		http.Error(w, "Host offline", http.StatusConflict)
+		return
+	}
+
+	// Get current command PID from state
+	state := s.cmdStateMachine.GetState(hostID)
+	var pid int
+	if state != nil && state.Progress != nil {
+		// We don't have PID in progress, agent will use its current PID
+		pid = 0
+	}
+
+	// Log the kill attempt
+	s.cmdStateMachine.InitiateKill(hostID, req.Signal, pid)
+
+	// Send kill command to agent
+	cmdMsg, _ := json.Marshal(map[string]any{
+		"type": "kill_command",
+		"payload": map[string]any{
+			"signal": req.Signal,
+			"pid":    pid,
+		},
+	})
+
+	select {
+	case agent.send <- cmdMsg:
+		// Kill command sent
+	default:
+		s.cmdStateMachine.MarkKillFailed(hostID)
+		http.Error(w, "Agent not responsive", http.StatusServiceUnavailable)
+		return
+	}
+
+	s.log.Info().
+		Str("host", hostID).
+		Str("signal", req.Signal).
+		Msg("kill command sent")
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"status": "sent",
+		"signal": req.Signal,
+	})
+}
+
+// handleTimeoutAction processes user action on a timeout.
+// POST /api/hosts/{hostID}/timeout-action
+func (s *Server) handleTimeoutAction(w http.ResponseWriter, r *http.Request) {
+	hostID := chi.URLParam(r, "hostID")
+
+	var req struct {
+		Action  string `json:"action"`  // "wait", "kill", "ignore"
+		Minutes int    `json:"minutes"` // For "wait" action
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Bad Request", http.StatusBadRequest)
+		return
+	}
+
+	switch req.Action {
+	case "wait":
+		if req.Minutes <= 0 {
+			req.Minutes = 5
+		}
+		s.cmdStateMachine.ExtendTimeout(hostID, req.Minutes)
+
+	case "kill":
+		// Redirect to kill handler
+		s.cmdStateMachine.InitiateKill(hostID, "SIGTERM", 0)
+		agent := s.hub.GetAgent(hostID)
+		if agent != nil {
+			cmdMsg, _ := json.Marshal(map[string]any{
+				"type": "kill_command",
+				"payload": map[string]any{
+					"signal": "SIGTERM",
+					"pid":    0,
+				},
+			})
+			agent.SafeSend(cmdMsg)
+		}
+
+	case "ignore":
+		s.cmdStateMachine.MarkIgnored(hostID)
+
+	default:
+		http.Error(w, "Invalid action", http.StatusBadRequest)
+		return
+	}
+
+	s.log.Info().
+		Str("host", hostID).
+		Str("action", req.Action).
+		Msg("timeout action processed")
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"status": "ok",
+		"action": req.Action,
+	})
+}
+
+// handleGetCommandStates returns all current command states.
+// GET /api/command-states
+func (s *Server) handleGetCommandStates(w http.ResponseWriter, r *http.Request) {
+	states := s.cmdStateMachine.GetAllHostStates()
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"states": states,
+	})
 }
 

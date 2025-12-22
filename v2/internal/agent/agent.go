@@ -111,6 +111,9 @@ func (a *Agent) Shutdown() {
 func (a *Agent) OnConnected() {
 	a.log.Info().Msg("connected to dashboard")
 
+	// Get binary freshness data (P2810)
+	freshness := GetFreshness()
+
 	// Send registration
 	payload := protocol.RegisterPayload{
 		Hostname:          a.cfg.Hostname,
@@ -125,6 +128,10 @@ func (a *Agent) OnConnected() {
 		DeviceType:        a.cfg.DeviceType,
 		RepoURL:           a.cfg.RepoURL,
 		RepoDir:           a.cfg.RepoDir,
+		// P2810: 3-layer binary freshness
+		SourceCommit: freshness.SourceCommit,
+		StorePath:    freshness.StorePath,
+		BinaryHash:   freshness.BinaryHash,
 	}
 
 	if err := a.ws.SendMessage(protocol.TypeRegister, payload); err != nil {
@@ -132,7 +139,10 @@ func (a *Agent) OnConnected() {
 		return
 	}
 
-	a.log.Debug().Msg("registration sent")
+	a.log.Debug().
+		Str("source_commit", freshness.SourceCommit).
+		Str("store_path", freshness.StorePath).
+		Msg("registration sent with freshness data")
 }
 
 // OnDisconnected is called when WebSocket disconnects.
@@ -168,6 +178,15 @@ func (a *Agent) OnMessage(msg *protocol.Message) {
 		}
 		a.handleCommand(payload.Command)
 
+	case protocol.TypeKillCommand:
+		// P2800: Handle kill command from dashboard
+		var payload protocol.KillCommandPayload
+		if err := msg.ParsePayload(&payload); err != nil {
+			a.log.Error().Err(err).Msg("failed to parse kill_command payload")
+			return
+		}
+		a.handleKillCommand(payload.Signal, payload.PID)
+
 	default:
 		a.log.Warn().Str("type", msg.Type).Msg("unknown message type")
 	}
@@ -202,5 +221,5 @@ func (a *Agent) messageLoop() {
 }
 
 // Version is the agent version.
-const Version = "2.1.0"
+const Version = "2.2.0"
 

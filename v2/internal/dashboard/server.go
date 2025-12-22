@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"net/http"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -76,6 +77,7 @@ func New(cfg *Config, db *sql.DB, log zerolog.Logger) *Server {
 
 	// Create command state machine (P2800)
 	cmdStateMachine := NewCommandStateMachine(log, hub)
+	hub.SetCommandStateMachine(cmdStateMachine) // P2800: Give hub direct access to state machine
 
 	// Create nixcfg repo manager if color picker integration is configured (P2950)
 	var nixcfgRepo *colors.NixcfgRepo
@@ -118,7 +120,27 @@ func New(cfg *Config, db *sql.DB, log zerolog.Logger) *Server {
 		go s.flakeUpdates.Start(hubCtx)
 	}
 
+	// P2800: Start timeout checking loop
+	go s.timeoutCheckLoop(hubCtx)
+
 	return s
+}
+
+// timeoutCheckLoop periodically checks for command timeouts.
+func (s *Server) timeoutCheckLoop(ctx context.Context) {
+	ticker := time.NewTicker(10 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			if s.cmdStateMachine != nil {
+				s.cmdStateMachine.CheckTimeouts()
+			}
+		}
+	}
 }
 
 func (s *Server) setupRouter() {
@@ -163,6 +185,11 @@ func (s *Server) setupRouter() {
 			r.Post("/hosts/{hostID}/theme-color", s.handleSetThemeColor) // P2950: Color picker
 			r.Delete("/hosts/{hostID}", s.handleDeleteHost)
 			r.Get("/hosts/{hostID}/logs", s.handleGetLogs)
+
+			// P2800: Command state machine endpoints
+			r.Post("/hosts/{hostID}/kill", s.handleKillCommand)               // Kill running command
+			r.Post("/hosts/{hostID}/timeout-action", s.handleTimeoutAction)   // Handle timeout user action
+			r.Get("/command-states", s.handleGetCommandStates)                 // Get all command states
 
 			// System log (P2800)
 			r.Get("/system-log", s.handleGetSystemLogs)
