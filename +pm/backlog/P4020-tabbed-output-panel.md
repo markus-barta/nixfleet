@@ -83,15 +83,36 @@ The separator shows command name and timestamp.
 
 ### FR-2: Tab States
 
-| State        | Visual                 | Description                         |
-| ------------ | ---------------------- | ----------------------------------- |
-| Active       | Highlighted background | Currently viewing this tab          |
-| Running      | Pulsing dot/spinner    | Command in progress                 |
-| New Output   | Badge/notification dot | Has unread output since last viewed |
-| Completed OK | Green indicator        | Command finished successfully       |
-| Error        | Red indicator          | Command failed                      |
+| State              | Visual                 | Description                              |
+| ------------------ | ---------------------- | ---------------------------------------- |
+| Active             | Highlighted background | Currently viewing this tab               |
+| Running            | Pulsing dot/spinner    | Command in progress                      |
+| Awaiting Reconnect | Pulsing orange dot     | Switch complete, waiting for agent       |
+| New Output         | Badge/notification dot | Has unread output since last viewed      |
+| Completed OK       | Green indicator        | Command finished successfully            |
+| Warning            | Orange indicator       | Partial success or stale binary detected |
+| Error              | Red indicator          | Command failed                           |
+| Timeout            | Yellow indicator       | Awaiting user action (timeout)           |
 
-**Note**: Tabs never auto-transition to "idle" or dimmed state. Completed tabs keep their green/red indicator until closed.
+**Note**: Tabs never auto-transition to "idle" or dimmed state. Completed tabs keep their indicator until closed.
+
+**State Mapping from P2800 Command State Machine:**
+
+| P2800 State        | Tab State          | Indicator |
+| ------------------ | ------------------ | --------- |
+| IDLE               | (no tab)           | -         |
+| VALIDATING         | Running            | Spinner   |
+| QUEUED             | Running            | Spinner   |
+| RUNNING            | Running            | Spinner   |
+| AWAITING_RECONNECT | Awaiting Reconnect | 🟠        |
+| SUCCESS            | Completed OK       | 🟢        |
+| PARTIAL            | Warning            | 🟠        |
+| STALE_BINARY       | Warning            | 🟠        |
+| FAILED             | Error              | 🔴        |
+| BLOCKED            | Error              | 🔴        |
+| TIMEOUT_PENDING    | Timeout            | 🟡        |
+| KILL_FAILED        | Timeout            | 🟡        |
+| ABORTED_BY_REBOOT  | Warning            | 🟠        |
 
 ### FR-3: Output Panel Behavior
 
@@ -138,26 +159,37 @@ A special tab that captures all ephemeral UI events (toasts, errors, system mess
 
 ### FR-7: System Log Message Categories
 
-| Icon | Color  | Category | Examples                                     |
-| ---- | ------ | -------- | -------------------------------------------- |
-| ✓    | Green  | Success  | Command completed, host connected, PR merged |
-| ⚠   | Orange | Warning  | Host disconnected, retry happening           |
-| ✗    | Red    | Error    | Command failed, connection lost              |
-| ℹ   | Blue   | Info     | Command started, system events               |
+| Icon | Color  | Category | Examples                                                |
+| ---- | ------ | -------- | ------------------------------------------------------- |
+| ✓    | Green  | Success  | Command completed, host connected, PR merged            |
+| ⚠   | Orange | Warning  | Partial success, stale binary, timeout, host disconnect |
+| ✗    | Red    | Error    | Command failed, connection lost, kill failed            |
+| ℹ   | Blue   | Info     | Command started, system events, state transitions       |
+| ⧖    | Yellow | Pending  | Awaiting reconnect, awaiting user action                |
 
 ### FR-8: Events Logged to System Log
 
-| Event Type                    | Logged? |
-| ----------------------------- | ------- |
-| Toast notifications           | ✅      |
-| Command start (any host)      | ✅      |
-| Command end (any host)        | ✅      |
-| Host connect                  | ✅      |
-| Host disconnect               | ✅      |
-| WebSocket connection issues   | ✅      |
-| Flake update PR events        | ✅      |
-| Agent version mismatch        | ✅      |
-| Git/Lock/System status change | ❌      |
+| Event Type                           | Logged? | Source        |
+| ------------------------------------ | ------- | ------------- |
+| Toast notifications                  | ✅      | UI            |
+| Command start (any host)             | ✅      | P2800         |
+| Command end (any host)               | ✅      | P2800         |
+| Pre-validation blocked               | ✅      | P2800         |
+| Post-validation result               | ✅      | P2800         |
+| Timeout warning                      | ✅      | P2800         |
+| Timeout pending (user action needed) | ✅      | P2800         |
+| Kill process attempt                 | ✅      | P2800         |
+| Kill failed (agent unresponsive)     | ✅      | P2800         |
+| Awaiting agent reconnect             | ✅      | P2800         |
+| Stale binary detected                | ✅      | P2800/P2810   |
+| Post-reboot recovery                 | ✅      | P2800/P6900   |
+| Host connect                         | ✅      | Agent         |
+| Host disconnect                      | ✅      | Agent         |
+| WebSocket connection issues          | ✅      | Dashboard     |
+| Flake update PR events               | ✅      | P5300         |
+| Agent version mismatch               | ✅      | Agent         |
+| Git/Lock/System status change        | ❌      | (too verbose) |
+| Heartbeats                           | ❌      | (too verbose) |
 
 ### FR-9: Status History in Host Tabs (merged from P6600)
 

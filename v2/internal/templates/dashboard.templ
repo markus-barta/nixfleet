@@ -1964,6 +1964,11 @@ templ Dashboard(data DashboardData) {
 				}
 			}
 
+			// Copy hostname to clipboard (used by clickable hostnames)
+			async function copyHostname(hostname) {
+				await copyToClipboard(hostname, 'Copied hostname to clipboard');
+			}
+
 			// ═══════════════════════════════════════════════════════════════════════════
 			// CONTEXT BAR COMPONENT - Unified hover preview + selection actions
 			// ═══════════════════════════════════════════════════════════════════════════
@@ -1972,12 +1977,17 @@ templ Dashboard(data DashboardData) {
 				Alpine.data('contextBar', () => ({
 					// Hover state
 					hoverAction: null,
+					hostnameHover: null, // For hostname copy hint
 					_clearTimer: null,
+					_hostnameClearTimer: null,
 
 					init() {
 						// Listen for hover events from compartments
 						window.addEventListener('action-preview', (e) => this.handlePreview(e.detail));
 						window.addEventListener('action-clear', () => this.handleClear());
+						// Listen for hostname hover events
+						window.addEventListener('hostname-hover', (e) => this.handleHostnameHover(e.detail));
+						window.addEventListener('hostname-clear', () => this.handleHostnameClear());
 					},
 
 					// Computed properties
@@ -1998,7 +2008,7 @@ templ Dashboard(data DashboardData) {
 					},
 
 					get hasContent() {
-						return this.hoverAction !== null || this.selectedCount > 0 || this.pendingPR !== null;
+						return this.hoverAction !== null || this.hostnameHover !== null || this.selectedCount > 0 || this.pendingPR !== null;
 					},
 
 					get selectionText() {
@@ -2029,6 +2039,22 @@ templ Dashboard(data DashboardData) {
 						this._clearTimer = setTimeout(() => {
 							this.hoverAction = null;
 							this._clearTimer = null;
+						}, 200);
+					},
+
+					// Hostname hover handlers for copy hint
+					handleHostnameHover(detail) {
+						if (this._hostnameClearTimer) {
+							clearTimeout(this._hostnameClearTimer);
+							this._hostnameClearTimer = null;
+						}
+						this.hostnameHover = detail.hostname;
+					},
+
+					handleHostnameClear() {
+						this._hostnameClearTimer = setTimeout(() => {
+							this.hostnameHover = null;
+							this._hostnameClearTimer = null;
 						}, 200);
 					},
 
@@ -2342,6 +2368,14 @@ templ ContextBar() {
 			</div>
 		</template>
 
+		<!-- Row 2b: Hostname copy hint (when hovering hostname) -->
+		<template x-if="hostnameHover && !hoverAction">
+			<div class="context-row context-row-hover">
+				<span class="context-host" x-text="hostnameHover"></span>
+				<span class="context-description">Click to copy hostname</span>
+			</div>
+		</template>
+
 		<!-- Row 3: Selection + Actions (when hosts selected) -->
 		<template x-if="$store.selection.selected.length > 0">
 			<div class="context-row context-row-selection">
@@ -2515,7 +2549,15 @@ templ HostCard(host Host, csrfToken string) {
 						<span class="progress-badge-mini">{ host.PendingCommand }</span>
 					}
 				</span>
-				<span class="hostname" style={ hostnameColorStyle(host.ThemeColor) }>{ host.Hostname }</span>
+				<span
+					class="hostname hostname-copyable"
+					style={ hostnameColorStyle(host.ThemeColor) }
+					data-hostname={ host.Hostname }
+					@mouseenter="$dispatch('hostname-hover', { hostname: $el.dataset.hostname })"
+					@mouseleave="$dispatch('hostname-clear')"
+					@click.stop="copyHostname($el.dataset.hostname)"
+					title="Click to copy hostname"
+				>{ host.Hostname }</span>
 			</div>
 			<span class="chevron" :class="{ 'expanded': expanded }">▼</span>
 		</div>
@@ -2604,7 +2646,15 @@ templ HostRow(host Host, csrfToken string) {
 		<td class="status-cell-with-badge">
 			<span class="status-wrapper">
 				@StatusIndicator(host)
-				<span class="hostname" style={ hostnameColorStyle(host.ThemeColor) }>{ host.Hostname }</span>
+				<span
+					class="hostname hostname-copyable"
+					style={ hostnameColorStyle(host.ThemeColor) }
+					data-hostname={ host.Hostname }
+					@mouseenter="$dispatch('hostname-hover', { hostname: $el.dataset.hostname })"
+					@mouseleave="$dispatch('hostname-clear')"
+					@click.stop="copyHostname($el.dataset.hostname)"
+					title="Click to copy hostname"
+				>{ host.Hostname }</span>
 				if host.PendingCommand != "" {
 					<span class="progress-badge-mini">{ host.PendingCommand }</span>
 				}
@@ -3041,23 +3091,6 @@ templ ActionDropdown(host Host) {
 				<span>Restart Agent</span>
 			</button>
 			<hr class="dropdown-divider"/>
-			<!-- P2500: Utilities Group -->
-			<button
-				type="button"
-				class="dropdown-item"
-				onclick={ copyHostnameScript(host.Hostname) }
-			>
-				<svg class="icon"><use href="#icon-copy"></use></svg>
-				<span>Copy Hostname</span>
-			</button>
-			<button
-				type="button"
-				class="dropdown-item"
-				onclick={ copySSHScript(host) }
-			>
-				<svg class="icon"><use href="#icon-terminal"></use></svg>
-				<span>SSH Command</span>
-			</button>
 			<!-- P2950: Color picker -->
 			<button
 				type="button"
@@ -3075,7 +3108,7 @@ templ ActionDropdown(host Host) {
 				onclick={ showLogsScript(host.ID) }
 			>
 				<svg class="icon"><use href="#icon-terminal"></use></svg>
-				<span>Show Logs</span>
+				<span>View Output</span>
 			</button>
 			<button
 				type="button"

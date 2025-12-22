@@ -713,6 +713,24 @@ templ Base(title string, csrfToken string) {
 			font-weight: 600;
 		}
 
+		/* Clickable hostname for copy-to-clipboard */
+		.hostname-copyable {
+			cursor: pointer;
+			transition: filter 0.15s ease, transform 0.1s ease;
+			border-radius: 3px;
+			padding: 0 0.2rem;
+			margin: 0 -0.2rem;
+		}
+
+		.hostname-copyable:hover {
+			filter: brightness(1.3);
+			background: rgba(255, 255, 255, 0.08);
+		}
+
+		.hostname-copyable:active {
+			transform: scale(0.98);
+		}
+
 		/* Footer */
 		footer {
 			margin-top: 2rem;
