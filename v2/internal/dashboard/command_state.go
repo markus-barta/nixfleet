@@ -871,7 +871,10 @@ func (sm *CommandStateMachine) HandleAgentReconnect(hostID string, freshness Age
 	sm.mu.RLock()
 	state := sm.hostStates[hostID]
 	wasAwaitingReconnect := state != nil && state.State == StateAwaitingReconnect
-	preFreshness := state.PreFreshness
+	var preFreshness *AgentFreshness
+	if state != nil {
+		preFreshness = state.PreFreshness
+	}
 	sm.mu.RUnlock()
 
 	if !wasAwaitingReconnect {

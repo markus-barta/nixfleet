@@ -1275,23 +1275,18 @@ templ Dashboard(data DashboardData) {
 			// ═══════════════════════════════════════════════════════════════════════════
 			// P2800: sendCommand with optional force flag
 			function sendCommand(hostId, command, force = false) {
-				console.log('sendCommand called:', { hostId, command, force });
 				const host = hostStore.get(hostId);
 				const hostname = host?.hostname || hostId;
 
 				// Immediate UI feedback
 				hostStore.update(hostId, { pendingCommand: command });
-				console.log('sendCommand: UI feedback set, about to dispatch event');
 
 				// P1010: Notify Action Bar of command start
 				window.dispatchEvent(new CustomEvent('command-start', {
 					detail: { hostId, hostname, command }
 				}));
-				console.log('sendCommand: Event dispatched, about to fetch');
 
-				const url = `/api/hosts/${hostId}/command`;
-				console.log('sendCommand: fetching', url);
-				fetch(url, {
+				fetch(`/api/hosts/${hostId}/command`, {
 					method: 'POST',
 					headers: {
 						'Content-Type': 'application/json',
@@ -1299,7 +1294,6 @@ templ Dashboard(data DashboardData) {
 					},
 					body: JSON.stringify({ command, force })
 				}).then(resp => {
-					console.log('sendCommand: fetch response received', resp.status);
 					if (resp.status === 409) {
 						// P2800: Pre-validation failed - show dialog
 						return resp.json().then(data => {
