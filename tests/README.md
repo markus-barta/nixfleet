@@ -26,7 +26,9 @@ tests/
     ├── T05-dashboard-websocket.md
     ├── T06-dashboard-commands.md
     ├── T07-e2e-deploy-flow.md
-    └── T08-e2e-test-flow.md
+    ├── T08-e2e-test-flow.md
+    ├── T13-command-state-machine.md    # P2800: Command state machine
+    └── T14-agent-binary-freshness.md   # P2810: Agent binary freshness detection
 
 v2/tests/integration/         # Executable Go tests
 ├── helpers_test.go           # Mock dashboard, test utilities
@@ -62,6 +64,24 @@ Test agent + dashboard together:
 - Full deployment flow (pull → switch → verify)
 - Full test flow (trigger → progress → results)
 
+### Command State Machine Tests (T13)
+
+Test P2800 command state machine:
+
+- Pre-condition validators (CanPull, CanSwitch, etc.)
+- Post-condition validators (ValidatePullResult, etc.)
+- State machine transitions and logging
+- E2E flows (successful, blocked, partial)
+
+### Agent Freshness Tests (T14)
+
+Test P2810 agent binary freshness detection:
+
+- Agent reports source commit
+- Dashboard detects outdated agent binary
+- Post-switch validation detects unchanged binary
+- E2E stale binary detection flow
+
 ---
 
 ## Running Tests
@@ -82,18 +102,33 @@ cd v2 && go test -run TestAgentHeartbeat_DuringCommand ./tests/integration/...
 
 ## Test Status
 
-| Spec                    | Status     | Tests | Backlog Item |
-| ----------------------- | ---------- | ----- | ------------ |
-| T01-agent-connection    | 🟢 Passing | 5     | P4000        |
-| T02-agent-heartbeat     | 🟢 Passing | 5     | P4000        |
-| T03-agent-commands      | 🟢 Passing | 5     | P4000        |
-| T04-dashboard-auth      | 🟢 Passing | 7     | P4200        |
-| T05-dashboard-websocket | 🟢 Passing | 6     | P4200        |
-| T06-dashboard-commands  | 🟢 Passing | 6     | P4200        |
-| T07-e2e-deploy-flow     | 🟡 Skipped | 2     | P4200        |
-| T08-e2e-test-flow       | 🔴 Pending | 0     | P4200        |
+| Spec                       | Status     | Tests | Backlog Item |
+| -------------------------- | ---------- | ----- | ------------ |
+| T01-agent-connection       | 🟢 Passing | 5     | P4000        |
+| T02-agent-heartbeat        | 🟢 Passing | 5     | P4000        |
+| T03-agent-commands         | 🟢 Passing | 5     | P4000        |
+| T04-dashboard-auth         | 🟢 Passing | 7     | P4200        |
+| T05-dashboard-websocket    | 🟢 Passing | 6     | P4200        |
+| T06-dashboard-commands     | 🟢 Passing | 6     | P4200        |
+| T07-e2e-deploy-flow        | 🟡 Skipped | 2     | P4200        |
+| T08-e2e-test-flow          | 🔴 Pending | 0     | P4200        |
+| T13-command-state-machine  | 🔴 Pending | 0     | P2800        |
+| T14-agent-binary-freshness | 🔴 Pending | 0     | P2810        |
 
 Legend: 🟢 Passing | 🟡 Skipped (needs env) | 🔴 Pending
+
+### Critical Tests (T13/T14)
+
+**P2800 & P2810 Test Strategy**: See [+pm/backlog/P2800-P2810-test-strategy.md](../+pm/backlog/P2800-P2810-test-strategy.md) for comprehensive test plan.
+
+These tests ensure:
+
+- Command state machine validates pre/post conditions correctly
+- Agent binary freshness is detected reliably
+- All state transitions are logged verbosely
+- Edge cases are handled gracefully
+
+**Target**: 80-100 tests covering both features with >95% coverage.
 
 ### E2E Tests (T07/T08)
 
@@ -172,3 +207,4 @@ Tests run on every PR:
 
 - [PRD](../+pm/PRD.md) - Product requirements (source of truth)
 - [Backlog](../+pm/backlog/) - Implementation tasks
+- [P2800/P2810 Test Strategy](../+pm/backlog/P2800-P2810-test-strategy.md) - Comprehensive test plan for command state machine and agent freshness
