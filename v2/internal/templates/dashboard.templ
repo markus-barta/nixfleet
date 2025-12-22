@@ -241,23 +241,84 @@ templ Dashboard(data DashboardData) {
 		<!-- Context Bar - unified hover preview + selection actions -->
 		@ContextBar()
 
-		<!-- Log Viewer (global, shown when command is running) -->
-		<div class="log-panel hidden" id="log-panel" x-data="logViewer()">
-			<div class="log-header" @click="toggle()">
-				<div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
-					<span>
-						Command Output
-						<span x-show="hostId" x-text="'(' + hostId + ')'"></span>
-					</span>
-					<!-- Progress indicator -->
-					<span x-show="phase" class="progress-badge" x-text="phaseIcon + ' ' + phase + (buildCount ? ' (' + buildCurrent + '/' + buildCount + ')' : '')"></span>
+		<!-- P4020: Tabbed Output Panel -->
+		<div class="output-panel hidden" id="output-panel" x-data="outputPanel()">
+			<!-- Tab Bar -->
+			<div class="output-tabs">
+				<div class="tab-list">
+					<!-- System Log Tab -->
+					<button
+						type="button"
+						class="output-tab"
+						:class="{ 'active': activeTab === 'system' }"
+						@click="switchTab('system')"
+						x-show="systemLog.length > 0 || tabs.length > 0"
+					>
+						<span class="tab-indicator" :class="systemLogIndicator"></span>
+						<span>📋 Log</span>
+						<span class="tab-close" @click.stop="closeTab('system')" title="Close">×</span>
+					</button>
+					<!-- Host Tabs -->
+					<template x-for="tab in tabs" :key="tab.hostId">
+						<button
+							type="button"
+							class="output-tab"
+							:class="{ 'active': activeTab === tab.hostId }"
+							@click="switchTab(tab.hostId)"
+						>
+							<span class="tab-indicator" :class="tab.indicator"></span>
+							<span x-text="tab.hostname"></span>
+							<span class="tab-close" @click.stop="closeTab(tab.hostId)" title="Close">×</span>
+						</button>
+					</template>
 				</div>
-				<span class="chevron" :class="{ 'expanded': open }">▼</span>
+				<!-- Panel Actions -->
+				<div class="tab-actions">
+					<button type="button" class="tab-action-btn" @click="closeAllTabs()" title="Close All Tabs" x-show="tabs.length > 0">
+						Close All
+					</button>
+					<button type="button" class="tab-action-btn" @click="toggleCollapse()" :title="collapsed ? 'Expand' : 'Collapse'">
+						<span x-text="collapsed ? '▲' : '▼'"></span>
+					</button>
+				</div>
 			</div>
-			<div class="log-content" x-show="open" x-ref="logContent">
-				<template x-for="line in lines" :key="line.id">
-					<div class="log-line" :class="{ 'error': line.isError, 'success': line.isSuccess }" x-text="line.text"></div>
+
+			<!-- Content Area -->
+			<div class="output-content" x-show="!collapsed" x-ref="outputContent">
+				<!-- System Log Content -->
+				<template x-if="activeTab === 'system'">
+					<div>
+						<template x-for="entry in systemLog" :key="entry.id">
+							<div class="system-log-entry" :class="entry.category">
+								<span class="log-icon" x-text="entry.icon"></span>
+								<span class="log-time" x-text="entry.timeDisplay"></span>
+								<span class="log-message" x-text="entry.message"></span>
+							</div>
+						</template>
+						<div x-show="systemLog.length === 0" style="color: var(--fg-muted); text-align: center; padding: 1rem;">
+							No system events yet
+						</div>
+					</div>
 				</template>
+				<!-- Host Output Content -->
+				<template x-if="activeTab !== 'system' && getActiveTabData()">
+					<div>
+						<template x-for="line in getActiveTabData().lines" :key="line.id">
+							<div class="log-line" :class="{ 'error': line.isError, 'success': line.isSuccess, 'command-separator': line.isSeparator }" x-text="line.text"></div>
+						</template>
+					</div>
+				</template>
+			</div>
+
+			<!-- Footer with Clear/Copy -->
+			<div class="output-footer" x-show="!collapsed">
+				<!-- Progress indicator for active host tab -->
+				<template x-if="activeTab !== 'system' && getActiveTabData()?.phase">
+					<span class="progress-badge" x-text="getActiveTabData().phaseIcon + ' ' + getActiveTabData().phase + (getActiveTabData().buildCount ? ' (' + getActiveTabData().buildCurrent + '/' + getActiveTabData().buildCount + ')' : '')"></span>
+				</template>
+				<span style="flex: 1;"></span>
+				<button type="button" class="tab-action-btn" @click="clearActiveTab()">Clear</button>
+				<button type="button" class="tab-action-btn" @click="copyActiveTab()">Copy</button>
 			</div>
 		</div>
 
@@ -1332,10 +1393,13 @@ templ Dashboard(data DashboardData) {
 			}
 
 			// ═══════════════════════════════════════════════════════════════════════════
-			// LOG PANEL (Alpine.js component - unchanged)
+			// P4020: TABBED OUTPUT PANEL
 			// ═══════════════════════════════════════════════════════════════════════════
+			const MAX_LINES_PER_TAB = 1000;
+			const MAX_SYSTEM_LOG_ENTRIES = 100;
+
 			function appendLog(payload) {
-				window.dispatchEvent(new CustomEvent('log-line', { detail: payload }));
+				window.dispatchEvent(new CustomEvent('output-line', { detail: payload }));
 			}
 
 			// P2800: Helper to append a simple text line to the log
@@ -1348,91 +1412,350 @@ templ Dashboard(data DashboardData) {
 			}
 
 			function showLogPanel(hostId) {
-				const panel = document.getElementById('log-panel');
+				const panel = document.getElementById('output-panel');
 				panel.classList.remove('hidden');
-				window.dispatchEvent(new CustomEvent('log-start', { detail: { hostId } }));
+				window.dispatchEvent(new CustomEvent('output-start', { detail: { hostId } }));
+			}
+
+			// P4020: Add system log entry
+			function addSystemLogEntry(category, message, icon) {
+				window.dispatchEvent(new CustomEvent('system-log-entry', {
+					detail: { category, message, icon }
+				}));
 			}
 
 			document.addEventListener('alpine:init', () => {
-				Alpine.data('logViewer', () => ({
-					open: true,
-					lines: [],
-					hostId: '',
+				Alpine.data('outputPanel', () => ({
+					tabs: [],           // Array of { hostId, hostname, lines, indicator, phase, ... }
+					activeTab: null,    // 'system' or hostId
+					systemLog: [],      // System log entries
+					collapsed: false,
 					lineCounter: 0,
-					phase: '',
-					phaseIcon: '',
-					buildCount: 0,
-					buildCurrent: 0,
+					logCounter: 0,
 
 					init() {
-						window.addEventListener('log-line', (e) => this.addLine(e.detail));
-						window.addEventListener('log-start', (e) => {
-							this.hostId = e.detail.hostId;
-							this.lines = [];
-							this.open = true;
-							this.resetProgress();
-						});
-						window.addEventListener('log-complete', (e) => {
-							this.phase = e.detail.exit_code === 0 ? 'Complete' : 'Failed';
-							this.phaseIcon = e.detail.exit_code === 0 ? '✓' : '✗';
-							this.addLine({
-								line: `\n${this.phaseIcon} Command completed (exit code: ${e.detail.exit_code || 0})`,
-								isSuccess: e.detail.exit_code === 0
+						// Restore panel state from localStorage
+						const savedCollapsed = localStorage.getItem('outputPanel.collapsed');
+						if (savedCollapsed !== null) {
+							this.collapsed = savedCollapsed === 'true';
+						}
+
+						// Listen for output lines
+						window.addEventListener('output-line', (e) => this.handleOutputLine(e.detail));
+
+						// Listen for command start
+						window.addEventListener('output-start', (e) => this.handleCommandStart(e.detail));
+
+						// Listen for command complete
+						window.addEventListener('log-complete', (e) => this.handleCommandComplete(e.detail));
+
+						// Listen for system log entries
+						window.addEventListener('system-log-entry', (e) => this.addSystemLog(e.detail));
+
+						// P2800: Listen for state machine log messages
+						window.addEventListener('state-machine-log', (e) => this.handleStateMachineLog(e.detail));
+					},
+
+					// Get or create tab for a host
+					getOrCreateTab(hostId) {
+						let tab = this.tabs.find(t => t.hostId === hostId);
+						if (!tab) {
+							const host = hostStore.get(hostId);
+							tab = {
+								hostId: hostId,
+								hostname: host?.hostname || hostId,
+								lines: [],
+								indicator: 'running',
+								hasUnread: false,
+								phase: '',
+								phaseIcon: '',
+								buildCount: 0,
+								buildCurrent: 0,
+								lastCommand: null,
+							};
+							this.tabs.push(tab);
+						}
+						return tab;
+					},
+
+					handleCommandStart(detail) {
+						const { hostId, command } = detail;
+						const tab = this.getOrCreateTab(hostId);
+
+						// Add command separator if tab already has output
+						if (tab.lines.length > 0) {
+							const now = new Date();
+							const timeStr = now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+							tab.lines.push({
+								id: ++this.lineCounter,
+								text: `───────────────── ${command || 'command'} (${timeStr}) ─────────────────`,
+								isSeparator: true,
 							});
+						}
+
+						// Reset progress
+						tab.phase = '';
+						tab.phaseIcon = '';
+						tab.buildCount = 0;
+						tab.buildCurrent = 0;
+						tab.indicator = 'running';
+						tab.lastCommand = command;
+
+						// Switch to this tab
+						this.activeTab = hostId;
+
+						// Add to system log
+						const host = hostStore.get(hostId);
+						this.addSystemLog({
+							category: 'info',
+							message: `${host?.hostname || hostId}: ${command || 'Command'} started`,
+							icon: 'ℹ'
 						});
 					},
 
-					resetProgress() {
-						this.phase = '';
-						this.phaseIcon = '';
-						this.buildCount = 0;
-						this.buildCurrent = 0;
+					handleOutputLine(payload) {
+						const hostId = payload.host_id;
+						if (!hostId) return;
+
+						const tab = this.getOrCreateTab(hostId);
+						const text = payload.line || payload.output || '';
+
+						// Parse progress
+						this.parseProgress(tab, text);
+
+						// Add line
+						tab.lines.push({
+							id: ++this.lineCounter,
+							text: text,
+							isError: payload.is_error || payload.stream === 'stderr' || payload.is_stderr,
+							isSuccess: payload.isSuccess || false,
+						});
+
+						// Trim old lines
+						if (tab.lines.length > MAX_LINES_PER_TAB) {
+							tab.lines = tab.lines.slice(-MAX_LINES_PER_TAB);
+						}
+
+						// Mark unread if not active tab
+						if (this.activeTab !== hostId) {
+							tab.hasUnread = true;
+							if (tab.indicator !== 'running' && tab.indicator !== 'error') {
+								tab.indicator = 'unread';
+							}
+						}
+
+						// Auto-scroll
+						this.$nextTick(() => {
+							const el = this.$refs.outputContent;
+							if (el && this.activeTab === hostId) {
+								el.scrollTop = el.scrollHeight;
+							}
+						});
 					},
 
-					parseProgress(line) {
+					handleCommandComplete(detail) {
+						const hostId = detail.host_id;
+						if (!hostId) return;
+
+						const tab = this.tabs.find(t => t.hostId === hostId);
+						if (!tab) return;
+
+						const exitCode = detail.exit_code || 0;
+						const success = exitCode === 0;
+
+						tab.phase = success ? 'Complete' : 'Failed';
+						tab.phaseIcon = success ? '✓' : '✗';
+						tab.indicator = success ? 'success' : 'error';
+
+						// Add completion line
+						tab.lines.push({
+							id: ++this.lineCounter,
+							text: `\n${tab.phaseIcon} Command completed (exit code: ${exitCode})`,
+							isSuccess: success,
+							isError: !success,
+						});
+
+						// Add to system log
+						const host = hostStore.get(hostId);
+						this.addSystemLog({
+							category: success ? 'success' : 'error',
+							message: `${host?.hostname || hostId}: ${tab.lastCommand || 'Command'} ${success ? 'completed' : 'failed'} (exit ${exitCode})`,
+							icon: success ? '✓' : '✗'
+						});
+					},
+
+					parseProgress(tab, line) {
 						if (line.includes('evaluating derivation')) {
-							this.phase = 'Evaluation';
-							this.phaseIcon = '→';
+							tab.phase = 'Evaluation';
+							tab.phaseIcon = '→';
 						} else if (line.includes('these derivations will be built')) {
 							const match = line.match(/these (\d+) derivations/);
-							if (match) this.buildCount = parseInt(match[1], 10);
-							this.phase = 'Building';
-							this.phaseIcon = '●';
+							if (match) tab.buildCount = parseInt(match[1], 10);
+							tab.phase = 'Building';
+							tab.phaseIcon = '●';
 						} else if (line.includes("building '/nix/store/")) {
-							this.buildCurrent++;
-							this.phase = 'Building';
-							this.phaseIcon = '●';
+							tab.buildCurrent++;
+							tab.phase = 'Building';
+							tab.phaseIcon = '●';
 						} else if (line.includes('activating the configuration')) {
-							this.phase = 'Activation';
-							this.phaseIcon = '▶';
+							tab.phase = 'Activation';
+							tab.phaseIcon = '▶';
 						} else if (line.includes('switching to configuration')) {
-							this.phase = 'Switch';
-							this.phaseIcon = '→';
+							tab.phase = 'Switch';
+							tab.phaseIcon = '→';
 						} else if (line.includes('setting up /etc')) {
-							this.phase = 'Setup';
-							this.phaseIcon = '○';
+							tab.phase = 'Setup';
+							tab.phaseIcon = '○';
 						} else if (line.includes('will be fetched')) {
-							this.phase = 'Fetching';
-							this.phaseIcon = '↓';
+							tab.phase = 'Fetching';
+							tab.phaseIcon = '↓';
 						}
 					},
 
-					toggle() { this.open = !this.open; },
+					addSystemLog(detail) {
+						const now = new Date();
+						const timeStr = now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
-					addLine(payload) {
-						const text = payload.line;
-						this.parseProgress(text);
-						this.lines.push({
-							id: ++this.lineCounter,
-							text: text,
-							isError: payload.is_error || payload.stream === 'stderr',
-							isSuccess: payload.isSuccess || false
+						this.systemLog.unshift({
+							id: ++this.logCounter,
+							category: detail.category || 'info',
+							message: detail.message,
+							icon: detail.icon || 'ℹ',
+							timestamp: now,
+							timeDisplay: timeStr,
 						});
+
+						// Trim old entries
+						if (this.systemLog.length > MAX_SYSTEM_LOG_ENTRIES) {
+							this.systemLog = this.systemLog.slice(0, MAX_SYSTEM_LOG_ENTRIES);
+						}
+
+						// Show panel if hidden
+						const panel = document.getElementById('output-panel');
+						panel.classList.remove('hidden');
+					},
+
+					handleStateMachineLog(detail) {
+						// Map P2800 log levels to system log categories
+						const levelMap = {
+							'success': { category: 'success', icon: '✓' },
+							'warning': { category: 'warning', icon: '⚠' },
+							'error': { category: 'error', icon: '✗' },
+							'info': { category: 'info', icon: 'ℹ' },
+						};
+						const mapping = levelMap[detail.level?.toLowerCase()] || levelMap.info;
+
+						this.addSystemLog({
+							category: mapping.category,
+							message: `${detail.host_id}: ${detail.message}`,
+							icon: mapping.icon,
+						});
+					},
+
+					switchTab(tabId) {
+						this.activeTab = tabId;
+
+						// Clear unread for host tabs
+						if (tabId !== 'system') {
+							const tab = this.tabs.find(t => t.hostId === tabId);
+							if (tab) {
+								tab.hasUnread = false;
+								// Reset indicator if was 'unread'
+								if (tab.indicator === 'unread') {
+									tab.indicator = 'success';
+								}
+							}
+						}
+
+						// Scroll to bottom
 						this.$nextTick(() => {
-							const el = this.$refs.logContent;
+							const el = this.$refs.outputContent;
 							if (el) el.scrollTop = el.scrollHeight;
 						});
-					}
+					},
+
+					closeTab(tabId) {
+						if (tabId === 'system') {
+							this.systemLog = [];
+							if (this.activeTab === 'system') {
+								this.activeTab = this.tabs.length > 0 ? this.tabs[0].hostId : null;
+							}
+						} else {
+							const index = this.tabs.findIndex(t => t.hostId === tabId);
+							if (index !== -1) {
+								this.tabs.splice(index, 1);
+								if (this.activeTab === tabId) {
+									// Switch to another tab
+									if (this.tabs.length > 0) {
+										this.activeTab = this.tabs[Math.max(0, index - 1)].hostId;
+									} else if (this.systemLog.length > 0) {
+										this.activeTab = 'system';
+									} else {
+										this.activeTab = null;
+									}
+								}
+							}
+						}
+
+						// Hide panel if no tabs
+						if (this.tabs.length === 0 && this.systemLog.length === 0) {
+							const panel = document.getElementById('output-panel');
+							panel.classList.add('hidden');
+						}
+					},
+
+					closeAllTabs() {
+						this.tabs = [];
+						this.activeTab = this.systemLog.length > 0 ? 'system' : null;
+
+						if (this.systemLog.length === 0) {
+							const panel = document.getElementById('output-panel');
+							panel.classList.add('hidden');
+						}
+					},
+
+					toggleCollapse() {
+						this.collapsed = !this.collapsed;
+						localStorage.setItem('outputPanel.collapsed', this.collapsed);
+					},
+
+					getActiveTabData() {
+						if (this.activeTab === 'system') return null;
+						return this.tabs.find(t => t.hostId === this.activeTab);
+					},
+
+					clearActiveTab() {
+						if (this.activeTab === 'system') {
+							this.systemLog = [];
+						} else {
+							const tab = this.getActiveTabData();
+							if (tab) {
+								tab.lines = [];
+							}
+						}
+					},
+
+					copyActiveTab() {
+						let text = '';
+						if (this.activeTab === 'system') {
+							text = this.systemLog.map(e => `${e.timeDisplay} ${e.icon} ${e.message}`).join('\n');
+						} else {
+							const tab = this.getActiveTabData();
+							if (tab) {
+								text = tab.lines.map(l => l.text).join('\n');
+							}
+						}
+						navigator.clipboard.writeText(text).then(() => {
+							// Could show a toast here
+						});
+					},
+
+					get systemLogIndicator() {
+						// Return indicator class based on latest entry
+						if (this.systemLog.length === 0) return '';
+						const latest = this.systemLog[0];
+						return latest.category;
+					},
 				}));
 			});
 
