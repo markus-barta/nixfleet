@@ -853,10 +853,11 @@ func (h *Hub) handleHeartbeat(hostID string, payload protocol.HeartbeatPayload) 
 		"git": gitStatus,
 	}
 	if payload.UpdateStatus != nil {
-		if payload.UpdateStatus.Lock != nil {
+		// Check if Lock/System have meaningful data (Status field is set)
+		if payload.UpdateStatus.Lock.Status != "" {
 			updateStatus["lock"] = payload.UpdateStatus.Lock
 		}
-		if payload.UpdateStatus.System != nil {
+		if payload.UpdateStatus.System.Status != "" {
 			updateStatus["system"] = payload.UpdateStatus.System
 		}
 	}
