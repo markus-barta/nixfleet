@@ -3,16 +3,15 @@
 # This is the deployment-specific configuration for csb1.
 # Requires Traefik reverse proxy with csb1_traefik network.
 #
-# Deploy: docker compose -f docker/docker-compose.csb1.yml --env-file ~/secrets/nixfleet.env up -d
+# Deploy: docker compose -f docker/docker-compose.csb1.yml --env-file ~/secrets/nixfleet.env pull && \
+#         docker compose -f docker/docker-compose.csb1.yml --env-file ~/secrets/nixfleet.env up -d
+#
+# Images built by GitHub Actions: ghcr.io/markus-barta/nixfleet
+# Tags: master (latest from main), <sha> (specific commit), <version> (releases)
 
 services:
   nixfleet:
-    build:
-      context: ../v2
-      args:
-        - VERSION=${NIXFLEET_VERSION:-2.1.0}
-        - GIT_COMMIT=${GIT_COMMIT:-unknown}
-        - BUILD_TIME=${BUILD_TIME:-unknown}
+    image: ghcr.io/markus-barta/nixfleet:master
     container_name: nixfleet
     restart: unless-stopped
     environment:
