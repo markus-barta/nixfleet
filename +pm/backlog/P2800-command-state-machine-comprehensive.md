@@ -4,7 +4,7 @@
 **Updated**: 2025-12-22
 **Priority**: P2800 (High - Architecture)
 **Status**: Backlog → Planning
-**Effort**: 10-14 days
+**Effort**: 16-18 days (expanded from 10-14 due to lifecycle integration)
 **Depends on**: P2000 (Unified Host State - Done)
 
 ---
@@ -13,57 +13,75 @@
 
 1. [Overview](#overview)
 2. [Design Decisions](#design-decisions)
-3. [Command Lifecycle State Machine](#command-lifecycle-state-machine)
-4. [Validators Specification](#validators-specification)
-5. [Agent Binary Freshness Detection](#agent-binary-freshness-detection-p2810)
-6. [Protocol Changes](#protocol-changes)
-7. [UI Integration](#ui-integration)
-8. [Test Strategy](#test-strategy-138-tests)
-9. [Implementation Plan](#implementation-plan)
-10. [Acceptance Criteria](#acceptance-criteria)
-11. [Risk Mitigation](#risk-mitigation)
+3. [Agent Lifecycle Integration](#agent-lifecycle-integration)
+4. [Command Lifecycle State Machine](#command-lifecycle-state-machine)
+5. [Validators Specification](#validators-specification)
+6. [Agent Binary Freshness Detection](#agent-binary-freshness-detection-p2810)
+7. [Command Timeout & Abort](#command-timeout--abort)
+8. [Protocol Changes](#protocol-changes)
+9. [UI Integration](#ui-integration)
+10. [Full Success Criteria](#full-success-criteria)
+11. [Test Strategy](#test-strategy-165-tests)
+12. [Implementation Plan](#implementation-plan)
+13. [Acceptance Criteria](#acceptance-criteria)
+14. [Risk Mitigation](#risk-mitigation)
 
 ---
 
 ## Overview
 
+### Scope: Command Lifecycle & Agent Stability
+
+**This is NOT just a UX feature.** P2800 is a critical step toward achieving the PRD's #1 requirement:
+
+> "After any operation — switch, pull, reboot, crash, network outage, power failure — the most recent working agent MUST be running and connected to the dashboard within 60 seconds of the host being reachable."
+
+P2800 covers:
+
+1. **Command Validation** - Pre/post-condition checking
+2. **Command Lifecycle** - Full state machine from click to verified completion
+3. **Agent Restart Integration** - Ties into exit 101, reconnection, binary verification
+4. **Timeout & Abort** - Graceful handling of stuck commands
+5. **Binary Freshness** - 3-layer detection of stale agent binaries
+
 ### Problem
 
-Commands (Pull, Switch, Test) are executed without formal validation of preconditions or post-conditions. Users don't know:
+Commands (Pull, Switch, Test) have multiple failure modes that create confusion and reduce fleet reliability:
+
+**User Experience Problems:**
 
 1. **Before**: Is this action appropriate right now?
 2. **During**: What's the current progress?
 3. **After**: Did the action achieve its goal?
 
-This leads to confusion when actions "succeed" (exit 0) but don't produce the expected result.
+**Agent Stability Problems (from PRD Known Failure Modes):**
 
-Additionally, the Lock/System compartments don't detect when the **agent binary itself** is outdated. This leads to:
-
-1. User triggers `switch` via dashboard
-2. Switch completes successfully (exit 0)
-3. Lock compartment shows GREEN (repo is current)
-4. But the **running agent** is still the OLD binary!
-5. New features don't work
-6. User is confused - "I switched but nothing changed"
-
-This has happened **>10 times** during development!
+| Failure Mode                         | Frequency  | Impact                  |
+| ------------------------------------ | ---------- | ----------------------- |
+| Agent runs old binary after switch   | >10 times  | Silent feature breakage |
+| Agent dead after home-manager switch | Common     | Lost visibility/control |
+| Pull doesn't update repo             | Occasional | Config drift            |
+| Agent shows old generation           | Common     | Confusing status        |
+| Isolated repo on wrong branch        | Occasional | Build failures          |
 
 ### Solution
 
-Implement a **command state machine** with:
+Implement a **command state machine** with **full agent lifecycle integration**:
 
 1. **Atomic, idempotent validation functions** for each phase
-2. **3-layer binary freshness detection** to catch stale agent binaries
-3. **Comprehensive test coverage** (138 tests) to guarantee correctness
+2. **Reconnection-based completion signal** for switch commands
+3. **3-layer binary freshness detection** to catch stale agent binaries
+4. **Graceful timeout handling** with user control
+5. **Comprehensive test coverage** (165+ tests) including known failure modes
 
 ### Goal
 
-100% guaranteed E2E functionality with:
+**Measurable stability improvement:**
 
-- Senior developer-level rigor
-- Race condition and concurrency coverage
-- Self-healing detection (conservative)
-- Paranoid binary freshness verification
+- 100% of switches result in verified fresh agent binary
+- 0 silent failures (all failures visible with actionable guidance)
+- Agent reconnects within 60s of switch completion
+- Known failure modes have E2E test coverage
 
 ---
 
@@ -79,28 +97,46 @@ When user clicks a command while another is running on the same host:
 - UI shows "Command already running" message
 - No queueing, no cancellation of first command
 
-### Decision 2: Post-Validation Timing
+### Decision 2: Switch Completion Signal
 
-**Choice**: Explicit `command_complete` message with fallback
+**Choice**: Reconnection-based completion (not message-based)
+
+The agent **exits with code 101** after successful switch on NixOS (or gets killed by launchd on macOS). It cannot send a `command_complete` message because it's dead.
+
+**Design**: Use agent reconnection as the definitive completion signal for switch commands.
 
 ```
-PRIMARY PATH:
-  Agent completes command
-    → Agent forces status refresh (git, system, generation)
-    → Agent sends command_complete { exit_code, fresh_status }
-    → Dashboard receives fresh_status
-    → Dashboard runs post-validation IMMEDIATELY
-    → No timing issues!
+SWITCH LIFECYCLE (NixOS):
+  1. User clicks Switch
+  2. Pre-validation passes
+  3. Agent executes nixos-rebuild switch
+  4. Switch exits 0
+  5. Agent sends final status message
+  6. Agent waits 500ms for message delivery
+  7. Agent exits with code 101                    ← AGENT DIES HERE
+  8. systemd restarts agent with new binary
+  9. New agent connects to dashboard
+  10. Dashboard receives registration with:
+      - source_commit (new)
+      - store_path (new)
+      - binary_hash (new)
+  11. Dashboard compares with pre-switch snapshot
+  12. If binary changed: SUCCESS
+  13. If binary unchanged: STALE_BINARY_DETECTED
 
-FALLBACK PATH (if command_complete not received):
-  Timeout after:
-    - switch: 30s (agent may restart)
-    - pull: 10s
-    - test: 5s
-  → Wait for next heartbeat
-  → If state changed: run post-validation
-  → If state unchanged: log warning, fallback to exit code only
+SWITCH LIFECYCLE (macOS):
+  1. User clicks Switch
+  2. Pre-validation passes
+  3. Agent executes home-manager switch in NEW SESSION (Setsid)
+  4. home-manager calls launchctl bootout
+  5. launchd kills agent                          ← AGENT DIES HERE
+  6. Switch continues in detached session
+  7. Switch completes
+  8. launchd restarts agent with new binary
+  9-13. Same as NixOS
 ```
+
+**Key Insight**: For switch, "command complete" = "agent reconnected with new binary"
 
 ### Decision 3: Self-Healing Scope
 
@@ -135,6 +171,145 @@ Detection is based on **change**, not expected values:
 - Before switch: capture commit, path, hash
 - After switch + restart: compare new values
 - If unchanged → stale binary detected
+
+---
+
+## Agent Lifecycle Integration
+
+### The Exit 101 Mechanism
+
+NixFleet agents self-restart after successful switch to pick up the new binary:
+
+```go
+// From v2/internal/agent/commands.go
+if exitCode == 0 && (command == "switch" || command == "pull-switch") && runtime.GOOS != "darwin" {
+    a.log.Info().Msg("switch completed successfully, restarting to pick up new binary")
+    time.Sleep(500 * time.Millisecond)
+    a.Shutdown()
+    os.Exit(101) // Triggers RestartForceExitStatus in systemd
+}
+```
+
+**NixOS systemd configuration:**
+
+```nix
+systemd.services.nixfleet-agent = {
+  restartIfChanged = false;  # Don't restart DURING switch
+  stopIfChanged = false;
+  serviceConfig = {
+    Restart = "always";
+    RestartSec = 3;
+    RestartForceExitStatus = "101";  # Exit 101 = force restart
+  };
+};
+```
+
+**macOS launchd configuration:**
+
+```nix
+launchd.agents.nixfleet-agent = {
+  config = {
+    KeepAlive = true;   # Restart on any exit
+    RunAtLoad = true;   # Start on login
+  };
+};
+```
+
+### Agent Reconnection Flow
+
+When agent reconnects after restart, dashboard must:
+
+1. **Detect it's a reconnection** (same host_id, different connection)
+2. **Check for pending switch verification** (was switch running before disconnect?)
+3. **Compare binary freshness** (3-layer verification)
+4. **Update command state** (AWAITING_RECONNECT → SUCCESS or STALE_BINARY)
+
+```go
+// Dashboard: On agent registration
+func (s *Server) handleAgentRegistration(conn *WebSocket, reg RegistrationPayload) {
+    host := s.getOrCreateHost(reg.HostID)
+
+    // Check if we were waiting for reconnection after switch
+    if host.CommandState == "AWAITING_RECONNECT" {
+        preSnapshot := s.cmdStateMachine.GetSnapshot(host.ID)
+
+        // 3-layer binary freshness check
+        commitChanged := preSnapshot.SourceCommit != reg.SourceCommit
+        pathChanged := preSnapshot.StorePath != reg.StorePath
+        hashChanged := preSnapshot.BinaryHash != reg.BinaryHash
+
+        if pathChanged || hashChanged {
+            // Binary definitely changed - SUCCESS
+            s.cmdStateMachine.TransitionTo(host.ID, "SUCCESS",
+                "Agent restarted with new binary")
+        } else if commitChanged {
+            // Commit changed but binary didn't - SUSPICIOUS
+            s.cmdStateMachine.TransitionTo(host.ID, "SUSPICIOUS",
+                "Source commit changed but binary unchanged (cache issue?)")
+        } else {
+            // Nothing changed - STALE BINARY
+            s.cmdStateMachine.TransitionTo(host.ID, "STALE_BINARY",
+                "Agent running old binary - run nix-collect-garbage -d and switch again")
+        }
+    }
+}
+```
+
+### State Transitions for Switch
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    SWITCH COMMAND STATE MACHINE                             │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│   ┌───────┐   ┌───────────┐   ┌─────────┐   ┌─────────┐                    │
+│   │ IDLE  │──▶│ VALIDATING│──▶│ QUEUED  │──▶│ RUNNING │                    │
+│   └───────┘   └─────┬─────┘   └─────────┘   └────┬────┘                    │
+│       ▲             │                            │                          │
+│       │        ┌────▼────┐                       │                          │
+│       │        │ BLOCKED │                       │ exit 0                   │
+│       │        └─────────┘                       ▼                          │
+│       │                              ┌───────────────────┐                  │
+│       │                              │ AWAITING_RECONNECT│◀─── exit 101     │
+│       │                              │ (agent died)      │     (NixOS)      │
+│       │                              └─────────┬─────────┘     or killed    │
+│       │                                        │               (macOS)      │
+│       │                                        │                            │
+│       │         ┌──────────────────────────────┼──────────────────┐        │
+│       │         │                              │                  │        │
+│       │         ▼                              ▼                  ▼        │
+│   ┌───┴─────────────┐              ┌───────────────┐    ┌─────────────┐    │
+│   │     SUCCESS     │              │  STALE_BINARY │    │   TIMEOUT   │    │
+│   │ (binary fresh)  │              │  (binary old) │    │ (no reconn) │    │
+│   └─────────────────┘              └───────────────┘    └─────────────┘    │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Pull/Test Completion (Non-Switch Commands)
+
+For commands that don't restart the agent:
+
+```
+PULL LIFECYCLE:
+  1. User clicks Pull
+  2. Pre-validation passes
+  3. Agent executes git fetch + reset --hard
+  4. Agent forces status refresh
+  5. Agent sends command_complete { exit_code, fresh_status }
+  6. Dashboard runs post-validation immediately
+  7. SUCCESS or PARTIAL
+
+TEST LIFECYCLE:
+  1. User clicks Test
+  2. Pre-validation passes
+  3. Agent executes test scripts
+  4. Agent sends command_complete { exit_code, output }
+  5. Dashboard evaluates test results
+  6. TEST_PASSED or TEST_FAILED
+```
+
+**Key Difference**: Pull and Test use `command_complete` message. Switch uses reconnection.
 
 ---
 
@@ -512,6 +687,153 @@ func detectStaleBinary(before, after AgentFreshness) StaleBinaryResult {
 
 ---
 
+## Command Timeout & Abort
+
+### Timeout Configuration
+
+| Command                  | Warning | Hard Timeout | Justification                        |
+| ------------------------ | ------- | ------------ | ------------------------------------ |
+| Pull                     | 2 min   | 5 min        | Network fetch + reset should be fast |
+| Switch                   | 10 min  | 30 min       | Large rebuilds can take time         |
+| Pull-Switch              | 12 min  | 35 min       | Combined operation                   |
+| Test                     | 5 min   | 10 min       | Test suites vary                     |
+| Reconnect (after switch) | 30s     | 90s          | Agent restart should be quick        |
+
+### Timeout States
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         TIMEOUT HANDLING                                    │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│   ┌─────────┐                                                               │
+│   │ RUNNING │                                                               │
+│   └────┬────┘                                                               │
+│        │                                                                    │
+│        ├──── warning timeout ────▶ ┌──────────────────┐                    │
+│        │                           │ RUNNING_WARNING  │                    │
+│        │                           │ "Taking longer   │                    │
+│        │                           │  than expected"  │                    │
+│        │                           └────────┬─────────┘                    │
+│        │                                    │                              │
+│        └──── hard timeout ─────────────────▶│                              │
+│                                             ▼                              │
+│                                    ┌──────────────────┐                    │
+│                                    │ TIMEOUT_PENDING  │                    │
+│                                    │ User chooses:    │                    │
+│                                    │ [Wait] [Kill]    │                    │
+│                                    │ [Ignore]         │                    │
+│                                    └────────┬─────────┘                    │
+│                    ┌────────────────────────┼────────────────┐             │
+│                    │                        │                │             │
+│                    ▼                        ▼                ▼             │
+│          ┌─────────────────┐    ┌───────────────┐    ┌─────────────┐       │
+│          │ Still RUNNING   │    │ KILLED        │    │ IGNORED     │       │
+│          │ (extend timeout)│    │ (SIGTERM sent)│    │ (no action) │       │
+│          └─────────────────┘    └───────────────┘    └─────────────┘       │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### User Actions on Timeout
+
+| Action               | Behavior                                       | When to Use                      |
+| -------------------- | ---------------------------------------------- | -------------------------------- |
+| **Wait +5min**       | Extend timeout, continue monitoring            | Large rebuild in progress        |
+| **Wait +30min**      | Extend significantly                           | Known slow operation             |
+| **Kill Process**     | Send SIGTERM via agent, then SIGKILL if needed | Stuck process                    |
+| **Ignore**           | Mark as IGNORED, stop monitoring               | False alarm, manual intervention |
+| **Abort & Rollback** | Kill + suggest rollback command                | Failed switch                    |
+
+### Reconnect Timeout (Switch-Specific)
+
+After switch command exits:
+
+1. **Agent disconnects** (exit 101 or killed)
+2. **Dashboard starts reconnect timer** (90s default)
+3. **If agent reconnects within timeout**: Verify binary freshness
+4. **If timeout expires**:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│              ⚠ Switch Timeout                                   │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  Agent has not reconnected after switch.                        │
+│                                                                 │
+│  Possible causes:                                               │
+│  • Switch is still running (building derivations)               │
+│  • Agent failed to start (check systemd/launchd logs)           │
+│  • Network issue                                                │
+│  • Host rebooted during switch                                  │
+│                                                                 │
+│  Suggested actions:                                             │
+│  1. SSH to host and check: journalctl -u nixfleet-agent        │
+│  2. Verify switch status: systemctl status nixfleet-agent      │
+│  3. Manual restart: sudo systemctl restart nixfleet-agent      │
+│                                                                 │
+│  [Wait +5min] [Mark Offline] [SSH Guide]                       │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Kill Process Flow
+
+When user clicks "Kill Process":
+
+```go
+// Dashboard sends kill command
+type KillCommandMessage struct {
+    Type    string `json:"type"`  // "kill_command"
+    Payload struct {
+        HostID  string `json:"host_id"`
+        Signal  string `json:"signal"`  // "SIGTERM" or "SIGKILL"
+        PID     int    `json:"pid,omitempty"`  // Optional: specific PID
+    } `json:"payload"`
+}
+
+// Agent handles kill
+func (a *Agent) handleKillCommand(signal string) {
+    if a.commandPID == nil {
+        a.log.Warn().Msg("no command PID to kill")
+        return
+    }
+
+    pid := *a.commandPID
+
+    switch signal {
+    case "SIGTERM":
+        syscall.Kill(pid, syscall.SIGTERM)
+        // Wait 5s, then SIGKILL if still running
+        go func() {
+            time.Sleep(5 * time.Second)
+            if a.isProcessRunning(pid) {
+                syscall.Kill(pid, syscall.SIGKILL)
+            }
+        }()
+    case "SIGKILL":
+        syscall.Kill(pid, syscall.SIGKILL)
+    }
+
+    a.sendOutput("⚠️ Command terminated by user", "stderr")
+}
+```
+
+### Timeout Logging
+
+Every timeout event is logged verbosely:
+
+```
+14:35:00  ⧖  hsb1 [RUNNING]           Switch running for 10m (warning threshold)
+14:35:00  ⚠  hsb1 [RUNNING_WARNING]   Taking longer than expected - notify user
+14:45:00  ⧖  hsb1 [RUNNING_WARNING]   Switch running for 20m (still below hard timeout)
+14:55:00  ✗  hsb1 [TIMEOUT_PENDING]   Hard timeout (30m) reached - awaiting user action
+14:55:05  ℹ  hsb1 [TIMEOUT_PENDING]   User selected: Wait +5min
+14:55:05  ⧖  hsb1 [RUNNING]           Timeout extended to 35m
+```
+
+---
+
 ## Protocol Changes
 
 ### command_complete Message (Agent → Dashboard)
@@ -687,20 +1009,123 @@ Every state machine transition MUST log:
 
 ---
 
-## Test Strategy (138 Tests)
+## Full Success Criteria
+
+### Pull Command
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  PULL SUCCESS requires ALL of:                                  │
+├─────────────────────────────────────────────────────────────────┤
+│  □ Pre-validation passed                                        │
+│  □ git fetch exit code 0                                        │
+│  □ git reset --hard exit code 0                                 │
+│  □ Agent sent command_complete                                  │
+│  □ Git compartment status = "ok"                                │
+│  ─────────────────────────────────────────────────────────────  │
+│  PARTIAL if:                                                    │
+│  • Exit code 0 but Git compartment still shows outdated         │
+│    (GitHub Pages cache delay)                                   │
+│  ─────────────────────────────────────────────────────────────  │
+│  FAILED if:                                                     │
+│  • Pre-validation failed                                        │
+│  • Exit code ≠ 0                                                │
+│  • Timeout exceeded                                             │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Switch Command
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  SWITCH SUCCESS requires ALL of:                                │
+├─────────────────────────────────────────────────────────────────┤
+│  □ Pre-validation passed                                        │
+│  □ nixos-rebuild/home-manager switch exit code 0                │
+│  □ Agent disconnected (exit 101 or killed)                      │
+│  □ Agent reconnected within 90s                                 │
+│  □ Binary hash CHANGED (3-layer verification)                   │
+│  □ System compartment status = "ok"                             │
+│  ─────────────────────────────────────────────────────────────  │
+│  STALE_BINARY if:                                               │
+│  • Exit code 0, agent reconnected, but binary unchanged         │
+│  • Guidance: "Run nix-collect-garbage -d and switch again"      │
+│  ─────────────────────────────────────────────────────────────  │
+│  TIMEOUT if:                                                    │
+│  • Agent did not reconnect within timeout                       │
+│  • Guidance: SSH to host, check journalctl                      │
+│  ─────────────────────────────────────────────────────────────  │
+│  FAILED if:                                                     │
+│  • Pre-validation failed                                        │
+│  • Exit code ≠ 0                                                │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Pull-Switch Command
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  PULL-SWITCH SUCCESS requires ALL of:                           │
+├─────────────────────────────────────────────────────────────────┤
+│  □ Pull phase: git fetch + reset exit code 0                    │
+│  □ Switch phase: nixos-rebuild exit code 0                      │
+│  □ Agent disconnected and reconnected                           │
+│  □ Binary hash CHANGED                                          │
+│  □ Git compartment status = "ok"                                │
+│  □ System compartment status = "ok"                             │
+│  ─────────────────────────────────────────────────────────────  │
+│  PARTIAL_GIT_ONLY if:                                           │
+│  • Pull succeeded but switch failed                             │
+│  ─────────────────────────────────────────────────────────────  │
+│  PARTIAL_SYSTEM_ONLY if:                                        │
+│  • System updated but Git still shows outdated (cache)          │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Test Command
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  TEST SUCCESS requires ALL of:                                  │
+├─────────────────────────────────────────────────────────────────┤
+│  □ Pre-validation passed                                        │
+│  □ All test scripts exit code 0                                 │
+│  □ Agent sent command_complete with results                     │
+│  ─────────────────────────────────────────────────────────────  │
+│  TEST_FAILED if:                                                │
+│  • Any test script exit code ≠ 0                                │
+│  • Output shows which tests failed                              │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Success Verification Timing
+
+| Command     | When Verified                        | How Verified                             |
+| ----------- | ------------------------------------ | ---------------------------------------- |
+| Pull        | Immediately after `command_complete` | Compare Git status before/after          |
+| Switch      | After agent reconnection             | 3-layer binary freshness + System status |
+| Pull-Switch | After agent reconnection             | Git + System + Binary freshness          |
+| Test        | Immediately after `command_complete` | Parse exit codes                         |
+
+---
+
+## Test Strategy (165+ Tests)
 
 ### Test Summary
 
-| Category               | P2800   | P2810  | Total   |
-| ---------------------- | ------- | ------ | ------- |
-| Unit Tests             | 50      | 18     | **68**  |
-| Race Condition Tests   | 11      | -      | **11**  |
-| Self-Healing Tests     | 6       | -      | **6**   |
-| Post-Validation Timing | 7       | -      | **7**   |
-| Integration Tests      | 17      | 11     | **28**  |
-| E2E Mock Tests         | 6       | 3      | **9**   |
-| E2E Fleet Tests        | 6       | 3      | **9**   |
-| **TOTAL**              | **103** | **35** | **138** |
+| Category                     | P2800   | P2810  | New    | Total   |
+| ---------------------------- | ------- | ------ | ------ | ------- |
+| Unit Tests                   | 50      | 18     | -      | **68**  |
+| Race Condition Tests         | 11      | -      | -      | **11**  |
+| Self-Healing Tests           | 6       | -      | -      | **6**   |
+| Post-Validation Timing       | 7       | -      | -      | **7**   |
+| Timeout & Abort Tests        | -       | -      | 8      | **8**   |
+| Reconnection Tests           | -       | -      | 7      | **7**   |
+| Integration Tests            | 17      | 11     | -      | **28**  |
+| E2E Mock Tests               | 6       | 3      | -      | **9**   |
+| E2E Fleet Tests              | 6       | 3      | -      | **9**   |
+| E2E Known Failure Mode Tests | -       | -      | 12     | **12**  |
+| **TOTAL**                    | **103** | **35** | **27** | **165** |
 
 ### File Structure
 
@@ -711,14 +1136,18 @@ v2/tests/integration/
 ├── t13_command_state_machine_test.go     # P2800 integration tests
 ├── t13_self_healing_test.go              # Orphaned state detection
 ├── t13_post_validation_timing_test.go    # Timing tests
+├── t13_timeout_abort_test.go             # NEW: Timeout & abort handling
+├── t13_reconnection_test.go              # NEW: Agent reconnection verification
 ├── t13_e2e_mock_test.go                  # Mock E2E tests
 ├── t13_e2e_fleet_test.go                 # Real fleet tests
+├── t13_known_failures_test.go            # NEW: PRD failure mode tests
 ├── t14_freshness_test.go                 # P2810 comparison logic
 ├── t14_agent_reporting_test.go           # P2810 agent reporting
 └── t14_e2e_test.go                       # P2810 E2E tests
 
 tests/specs/
 ├── T13-command-state-machine.md          # P2800 spec (human-readable)
+├── T13-known-failure-modes.md            # NEW: Failure mode test spec
 └── T14-agent-binary-freshness.md         # P2810 spec (human-readable)
 ```
 
@@ -782,6 +1211,75 @@ tests/specs/
 | macOS    | imac0 | 3     | Pull, switch, survives switch       |
 | Cross    | both  | 2     | Bulk pull, network partition        |
 
+### Timeout & Abort Tests (8 tests)
+
+| Scenario        | Tests | Description                                      |
+| --------------- | ----- | ------------------------------------------------ |
+| Warning Timeout | 2     | Pull and switch trigger warning at threshold     |
+| Hard Timeout    | 2     | Transition to TIMEOUT_PENDING after hard timeout |
+| User Actions    | 3     | Wait, Kill, Ignore behaviors work correctly      |
+| Kill Signal     | 1     | SIGTERM followed by SIGKILL if needed            |
+
+### Reconnection Tests (7 tests)
+
+| Scenario          | Tests | Description                                      |
+| ----------------- | ----- | ------------------------------------------------ |
+| Normal Reconnect  | 2     | Agent reconnects after exit 101, verified fresh  |
+| Stale Binary      | 2     | Agent reconnects but binary unchanged → detected |
+| Reconnect Timeout | 2     | Agent fails to reconnect → TIMEOUT state         |
+| macOS Launchd     | 1     | Agent survives home-manager switch via Setsid    |
+
+### E2E Known Failure Mode Tests (12 tests)
+
+These tests specifically target the failure modes documented in the PRD:
+
+| PRD Failure Mode                     | Tests | Test Description                                          |
+| ------------------------------------ | ----- | --------------------------------------------------------- |
+| Agent runs old binary after switch   | 3     | Simulate Nix cache returning old binary, verify detection |
+| Agent dead after home-manager switch | 2     | Verify macOS agent survives via Setsid, launchd restarts  |
+| Pull doesn't update repo             | 2     | Force git conflict scenario, verify reset --hard fixes    |
+| Agent shows old generation           | 2     | Verify generation updates after successful switch         |
+| Isolated repo on wrong branch        | 2     | Force diverged repo, verify reset --hard origin/main      |
+| Network partition during switch      | 1     | Disconnect during switch, verify recovery on reconnect    |
+
+**Test Implementation Notes:**
+
+```go
+// t13_known_failures_test.go
+
+func TestStaleBinaryAfterSwitch(t *testing.T) {
+    // Setup: Mock agent with same binary hash before/after
+    // Action: Trigger switch, wait for reconnect
+    // Assert: State transitions to STALE_BINARY
+    // Assert: Log contains guidance message
+}
+
+func TestMacOSAgentSurvivesSwitch(t *testing.T) {
+    // Requires: imac0 (real macOS host)
+    // Setup: Record agent PID
+    // Action: Trigger home-manager switch
+    // Assert: Agent reconnects within 90s
+    // Assert: Binary hash changed
+    // Assert: Old PID no longer running
+}
+
+func TestIsolatedRepoRecovery(t *testing.T) {
+    // Setup: Manually create merge conflict in isolated repo
+    // Action: Trigger pull
+    // Assert: Pull succeeds (reset --hard)
+    // Assert: Repo matches origin/main exactly
+}
+
+func TestNetworkPartitionRecovery(t *testing.T) {
+    // Requires: gpc0 (NixOS host)
+    // Setup: Start switch
+    // Action: Disconnect network for 30s mid-switch
+    // Assert: Switch continues (was already in progress)
+    // Action: Reconnect network
+    // Assert: Agent reconnects with new binary
+}
+```
+
 ### Test Execution
 
 ```bash
@@ -798,6 +1296,8 @@ cd v2 && go test -v -tags=fleet ./tests/integration/... -run "Fleet"
 ---
 
 ## Implementation Plan
+
+**Total Effort**: 16-18 days (increased from 10-14 due to expanded scope)
 
 ### Phase 1: Unit Tests & Fixtures (Days 1-3)
 
@@ -819,49 +1319,87 @@ cd v2 && go test -v -tags=fleet ./tests/integration/... -run "Fleet"
 
 **Deliverable**: All concurrency tests passing, no race detector warnings
 
-### Phase 3: Integration Tests (Days 6-7)
+### Phase 3: Timeout & Abort Tests (Day 6)
+
+**Goal**: Graceful timeout handling tested
+
+1. Implement timeout state machine tests (8 tests)
+2. Implement kill command handling
+3. Test user action flows (Wait, Kill, Ignore)
+
+**Deliverable**: Timeout handling fully tested
+
+### Phase 4: Reconnection Tests (Days 7-8)
+
+**Goal**: Agent lifecycle integration tested
+
+1. Implement reconnection detection tests (7 tests)
+2. Test AWAITING_RECONNECT → SUCCESS flow
+3. Test stale binary detection on reconnect
+4. Test reconnect timeout handling
+
+**Deliverable**: Reconnection-based completion fully tested
+
+### Phase 5: Integration Tests (Days 9-10)
 
 **Goal**: State machine and agent reporting flows tested
 
 1. Implement P2800 state machine tests (17 tests)
 2. Implement P2810 agent reporting tests (11 tests)
+3. Integrate timeout and reconnection logic
 
 **Deliverable**: All integration tests passing
 
-### Phase 4: Agent & Dashboard Changes (Days 8-9)
+### Phase 6: Agent & Dashboard Changes (Days 11-13)
 
-**Goal**: Protocol changes implemented
+**Goal**: Protocol and lifecycle changes implemented
 
-Agent:
+**Agent Changes:**
 
-- Add `StorePath` to heartbeat
-- Add `BinaryHash` to heartbeat
-- Add `fresh_status` to `command_complete`
-- Force status refresh before `command_complete`
+- Add `StorePath` to heartbeat (computed on startup)
+- Add `BinaryHash` to heartbeat (SHA256 of binary)
+- Add `command_complete` message for non-switch commands
+- Keep exit 101 mechanism for switch commands
+- Implement kill command handler (SIGTERM/SIGKILL)
 
-Dashboard:
+**Dashboard Changes:**
 
-- Handle `command_complete` with `fresh_status`
-- Fallback timeout logic
-- 3-layer comparison logic
-- Orphaned state detection
+- Implement AWAITING_RECONNECT state
+- Handle agent reconnection with binary verification
+- Implement timeout state machine with user actions
+- 3-layer binary freshness comparison on reconnect
+- Orphaned state detection (RUNNING without agent)
 
-### Phase 5: E2E Tests (Days 10-12)
+### Phase 7: Known Failure Mode E2E Tests (Days 14-15)
+
+**Goal**: PRD failure modes have test coverage
+
+1. Set up failure simulation infrastructure
+2. Implement known failure mode tests (12 tests)
+3. Test on real fleet (gpc0, imac0)
+4. Verify recovery paths work
+
+**Deliverable**: All PRD failure modes covered by E2E tests
+
+### Phase 8: E2E Fleet Tests & Polish (Days 16-17)
 
 **Goal**: Real-world behavior verified
 
 1. Implement mock E2E tests (9 tests)
-2. Set up fleet test infrastructure
-3. Implement fleet tests on gpc0 and imac0 (9 tests)
+2. Implement standard fleet tests on gpc0 and imac0 (9 tests)
+3. Run full test suite 3x to catch flaky tests
+4. Performance testing (latency, memory)
 
-**Deliverable**: All E2E tests passing
+**Deliverable**: All E2E tests passing, no flaky tests
 
-### Phase 6: CI & Documentation (Days 13-14)
+### Phase 9: CI & Documentation (Day 18)
 
 **Goal**: Automation and documentation complete
 
-1. Update CI pipeline
-2. Documentation complete
+1. Update CI pipeline with new test categories
+2. Add fleet test stage (scheduled, not on every PR)
+3. Update PRD with resolved failure modes
+4. Documentation complete
 
 ---
 
@@ -888,6 +1426,31 @@ Dashboard:
 - [ ] Dashboard detects stale binary (3-layer verification)
 - [ ] Log shows "stale_binary_detected" with guidance
 
+### Agent Lifecycle Integration
+
+- [ ] Switch enters AWAITING_RECONNECT after agent disconnects
+- [ ] Agent reconnection triggers binary freshness verification
+- [ ] SUCCESS only after agent reconnects with fresh binary
+- [ ] Reconnect timeout (90s) triggers TIMEOUT state
+- [ ] Exit 101 mechanism verified on NixOS hosts
+- [ ] Setsid mechanism verified on macOS hosts
+
+### Timeout & Abort
+
+- [ ] Warning shown at warning timeout threshold
+- [ ] Hard timeout triggers TIMEOUT_PENDING with user options
+- [ ] User can extend timeout (Wait +5min, +30min)
+- [ ] User can kill process (SIGTERM → SIGKILL)
+- [ ] User can ignore timeout (mark IGNORED)
+- [ ] Kill command delivered to agent and executed
+
+### Full Success Criteria
+
+- [ ] Pull SUCCESS requires exit 0 + Git compartment green
+- [ ] Switch SUCCESS requires exit 0 + reconnect + fresh binary + System green
+- [ ] Pull-Switch SUCCESS requires all of the above combined
+- [ ] Test SUCCESS requires exit 0 for all test scripts
+
 ### Idempotency
 
 - [ ] Running same validator twice with same state returns same result
@@ -900,13 +1463,15 @@ Dashboard:
 - [ ] Pre-check logs show each validator name and result
 - [ ] Post-check logs show before/after comparison values
 - [ ] All logs appear in System Log in real-time
+- [ ] Timeout events logged with timestamps
 
 ### Test Coverage
 
-- [ ] All 138 tests passing
+- [ ] All 165 tests passing
 - [ ] No race detector warnings
 - [ ] No flaky tests (run 3x, all pass)
 - [ ] Fleet tests pass on gpc0 and imac0
+- [ ] All PRD Known Failure Modes have E2E test coverage
 
 ---
 
@@ -921,13 +1486,14 @@ Dashboard:
 - Race detector enabled (`go test -race`)
 - Run tests 3x in CI before merge
 
-### Risk 2: Post-Validation Timing Race
+### Risk 2: Switch Completion Detection
 
 **Mitigation**:
 
-- Primary path: Agent sends `command_complete` with fresh_status included
-- No waiting for heartbeat in primary path
-- Fallback path with explicit timeouts
+- Reconnection-based design eliminates timing races
+- Agent disconnection is the trigger, not a message
+- Clear state machine: RUNNING → AWAITING_RECONNECT → SUCCESS/STALE/TIMEOUT
+- Fallback: reconnect timeout with user guidance
 
 ### Risk 3: Nix Cache Returns Stale Binary
 
@@ -936,6 +1502,7 @@ Dashboard:
 - 3-layer verification catches this
 - Detection triggers even when we can't prevent it
 - Log provides user guidance: "Run nix-collect-garbage -d"
+- E2E test specifically targets this failure mode
 
 ### Risk 4: Fleet Tests Damage Real Hosts
 
@@ -945,6 +1512,32 @@ Dashboard:
 - Timeout protection (10 minute max)
 - No auto-destructive operations
 - Rollback commands documented
+
+### Risk 5: Agent Dies During Timeout Handling
+
+**Mitigation**:
+
+- If agent disconnects during TIMEOUT_PENDING, state machine handles gracefully
+- Reconnection resets timeout state
+- User can always "Mark Offline" to clear stuck state
+
+### Risk 6: macOS Launchd Race Condition
+
+**Mitigation**:
+
+- Switch runs in new session (Setsid: true)
+- Switch process survives agent death
+- launchd restarts agent after switch completes
+- E2E test verifies this flow on imac0
+
+### Risk 7: Network Partition During Switch
+
+**Mitigation**:
+
+- Switch continues on host (detached from agent death)
+- Dashboard enters AWAITING_RECONNECT
+- On network restore, agent reconnects with new binary
+- Timeout provides graceful degradation with user guidance
 
 ---
 
@@ -959,8 +1552,11 @@ Dashboard:
 
 ## Revision History
 
-| Date       | Changes                                                       |
-| ---------- | ------------------------------------------------------------- |
-| 2025-12-21 | Initial P2800, P2810, test strategy created as separate files |
-| 2025-12-22 | Refined test strategy with design decisions, 138 tests        |
-| 2025-12-22 | Consolidated into single comprehensive document               |
+| Date       | Changes                                                         |
+| ---------- | --------------------------------------------------------------- |
+| 2025-12-21 | Initial P2800, P2810, test strategy created as separate files   |
+| 2025-12-22 | Refined test strategy with design decisions, 138 tests          |
+| 2025-12-22 | Consolidated into single comprehensive document                 |
+| 2025-12-22 | Major expansion: Agent Lifecycle Integration, Timeout/Abort,    |
+|            | Full Success Criteria, Known Failure Mode E2E tests (165 tests) |
+|            | Changed to reconnection-based completion for switch commands    |
