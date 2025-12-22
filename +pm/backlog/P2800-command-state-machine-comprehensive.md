@@ -1,14 +1,33 @@
-# P2800 - Command State Machine
+# P2800 - Command State Machine (Comprehensive)
 
 **Created**: 2025-12-21
+**Updated**: 2025-12-22
 **Priority**: P2800 (High - Architecture)
-**Status**: Backlog
-**Effort**: Medium (3-5 days)
+**Status**: Backlog → Planning
+**Effort**: 10-14 days
 **Depends on**: P2000 (Unified Host State - Done)
 
 ---
 
-## Problem
+## Table of Contents
+
+1. [Overview](#overview)
+2. [Design Decisions](#design-decisions)
+3. [Command Lifecycle State Machine](#command-lifecycle-state-machine)
+4. [Validators Specification](#validators-specification)
+5. [Agent Binary Freshness Detection](#agent-binary-freshness-detection-p2810)
+6. [Protocol Changes](#protocol-changes)
+7. [UI Integration](#ui-integration)
+8. [Test Strategy](#test-strategy-138-tests)
+9. [Implementation Plan](#implementation-plan)
+10. [Acceptance Criteria](#acceptance-criteria)
+11. [Risk Mitigation](#risk-mitigation)
+
+---
+
+## Overview
+
+### Problem
 
 Commands (Pull, Switch, Test) are executed without formal validation of preconditions or post-conditions. Users don't know:
 
@@ -18,11 +37,108 @@ Commands (Pull, Switch, Test) are executed without formal validation of precondi
 
 This leads to confusion when actions "succeed" (exit 0) but don't produce the expected result.
 
+Additionally, the Lock/System compartments don't detect when the **agent binary itself** is outdated. This leads to:
+
+1. User triggers `switch` via dashboard
+2. Switch completes successfully (exit 0)
+3. Lock compartment shows GREEN (repo is current)
+4. But the **running agent** is still the OLD binary!
+5. New features don't work
+6. User is confused - "I switched but nothing changed"
+
+This has happened **>10 times** during development!
+
+### Solution
+
+Implement a **command state machine** with:
+
+1. **Atomic, idempotent validation functions** for each phase
+2. **3-layer binary freshness detection** to catch stale agent binaries
+3. **Comprehensive test coverage** (138 tests) to guarantee correctness
+
+### Goal
+
+100% guaranteed E2E functionality with:
+
+- Senior developer-level rigor
+- Race condition and concurrency coverage
+- Self-healing detection (conservative)
+- Paranoid binary freshness verification
+
 ---
 
-## Solution
+## Design Decisions
 
-Implement a **command state machine** with atomic, idempotent validation functions for each phase:
+### Decision 1: Concurrent Command Handling
+
+**Choice**: Block with "command pending" error
+
+When user clicks a command while another is running on the same host:
+
+- Return HTTP 409 with `code: "command_pending"`
+- UI shows "Command already running" message
+- No queueing, no cancellation of first command
+
+### Decision 2: Post-Validation Timing
+
+**Choice**: Explicit `command_complete` message with fallback
+
+```
+PRIMARY PATH:
+  Agent completes command
+    → Agent forces status refresh (git, system, generation)
+    → Agent sends command_complete { exit_code, fresh_status }
+    → Dashboard receives fresh_status
+    → Dashboard runs post-validation IMMEDIATELY
+    → No timing issues!
+
+FALLBACK PATH (if command_complete not received):
+  Timeout after:
+    - switch: 30s (agent may restart)
+    - pull: 10s
+    - test: 5s
+  → Wait for next heartbeat
+  → If state changed: run post-validation
+  → If state unchanged: log warning, fallback to exit code only
+```
+
+### Decision 3: Self-Healing Scope
+
+**Choice**: Conservative (detect and alert, no auto-cleanup)
+
+- Detect orphaned snapshots (command started, never completed)
+- Detect stuck RUNNING state
+- Log warnings (visible in per-host UI log)
+- Do NOT auto-cleanup or auto-retry
+
+### Decision 4: E2E Test Environment
+
+**Choice**: Against actual fleet
+
+| Host    | Platform | Role                       |
+| ------- | -------- | -------------------------- |
+| `gpc0`  | NixOS    | nixos-rebuild switch tests |
+| `imac0` | macOS    | home-manager switch tests  |
+
+### Decision 5: Binary Freshness Verification
+
+**Choice**: Paranoid (3-layer verification)
+
+| Layer            | What                             | How                                      |
+| ---------------- | -------------------------------- | ---------------------------------------- |
+| 1. Source Commit | Git commit agent was built from  | ldflags at build time                    |
+| 2. Store Path    | Nix store path of running binary | Agent reads /proc/self/exe or equivalent |
+| 3. Binary Hash   | SHA256 of actual binary          | Agent computes on startup                |
+
+Detection is based on **change**, not expected values:
+
+- Before switch: capture commit, path, hash
+- After switch + restart: compare new values
+- If unchanged → stale binary detected
+
+---
+
+## Command Lifecycle State Machine
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -58,9 +174,7 @@ Implement a **command state machine** with atomic, idempotent validation functio
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
----
-
-## Core Principle: Atomic & Idempotent Validators
+### Core Principle: Atomic & Idempotent Validators
 
 Every validation function MUST be:
 
@@ -71,10 +185,6 @@ Every validation function MUST be:
 | **Pure**       | Only reads state, never modifies            |
 | **Typed**      | Returns structured result, not just boolean |
 | **Loggable**   | Result can be logged/displayed to user      |
-
----
-
-## Validation Functions Specification
 
 ### Type Definitions
 
@@ -106,6 +216,10 @@ type CommandProgress struct {
     Description string  // "Building derivation foo..."
 }
 ```
+
+---
+
+## Validators Specification
 
 ### Pre-Condition Validators (Before Command)
 
@@ -163,7 +277,7 @@ func CanSwitch(host *Host) ValidationResult {
     }
 
     system := host.UpdateStatus.System
-    if system.Status == "ok" {
+    if system.Status == "ok" && !host.AgentOutdated {
         return ValidationResult{false, "already_current",
             "System already up to date"}
     }
@@ -171,7 +285,7 @@ func CanSwitch(host *Host) ValidationResult {
         return ValidationResult{true, "unknown_state",
             "System status unknown - switch may help"}
     }
-    // system.Status == "outdated"
+    // system.Status == "outdated" OR host.AgentOutdated
     return ValidationResult{true, "outdated",
         fmt.Sprintf("System outdated: %s", system.Message)}
 }
@@ -197,7 +311,7 @@ func CanPullSwitch(host *Host) ValidationResult {
     git := host.UpdateStatus.Git
     system := host.UpdateStatus.System
 
-    if git.Status == "ok" && system.Status == "ok" {
+    if git.Status == "ok" && system.Status == "ok" && !host.AgentOutdated {
         return ValidationResult{false, "already_current",
             "Both git and system already up to date"}
     }
@@ -307,6 +421,141 @@ func ValidatePullSwitchResult(hostBefore, hostAfter *Host, exitCode int) Validat
 
 ---
 
+## Agent Binary Freshness Detection (P2810)
+
+### The Problem
+
+The agent binary is a Nix derivation built from the `nixfleet` flake input. When:
+
+- `nixcfg/flake.lock` is updated to point to new nixfleet commit
+- `home-manager switch` or `nixos-rebuild switch` runs
+- Nix may **substitute** (download) the binary from cache instead of building
+- If cache has OLD binary, user gets old code even though switch "succeeded"
+
+### 3-Layer Paranoid Verification
+
+```go
+type AgentFreshness struct {
+    // Layer 1: Source commit (from ldflags at build)
+    SourceCommit       string  // e.g., "abc1234"
+
+    // Layer 2: Nix store path
+    StorePath          string  // e.g., "/nix/store/xxx-nixfleet-agent-2.0.0"
+
+    // Layer 3: Binary hash
+    BinaryHash         string  // SHA256 of /proc/self/exe
+
+    // Comparison results (computed by dashboard)
+    CommitChanged      bool
+    StorePathChanged   bool
+    HashChanged        bool
+}
+
+// Detection logic: compare before/after switch
+func detectStaleBinary(before, after AgentFreshness) StaleBinaryResult {
+    if !before.CommitChanged && !before.StorePathChanged && !before.HashChanged {
+        return STALE  // Nothing changed = stale
+    }
+    if before.StorePathChanged || before.HashChanged {
+        return FRESH  // Binary definitely changed
+    }
+    // Commit changed but path/hash didn't = suspicious
+    return SUSPICIOUS
+}
+```
+
+### Decision Matrix
+
+| Commit Changed | Path Changed | Hash Changed | Verdict              |
+| :------------: | :----------: | :----------: | -------------------- |
+|       ✓        |      ✓       |      ✓       | FRESH                |
+|       ✓        |      ✓       |      ✗       | FRESH (path changed) |
+|       ✓        |      ✗       |      ✓       | FRESH (hash changed) |
+|       ✓        |      ✗       |      ✗       | SUSPICIOUS (cache?)  |
+|       ✗        |      ✓       |      ✓       | FRESH (rebuild)      |
+|       ✗        |      ✓       |      ✗       | FRESH (path changed) |
+|       ✗        |      ✗       |      ✓       | FRESH (hash changed) |
+|       ✗        |      ✗       |      ✗       | STALE                |
+
+### Agent Implementation Requirements
+
+1. **Build with ldflags**:
+
+   ```nix
+   ldflags = [
+     "-X main.SourceCommit=${src.rev or "unknown"}"
+   ];
+   ```
+
+2. **Report StorePath**:
+
+   ```go
+   // Linux
+   storePath, _ := os.Readlink("/proc/self/exe")
+
+   // macOS
+   exe, _ := os.Executable()
+   storePath = exe // Already resolved
+   ```
+
+3. **Report BinaryHash**:
+
+   ```go
+   func computeBinaryHash() string {
+       exe, _ := os.Executable()
+       f, _ := os.Open(exe)
+       h := sha256.New()
+       io.Copy(h, f)
+       return hex.EncodeToString(h.Sum(nil))
+   }
+   ```
+
+---
+
+## Protocol Changes
+
+### command_complete Message (Agent → Dashboard)
+
+```go
+type CommandCompleteMessage struct {
+    Type    string `json:"type"`  // "command_complete"
+    Payload struct {
+        Command     string        `json:"command"`
+        ExitCode    int           `json:"exit_code"`
+        FreshStatus *UpdateStatus `json:"fresh_status"`  // NEW: Fresh status after command
+    } `json:"payload"`
+}
+```
+
+### Heartbeat Additions (Agent → Dashboard)
+
+```go
+type HeartbeatPayload struct {
+    // ... existing fields ...
+    SourceCommit string `json:"source_commit"`  // Layer 1: Git commit
+    StorePath    string `json:"store_path"`     // Layer 2: Nix store path
+    BinaryHash   string `json:"binary_hash"`    // Layer 3: SHA256 hash
+}
+```
+
+### WebSocket Log Broadcast (Dashboard → Browsers)
+
+```json
+{
+  "type": "state_machine_log",
+  "payload": {
+    "timestamp": "2025-12-21T14:23:05Z",
+    "level": "info",
+    "host_id": "hsb1",
+    "state": "PRE-CHECK",
+    "message": "CanSwitch: PASS (git=ok, system=outdated)",
+    "code": "outdated"
+  }
+}
+```
+
+---
+
 ## UI Integration
 
 ### Pre-Validation UI Flow
@@ -359,10 +608,6 @@ Command completes (exit code received)
                 outdated"
 ```
 
-### System Log Integration
-
-**Every state transition is logged verbosely.** The System Log (P4020) becomes the authoritative record of what happened and why.
-
 ---
 
 ## Verbose Logging Specification
@@ -389,9 +634,9 @@ Every state machine transition MUST log:
 | STATE     | Current state in brackets     |
 | MESSAGE   | Human-readable explanation    |
 
-### Complete Log Sequence Examples
+### Example Log Sequences
 
-#### Example 1: Successful Switch
+#### Successful Switch
 
 ```
 14:23:05  ℹ  hsb1 [IDLE→VALIDATING]     User clicked Switch
@@ -402,21 +647,14 @@ Every state machine transition MUST log:
 14:23:05  ℹ  hsb1 [PRE-CHECK]           Capturing pre-state snapshot (generation=abc1234, agentVersion=2.0.0)
 14:23:05  ℹ  hsb1 [VALIDATING→QUEUED]   Pre-checks passed, queueing command
 14:23:05  ℹ  hsb1 [QUEUED→RUNNING]      Command sent to agent: nixos-rebuild switch --flake .#hsb1
-14:23:06  ℹ  hsb1 [RUNNING]             Agent acknowledged command start
-14:23:08  ℹ  hsb1 [RUNNING]             Progress: evaluating flake...
-14:23:15  ℹ  hsb1 [RUNNING]             Progress: building derivation 1/12
-14:23:45  ℹ  hsb1 [RUNNING]             Progress: building derivation 12/12
-14:24:02  ℹ  hsb1 [RUNNING]             Progress: activating new configuration
 14:24:30  ℹ  hsb1 [RUNNING→VALIDATING]  Command completed (exit code: 0)
 14:24:30  ℹ  hsb1 [POST-CHECK]          Running ValidateSwitchResult...
 14:24:30  ℹ  hsb1 [POST-CHECK]          Comparing: system.status before=outdated, after=ok
 14:24:30  ✓  hsb1 [POST-CHECK]          ValidateSwitchResult: PASS (goal_achieved)
 14:24:30  ✓  hsb1 [VALIDATING→SUCCESS]  Switch complete - system now up to date
-14:24:31  ℹ  hsb1 [SUCCESS]             Agent version: 2.0.0 → 2.1.0 (restart expected)
-14:24:33  ✓  hsb1 [SUCCESS]             Agent reconnected with version 2.1.0
 ```
 
-#### Example 2: Switch Blocked by Precondition
+#### Blocked Switch
 
 ```
 14:25:00  ℹ  gpc0 [IDLE→VALIDATING]     User clicked Switch
@@ -425,54 +663,16 @@ Every state machine transition MUST log:
 14:25:00  ℹ  gpc0 [PRE-CHECK]           Checking CanSwitch...
 14:25:00  ✗  gpc0 [PRE-CHECK]           CanSwitch: FAIL (git_outdated)
 14:25:00  ⚠  gpc0 [VALIDATING→BLOCKED]  Cannot switch: Git is outdated, pull required first
-14:25:00  ℹ  gpc0 [BLOCKED]             Showing option dialog to user...
 ```
 
-#### Example 3: Switch with Partial Success
+#### Stale Binary Detected
 
 ```
-14:30:00  ℹ  imac0 [IDLE→VALIDATING]    User clicked Switch
-14:30:00  ✓  imac0 [PRE-CHECK]          All pre-checks passed
-14:30:00  ℹ  imac0 [QUEUED→RUNNING]     Command sent: home-manager switch --flake .#imac0
-14:31:45  ℹ  imac0 [RUNNING→VALIDATING] Command completed (exit code: 0)
-14:31:45  ℹ  imac0 [POST-CHECK]         Running ValidateSwitchResult...
-14:31:45  ℹ  imac0 [POST-CHECK]         Comparing: system.status before=outdated, after=outdated
-14:31:45  ⚠  imac0 [POST-CHECK]         ValidateSwitchResult: PARTIAL (goal_not_achieved)
-14:31:45  ⚠  imac0 [VALIDATING→PARTIAL] Switch exited 0 but system still outdated
-14:31:45  ℹ  imac0 [PARTIAL]            Possible causes: nix store not updated, agent cache stale
-14:31:45  ℹ  imac0 [PARTIAL]            Suggestion: Try "Refresh Status" or re-run switch
-```
-
-#### Example 4: Command Failed
-
-```
-14:35:00  ℹ  csb0 [IDLE→VALIDATING]     User clicked Pull
-14:35:00  ✓  csb0 [PRE-CHECK]           All pre-checks passed
-14:35:00  ℹ  csb0 [QUEUED→RUNNING]      Command sent: git fetch && git reset --hard origin/main
-14:35:02  ✗  csb0 [RUNNING→VALIDATING]  Command completed (exit code: 128)
-14:35:02  ℹ  csb0 [POST-CHECK]          Running ValidatePullResult...
-14:35:02  ✗  csb0 [POST-CHECK]          ValidatePullResult: FAIL (exit_nonzero)
-14:35:02  ✗  csb0 [VALIDATING→FAILED]   Pull failed with exit code 128
-14:35:02  ℹ  csb0 [FAILED]              Check output log for error details
-```
-
-#### Example 5: Bulk Pull All
-
-```
-14:40:00  ℹ  [BULK]                     User clicked "Pull All" (5 hosts selected)
-14:40:00  ℹ  hsb0 [PRE-CHECK]           CanPull: PASS (git=outdated)
-14:40:00  ℹ  hsb1 [PRE-CHECK]           CanPull: SKIP (git=ok, already current)
-14:40:00  ℹ  gpc0 [PRE-CHECK]           CanPull: PASS (git=outdated)
-14:40:00  ℹ  imac0 [PRE-CHECK]          CanPull: PASS (git=outdated)
-14:40:00  ✗  csb0 [PRE-CHECK]           CanPull: FAIL (host offline)
-14:40:00  ℹ  [BULK]                     Executing on 3 hosts (1 skipped, 1 blocked)
-14:40:00  ℹ  hsb0 [QUEUED→RUNNING]      Pull started
-14:40:00  ℹ  gpc0 [QUEUED→RUNNING]      Pull started
-14:40:00  ℹ  imac0 [QUEUED→RUNNING]     Pull started
-14:40:05  ✓  hsb0 [SUCCESS]             Pull complete - git now up to date
-14:40:06  ✓  imac0 [SUCCESS]            Pull complete - git now up to date
-14:40:08  ✓  gpc0 [SUCCESS]             Pull complete - git now up to date
-14:40:08  ✓  [BULK]                     Pull All complete: 3 success, 1 skipped, 1 offline
+14:30:00  ℹ  imac0 [POST-CHECK]         Checking agent binary freshness...
+14:30:00  ℹ  imac0 [POST-CHECK]         Before: commit=abc1234, path=/nix/store/xxx, hash=sha256:...
+14:30:00  ℹ  imac0 [POST-CHECK]         After:  commit=abc1234, path=/nix/store/xxx, hash=sha256:...
+14:30:00  ⚠  imac0 [POST-CHECK]         STALE BINARY DETECTED: No change in commit, path, or hash
+14:30:00  ℹ  imac0 [POST-CHECK]         Suggestion: Run nix-collect-garbage -d and switch again
 ```
 
 ### Log Level Configuration
@@ -485,127 +685,183 @@ Every state machine transition MUST log:
 | WARNING | ⚠   | Partial success, non-blocking issues    |
 | ERROR   | ✗    | Failures, blocked actions               |
 
-### Implementation: LogEntry Structure
+---
 
-```go
-type LogEntry struct {
-    Timestamp time.Time
-    Level     string    // "debug", "info", "success", "warning", "error"
-    HostID    string    // Empty for bulk/system messages
-    State     string    // Current state machine state
-    Message   string    // Human-readable message
-    Code      string    // Machine-readable code for filtering
-    Details   map[string]any // Optional structured data
-}
+## Test Strategy (138 Tests)
 
-// Example usage in validation
-func (sm *CommandStateMachine) runPreChecks(host *Host, command string) {
-    sm.log(LogEntry{
-        Level:   "info",
-        HostID:  host.ID,
-        State:   "PRE-CHECK",
-        Message: "Checking CanExecuteCommand...",
-    })
+### Test Summary
 
-    result := CanExecuteCommand(host)
+| Category               | P2800   | P2810  | Total   |
+| ---------------------- | ------- | ------ | ------- |
+| Unit Tests             | 50      | 18     | **68**  |
+| Race Condition Tests   | 11      | -      | **11**  |
+| Self-Healing Tests     | 6       | -      | **6**   |
+| Post-Validation Timing | 7       | -      | **7**   |
+| Integration Tests      | 17      | 11     | **28**  |
+| E2E Mock Tests         | 6       | 3      | **9**   |
+| E2E Fleet Tests        | 6       | 3      | **9**   |
+| **TOTAL**              | **103** | **35** | **138** |
 
-    sm.log(LogEntry{
-        Level:   levelFromResult(result),
-        HostID:  host.ID,
-        State:   "PRE-CHECK",
-        Message: fmt.Sprintf("CanExecuteCommand: %s (%s)",
-            passOrFail(result.Valid), result.Message),
-        Code:    result.Code,
-        Details: map[string]any{
-            "valid":   result.Valid,
-            "online":  host.Online,
-            "pending": host.PendingCommand,
-        },
-    })
-}
+### File Structure
+
+```
+v2/tests/integration/
+├── validators_test.go                    # P2800 unit tests (validators)
+├── race_conditions_test.go               # Concurrency tests
+├── t13_command_state_machine_test.go     # P2800 integration tests
+├── t13_self_healing_test.go              # Orphaned state detection
+├── t13_post_validation_timing_test.go    # Timing tests
+├── t13_e2e_mock_test.go                  # Mock E2E tests
+├── t13_e2e_fleet_test.go                 # Real fleet tests
+├── t14_freshness_test.go                 # P2810 comparison logic
+├── t14_agent_reporting_test.go           # P2810 agent reporting
+└── t14_e2e_test.go                       # P2810 E2E tests
+
+tests/specs/
+├── T13-command-state-machine.md          # P2800 spec (human-readable)
+└── T14-agent-binary-freshness.md         # P2810 spec (human-readable)
 ```
 
-### WebSocket Broadcast
+### Unit Tests: Validators (50 tests)
 
-All log entries are broadcast to connected browsers:
+#### Pre-Validators
 
-```json
-{
-  "type": "state_machine_log",
-  "payload": {
-    "timestamp": "2025-12-21T14:23:05Z",
-    "level": "info",
-    "host_id": "hsb1",
-    "state": "PRE-CHECK",
-    "message": "CanSwitch: PASS (git=ok, system=outdated)",
-    "code": "outdated"
-  }
-}
+| Validator         | Tests | Cases                                                  |
+| ----------------- | ----- | ------------------------------------------------------ |
+| CanExecuteCommand | 3     | Online/no pending, offline, command pending            |
+| CanPull           | 5     | Outdated, current, unknown, offline, pending           |
+| CanSwitch         | 6     | System outdated, git outdated, current, agent outdated |
+| CanTest           | 2     | Online, offline                                        |
+| CanPullSwitch     | 4     | Git OR system outdated, both current, offline, unknown |
+
+#### Post-Validators
+
+| Validator                | Tests | Cases                                              |
+| ------------------------ | ----- | -------------------------------------------------- |
+| ValidatePullResult       | 5     | Success, partial, no change, exit ≠ 0, no snapshot |
+| ValidateSwitchResult     | 6     | Success, agent updated, pending restart, failed    |
+| ValidateTestResult       | 2     | Pass, fail                                         |
+| ValidatePullSwitchResult | 5     | Both ok, git only, system only, neither, failed    |
+
+#### Idempotency (5 tests)
+
+- Each validator called twice → same result
+- No side effects
+
+### Unit Tests: Binary Freshness (18 tests)
+
+| Layer       | Tests | Cases                                           |
+| ----------- | ----- | ----------------------------------------------- |
+| Commit      | 5     | Match, differ, agent unknown, expected unknown  |
+| Store Path  | 4     | Changed, unchanged, empty, format validation    |
+| Binary Hash | 4     | Changed, unchanged, empty, SHA256 format        |
+| Combined    | 5     | All changed, none changed, suspicious scenarios |
+
+### Race Condition Tests (11 tests)
+
+| Category           | Tests | Scenarios                                      |
+| ------------------ | ----- | ---------------------------------------------- |
+| Rapid Clicks       | 2     | Same host (blocked), different hosts (allowed) |
+| Heartbeat Timing   | 2     | During command, during post-validation         |
+| Two Browsers       | 2     | Command blocking, state sync                   |
+| Snapshot Integrity | 3     | Capture race, cleanup race, multi-host         |
+| Agent Disconnect   | 2     | Mid-command, reconnect after                   |
+
+### Self-Healing Tests (6 tests)
+
+| Detection Type    | Tests | Thresholds                             |
+| ----------------- | ----- | -------------------------------------- |
+| Orphaned Snapshot | 3     | Detected, threshold, no false positive |
+| Stuck RUNNING     | 3     | Detected, cleared, agent offline       |
+
+### E2E Fleet Tests (9 tests)
+
+| Platform | Host  | Tests | Scenarios                           |
+| -------- | ----- | ----- | ----------------------------------- |
+| NixOS    | gpc0  | 4     | Pull, switch, long-running, restart |
+| macOS    | imac0 | 3     | Pull, switch, survives switch       |
+| Cross    | both  | 2     | Bulk pull, network partition        |
+
+### Test Execution
+
+```bash
+# Run all tests
+cd v2 && go test -v -race ./tests/integration/...
+
+# Run with coverage
+cd v2 && go test -coverprofile=coverage.out ./tests/integration/...
+
+# Run fleet tests (requires SSH access)
+cd v2 && go test -v -tags=fleet ./tests/integration/... -run "Fleet"
 ```
 
 ---
 
-## State Storage
+## Implementation Plan
 
-### Per-Host Command State (in hostStore)
+### Phase 1: Unit Tests & Fixtures (Days 1-3)
 
-```javascript
-hostStore = {
-  hsb1: {
-    // ... existing fields ...
+**Goal**: 100% validator and comparison logic coverage
 
-    // NEW: Current/last command state
-    commandState: {
-      command: "switch",
-      state: "running", // idle|validating|queued|running|success|partial|failed
-      startedAt: "2025-12-21T14:23:05Z",
-      completedAt: null,
-      exitCode: null,
-      preCheck: { valid: true, code: "outdated", message: "System outdated" },
-      postCheck: null, // Populated after completion
-      progress: { phase: "building", current: 12, total: 47 },
-    },
-  },
-};
-```
+1. Create test fixtures and helpers
+2. Implement P2800 validators (50 tests)
+3. Implement P2810 comparison logic (18 tests)
 
-### Command History (optional, for debugging)
+**Deliverable**: All unit tests passing, >95% coverage
 
-```javascript
-commandHistory = {
-  hsb1: [
-    { command: "switch", state: "success", startedAt: "...", completedAt: "...", ... },
-    { command: "pull", state: "success", startedAt: "...", completedAt: "...", ... },
-    // Last N commands
-  ]
-}
-```
+### Phase 2: Race Condition & Self-Healing Tests (Days 4-5)
 
----
+**Goal**: Concurrent access and edge cases covered
 
-## Implementation Order
+1. Implement race condition tests (11 tests)
+2. Implement self-healing detection tests (6 tests)
+3. Implement post-validation timing tests (7 tests)
 
-1. **Phase 1: Validation Functions (Go)**
-   - Implement all `Can*()` pre-validators
-   - Implement all `Validate*Result()` post-validators
-   - Add unit tests for each validator
+**Deliverable**: All concurrency tests passing, no race detector warnings
 
-2. **Phase 2: State Machine (Go)**
-   - Add `CommandState` to host tracking
-   - Capture `hostBefore` snapshot when command starts
-   - Run post-validation when command completes
-   - Broadcast validation results via WebSocket
+### Phase 3: Integration Tests (Days 6-7)
 
-3. **Phase 3: UI Integration (JS)**
-   - Show pre-validation dialogs when `Valid=false`
-   - Update System Log with validation messages
-   - Show appropriate toast based on post-validation result
-   - Display progress during command execution
+**Goal**: State machine and agent reporting flows tested
 
-4. **Phase 4: Progress Reporting (Agent)**
-   - Parse nix build output for derivation counts
-   - Send progress updates via WebSocket
-   - Display progress bar in UI
+1. Implement P2800 state machine tests (17 tests)
+2. Implement P2810 agent reporting tests (11 tests)
+
+**Deliverable**: All integration tests passing
+
+### Phase 4: Agent & Dashboard Changes (Days 8-9)
+
+**Goal**: Protocol changes implemented
+
+Agent:
+
+- Add `StorePath` to heartbeat
+- Add `BinaryHash` to heartbeat
+- Add `fresh_status` to `command_complete`
+- Force status refresh before `command_complete`
+
+Dashboard:
+
+- Handle `command_complete` with `fresh_status`
+- Fallback timeout logic
+- 3-layer comparison logic
+- Orphaned state detection
+
+### Phase 5: E2E Tests (Days 10-12)
+
+**Goal**: Real-world behavior verified
+
+1. Implement mock E2E tests (9 tests)
+2. Set up fleet test infrastructure
+3. Implement fleet tests on gpc0 and imac0 (9 tests)
+
+**Deliverable**: All E2E tests passing
+
+### Phase 6: CI & Documentation (Days 13-14)
+
+**Goal**: Automation and documentation complete
+
+1. Update CI pipeline
+2. Documentation complete
 
 ---
 
@@ -619,32 +875,92 @@ commandHistory = {
 
 ### Post-Validation
 
-- [ ] Commands ending with exit 0 but goal not met show warning toast
-- [ ] Commands achieving goal show success toast
+- [ ] Commands ending with exit 0 but goal not met show warning
+- [ ] Commands achieving goal show success
 - [ ] All validation results appear in System Log
 - [ ] Partial success states clearly communicated
+
+### Binary Freshness (P2810)
+
+- [ ] Agent reports source commit in heartbeat
+- [ ] Agent reports store path in heartbeat
+- [ ] Agent reports binary hash in heartbeat
+- [ ] Dashboard detects stale binary (3-layer verification)
+- [ ] Log shows "stale_binary_detected" with guidance
 
 ### Idempotency
 
 - [ ] Running same validator twice with same state returns same result
 - [ ] Validators have no side effects
-- [ ] Validators are unit tested
+- [ ] Validators are unit tested (100% coverage)
 
 ### Verbose Logging
 
 - [ ] Every state transition logged with WHAT, WHY, WHAT'S NEXT
 - [ ] Pre-check logs show each validator name and result
 - [ ] Post-check logs show before/after comparison values
-- [ ] Bulk actions log per-host breakdown (pass/skip/blocked)
-- [ ] Progress updates logged during command execution
-- [ ] All logs appear in System Log (P4020) in real-time
-- [ ] Log entries include machine-readable `code` for filtering
-- [ ] WebSocket broadcasts all log entries to browsers
+- [ ] All logs appear in System Log in real-time
+
+### Test Coverage
+
+- [ ] All 138 tests passing
+- [ ] No race detector warnings
+- [ ] No flaky tests (run 3x, all pass)
+- [ ] Fleet tests pass on gpc0 and imac0
 
 ---
 
-## Related
+## Risk Mitigation
 
-- **P2000** - Unified Host State (provides hostStore foundation) - Done
-- **P4020** - Tabbed Output Panel (displays progress, logs validations)
-- **P6600** - Status Papertrail (merged into P4020 - status history in host tabs)
+### Risk 1: Flaky Tests
+
+**Mitigation**:
+
+- Use deterministic test data with fixtures
+- Mock time-dependent operations
+- Race detector enabled (`go test -race`)
+- Run tests 3x in CI before merge
+
+### Risk 2: Post-Validation Timing Race
+
+**Mitigation**:
+
+- Primary path: Agent sends `command_complete` with fresh_status included
+- No waiting for heartbeat in primary path
+- Fallback path with explicit timeouts
+
+### Risk 3: Nix Cache Returns Stale Binary
+
+**Mitigation**:
+
+- 3-layer verification catches this
+- Detection triggers even when we can't prevent it
+- Log provides user guidance: "Run nix-collect-garbage -d"
+
+### Risk 4: Fleet Tests Damage Real Hosts
+
+**Mitigation**:
+
+- Use only gpc0 and imac0 (dev machines)
+- Timeout protection (10 minute max)
+- No auto-destructive operations
+- Rollback commands documented
+
+---
+
+## Related Documents
+
+- [T13 Spec](../../tests/specs/T13-command-state-machine.md) - P2800 test specification
+- [T14 Spec](../../tests/specs/T14-agent-binary-freshness.md) - P2810 test specification
+- [PRD Agent Resilience](../PRD.md#critical-requirement-agent-resilience) - Why this matters
+- [P4020 Tabbed Output Panel](./P4020-tabbed-output-panel.md) - Displays state machine logs
+
+---
+
+## Revision History
+
+| Date       | Changes                                                       |
+| ---------- | ------------------------------------------------------------- |
+| 2025-12-21 | Initial P2800, P2810, test strategy created as separate files |
+| 2025-12-22 | Refined test strategy with design decisions, 138 tests        |
+| 2025-12-22 | Consolidated into single comprehensive document               |
