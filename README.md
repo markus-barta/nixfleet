@@ -369,6 +369,86 @@ go test ./tests/...
 
 The codebase uses Go with `templ` for type-safe HTML templates and `htmx` for interactive updates. It's a joy to work with!
 
+## Building & Deployment
+
+### How Builds Work
+
+NixFleet uses **GitHub Actions** to build Docker images automatically. No building on the server!
+
+```
+Push to master
+      │
+      ▼
+GitHub Actions
+├── Build Docker image
+├── Generate templ templates
+├── Compile Go binary
+└── Push to ghcr.io/markus-barta/nixfleet
+      │
+      ▼
+Your server
+└── Just pull & restart (10 seconds!)
+```
+
+### Image Tags
+
+| Tag       | When                 | Use For                     |
+| --------- | -------------------- | --------------------------- |
+| `master`  | Every push to master | Latest stable               |
+| `abc1234` | Every push (SHA)     | Specific version / rollback |
+| `v2.1.0`  | On release           | Production pinning          |
+| `latest`  | Default branch       | Same as master              |
+
+### Deploy to Your Server
+
+```bash
+# Pull latest and restart (fast!)
+docker compose pull nixfleet
+docker compose up -d nixfleet
+```
+
+### Rollback
+
+Something broke? Roll back to a previous version:
+
+```bash
+# 1. Check available tags at ghcr.io/markus-barta/nixfleet
+# 2. Update your docker-compose.yml:
+#    image: ghcr.io/markus-barta/nixfleet:abc1234  # Previous SHA
+# 3. Restart
+docker compose up -d nixfleet
+```
+
+### Example docker-compose.yml
+
+```yaml
+services:
+  nixfleet:
+    image: ghcr.io/markus-barta/nixfleet:master
+    container_name: nixfleet
+    restart: unless-stopped
+    env_file:
+      - ./secrets/nixfleet.env
+    volumes:
+      - nixfleet_data:/data
+    ports:
+      - "8000:8000" # Or use a reverse proxy like Traefik
+
+volumes:
+  nixfleet_data: {}
+```
+
+### CI Pipeline
+
+Every push runs:
+
+| Job            | What It Checks                        |
+| -------------- | ------------------------------------- |
+| **go-build**   | templ generate → go build → go test   |
+| **shellcheck** | Agent shell scripts                   |
+| **nixfmt**     | Nix module formatting                 |
+| **docker**     | Build & push to ghcr.io (master only) |
+
 ## License
 
 GNU AGPL v3.0 — See [LICENSE](LICENSE) for details.
