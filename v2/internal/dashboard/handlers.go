@@ -966,6 +966,9 @@ func (s *Server) handleRefreshGit(w http.ResponseWriter, r *http.Request) {
 		Str("message", message).
 		Msg("P2800: forced git status refresh")
 
+	// Broadcast updated status to all browsers
+	s.hub.BroadcastHostStatus(hostID)
+
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]any{
 		"status":     status,

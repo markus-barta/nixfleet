@@ -485,6 +485,84 @@ func (h *Hub) BroadcastToBrowsers(msg map[string]any) {
 	h.queueBroadcast(msg)
 }
 
+// BroadcastHostStatus fetches the full status for a host and broadcasts it to all browsers.
+// This should be called after any event that changes the host's compartment status.
+func (h *Hub) BroadcastHostStatus(hostID string) {
+	// Query host from database
+	var host struct {
+		Hostname         string
+		Generation       *string
+		AgentVersion     *string
+		LockStatusJSON   *string
+		SystemStatusJSON *string
+		RepoURL          *string
+		RepoDir          *string
+		Status           string
+	}
+
+	err := h.db.QueryRow(`
+		SELECT hostname, generation, agent_version, lock_status_json,
+		       system_status_json, repo_url, repo_dir, status
+		FROM hosts WHERE id = ? OR hostname = ?
+	`, hostID, hostID).Scan(
+		&host.Hostname, &host.Generation, &host.AgentVersion,
+		&host.LockStatusJSON, &host.SystemStatusJSON,
+		&host.RepoURL, &host.RepoDir, &host.Status,
+	)
+	if err != nil {
+		h.log.Debug().Err(err).Str("host", hostID).Msg("BroadcastHostStatus: host not found")
+		return
+	}
+
+	// Build update status
+	var lockStatus, systemStatus map[string]any
+	if host.LockStatusJSON != nil {
+		_ = json.Unmarshal([]byte(*host.LockStatusJSON), &lockStatus)
+	}
+	if host.SystemStatusJSON != nil {
+		_ = json.Unmarshal([]byte(*host.SystemStatusJSON), &systemStatus)
+	}
+
+	// Get git status if version fetcher is available
+	var gitStatus map[string]any
+	generation := ""
+	if host.Generation != nil {
+		generation = *host.Generation
+	}
+	if h.versionFetcher != nil {
+		status, msg, checked := h.versionFetcher.GetGitStatus(generation)
+		gitStatus = map[string]any{"status": status, "message": msg, "checked_at": checked}
+	}
+
+	// Get repo URL/dir
+	repoURL := ""
+	repoDir := ""
+	if host.RepoURL != nil {
+		repoURL = *host.RepoURL
+	}
+	if host.RepoDir != nil {
+		repoDir = *host.RepoDir
+	}
+
+	// Broadcast to browsers
+	h.BroadcastToBrowsers(map[string]any{
+		"type": "host_status_update",
+		"payload": map[string]any{
+			"host_id":    hostID,
+			"generation": generation,
+			"update_status": map[string]any{
+				"git":      gitStatus,
+				"lock":     lockStatus,
+				"system":   systemStatus,
+				"repo_url": repoURL,
+				"repo_dir": repoDir,
+			},
+		},
+	})
+
+	h.log.Debug().Str("host", hostID).Msg("broadcast host status update")
+}
+
 // handleAgentMessage processes messages from agents.
 func (h *Hub) handleAgentMessage(msg *agentMessage) {
 	switch msg.message.Type {
@@ -764,15 +842,35 @@ func (h *Hub) handleHeartbeat(hostID string, payload protocol.HeartbeatPayload) 
 		h.mu.Unlock()
 	}
 
-	// P7000: Broadcast minimal heartbeat to browsers (only realtime data)
-	// Full update status is fetched on-demand via /api/hosts/{id}/refresh
+	// Build update status for broadcast
+	var gitStatus map[string]any
+	if h.versionFetcher != nil {
+		status, msg, checked := h.versionFetcher.GetGitStatus(payload.Generation)
+		gitStatus = map[string]any{"status": status, "message": msg, "checked_at": checked}
+	}
+
+	updateStatus := map[string]any{
+		"git": gitStatus,
+	}
+	if payload.UpdateStatus != nil {
+		if payload.UpdateStatus.Lock != nil {
+			updateStatus["lock"] = payload.UpdateStatus.Lock
+		}
+		if payload.UpdateStatus.System != nil {
+			updateStatus["system"] = payload.UpdateStatus.System
+		}
+	}
+
+	// Broadcast heartbeat with full status to browsers
 	h.BroadcastToBrowsers(map[string]any{
 		"type": "host_heartbeat",
 		"payload": map[string]any{
-			"host_id":   hostID,
-			"online":    true,
-			"last_seen": time.Now().Format(time.RFC3339),
-			"metrics":   payload.Metrics,
+			"host_id":       hostID,
+			"online":        true,
+			"last_seen":     time.Now().Format(time.RFC3339),
+			"metrics":       payload.Metrics,
+			"generation":    payload.Generation,
+			"update_status": updateStatus,
 		},
 	})
 }
@@ -832,7 +930,7 @@ func (h *Hub) handleStatus(hostID string, payload protocol.StatusPayload) {
 		}
 	}
 
-	// Broadcast to browsers
+	// Broadcast command completion to browsers
 	h.BroadcastToBrowsers(map[string]any{
 		"type": "command_complete",
 		"payload": map[string]any{
@@ -843,6 +941,14 @@ func (h *Hub) handleStatus(hostID string, payload protocol.StatusPayload) {
 			"exit_code": payload.ExitCode,
 		},
 	})
+
+	// Broadcast updated host status after command completes
+	// This ensures compartments (especially git after pull) are immediately refreshed
+	if h.versionFetcher != nil && (payload.Command == "pull" || payload.Command == "pull-switch") {
+		// Force refresh git status after pull
+		h.versionFetcher.ForceRefresh()
+	}
+	h.BroadcastHostStatus(hostID)
 }
 
 // GetAgent returns the agent client for a given host ID.

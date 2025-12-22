@@ -1200,11 +1200,32 @@ templ Dashboard(data DashboardData) {
 				switch (msg.type) {
 					case 'host_heartbeat':
 						if (!hostId) return;
-						hostStore.update(hostId, {
+						const heartbeatUpdate = {
 							online: true,
 							lastSeen: payload.last_seen,
 							metrics: payload.metrics
-						});
+						};
+						// Include update_status if present (compartment data)
+						if (payload.update_status) {
+							heartbeatUpdate.updateStatus = payload.update_status;
+						}
+						if (payload.generation) {
+							heartbeatUpdate.generation = payload.generation;
+						}
+						hostStore.update(hostId, heartbeatUpdate);
+						break;
+
+					case 'host_status_update':
+						// Full status update (after command completes or compartment refresh)
+						if (!hostId) return;
+						const statusUpdate = {};
+						if (payload.update_status) {
+							statusUpdate.updateStatus = payload.update_status;
+						}
+						if (payload.generation) {
+							statusUpdate.generation = payload.generation;
+						}
+						hostStore.update(hostId, statusUpdate);
 						break;
 
 					case 'host_offline':
