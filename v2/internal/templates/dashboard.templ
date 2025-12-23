@@ -342,11 +342,25 @@ templ Dashboard(data DashboardData) {
 						</div>
 					</div>
 				</template>
-				<!-- Host Output Content: Flat log per host, themed with host color -->
+				<!-- Host Output Content: Flat log per host -->
 				<template x-if="activeTab !== 'system' && getActiveTabData()">
-					<div :style="{ color: getActiveTabData().themeColor }">
+					<div>
 						<template x-for="line in getActiveTabData().lines" :key="line.id">
-							<div class="log-line" :class="{ 'error': line.isError, 'success': line.isSuccess, 'command-separator': line.isSeparator, 'status-line': line.isStatus }" x-text="line.text"></div>
+							<!-- Status/separator lines: white-gray, no indent -->
+							<div 
+								x-show="line.isSeparator || line.isStatus"
+								class="log-line" 
+								:class="{ 'command-separator': line.isSeparator, 'status-line': line.isStatus }"
+								x-text="line.text"
+							></div>
+							<!-- Host output lines: themed color + indent -->
+							<div 
+								x-show="!line.isSeparator && !line.isStatus"
+								class="log-line host-output" 
+								:class="{ 'error': line.isError, 'success': line.isSuccess }"
+								:style="{ color: getActiveTabData().themeColor }"
+								x-text="line.text"
+							></div>
 						</template>
 					</div>
 				</template>
