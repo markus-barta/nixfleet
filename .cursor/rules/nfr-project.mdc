@@ -25,12 +25,12 @@ UI requirements for NixFleet dashboard development.
 
 **Design for mobile and large displays.**
 
-| Breakpoint | Devices | Considerations |
-|------------|---------|----------------|
-| < 640px | Mobile | Touch targets ≥44px, single column |
-| 640-1024px | Tablets | Flexible layouts |
-| > 1024px | Desktops | Full table views, side panels |
-| > 2560px | 5K displays | Max-width containers |
+Breakpoint          | Devices         | Key Points
+--------------------|----------------|-------------------------------------------
+< 640px             | Mobile         | ≥44px touch targets, single-column layout
+640–1024px          | Tablet         | Flexible layout, adapt panels/tables
+> 1024px            | Desktop        | Full table views, side panels enabled
+> 2560px            | 5K+ Display    | Max-width containers, centered content
 
 **Principles:**
 - Mobile-first: start small, enhance for larger
@@ -64,10 +64,11 @@ UI requirements for NixFleet dashboard development.
 ---
 
 ## Quick Reference
+format
 
-| Requirement | Rule |
-|-------------|------|
-| Icons | SVG/CSS, no emojis |
-| Responsive | Mobile-first, test at extremes |
-| Loading | Show progress, never freeze |
-| Accessibility | Keyboard focus, visible indicators |
+| Requirement     | What to Follow                                     |
+|-----------------|----------------------------------------------------|
+| Icons           | Use SVG or CSS only; never emojis                  |
+| Responsive      | Start mobile, ensure works up to 5K, test extremes |
+| Loading         | Always show progress, UI never locks/freeze        |
+| Accessibility   | Tab focusable, clear focus ring/outline            |

@@ -1001,69 +1001,6 @@ templ Base(title string, csrfToken string) {
 			opacity: 1;
 		}
 
-		/* P4021: Status History section */
-		.status-history {
-			padding: 0.5rem 0.75rem;
-			border-bottom: 1px solid var(--border);
-			background: rgba(0,0,0,0.2);
-			max-height: 120px;
-			overflow-y: auto;
-		}
-
-		.status-history-header {
-			display: flex;
-			align-items: center;
-			justify-content: space-between;
-			margin-bottom: 0.25rem;
-			font-size: 0.7rem;
-			color: var(--fg-muted);
-			text-transform: uppercase;
-			letter-spacing: 0.05em;
-			cursor: pointer;
-		}
-
-		.status-history-header:hover {
-			color: var(--fg);
-		}
-
-		.status-history-entry {
-			display: flex;
-			align-items: center;
-			gap: 0.5rem;
-			padding: 0.15rem 0;
-			font-size: 0.75rem;
-		}
-
-		.status-history-entry:first-child {
-			font-weight: 500;
-			color: var(--fg);
-		}
-
-		.status-history-entry .sh-time {
-			color: var(--fg-muted);
-			flex-shrink: 0;
-			width: 40px;
-		}
-
-		.status-history-entry .sh-icon {
-			width: 1rem;
-			text-align: center;
-			flex-shrink: 0;
-		}
-
-		.status-history-entry .sh-message {
-			flex: 1;
-			overflow: hidden;
-			text-overflow: ellipsis;
-			white-space: nowrap;
-		}
-
-		.status-history-entry.success .sh-icon { color: var(--green); }
-		.status-history-entry.warning .sh-icon { color: var(--orange); }
-		.status-history-entry.error .sh-icon { color: var(--red); }
-		.status-history-entry.info .sh-icon { color: var(--blue); }
-		.status-history-entry.pending .sh-icon { color: var(--yellow); }
-
 		/* P4021: Mobile tab behavior */
 		@media (max-width: 640px) {
 			.tab-list .output-tab:not(.active) {

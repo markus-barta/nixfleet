@@ -1503,7 +1503,7 @@ templ Dashboard(data DashboardData) {
 
 			document.addEventListener('alpine:init', () => {
 				Alpine.data('outputPanel', () => ({
-					tabs: [],           // Array of { hostId, hostname, lines, indicator, phase, statusHistory, ... }
+					tabs: [],           // Array of { hostId, hostname, lines, indicator, phase, ... }
 					activeTab: null,    // 'system' or hostId
 					systemLog: [],      // System log entries
 					collapsed: false,
@@ -1574,7 +1574,6 @@ templ Dashboard(data DashboardData) {
 								buildCount: 0,
 								buildCurrent: 0,
 								lastCommand: null,
-								statusHistory: [],
 							};
 							this.tabs.push(tab);
 						}
@@ -1606,7 +1605,6 @@ templ Dashboard(data DashboardData) {
 								buildCount: 0,
 								buildCurrent: 0,
 								lastCommand: null,
-								statusHistory: [],  // P4021: Status history entries
 							};
 							this.tabs.push(tab);
 						}
