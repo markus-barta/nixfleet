@@ -342,9 +342,9 @@ templ Dashboard(data DashboardData) {
 						</div>
 					</div>
 				</template>
-				<!-- Host Output Content: Flat log per host -->
+				<!-- Host Output Content: Flat log per host, themed with host color -->
 				<template x-if="activeTab !== 'system' && getActiveTabData()">
-					<div>
+					<div :style="{ color: getActiveTabData().themeColor }">
 						<template x-for="line in getActiveTabData().lines" :key="line.id">
 							<div class="log-line" :class="{ 'error': line.isError, 'success': line.isSuccess, 'command-separator': line.isSeparator, 'status-line': line.isStatus }" x-text="line.text"></div>
 						</template>
@@ -1583,6 +1583,7 @@ templ Dashboard(data DashboardData) {
 							tab = {
 								hostId: hostId,
 								hostname: host?.hostname || hostId,
+								themeColor: host?.themeColor || '#7aa2f7',
 								lines: [],
 								indicator: 'success',
 								hasUnread: false,
@@ -1614,6 +1615,7 @@ templ Dashboard(data DashboardData) {
 							tab = {
 								hostId: hostId,
 								hostname: host?.hostname || hostId,
+								themeColor: host?.themeColor || '#7aa2f7',
 								lines: [],
 								indicator: 'running',
 								hasUnread: false,
