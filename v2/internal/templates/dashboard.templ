@@ -247,7 +247,7 @@ templ Dashboard(data DashboardData) {
 		@ContextBar()
 
 		<!-- P4020: Tabbed Output Panel (always visible) -->
-		<div class="output-panel" id="output-panel" x-data="outputPanel" @keydown.window="handleKeyboard($event)">
+		<div class="output-panel" id="output-panel" x-data="outputPanel()" @keydown.window="handleKeyboard($event)">
 			<!-- Tab Bar -->
 			<div class="output-tabs">
 				<div class="tab-list">
