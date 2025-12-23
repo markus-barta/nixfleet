@@ -697,17 +697,7 @@ templ Base(title string, csrfToken string) {
 			align-items: center;
 			background: var(--bg-highlight);
 			border-bottom: 1px solid var(--border);
-			overflow-x: auto;
-			scrollbar-width: thin;
-		}
-
-		.output-tabs::-webkit-scrollbar {
-			height: 4px;
-		}
-
-		.output-tabs::-webkit-scrollbar-thumb {
-			background: var(--border);
-			border-radius: 2px;
+			overflow: visible;  /* Allow dropdown to overflow */
 		}
 
 		.tab-list {
@@ -715,6 +705,17 @@ templ Base(title string, csrfToken string) {
 			align-items: center;
 			flex: 1;
 			min-width: 0;
+			overflow-x: auto;
+			scrollbar-width: thin;
+		}
+
+		.tab-list::-webkit-scrollbar {
+			height: 4px;
+		}
+
+		.tab-list::-webkit-scrollbar-thumb {
+			background: var(--border);
+			border-radius: 2px;
 		}
 
 		.output-tab {
