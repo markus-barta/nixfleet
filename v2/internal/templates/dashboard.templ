@@ -338,9 +338,9 @@ templ Dashboard(data DashboardData) {
 					</div>
 				</template>
 				<!-- Host Output Content: Flat log per host -->
-				<template x-if="activeTab !== 'system' && getActiveTabData()">
-					<div>
-						<template x-for="line in getActiveTabData().lines" :key="line.id">
+				<template x-for="tab in tabs.filter(t => t.hostId === activeTab)" :key="tab.hostId">
+					<div x-show="activeTab !== 'system'">
+						<template x-for="line in tab.lines" :key="line.id">
 							<!-- Status/separator lines: white-gray, no indent -->
 							<div 
 								x-show="line.isSeparator || line.isStatus"
@@ -353,7 +353,7 @@ templ Dashboard(data DashboardData) {
 								x-show="!line.isSeparator && !line.isStatus"
 								class="log-line host-output" 
 								:class="{ 'error': line.isError, 'success': line.isSuccess }"
-								:style="{ color: getActiveTabData().themeColor }"
+								:style="{ color: tab.themeColor }"
 								x-text="line.text"
 							></div>
 						</template>
@@ -364,8 +364,8 @@ templ Dashboard(data DashboardData) {
 			<!-- Footer with Clear/Copy -->
 			<div class="output-footer" x-show="!collapsed">
 				<!-- Progress indicator for active host tab -->
-				<template x-if="activeTab !== 'system' && getActiveTabData()?.phase">
-					<span class="progress-badge" x-text="getActiveTabData().phaseIcon + ' ' + getActiveTabData().phase + (getActiveTabData().buildCount ? ' (' + getActiveTabData().buildCurrent + '/' + getActiveTabData().buildCount + ')' : '')"></span>
+				<template x-for="tab in tabs.filter(t => t.hostId === activeTab && t.phase)" :key="'progress-' + tab.hostId">
+					<span class="progress-badge" x-text="tab.phaseIcon + ' ' + tab.phase + (tab.buildCount ? ' (' + tab.buildCurrent + '/' + tab.buildCount + ')' : '')"></span>
 				</template>
 				<span style="flex: 1;"></span>
 				<button type="button" class="tab-action-btn" @click="clearActiveTab()">Clear</button>
