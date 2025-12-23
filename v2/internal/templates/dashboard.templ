@@ -574,7 +574,7 @@ templ Dashboard(data DashboardData) {
 			<div class="footer-right">
 				<span class="made-with">
 					Made with <svg class="icon heart"><use href="#icon-heart"></use></svg> by
-					<a href="https://x.com/markusbarta" target="_blank" rel="noopener">&#64;markusbarta</a>,
+					<a href="https://x.com/markusbarta" target="_blank" rel="noopener">&#64;markusbarta</a> using
 					Claude &amp; Cursor
 				</span>
 			</div>
@@ -1246,6 +1246,7 @@ templ Dashboard(data DashboardData) {
 						break;
 
 					case 'command_output':
+						console.log('command_output received:', payload);
 						appendLog(payload);
 						break;
 
@@ -1535,6 +1536,7 @@ templ Dashboard(data DashboardData) {
 					relativeTimeInterval: null,
 
 					init() {
+						console.log('outputPanel init() called');
 						// Restore panel state from localStorage
 						const savedCollapsed = localStorage.getItem('outputPanel.collapsed');
 						if (savedCollapsed !== null) {
@@ -1777,11 +1779,13 @@ templ Dashboard(data DashboardData) {
 					},
 
 					handleOutputLine(payload) {
+						console.log('handleOutputLine called:', payload);
 						const hostId = payload.host_id;
 						if (!hostId) return;
 
 						const tab = this.getOrCreateTab(hostId);
 						const text = payload.line || payload.output || '';
+						console.log('Adding line to tab:', hostId, text);
 
 						// Parse progress
 						this.parseProgress(tab, text);
