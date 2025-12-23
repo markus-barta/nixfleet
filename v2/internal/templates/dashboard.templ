@@ -338,28 +338,26 @@ templ Dashboard(data DashboardData) {
 					</div>
 				</template>
 				<!-- Host Output Content: Flat log per host -->
-				<template x-for="tab in tabs" :key="tab.hostId">
-					<template x-if="activeTab === tab.hostId">
-						<div>
-							<template x-for="line in tab.lines" :key="line.id">
-								<!-- Status/separator lines: white-gray, no indent -->
-								<div 
-									x-show="line.isSeparator || line.isStatus"
-									class="log-line" 
-									:class="{ 'command-separator': line.isSeparator, 'status-line': line.isStatus }"
-									x-text="line.text"
-								></div>
-								<!-- Host output lines: themed color + indent -->
-								<div 
-									x-show="!line.isSeparator && !line.isStatus"
-									class="log-line host-output" 
-									:class="{ 'error': line.isError, 'success': line.isSuccess }"
-									:style="{ color: tab.themeColor }"
-									x-text="line.text"
-								></div>
-							</template>
-						</div>
-					</template>
+				<template x-if="activeTab !== 'system'">
+					<div>
+						<template x-for="line in activeTabLines" :key="line.id">
+							<!-- Status/separator lines: white-gray, no indent -->
+							<div 
+								x-show="line.isSeparator || line.isStatus"
+								class="log-line" 
+								:class="{ 'command-separator': line.isSeparator, 'status-line': line.isStatus }"
+								x-text="line.text"
+							></div>
+							<!-- Host output lines: themed color + indent -->
+							<div 
+								x-show="!line.isSeparator && !line.isStatus"
+								class="log-line host-output" 
+								:class="{ 'error': line.isError, 'success': line.isSuccess }"
+								:style="{ color: activeTabColor }"
+								x-text="line.text"
+							></div>
+						</template>
+					</div>
 				</template>
 			</div>
 
@@ -2032,6 +2030,16 @@ templ Dashboard(data DashboardData) {
 					getActiveTabData() {
 						if (this.activeTab === 'system') return null;
 						return this.tabs.find(t => t.hostId === this.activeTab);
+					},
+
+					// Alpine getters for reactivity
+					get activeTabLines() {
+						const tab = this.tabs.find(t => t.hostId === this.activeTab);
+						return tab ? tab.lines : [];
+					},
+					get activeTabColor() {
+						const tab = this.tabs.find(t => t.hostId === this.activeTab);
+						return tab ? tab.themeColor : '#7aa2f7';
 					},
 
 					// Get all hosts from hostStore for dropdown
