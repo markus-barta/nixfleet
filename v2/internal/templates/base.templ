@@ -845,7 +845,7 @@ templ Base(title string, csrfToken string) {
 		.output-content .command-separator {
 			margin: 0.75rem 0 0.25rem 0;
 			color: var(--fg-muted);
-			font-size: 0.8rem;
+			font-size: inherit;  /* Inherit for A+/A- controls */
 			font-family: var(--font-mono);
 			text-align: center;
 			opacity: 0.7;
@@ -863,7 +863,7 @@ templ Base(title string, csrfToken string) {
 
 		.output-content .status-line {
 			color: var(--fg-muted);
-			font-size: 0.85rem;
+			font-size: inherit;  /* Inherit for A+/A- controls */
 			padding: 0.15rem 0;
 			opacity: 0.85;
 		}
@@ -873,6 +873,7 @@ templ Base(title string, csrfToken string) {
 			align-items: flex-start;
 			gap: 0.5rem;
 			padding: 0.25rem 0;
+			color: var(--fg-dark);  /* More gray than host log */
 		}
 
 		.output-content .system-log-entry .log-icon {
@@ -883,8 +884,8 @@ templ Base(title string, csrfToken string) {
 
 		.output-content .system-log-entry .log-time {
 			flex-shrink: 0;
-			color: var(--fg-muted);
-			font-size: 0.75rem;
+			color: var(--fg-gutter);  /* Even more muted */
+			font-size: inherit;  /* Inherit for A+/A- controls */
 		}
 
 		.output-content .system-log-entry .log-message {
@@ -1022,7 +1023,7 @@ templ Base(title string, csrfToken string) {
 		/* P4021: Relative time styling */
 		.log-time-relative {
 			color: var(--fg-gutter);
-			font-size: 0.65rem;
+			font-size: 0.85em;  /* Proportionally smaller, scales with A+/A- */
 			margin-left: 0.25rem;
 		}
 
