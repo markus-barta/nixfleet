@@ -941,17 +941,17 @@ templ Base(title string, csrfToken string) {
 
 		.tab-overflow-menu {
 			position: absolute;
-			bottom: 100%;
+			top: 100%;  /* Show below the button, not above */
 			right: 0;
-			margin-bottom: 4px;
+			margin-top: 4px;
 			background: var(--bg-dark);
 			border: 1px solid var(--border);
 			border-radius: 6px;
-			min-width: 180px;
+			min-width: 200px;
 			max-height: 300px;
 			overflow-y: auto;
-			box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-			z-index: 100;
+			box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+			z-index: 1000;  /* Higher z-index to show above all content */
 		}
 
 		.tab-overflow-item {
@@ -973,11 +973,21 @@ templ Base(title string, csrfToken string) {
 			background: var(--bg-highlight);
 		}
 
+		.tab-overflow-item.active {
+			background: rgba(122, 162, 247, 0.1);
+		}
+
 		.tab-overflow-item .tab-indicator {
 			width: 8px;
 			height: 8px;
 			border-radius: 50%;
 			flex-shrink: 0;
+		}
+
+		.tab-overflow-item .tab-toggle {
+			margin-left: auto;
+			color: var(--green);
+			font-size: 0.9rem;
 		}
 
 		/* P4021: Resize handle (bottom of panel) */

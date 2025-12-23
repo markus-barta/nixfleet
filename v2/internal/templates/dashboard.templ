@@ -241,22 +241,20 @@ templ Dashboard(data DashboardData) {
 		<!-- Context Bar - unified hover preview + selection actions -->
 		@ContextBar()
 
-		<!-- P4020: Tabbed Output Panel -->
-		<div class="output-panel hidden" id="output-panel" x-data="outputPanel()" @keydown.window="handleKeyboard($event)">
+		<!-- P4020: Tabbed Output Panel (always visible) -->
+		<div class="output-panel" id="output-panel" x-data="outputPanel()" @keydown.window="handleKeyboard($event)">
 			<!-- Tab Bar -->
 			<div class="output-tabs">
 				<div class="tab-list">
-					<!-- System Log Tab -->
+					<!-- System Log Tab (always visible) -->
 					<button
 						type="button"
 						class="output-tab"
 						:class="{ 'active': activeTab === 'system' }"
 						@click="switchTab('system')"
-						x-show="systemLog.length > 0 || tabs.length > 0"
 					>
 						<span class="tab-indicator" :class="systemLogIndicator"></span>
 						<span>📋 Log</span>
-						<span class="tab-close" @click.stop="closeTab('system')" title="Close">×</span>
 					</button>
 					<!-- Host Tabs -->
 					<template x-for="(tab, index) in tabs" :key="tab.hostId">
@@ -272,35 +270,27 @@ templ Dashboard(data DashboardData) {
 						</button>
 					</template>
 				</div>
-				<!-- P4021: Tab Overflow Dropdown -->
-				<div class="tab-overflow" x-show="tabs.length > 0">
+				<!-- Hosts Dropdown: show all hosts, toggle tabs -->
+				<div class="tab-overflow">
 					<button 
 						type="button" 
 						class="tab-overflow-btn"
 						@click="overflowOpen = !overflowOpen"
-						x-show="tabs.length > 1"
 					>
-						<span x-text="tabs.length + ' tabs'"></span>
+						<span>Hosts</span>
 						<span>▼</span>
 					</button>
 					<div class="tab-overflow-menu" x-show="overflowOpen" @click.away="overflowOpen = false">
-						<button 
-							type="button"
-							class="tab-overflow-item"
-							@click="switchTab('system'); overflowOpen = false"
-							x-show="systemLog.length > 0"
-						>
-							<span class="tab-indicator" :class="systemLogIndicator"></span>
-							<span>📋 System Log</span>
-						</button>
-						<template x-for="tab in tabs" :key="'overflow-' + tab.hostId">
+						<template x-for="host in getAllHosts()" :key="'host-' + host.id">
 							<button 
 								type="button"
 								class="tab-overflow-item"
-								@click="switchTab(tab.hostId); overflowOpen = false"
+								:class="{ 'active': hasTab(host.id) }"
+								@click="toggleHostTab(host.id, host.hostname, host.themeColor)"
 							>
-								<span class="tab-indicator" :class="tab.indicator"></span>
-								<span x-text="tab.hostname"></span>
+								<span class="tab-indicator" :class="getHostTabIndicator(host.id)"></span>
+								<span x-text="host.hostname" :style="{ color: host.themeColor }"></span>
+								<span class="tab-toggle" x-text="hasTab(host.id) ? '✓' : ''"></span>
 							</button>
 						</template>
 					</div>
@@ -1527,7 +1517,7 @@ templ Dashboard(data DashboardData) {
 			document.addEventListener('alpine:init', () => {
 				Alpine.data('outputPanel', () => ({
 					tabs: [],           // Array of { hostId, hostname, lines, indicator, phase, ... }
-					activeTab: null,    // 'system' or hostId
+					activeTab: 'system', // 'system' or hostId - default to system log
 					systemLog: [],      // System log entries
 					collapsed: false,
 					lineCounter: 0,
@@ -2029,6 +2019,52 @@ templ Dashboard(data DashboardData) {
 					getActiveTabData() {
 						if (this.activeTab === 'system') return null;
 						return this.tabs.find(t => t.hostId === this.activeTab);
+					},
+
+					// Get all hosts from hostStore for dropdown
+					getAllHosts() {
+						return hostStore.getAll().map(h => ({
+							id: h.id,
+							hostname: h.hostname,
+							themeColor: h.themeColor || '#7aa2f7'
+						}));
+					},
+
+					// Check if a host tab exists
+					hasTab(hostId) {
+						return this.tabs.some(t => t.hostId === hostId);
+					},
+
+					// Get indicator class for a host (from tab or default)
+					getHostTabIndicator(hostId) {
+						const tab = this.tabs.find(t => t.hostId === hostId);
+						return tab?.indicator || '';
+					},
+
+					// Toggle a host tab on/off
+					toggleHostTab(hostId, hostname, themeColor) {
+						const existing = this.tabs.find(t => t.hostId === hostId);
+						if (existing) {
+							// Close this tab
+							this.closeTab(hostId);
+						} else {
+							// Create tab and switch to it
+							const tab = {
+								hostId: hostId,
+								hostname: hostname,
+								themeColor: themeColor || '#7aa2f7',
+								lines: [],
+								indicator: '',
+								hasUnread: false,
+								phase: '',
+								phaseIcon: '',
+								buildCount: 0,
+								buildCurrent: 0,
+								lastCommand: null,
+							};
+							this.tabs.push(tab);
+							this.activeTab = hostId;
+						}
 					},
 
 					clearActiveTab() {
