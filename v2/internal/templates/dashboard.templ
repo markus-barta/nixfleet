@@ -342,30 +342,11 @@ templ Dashboard(data DashboardData) {
 						</div>
 					</div>
 				</template>
-				<!-- Host Output Content -->
+				<!-- Host Output Content: Flat log per host -->
 				<template x-if="activeTab !== 'system' && getActiveTabData()">
 					<div>
-						<!-- P4021: Status History -->
-						<div class="status-history" x-show="getActiveTabData().statusHistory.length > 0">
-							<div class="status-history-header" @click="statusHistoryExpanded = !statusHistoryExpanded">
-								<span>Status History</span>
-								<span x-text="statusHistoryExpanded ? '▲' : '▼'"></span>
-							</div>
-							<template x-if="statusHistoryExpanded">
-								<div>
-									<template x-for="entry in getActiveTabData().statusHistory.slice(0, 10)" :key="entry.id">
-										<div class="status-history-entry" :class="entry.category">
-											<span class="sh-time" x-text="entry.time"></span>
-											<span class="sh-icon" x-text="entry.icon"></span>
-											<span class="sh-message" x-text="entry.message"></span>
-										</div>
-									</template>
-								</div>
-							</template>
-						</div>
-						<!-- Command Output Lines -->
 						<template x-for="line in getActiveTabData().lines" :key="line.id">
-							<div class="log-line" :class="{ 'error': line.isError, 'success': line.isSuccess, 'command-separator': line.isSeparator }" x-text="line.text"></div>
+							<div class="log-line" :class="{ 'error': line.isError, 'success': line.isSuccess, 'command-separator': line.isSeparator, 'status-line': line.isStatus }" x-text="line.text"></div>
 						</template>
 					</div>
 				</template>
@@ -1485,6 +1466,14 @@ templ Dashboard(data DashboardData) {
 			const MAX_LINES_PER_TAB = 1000;
 			const MAX_SYSTEM_LOG_ENTRIES = 100;
 
+			// Locale: browser preference with de-AT fallback, always 24h
+			const USER_LOCALE = navigator.language || 'de-AT';
+			function formatTime(date, withSeconds = false) {
+				const opts = { hour12: false, hour: '2-digit', minute: '2-digit' };
+				if (withSeconds) opts.second = '2-digit';
+				return date.toLocaleTimeString(USER_LOCALE, opts);
+			}
+
 			function appendLog(payload) {
 				window.dispatchEvent(new CustomEvent('output-line', { detail: payload }));
 			}
@@ -1524,7 +1513,6 @@ templ Dashboard(data DashboardData) {
 					panelHeight: 300,   // Default height in pixels
 					isResizing: false,
 					overflowOpen: false,
-					statusHistoryExpanded: true,
 					relativeTimeInterval: null,
 
 					init() {
@@ -1703,26 +1691,25 @@ templ Dashboard(data DashboardData) {
 						return Math.floor(diffHour / 24) + 'd ago';
 					},
 
-					// P4021: Add status history entry to a host tab
+					// Add status entry as a log line (flat log per host)
 					addStatusHistory(hostId, category, icon, message) {
 						const tab = this.tabs.find(t => t.hostId === hostId);
 						if (!tab) return;
 
 						const now = new Date();
-						const timeStr = now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
+						const timeStr = formatTime(now);
 
-						tab.statusHistory.unshift({
-							id: ++this.logCounter,
-							category: category,
-							icon: icon,
-							message: message,
-							time: timeStr,
-							timestamp: now,
+						tab.lines.push({
+							id: ++this.lineCounter,
+							text: `${timeStr} ${icon} ${message}`,
+							isStatus: true,
+							isSuccess: category === 'success',
+							isError: category === 'error',
 						});
 
-						// Keep only last 50 entries
-						if (tab.statusHistory.length > 50) {
-							tab.statusHistory = tab.statusHistory.slice(0, 50);
+						// Trim if too many lines
+						if (tab.lines.length > MAX_LINES_PER_TAB) {
+							tab.lines = tab.lines.slice(-MAX_LINES_PER_TAB);
 						}
 					},
 
@@ -1730,16 +1717,14 @@ templ Dashboard(data DashboardData) {
 						const { hostId, command } = detail;
 						const tab = this.getOrCreateTab(hostId);
 
-						// Add command separator if tab already has output
-						if (tab.lines.length > 0) {
-							const now = new Date();
-							const timeStr = now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
-							tab.lines.push({
-								id: ++this.lineCounter,
-								text: `───────────────── ${command || 'command'} (${timeStr}) ─────────────────`,
-								isSeparator: true,
-							});
-						}
+						// Add START separator
+						const now = new Date();
+						const timeStr = formatTime(now, true);
+						tab.lines.push({
+							id: ++this.lineCounter,
+							text: `────────────────── ${command || 'command'} START (${timeStr}) ──────────────────`,
+							isSeparator: true,
+						});
 
 						// Reset progress
 						tab.phase = '';
@@ -1818,10 +1803,15 @@ templ Dashboard(data DashboardData) {
 						tab.phaseIcon = success ? '✓' : '✗';
 						tab.indicator = success ? 'success' : 'error';
 
-						// Add completion line
+						// Add END separator
+						const now = new Date();
+						const timeStr = formatTime(now, true);
+						const cmdName = tab.lastCommand || 'command';
+						const statusText = success ? `✓ exit 0` : `✗ exit ${exitCode}`;
 						tab.lines.push({
 							id: ++this.lineCounter,
-							text: `\n${tab.phaseIcon} Command completed (exit code: ${exitCode})`,
+							text: `────────────────── ${cmdName} END (${timeStr}) ${statusText} ──────────────────`,
+							isSeparator: true,
 							isSuccess: success,
 							isError: !success,
 						});
@@ -1869,7 +1859,7 @@ templ Dashboard(data DashboardData) {
 
 					addSystemLog(detail) {
 						const now = new Date();
-						const timeStr = now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+						const timeStr = formatTime(now, true);
 
 						this.systemLog.unshift({
 							id: ++this.logCounter,

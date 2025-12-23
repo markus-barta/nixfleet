@@ -838,20 +838,29 @@ templ Base(title string, csrfToken string) {
 		}
 
 		.output-content .command-separator {
-			display: flex;
-			align-items: center;
-			gap: 0.5rem;
-			margin: 0.5rem 0;
+			margin: 0.75rem 0 0.25rem 0;
 			color: var(--fg-muted);
-			font-size: 0.75rem;
+			font-size: 0.8rem;
+			font-family: var(--font-mono);
+			text-align: center;
+			opacity: 0.7;
 		}
 
-		.output-content .command-separator::before,
-		.output-content .command-separator::after {
-			content: '';
-			flex: 1;
-			height: 1px;
-			background: var(--border);
+		.output-content .command-separator.success {
+			color: var(--success);
+			opacity: 0.9;
+		}
+
+		.output-content .command-separator.error {
+			color: var(--error);
+			opacity: 0.9;
+		}
+
+		.output-content .status-line {
+			color: var(--fg-muted);
+			font-size: 0.85rem;
+			padding: 0.15rem 0;
+			opacity: 0.85;
 		}
 
 		.output-content .system-log-entry {

@@ -43,10 +43,10 @@ You are the **software developer** for the NixFleet fleet management system.
 ┌─────────────────────────────────────────────────────────────────┐
 │                     NixFleet Dashboard (Go)                     │
 │                                                                 │
-│  ┌─────────────────┐  ┌─────────────┐  ┌───────────────────┐   │
-│  │   HTTP Server   │  │    Templ    │  │   SQLite + JSON   │   │
-│  │   (net/http)    │  │  Templates  │  │   (data store)    │   │
-│  └─────────────────┘  └─────────────┘  └───────────────────┘   │
+│  ┌─────────────────┐  ┌─────────────┐  ┌───────────────────┐    │
+│  │   HTTP Server   │  │    Templ    │  │   SQLite + JSON   │    │
+│  │   (net/http)    │  │  Templates  │  │   (data store)    │    │
+│  └─────────────────┘  └─────────────┘  └───────────────────┘    │
 │                                                                 │
 │  v2/cmd/nixfleet-dashboard/    v2/internal/dashboard/           │
 └─────────────────────────────────────────────────────────────────┘
