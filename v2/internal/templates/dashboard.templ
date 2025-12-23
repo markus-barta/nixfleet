@@ -247,7 +247,7 @@ templ Dashboard(data DashboardData) {
 		@ContextBar()
 
 		<!-- P4020: Tabbed Output Panel (always visible) -->
-		<div class="output-panel" id="output-panel" x-data="outputPanel()" @keydown.window="handleKeyboard($event)">
+		<div class="output-panel" id="output-panel" x-data="outputPanel" @keydown.window="handleKeyboard($event)">
 			<!-- Tab Bar -->
 			<div class="output-tabs">
 				<div class="tab-list">
@@ -2604,6 +2604,12 @@ templ Dashboard(data DashboardData) {
 
 				// Git is dashboard-side (GitHub API), others are agent-side
 				if (compartment === 'git') {
+					// Make git refresh behave like a normal command in the output panel
+					// (START/END separators + system log entries).
+					window.dispatchEvent(new CustomEvent('output-start', {
+						detail: { hostId, command: 'refresh-git' }
+					}));
+
 					// Dashboard-side refresh via API
 					fetch(`/api/hosts/${hostId}/refresh-git`, {
 						method: 'POST',
@@ -2614,8 +2620,14 @@ templ Dashboard(data DashboardData) {
 					}).then(data => {
 						appendLogLine(hostId, `✓ Git status: ${data.status} (${data.message})`);
 						refreshHost(hostId);
+						window.dispatchEvent(new CustomEvent('log-complete', {
+							detail: { host_id: hostId, command: 'refresh-git', exit_code: 0 }
+						}));
 					}).catch(err => {
 						appendLogLine(hostId, `✗ ${err.message}`, 'error');
+						window.dispatchEvent(new CustomEvent('log-complete', {
+							detail: { host_id: hostId, command: 'refresh-git', exit_code: 1, error: err.message }
+						}));
 					});
 				} else {
 					// Agent-side refresh via WebSocket command
