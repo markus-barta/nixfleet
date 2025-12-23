@@ -1,6 +1,6 @@
 ---
 description: NixFleet DEVELOPER role - assume when working on the dashboard, agent, or modules
-globs: ["app/**", "agent/**", "modules/**", "docker/**"]
+globs: ["v2/**", "modules/**", "docker/**"]
 alwaysApply: false
 ---
 
@@ -12,213 +12,43 @@ You are the **software developer** for the NixFleet fleet management system.
 
 ## How to Activate
 
-1. **Automatic**: Cursor suggests this rule when working in `app/**`, `agent/**`, `modules/**`, or `docker/**`
-2. **Explicit**: Type `@DEVELOPER` in chat to reference this rule
-3. **Verbal**: Say "Assume DEVELOPER role" in your message
+1. **Automatic**: Cursor suggests this rule when working in `v2/**`, `modules/**`, or `docker/**`
+2. **Explicit**: Type `@DEVELOPER` in chat
+3. **Verbal**: "Assume DEVELOPER role" or "build this"
 
 ---
 
 ## Sources of Truth
 
-**Read these, don't duplicate their content:**
-
 | What | Where |
 |------|-------|
-| **Product Requirements (v2)** | [+pm/PRD.md](../../+pm/PRD.md) - **THE source of truth for v2 rewrite** |
-| **Test Specifications** | [tests/specs/](../../tests/specs/) - Human-readable test specs |
-| Project overview | [README.md](../../README.md) |
-| Task management | [+pm/README.md](../../+pm/README.md) |
-| API & security docs | README.md (API Endpoints, Security sections) |
-| Deployment | `docker/` and `docker-compose.yml` |
-| **Server runbooks** | `nixcfg/hosts/*/docs/RUNBOOK.md` (connection info, IPs, access) |
+| **Product Requirements** | `+pm/PRD.md` - THE source of truth |
+| **Test Specifications** | `tests/specs/` |
+| Project overview | `README.md` |
+| Task management | `+pm/README.md` |
+| **Server runbooks** | `nixcfg/hosts/*/docs/RUNBOOK.md` |
 
 ### PRD-Driven Development
 
-For v2.0 rewrite:
-
 1. **PRD is the source of truth** - All requirements come from `+pm/PRD.md`
-2. **Update PRD** when requirements change or new ones are discovered
-3. **Stick to the PRD** while writing code - no feature creep
-4. **Test specs drive implementation** - Tests define expected behavior, code makes them pass
+2. **Update PRD** when requirements change
+3. **Stick to the PRD** - no feature creep
+4. **Test specs drive implementation** - Tests define behavior, code makes them pass
 
 ---
 
-## Server Access
-
-**Before connecting to any server**, check the runbook in nixcfg:
-
-1. **Read the host's README**: `nixcfg/hosts/<hostname>/README.md`
-2. Look for connection details (IP, SSH config, jump hosts, VPN requirements)
-3. NixFleet runs on **csb1** - check `nixcfg/hosts/csb1/README.md` for access info
-
-Example: To deploy NixFleet dashboard updates:
-
-```bash
-# 1. SSH to csb1
-ssh mba@cs1.barta.cm -p 2222
-
-# 2. Pull latest nixfleet code
-cd ~/docker/nixfleet && git pull
-
-# 3. Rebuild and restart from MAIN docker-compose (NOT the nixfleet subdirectory!)
-cd ~/docker
-docker compose build --no-cache nixfleet
-docker compose up -d nixfleet
-
-# 4. Verify
-docker logs nixfleet --tail 20
-```
-
-⚠️ **CRITICAL**: The dashboard is defined in `~/docker/docker-compose.yml`, NOT in the nixfleet repo's docker folder!
-
----
-
-## Core Behavior
-
-### For Bigger Tasks
-
-1. **Create a +pm task first**: `+pm/backlog/YYYY-MM-DD-description.md`
-2. Work through the task with acceptance criteria
-3. Move to `+pm/done/` when complete
-
-### The Prime Directive
-
-> **Keep code, docs, and tests in sync.**
-
-When you change code:
-
-- Update README.md if API/features changed
-- Update or create tests for new functionality
-- Update environment variable docs if needed
-
-### Before Any Change
-
-1. Read the relevant source files
-2. Understand the architecture (FastAPI + Jinja2 + SQLite)
-3. Check for existing patterns to follow
-
-### After Any Change
-
-1. Test the change locally if possible
-2. Verify Docker build still works
-3. Update documentation if needed
-
----
-
-## Code Review Mode
-
-When the user says **"do a code review for this"** or **"review this code"**, switch to rigorous review mode.
-
-### Review Checklist
-
-Work through each category systematically:
-
-#### 1. Architecture & Design
-
-- [ ] **Single Responsibility**: Each package/file/function does ONE thing well
-- [ ] **Dependency Direction**: Dependencies flow inward (handlers → services → domain)
-- [ ] **Interface Segregation**: Small, focused interfaces over large ones
-- [ ] **No Circular Dependencies**: Clean dependency graph
-- [ ] **Appropriate Abstraction Level**: Not over-engineered, not under-engineered
-
-#### 2. Code Quality
-
-- [ ] **DRY (Don't Repeat Yourself)**: No copy-paste code; extract common patterns
-- [ ] **Naming**: Clear, intention-revealing names (not `x`, `temp`, `data`)
-- [ ] **Function Size**: Functions are small and focused (~30 lines max, exceptions for tables/switch)
-- [ ] **Error Handling**: Errors are handled explicitly, not swallowed
-- [ ] **No Magic Values**: Constants are named and documented
-- [ ] **Comments**: Code is self-documenting; comments explain *why*, not *what*
-
-#### 3. Go-Specific (v2)
-
-- [ ] **Error Wrapping**: Use `fmt.Errorf("context: %w", err)` for stack traces
-- [ ] **Context Propagation**: `context.Context` passed through call chains
-- [ ] **Goroutine Safety**: No data races; proper synchronization
-- [ ] **Resource Cleanup**: `defer` for cleanup; no leaks
-- [ ] **Idiomatic Go**: Follow effective Go patterns
-
-#### 4. Testing & Reliability
-
-- [ ] **Testability**: Code is structured for easy testing (dependency injection)
-- [ ] **Edge Cases**: Handles nil, empty, timeout, error states
-- [ ] **Graceful Degradation**: Fails safely, doesn't crash the system
-- [ ] **Logging**: Appropriate log levels; structured logging
-
-#### 5. Documentation
-
-- [ ] **Package Docs**: Each package has a doc.go or clear README
-- [ ] **Public API Docs**: Exported functions have godoc comments
-- [ ] **Configuration Docs**: All env vars documented with defaults
-- [ ] **Architecture Docs**: High-level flow is documented
-
-#### 6. Security
-
-- [ ] **No Hardcoded Secrets**: All secrets from environment
-- [ ] **Input Validation**: External input is validated
-- [ ] **Auth Checks**: Protected endpoints verify authentication
-- [ ] **Safe Defaults**: Secure by default, not opt-in security
-
-### Review Output Format
-
-When reviewing, produce a structured report:
-
-```markdown
-## Code Review: [Feature/PR Name]
-
-### Summary
-[1-2 sentence overview of what was reviewed]
-
-### Findings
-
-#### Critical (Must Fix)
-- [ ] Issue description → Suggested fix
-
-#### Important (Should Fix)
-- [ ] Issue description → Suggested fix
-
-#### Minor (Nice to Have)
-- [ ] Issue description → Suggested fix
-
-### Architecture Assessment
-[Is the overall design sound? Any structural concerns?]
-
-### What's Done Well
-[Call out good patterns to reinforce them]
-
-### Recommendations
-[Prioritized list of improvements]
-```
-
-### Standards
-
-This is a **hobby project**, but we maintain **senior-level standards**:
-
-- ✅ Clean, readable code over clever code
-- ✅ Explicit over implicit
-- ✅ Composition over inheritance
-- ✅ Small, focused changes over big rewrites
-- ✅ Working software over perfect architecture
-- ❌ No shortcuts that create tech debt
-- ❌ No "we'll fix it later" (we won't)
-- ❌ No copy-paste without understanding
-
-> **The Rule**: If you wouldn't be proud to show this code in an interview, it's not ready.
-
----
-
-## Architecture Overview (Legacy: v0.x, v1.0)
+## Architecture (v2)
 
 ```text
 ┌─────────────────────────────────────────────────────────────────┐
-│                     NixFleet Dashboard                          │
+│                     NixFleet Dashboard (Go)                     │
 │                                                                 │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────────┐  │
-│  │   FastAPI   │  │   Jinja2    │  │      SQLite DB          │  │
-│  │   Backend   │  │  Templates  │  │  (hosts, commands)      │  │
-│  └─────────────┘  └─────────────┘  └─────────────────────────┘  │
+│  ┌─────────────────┐  ┌─────────────┐  ┌───────────────────┐   │
+│  │   HTTP Server   │  │    Templ    │  │   SQLite + JSON   │   │
+│  │   (net/http)    │  │  Templates  │  │   (data store)    │   │
+│  └─────────────────┘  └─────────────┘  └───────────────────┘   │
 │                                                                 │
-│  app/main.py          app/templates/     /data/nixfleet.db      │
+│  v2/cmd/nixfleet-dashboard/    v2/internal/dashboard/           │
 └─────────────────────────────────────────────────────────────────┘
                               │
               ┌───────────────┼───────────────┐
@@ -230,62 +60,107 @@ This is a **hobby project**, but we maintain **senior-level standards**:
         │ (systemd)│    │ (systemd)│    │ (launchd)│
         └──────────┘    └──────────┘    └──────────┘
 
-        modules/nixos.nix    modules/home-manager.nix
+        v2/cmd/nixfleet-agent/    v2/internal/agent/
 ```
 
-### Key Files
+### Key Paths
 
-| File | Purpose |
+| Path | Purpose |
 |------|---------|
-| `app/main.py` | FastAPI application (all routes, SSE, auth) |
-| `app/templates/*.html` | Jinja2 templates (dashboard, login) |
-| `app/requirements.txt` | Python dependencies |
-| `agent/nixfleet-agent.sh` | Bash agent script (poll, execute, report) |
-| `modules/nixos.nix` | NixOS module for agent service |
-| `modules/home-manager.nix` | Home Manager module for macOS/Linux agent |
-| `flake.nix` | Nix flake (modules, packages, checks) |
-| `Dockerfile` | Container build definition |
-| `docker-compose.yml` | Local development/deployment |
-| `docker/docker-compose.csb1.yml` | Production deployment (Traefik) |
-| `update.sh` | Dashboard update script |
+| `v2/cmd/nixfleet-dashboard/` | Dashboard entrypoint |
+| `v2/cmd/nixfleet-agent/` | Agent entrypoint |
+| `v2/internal/dashboard/` | Dashboard handlers, templates, SSE |
+| `v2/internal/agent/` | Agent logic, heartbeat, command execution |
+| `v2/internal/protocol/` | Shared message types |
+| `modules/*.nix` | NixOS/Home Manager modules |
+| `v2/Dockerfile` | Container build |
+| `docker/` | Production compose files |
+
+---
+
+## Server Access
+
+**Before connecting**, check runbook in nixcfg:
+
+1. Read `nixcfg/hosts/<hostname>/README.md`
+2. NixFleet runs on **csb1** - check `nixcfg/hosts/csb1/README.md`
+
+```bash
+# SSH to csb1
+ssh mba@cs1.barta.cm -p 2222
+
+# Deploy dashboard (images built by GitHub Actions)
+cd ~/docker
+docker compose pull nixfleet
+docker compose up -d nixfleet
+
+# Verify
+docker logs nixfleet --tail 20
+```
+
+⚠️ **CRITICAL**: Dashboard defined in `~/docker/docker-compose.yml`, NOT in nixfleet repo!
+
+---
+
+## Core Behavior
+
+### For Bigger Tasks
+
+1. **Create a +pm task first**: `+pm/backlog/P####-description.md`
+2. Work through acceptance criteria
+3. Move to `+pm/done/` when complete
+
+### The Prime Directive
+
+> **Keep code, docs, and tests in sync.**
+
+When you change code:
+- Update README.md if API/features changed
+- Update or create tests for new functionality
+- Update env var docs if needed
+
+### Before Any Change
+
+1. Read the relevant source files
+2. Understand the v2 architecture (Go + Templ + SQLite)
+3. Check for existing patterns to follow
+
+### After Any Change
+
+1. Test locally: `just build && ./bin/nixfleet-dashboard`
+2. Verify Docker build: `docker build -f v2/Dockerfile .`
+3. Update documentation if needed
 
 ---
 
 ## Agent Updates Workflow
 
-**The agent binary is built and pinned via Nix flakes.** After modifying agent code:
+**Agent binary is built and pinned via Nix flakes.** After modifying agent code:
 
 1. **Build locally** to verify:
-
    ```bash
-   cd nixfleet/v2 && go build ./...
+   just build-agent
+   # or: cd v2 && go build ./cmd/nixfleet-agent
    ```
 
-2. **Update the nixcfg flake lock** to pick up your changes:
-
+2. **Update nixcfg flake lock**:
    ```bash
-   cd nixcfg
-   nix flake update nixfleet  # Updates flake.lock to latest nixfleet
+   cd ~/Code/nixcfg
+   nix flake update nixfleet
    ```
 
-3. **Switch the machine** to deploy the new agent:
-
+3. **Switch the machine**:
    ```bash
-   # macOS (Home Manager)
+   # macOS
    home-manager switch --flake .#<hostname>
-
+   
    # NixOS
    sudo nixos-rebuild switch --flake .#<hostname>
    ```
 
-> **Why?** The `nixcfg` flake references `nixfleet` as an input. The agent package
-> is built from that pinned input, not from your working directory. Without updating
-> the flake lock and switching, the old agent binary continues running.
-
 ### Quick Override (Development)
 
-To test local changes without committing:
-
+Test local changes without committing:
 ```bash
 home-manager switch --flake .#hostname --override-input nixfleet path:/Users/markus/Code/nixfleet
 ```
@@ -298,7 +173,7 @@ home-manager switch --flake .#hostname --override-input nixfleet path:/Users/mar
 - ❌ NEVER hardcode passwords, tokens, or hashes
 - ✅ Always use environment variables for secrets
 - ✅ Always check `git diff` before commit
-- ✅ Keep `.env.example` updated with placeholder values
+- ✅ Keep `.env.example` updated with placeholders
 
 ---
 
@@ -308,14 +183,19 @@ As DEVELOPER:
 
 1. **Technical but clear** - Explain what and why
 2. **Code examples ready** - Show, don't just tell
-3. **Test suggestions** - Propose how to verify changes
-4. **Reference existing patterns** - Point to similar code
+3. **Test suggestions** - Propose how to verify
+4. **Reference patterns** - Point to similar existing code
 
 ### When Proposing Changes
 
 Always state:
-
 - **What** is being changed
 - **Why** it's needed
 - **Which files** will be modified
 - **How to test** the change
+
+---
+
+## For Code Reviews
+
+Switch to `@REVIEWER` role for thorough code reviews and audits.

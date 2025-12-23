@@ -1,0 +1,73 @@
+---
+description: Non-functional requirements for NixFleet UI development
+globs: ["v2/internal/templates/**", "v2/static/**"]
+alwaysApply: false
+---
+
+# Non-Functional Requirements (NFR)
+
+UI requirements for NixFleet dashboard development.
+
+---
+
+## NFR-1: Icons — No Emojis
+
+**Never use emojis in UI unless explicitly told.**
+
+- Use SVG icons, icon fonts, or CSS-based icons
+- Emojis render inconsistently across platforms
+- If you need an icon and none exists, ask which library to use
+- Exception: Only if user says "use emoji" or "emoji is fine"
+
+---
+
+## NFR-2: Responsive Design
+
+**Design for mobile and large displays.**
+
+| Breakpoint | Devices | Considerations |
+|------------|---------|----------------|
+| < 640px | Mobile | Touch targets ≥44px, single column |
+| 640-1024px | Tablets | Flexible layouts |
+| > 1024px | Desktops | Full table views, side panels |
+| > 2560px | 5K displays | Max-width containers |
+
+**Principles:**
+- Mobile-first: start small, enhance for larger
+- Touch-friendly: buttons easily tappable
+- Use `rem` units for scalability
+
+**Test at:** 375px, 768px, 1920px, 2560px
+
+---
+
+## NFR-3: Loading States
+
+**Show progress during operations (switch, pull, test can take 30s+).**
+
+- Never show frozen/unresponsive UI during operations
+- Use spinners, progress bars, or skeleton loaders
+- Indicate which operation is running and on which host
+- Show elapsed time for long operations (>5s)
+
+---
+
+## NFR-4: Accessibility (Minimal)
+
+**Basic keyboard and focus support.**
+
+- All interactive elements focusable via Tab
+- Visible focus indicator (outline/ring)
+- Buttons/links have accessible labels (not just icons)
+- Color alone shouldn't convey status (add text/icon)
+
+---
+
+## Quick Reference
+
+| Requirement | Rule |
+|-------------|------|
+| Icons | SVG/CSS, no emojis |
+| Responsive | Mobile-first, test at extremes |
+| Loading | Show progress, never freeze |
+| Accessibility | Keyboard focus, visible indicators |
