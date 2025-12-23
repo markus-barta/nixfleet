@@ -1799,7 +1799,8 @@ templ Dashboard(data DashboardData) {
 							isError: payload.is_error || payload.stream === 'stderr' || payload.is_stderr,
 							isSuccess: payload.isSuccess || false,
 						});
-						console.log('Tab lines after push:', hostId, tab.lines.length, 'activeTab:', this.activeTab);
+						// Force Alpine reactivity by reassigning the array
+						tab.lines = [...tab.lines];
 
 						// Trim old lines
 						if (tab.lines.length > MAX_LINES_PER_TAB) {
