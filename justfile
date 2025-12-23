@@ -35,3 +35,17 @@ build-agent:
 
 # Build both binaries
 build: build-dashboard build-agent
+
+# Deploy to csb1: push, wait for Docker build, pull & restart
+deploy:
+    @echo "📤 Pushing to GitHub..."
+    git push
+    @echo "⏳ Waiting for Docker build..."
+    gh run watch --workflow docker.yml
+    @echo "🚀 Deploying to csb1..."
+    ssh mba@cs1.barta.cm -p 2222 "cd ~/docker && docker compose pull nixfleet && docker compose up -d nixfleet"
+    @echo "✅ Deployed!"
+
+# Quick deploy: skip waiting (use when you know build is done)
+deploy-now:
+    ssh mba@cs1.barta.cm -p 2222 "cd ~/docker && docker compose pull nixfleet && docker compose up -d nixfleet"

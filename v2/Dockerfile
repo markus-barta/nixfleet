@@ -20,6 +20,9 @@ WORKDIR /app
 COPY v2/go.mod v2/go.sum ./
 RUN go mod download
 
+# Install templ BEFORE copying source (cached across builds)
+RUN go install github.com/a-h/templ/cmd/templ@v0.3.865
+
 # Copy source (v2/ contains Go code, assets/ contains static files)
 COPY v2/ ./
 
@@ -29,7 +32,7 @@ ARG GIT_COMMIT=unknown
 ARG BUILD_TIME=unknown
 
 # Generate templ templates (required when .templ files change)
-RUN go install github.com/a-h/templ/cmd/templ@latest && templ generate
+RUN templ generate
 
 # Build the dashboard binary
 # CGO_ENABLED=0 for static binary (modernc.org/sqlite is pure Go)
