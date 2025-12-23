@@ -44,6 +44,36 @@ templ Base(title string, csrfToken string) {
 			box-sizing: border-box;
 		}
 
+		/* Themed scrollbars - Tokyo Night style */
+		::-webkit-scrollbar {
+			width: 10px;
+			height: 10px;
+		}
+
+		::-webkit-scrollbar-track {
+			background: var(--bg-dark);
+		}
+
+		::-webkit-scrollbar-thumb {
+			background: var(--border);
+			border-radius: 5px;
+			border: 2px solid var(--bg-dark);
+		}
+
+		::-webkit-scrollbar-thumb:hover {
+			background: var(--fg-dark);
+		}
+
+		::-webkit-scrollbar-corner {
+			background: var(--bg-dark);
+		}
+
+		/* Firefox scrollbar theming */
+		* {
+			scrollbar-color: var(--border) var(--bg-dark);
+			scrollbar-width: thin;
+		}
+
 		/* Always show scrollbars to prevent layout jump */
 		html {
 			overflow-y: scroll;

@@ -183,6 +183,11 @@ templ Dashboard(data DashboardData) {
 						<svg class="icon"><use href="#icon-refresh-cw"></use></svg>
 						Restart All Agents
 					</button>
+					<div class="dropdown-divider"></div>
+					<button class="dropdown-item" onclick="forceRefresh()">
+						<svg class="icon"><use href="#icon-trash"></use></svg>
+						Clear Cache & Reload
+					</button>
 				</div>
 				</div>
 				<form method="POST" action="/logout">
@@ -2225,6 +2230,22 @@ templ Dashboard(data DashboardData) {
 				const menu = document.getElementById('bulk-actions-menu');
 				if (menu) menu.classList.remove('open');
 				bulkMenuFocusedIndex = -1;
+			}
+
+			// P4021: Force clear all caches and reload
+			async function forceRefresh() {
+				closeBulkMenu();
+				try {
+					// Clear browser caches if available (Service Worker caches)
+					if ('caches' in window) {
+						const names = await caches.keys();
+						await Promise.all(names.map(n => caches.delete(n)));
+					}
+				} catch (e) {
+					console.log('Cache clear failed:', e);
+				}
+				// Force reload bypassing cache
+				location.reload(true);
 			}
 
 			function focusBulkMenuItem(idx) {
