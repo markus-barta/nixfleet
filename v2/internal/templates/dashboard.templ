@@ -2028,7 +2028,7 @@ templ Dashboard(data DashboardData) {
 
 					// Get all hosts from hostStore for dropdown
 					getAllHosts() {
-						return hostStore.getAll().map(h => ({
+						return hostStore.all().map(h => ({
 							id: h.id,
 							hostname: h.hostname,
 							themeColor: h.themeColor || '#7aa2f7'
@@ -3248,7 +3248,7 @@ templ HostCard(host Host, csrfToken string) {
 			</div>
 			<span class="chevron" :class="{ 'expanded': expanded }">▼</span>
 		</div>
-		<div class="host-card-body" x-show="expanded" x-collapse>
+		<div class="host-card-body" x-show="expanded">
 			<div class="host-card-row">
 				<span class="host-card-label">Type</span>
 				<span style="display: flex; align-items: center; gap: 0.5rem;">
