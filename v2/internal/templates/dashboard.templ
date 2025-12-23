@@ -243,12 +243,6 @@ templ Dashboard(data DashboardData) {
 
 		<!-- P4020: Tabbed Output Panel -->
 		<div class="output-panel hidden" id="output-panel" x-data="outputPanel()" @keydown.window="handleKeyboard($event)">
-			<!-- P4021: Resize Handle -->
-			<div 
-				class="output-resize-handle" 
-				:class="{ 'resizing': isResizing }"
-				@mousedown="startResize($event)"
-			></div>
 			<!-- Tab Bar -->
 			<div class="output-tabs">
 				<div class="tab-list">
@@ -316,6 +310,12 @@ templ Dashboard(data DashboardData) {
 					<button type="button" class="tab-action-btn" @click="closeAllTabs()" title="Close All Tabs" x-show="tabs.length > 0">
 						Close All
 					</button>
+					<button type="button" class="tab-action-btn font-size-btn" @click="decreaseFontSize()" title="Decrease font size">
+						A−
+					</button>
+					<button type="button" class="tab-action-btn font-size-btn" @click="increaseFontSize()" title="Increase font size">
+						A+
+					</button>
 					<button type="button" class="tab-action-btn" @click="toggleCollapse()" :title="collapsed ? 'Expand' : 'Collapse'">
 						<span x-text="collapsed ? '▲' : '▼'"></span>
 					</button>
@@ -361,6 +361,15 @@ templ Dashboard(data DashboardData) {
 				<span style="flex: 1;"></span>
 				<button type="button" class="tab-action-btn" @click="clearActiveTab()">Clear</button>
 				<button type="button" class="tab-action-btn" @click="copyActiveTab()">Copy</button>
+			</div>
+			<!-- Resize Handle (bottom) -->
+			<div 
+				class="output-resize-handle" 
+				:class="{ 'resizing': isResizing }"
+				@mousedown="startResize($event)"
+				x-show="!collapsed"
+			>
+				<span class="resize-grip">⋮⋮</span>
 			</div>
 		</div>
 
@@ -1511,6 +1520,7 @@ templ Dashboard(data DashboardData) {
 					logCounter: 0,
 					// P4021: New state
 					panelHeight: 300,   // Default height in pixels
+					fontSize: 13,       // Font size in pixels
 					isResizing: false,
 					overflowOpen: false,
 					relativeTimeInterval: null,
@@ -1527,6 +1537,13 @@ templ Dashboard(data DashboardData) {
 						if (savedHeight !== null) {
 							this.panelHeight = parseInt(savedHeight, 10) || 300;
 						}
+
+						// Restore font size
+						const savedFontSize = localStorage.getItem('outputPanel.fontSize');
+						if (savedFontSize !== null) {
+							this.fontSize = parseInt(savedFontSize, 10) || 13;
+						}
+						this.applyFontSize();
 
 						// Listen for output lines
 						window.addEventListener('output-line', (e) => this.handleOutputLine(e.detail));
@@ -1621,7 +1638,8 @@ templ Dashboard(data DashboardData) {
 
 					handleResize(e) {
 						if (!this.isResizing) return;
-						const delta = this.resizeStartY - e.clientY;
+						// Handle at bottom: drag down = expand (positive delta)
+						const delta = e.clientY - this.resizeStartY;
 						const newHeight = Math.max(100, Math.min(600, this.resizeStartHeight + delta));
 						this.panelHeight = newHeight;
 					},
@@ -1967,6 +1985,29 @@ templ Dashboard(data DashboardData) {
 					toggleCollapse() {
 						this.collapsed = !this.collapsed;
 						localStorage.setItem('outputPanel.collapsed', this.collapsed);
+					},
+
+					applyFontSize() {
+						const content = this.$refs.outputContent;
+						if (content) {
+							content.style.fontSize = this.fontSize + 'px';
+						}
+					},
+
+					increaseFontSize() {
+						if (this.fontSize < 20) {
+							this.fontSize += 1;
+							localStorage.setItem('outputPanel.fontSize', this.fontSize);
+							this.applyFontSize();
+						}
+					},
+
+					decreaseFontSize() {
+						if (this.fontSize > 9) {
+							this.fontSize -= 1;
+							localStorage.setItem('outputPanel.fontSize', this.fontSize);
+							this.applyFontSize();
+						}
 					},
 
 					getActiveTabData() {

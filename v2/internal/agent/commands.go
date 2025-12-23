@@ -395,11 +395,15 @@ func (a *Agent) sendOutput(line, stream string) {
 
 // sendStatus sends command completion status.
 func (a *Agent) sendStatus(status, command string, exitCode int, message string) {
+	// Refresh generation after command (especially important after pull)
+	generation := a.detectGeneration()
+
 	payload := protocol.StatusPayload{
-		Status:   status,
-		Command:  command,
-		ExitCode: exitCode,
-		Message:  message,
+		Status:     status,
+		Command:    command,
+		ExitCode:   exitCode,
+		Message:    message,
+		Generation: generation,
 	}
 	if err := a.ws.SendMessage(protocol.TypeStatus, payload); err != nil {
 		a.log.Error().Err(err).Msg("failed to send status")
@@ -409,6 +413,7 @@ func (a *Agent) sendStatus(status, command string, exitCode int, message string)
 		Str("status", status).
 		Str("command", command).
 		Int("exit_code", exitCode).
+		Str("generation", generation).
 		Msg("command completed")
 }
 

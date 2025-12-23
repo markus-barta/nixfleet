@@ -109,10 +109,11 @@ type OutputPayload struct {
 
 // StatusPayload is sent by the agent when a command completes.
 type StatusPayload struct {
-	Status   string `json:"status"` // "ok" or "error"
-	Command  string `json:"command"`
-	ExitCode int    `json:"exit_code"`
-	Message  string `json:"message,omitempty"`
+	Status     string `json:"status"` // "ok" or "error"
+	Command    string `json:"command"`
+	ExitCode   int    `json:"exit_code"`
+	Message    string `json:"message,omitempty"`
+	Generation string `json:"generation,omitempty"` // Current git commit hash (for compartment update after pull)
 }
 
 // CommandRejectedPayload is sent when a command cannot be executed.

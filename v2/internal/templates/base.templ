@@ -44,6 +44,11 @@ templ Base(title string, csrfToken string) {
 			box-sizing: border-box;
 		}
 
+		/* Always show scrollbars to prevent layout jump */
+		html {
+			overflow-y: scroll;
+		}
+
 		body {
 			font-family: "JetBrains Mono", "Fira Code", "SF Mono", monospace;
 			background: var(--bg);
@@ -831,7 +836,7 @@ templ Base(title string, csrfToken string) {
 
 		.output-content {
 			max-height: 300px;
-			overflow-y: auto;
+			overflow-y: scroll;  /* Always show scrollbar */
 			padding: 0.75rem;
 			font-size: 0.8rem;
 			line-height: 1.4;
@@ -969,35 +974,32 @@ templ Base(title string, csrfToken string) {
 			flex-shrink: 0;
 		}
 
-		/* P4021: Resize handle */
+		/* P4021: Resize handle (bottom of panel) */
 		.output-resize-handle {
-			height: 6px;
-			background: transparent;
+			height: 14px;
+			background: var(--bg-secondary);
 			cursor: ns-resize;
-			position: relative;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			border-top: 1px solid var(--border);
 			transition: background 0.15s;
 		}
 
 		.output-resize-handle:hover,
 		.output-resize-handle.resizing {
-			background: rgba(122, 162, 247, 0.3);
+			background: rgba(122, 162, 247, 0.2);
 		}
 
-		.output-resize-handle::after {
-			content: '';
-			position: absolute;
-			left: 50%;
-			top: 50%;
-			transform: translate(-50%, -50%);
-			width: 40px;
-			height: 3px;
-			background: var(--border);
-			border-radius: 2px;
-			opacity: 0;
+		.output-resize-handle .resize-grip {
+			color: var(--fg-muted);
+			font-size: 10px;
+			letter-spacing: 2px;
+			opacity: 0.5;
 			transition: opacity 0.15s;
 		}
 
-		.output-resize-handle:hover::after {
+		.output-resize-handle:hover .resize-grip {
 			opacity: 1;
 		}
 

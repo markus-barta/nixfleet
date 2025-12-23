@@ -943,6 +943,14 @@ func (h *Hub) handleStatus(hostID string, payload protocol.StatusPayload) {
 		},
 	})
 
+	// Update host generation if provided (agent refreshes after pull)
+	if payload.Generation != "" {
+		_, err := h.db.Exec(`UPDATE hosts SET generation = ? WHERE hostname = ?`, payload.Generation, hostID)
+		if err != nil {
+			h.log.Error().Err(err).Str("host", hostID).Msg("failed to update generation")
+		}
+	}
+
 	// Broadcast updated host status after command completes
 	// This ensures compartments (especially git after pull) are immediately refreshed
 	if h.versionFetcher != nil && (payload.Command == "pull" || payload.Command == "pull-switch") {
