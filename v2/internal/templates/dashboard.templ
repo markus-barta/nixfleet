@@ -1504,14 +1504,22 @@ templ Dashboard(data DashboardData) {
 			// P4020: TABBED OUTPUT PANEL
 			// ═══════════════════════════════════════════════════════════════════════════
 			const MAX_LINES_PER_TAB = 1000;
-			const MAX_SYSTEM_LOG_ENTRIES = 100;
+			const MAX_SYSTEM_LOG_ENTRIES = 1000;
 
 			// Locale: browser preference with de-AT fallback, always 24h
 			const USER_LOCALE = navigator.language || 'de-AT';
-			function formatTime(date, withSeconds = false) {
-				const opts = { hour12: false, hour: '2-digit', minute: '2-digit' };
-				if (withSeconds) opts.second = '2-digit';
+			function formatTime(date, withSeconds = true) {
+				const opts = { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' };
 				return date.toLocaleTimeString(USER_LOCALE, opts);
+			}
+
+			function formatDuration(ms) {
+				const seconds = Math.floor(ms / 1000);
+				if (seconds < 60) return `${seconds}s`;
+				const minutes = Math.floor(seconds / 60);
+				const remainingSeconds = seconds % 60;
+				if (remainingSeconds === 0) return `${minutes}m`;
+				return `${minutes}m ${remainingSeconds}s`;
 			}
 
 			function appendLog(payload) {
@@ -1657,6 +1665,7 @@ templ Dashboard(data DashboardData) {
 								buildCount: 0,
 								buildCurrent: 0,
 								lastCommand: null,
+								startTime: null,
 							};
 							this.tabs.push(tab);
 						}
@@ -1768,14 +1777,14 @@ templ Dashboard(data DashboardData) {
 						const { hostId, command } = detail;
 						const tab = this.getOrCreateTab(hostId);
 
-						// Add START separator
-						const now = new Date();
-						const timeStr = formatTime(now, true);
-						tab.lines.push({
-							id: ++this.lineCounter,
-							text: `────────────────── ${command || 'command'} START (${timeStr}) ──────────────────`,
-							isSeparator: true,
-						});
+						// // Add START separator
+						// const now = new Date();
+						// const timeStr = formatTime(now, true);
+						// tab.lines.push({
+						// 	id: ++this.lineCounter,
+						// 	text: `────────────────── ${command || 'command'} START (${timeStr}) ──────────────────`,
+						// 	isSeparator: true,
+						// });
 
 						// Reset progress
 						tab.phase = '';
@@ -1784,6 +1793,7 @@ templ Dashboard(data DashboardData) {
 						tab.buildCurrent = 0;
 						tab.indicator = 'running';
 						tab.lastCommand = command;
+						tab.startTime = Date.now();
 
 						// Switch to this tab
 						this.activeTab = hostId;
@@ -1860,21 +1870,16 @@ templ Dashboard(data DashboardData) {
 						tab.phaseIcon = success ? '✓' : '✗';
 						tab.indicator = success ? 'success' : 'error';
 
-						// Add END separator
-						const now = new Date();
-						const timeStr = formatTime(now, true);
-						const cmdName = tab.lastCommand || 'command';
-						const statusText = success ? `✓ exit 0` : `✗ exit ${exitCode}`;
-						tab.lines.push({
-							id: ++this.lineCounter,
-							text: `────────────────── ${cmdName} END (${timeStr}) ${statusText} ──────────────────`,
-							isSeparator: true,
-							isSuccess: success,
-							isError: !success,
-						});
+						// Calculate duration
+						let durationStr = '';
+						if (tab.startTime) {
+							const durationMs = Date.now() - tab.startTime;
+							durationStr = ` (execution time ${formatDuration(durationMs)})`;
+							tab.startTime = null; // Reset for next command
+						}
 
 						// P4021: Add to status history
-						const statusMsg = `${tab.lastCommand || 'Command'} ${success ? 'completed' : 'failed'} (exit ${exitCode})`;
+						const statusMsg = `${tab.lastCommand || 'Command'} ${success ? 'completed' : 'failed'} (exit ${exitCode})${durationStr}`;
 						this.addStatusHistory(hostId, success ? 'success' : 'error', success ? '✓' : '✗', statusMsg);
 
 						// Add to system log
