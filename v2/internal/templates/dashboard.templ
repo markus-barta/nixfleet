@@ -341,23 +341,21 @@ templ Dashboard(data DashboardData) {
 						</div>
 					</div>
 				</template>
-				<!-- Host Output Content: Flat log per host - use x-show to keep DOM alive -->
+				<!-- Host Output Content: Flat log per host - single div per line, no x-show -->
 				<template x-for="tab in tabs" :key="tab.hostId">
 					<div x-show="tab.hostId === activeTab">
 						<template x-for="line in tab.lines" :key="line.id">
-							<!-- Status/separator lines: white-gray, no indent -->
+							<!-- Single div per line - use classes for styling -->
 							<div 
-								x-show="line.isSeparator || line.isStatus"
-								class="log-line" 
-								:class="{ 'command-separator': line.isSeparator, 'status-line': line.isStatus }"
-								x-text="line.text"
-							></div>
-							<!-- Host output lines: themed color + indent -->
-							<div 
-								x-show="!line.isSeparator && !line.isStatus"
-								class="log-line host-output" 
-								:class="{ 'error': line.isError, 'success': line.isSuccess }"
-								:style="{ color: tab.themeColor }"
+								class="log-line"
+								:class="{
+									'command-separator': line.isSeparator === true,
+									'status-line': line.isStatus === true,
+									'host-output': line.isSeparator !== true && line.isStatus !== true,
+									'error': line.isError === true,
+									'success': line.isSuccess === true
+								}"
+								:style="line.isSeparator !== true && line.isStatus !== true ? { color: tab.themeColor } : {}"
 								x-text="line.text"
 							></div>
 						</template>
