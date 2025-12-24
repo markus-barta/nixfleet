@@ -2113,28 +2113,39 @@ templ Dashboard(data DashboardData) {
 					},
 
 					clearActiveTab() {
+						let count = 0;
+						let name = 'System';
 						if (this.activeTab === 'system') {
+							count = this.systemLog.length;
 							this.systemLog = [];
 						} else {
 							const tab = this.getActiveTabData();
 							if (tab) {
+								count = tab.lines.length;
+								name = tab.hostname;
 								tab.lines = [];
 							}
 						}
+						showToast(`Cleared ${count} lines from ${name}`, 'success');
 					},
 
 					copyActiveTab() {
 						let text = '';
+						let name = 'System';
 						if (this.activeTab === 'system') {
 							text = this.systemLog.map(e => `${e.timeDisplay} ${e.icon} ${e.message}`).join('\n');
 						} else {
 							const tab = this.getActiveTabData();
 							if (tab) {
 								text = tab.lines.map(l => l.text).join('\n');
+								name = tab.hostname;
 							}
 						}
+						const lineCount = text ? text.split('\n').length : 0;
 						navigator.clipboard.writeText(text).then(() => {
-							// Could show a toast here
+							showToast(`Copied ${lineCount} lines from ${name}`, 'success');
+						}).catch(() => {
+							showToast('Failed to copy to clipboard', 'error');
 						});
 					},
 
