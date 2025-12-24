@@ -1806,18 +1806,17 @@ templ Dashboard(data DashboardData) {
 						// Parse progress
 						this.parseProgress(tab, text);
 
-						// Add line
+						// Add line - MUST explicitly set isSeparator/isStatus to false
+						// Alpine.js has issues with undefined in x-show expressions
 						const newLine = {
 							id: ++this.lineCounter,
 							text: text,
 							isError: payload.is_error || payload.stream === 'stderr' || payload.is_stderr,
 							isSuccess: payload.isSuccess || false,
+							isSeparator: false,  // Explicit false, not undefined
+							isStatus: false,     // Explicit false, not undefined
 						};
 						tab.lines.push(newLine);
-						
-						// Force Alpine reactivity by reassigning the ENTIRE tabs array
-						// This ensures Alpine detects the deeply nested change
-						this.tabs = [...this.tabs];
 
 						// Trim old lines
 						if (tab.lines.length > MAX_LINES_PER_TAB) {
