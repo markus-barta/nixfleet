@@ -356,8 +356,15 @@ templ Dashboard(data DashboardData) {
 									'success': line.isSuccess === true
 								}"
 								:style="line.isSeparator !== true && line.isStatus !== true ? { color: tab.themeColor } : {}"
-								x-text="line.text"
-							></div>
+							>
+								<!-- Host output prefix icon (only for non-separator/status lines) -->
+								<template x-if="line.isSeparator !== true && line.isStatus !== true">
+									<svg class="log-line-icon" :style="{ color: tab.themeColor }">
+										<use :href="'#icon-' + tab.deviceType"></use>
+									</svg>
+								</template>
+								<span x-text="line.text"></span>
+							</div>
 						</template>
 					</div>
 				</template>
@@ -1641,6 +1648,7 @@ templ Dashboard(data DashboardData) {
 								hostId: hostId,
 								hostname: host?.hostname || hostId,
 								themeColor: host?.themeColor || '#7aa2f7',
+								deviceType: host?.deviceType || 'desktop',
 								lines: [],
 								indicator: 'running',
 								hasUnread: false,
