@@ -350,7 +350,7 @@ templ Base(title string, csrfToken string) {
 			/* bg-float with 90% opacity */
 			border: 1px solid var(--border);
 			border-radius: 8px;
-			overflow: hidden;
+			overflow: visible;
 			position: relative;
 			z-index: 1;
 		}
@@ -1643,10 +1643,22 @@ templ Base(title string, csrfToken string) {
 			border: 1px solid var(--border);
 			border-radius: 6px;
 			min-width: 200px;
+			max-width: calc(100vw - 2rem);
 			max-height: calc(100vh - 100px);
 			overflow-y: auto;
 			box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-			z-index: 9999;
+			z-index: 99999;
+		}
+
+		/* Ensure dropdown parent creates stacking context */
+		.dropdown {
+			position: relative;
+			z-index: 100;
+		}
+
+		.dropdown:has(.dropdown-menu[x-show="true"]),
+		.dropdown:has(.dropdown-menu:not([style*="display: none"])) {
+			z-index: 99999;
 		}
 
 		/* Header dropdown (id-based) starts hidden, uses .open class */
