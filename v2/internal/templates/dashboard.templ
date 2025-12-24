@@ -188,6 +188,10 @@ templ Dashboard(data DashboardData) {
 						<svg class="icon"><use href="#icon-trash"></use></svg>
 						Clear Cache & Reload
 					</button>
+					<button class="dropdown-item" onclick="toggleDebugPanel()">
+						<svg class="icon"><use href="#icon-terminal"></use></svg>
+						Toggle Debug Panel
+					</button>
 				</div>
 				</div>
 				<form method="POST" action="/logout">
@@ -580,9 +584,9 @@ templ Dashboard(data DashboardData) {
 			</div>
 		</footer>
 
-		<!-- DEBUG: Raw streaming output -->
-		<div style="position: fixed; bottom: 0; left: 0; right: 0; background: #1a1a2e; border-top: 2px solid #f00; z-index: 9999; max-height: 200px;">
-			<div style="padding: 4px 8px; background: #f00; color: #fff; font-weight: bold;">DEBUG: Raw WebSocket Output</div>
+		<!-- DEBUG: Raw streaming output (hidden by default, toggle via More menu) -->
+		<div id="debug-panel" style="display: none; position: fixed; bottom: 0; left: 0; right: 0; background: #1a1a2e; border-top: 2px solid #f00; z-index: 9999; max-height: 200px;">
+			<div style="padding: 4px 8px; background: #f00; color: #fff; font-weight: bold;">DEBUG: Raw WebSocket Output (toggle via More → Toggle Debug Panel)</div>
 			<textarea id="debug-output" style="width: 100%; height: 150px; background: #0a0a1a; color: #0f0; font-family: monospace; font-size: 12px; border: none; resize: none;" readonly></textarea>
 		</div>
 
@@ -2277,6 +2281,14 @@ templ Dashboard(data DashboardData) {
 				}
 				// Force reload bypassing cache
 				location.reload(true);
+			}
+
+			function toggleDebugPanel() {
+				closeBulkMenu();
+				const panel = document.getElementById('debug-panel');
+				if (panel) {
+					panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+				}
 			}
 
 			function focusBulkMenuItem(idx) {
