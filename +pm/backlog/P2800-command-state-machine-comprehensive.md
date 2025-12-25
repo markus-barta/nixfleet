@@ -1,11 +1,25 @@
 # P2800 - Command State Machine (Comprehensive)
 
 **Created**: 2025-12-21
-**Updated**: 2025-12-22
+**Updated**: 2025-12-25 (Aligned with Implementation Reality)
 **Priority**: P2800 (High - Architecture)
-**Status**: Backlog → Planning
+**Status**: In Progress (~70% Backend Complete)
 **Effort**: 16-18 days (expanded from 10-14 due to lifecycle integration)
 **Depends on**: P2000 (Unified Host State - Done)
+
+---
+
+## 📊 Implementation Status (Dec 25)
+
+| Component                 | Status     | Reality vs. Spec                                                            |
+| :------------------------ | :--------- | :-------------------------------------------------------------------------- |
+| **State Machine Engine**  | ✅ Done    | Core transitions and snapshotting implemented in `command_state.go`.        |
+| **3-Layer Freshness**     | ✅ Done    | Agent reports Commit/Path/Hash; Dashboard verifies on reconnect.            |
+| **Pre-Check Validators**  | ✅ Done    | All pre-validators implemented and wired into `/api/command`.               |
+| **Reboot Integration**    | ✅ Done    | `ABORTED_BY_REBOOT` and `POST_REBOOT` recovery logic active.                |
+| **Post-Check Validators** | 🟡 Partial | Validators exist but aren't yet called in the Hub's `handleStatus`.         |
+| **Timeout UI**            | ❌ Pending | Frontend modals for Wait/Kill/Ignore actions are missing.                   |
+| **Protocol Upgrade**      | ❌ Pending | Still using legacy `status` message; `command_complete` defined but unused. |
 
 ---
 
@@ -29,7 +43,7 @@
 
 ---
 
-## Overview
+## 1. Overview [✅ Backend Done]
 
 ### Scope: Command Lifecycle & Agent Stability
 
@@ -175,7 +189,9 @@ Detection is based on **change**, not expected values:
 
 ---
 
-## Agent Lifecycle Integration
+## 3. Agent Lifecycle Integration [✅ Backend Done]
+
+> **Reality Check (Dec 25)**: The `Exit 101` mechanism is implemented in `v2/internal/agent/commands.go`. The dashboard correctly detects reconnection and performs 3-layer verification in `v2/internal/dashboard/hub.go`.
 
 ### The Exit 101 Mechanism
 
@@ -314,7 +330,7 @@ TEST LIFECYCLE:
 
 ---
 
-## Command Lifecycle State Machine
+## 4. Command Lifecycle State Machine [✅ Backend Done]
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -395,7 +411,9 @@ type CommandProgress struct {
 
 ---
 
-## Validators Specification
+## 5. Validators Specification [🟡 Partial]
+
+> **Reality Check (Dec 25)**: All `CanExecute`, `CanPull`, etc. functions are implemented and active. `ValidateResult` functions exist but need to be wired into the Hub's message handling for Pull/Test commands.
 
 ### Pre-Condition Validators (Before Command)
 
@@ -597,7 +615,9 @@ func ValidatePullSwitchResult(hostBefore, hostAfter *Host, exitCode int) Validat
 
 ---
 
-## Agent Binary Freshness Detection (P2810)
+## 6. Agent Binary Freshness Detection (P2810) [✅ Done]
+
+> **Reality Check (Dec 25)**: 3-layer verification is fully active. Agents report Commit, Path, and Hash in registration, and the Dashboard compares them against the snapshot.
 
 ### The Problem
 
@@ -688,7 +708,9 @@ func detectStaleBinary(before, after AgentFreshness) StaleBinaryResult {
 
 ---
 
-## Command Timeout & Abort
+## 7. Command Timeout & Abort [🟡 Partial]
+
+> **Reality Check (Dec 25)**: The timeout loop in `server.go` and `CheckTimeouts` in `command_state.go` are functional. The missing link is the UI modal for user intervention (Wait/Kill/Ignore).
 
 ### Timeout Configuration
 
@@ -835,9 +857,11 @@ Every timeout event is logged verbosely:
 
 ---
 
-## Reboot Integration (P6900)
+## 8. Reboot Integration (P6900) [✅ Backend Done]
 
 P6900 (Forced Reboot with TOTP) is the **nuclear option** for completely stuck hosts. It bypasses the command state machine but P2800 must be aware of it.
+
+> **Reality Check (Dec 25)**: `HandleRebootTriggered` and `HandlePostRebootReconnect` are implemented in `v2/internal/dashboard/command_state.go`. Reboots during commands correctly clear snapshots and transition to recovery states.
 
 ### Escalation Path
 
@@ -1033,7 +1057,9 @@ if cmdState := s.cmdStateMachine.GetState(hostID); cmdState != nil && cmdState.S
 
 ---
 
-## Protocol Changes
+## 9. Protocol Changes [🟡 Partial]
+
+> **Reality Check (Dec 25)**: Heartbeat additions for freshness are DONE. The `command_complete` message is defined but the Agent and Dashboard still use the legacy `status` message for Pull/Test commands.
 
 ### command_complete Message (Agent → Dashboard)
 
@@ -1077,7 +1103,9 @@ type HeartbeatPayload struct {
 
 ---
 
-## UI Integration
+## 10. UI Integration [🟡 Partial]
+
+> **Reality Check (Dec 25)**: Pre-check dialogs and progress dots are implemented. Post-validation toasts and the timeout action modal are still missing.
 
 ### Pre-Validation UI Flow
 
@@ -1508,7 +1536,7 @@ cd v2 && go test -v -tags=fleet ./tests/integration/... -run "Fleet"
 
 **Total Effort**: 16-18 days (increased from 10-14 due to expanded scope)
 
-### Phase 1: Unit Tests & Fixtures (Days 1-3)
+### Phase 1: Unit Tests & Fixtures (Days 1-3) [✅ COMPLETED]
 
 **Goal**: 100% validator and comparison logic coverage
 
@@ -1516,9 +1544,7 @@ cd v2 && go test -v -tags=fleet ./tests/integration/... -run "Fleet"
 2. Implement P2800 validators (50 tests)
 3. Implement P2810 comparison logic (18 tests)
 
-**Deliverable**: All unit tests passing, >95% coverage
-
-### Phase 2: Race Condition & Self-Healing Tests (Days 4-5)
+### Phase 2: Race Condition & Self-Healing Tests (Days 4-5) [✅ COMPLETED]
 
 **Goal**: Concurrent access and edge cases covered
 
@@ -1526,58 +1552,58 @@ cd v2 && go test -v -tags=fleet ./tests/integration/... -run "Fleet"
 2. Implement self-healing detection tests (6 tests)
 3. Implement post-validation timing tests (7 tests)
 
-**Deliverable**: All concurrency tests passing, no race detector warnings
+### Phase 3: Timeout & Abort Backend (Day 6) [✅ COMPLETED]
 
-### Phase 3: Timeout & Abort Tests (Day 6)
-
-**Goal**: Graceful timeout handling tested
+**Goal**: Graceful timeout handling (Backend)
 
 1. Implement timeout state machine tests (8 tests)
-2. Implement kill command handling
-3. Test user action flows (Wait, Kill, Ignore)
+2. Implement kill command handling (Backend)
+3. Implement state machine loop in `server.go`
 
-**Deliverable**: Timeout handling fully tested
+### Phase 4: Reconnection Backend (Days 7-8) [✅ COMPLETED]
 
-### Phase 4: Reconnection Tests (Days 7-8)
-
-**Goal**: Agent lifecycle integration tested
+**Goal**: Agent lifecycle integration (Backend)
 
 1. Implement reconnection detection tests (7 tests)
-2. Test AWAITING_RECONNECT → SUCCESS flow
+2. Implement `EnterAwaitingReconnect` and verification logic
 3. Test stale binary detection on reconnect
-4. Test reconnect timeout handling
 
-**Deliverable**: Reconnection-based completion fully tested
+### Phase 5: Integration Tests (Days 9-10) [✅ COMPLETED]
 
-### Phase 5: Integration Tests (Days 9-10)
-
-**Goal**: State machine and agent reporting flows tested
+**Goal**: State machine and agent reporting flows (Backend)
 
 1. Implement P2800 state machine tests (17 tests)
 2. Implement P2810 agent reporting tests (11 tests)
 3. Integrate timeout and reconnection logic
 
-**Deliverable**: All integration tests passing
-
-### Phase 6: Agent & Dashboard Changes (Days 11-13)
+### Phase 6: Agent & Dashboard Changes (Days 11-13) [🟡 IN PROGRESS]
 
 **Goal**: Protocol and lifecycle changes implemented
 
 **Agent Changes:**
 
-- Add `StorePath` to heartbeat (computed on startup)
-- Add `BinaryHash` to heartbeat (SHA256 of binary)
-- Add `command_complete` message for non-switch commands
-- Keep exit 101 mechanism for switch commands
-- Implement kill command handler (SIGTERM/SIGKILL)
+- ✅ Add `StorePath` to heartbeat (computed on startup)
+- ✅ Add `BinaryHash` to heartbeat (SHA256 of binary)
+- 🟡 Add `command_complete` message for non-switch commands
+- ✅ Keep exit 101 mechanism for switch commands
+- ✅ Implement kill command handler (SIGTERM/SIGKILL)
 
 **Dashboard Changes:**
 
-- Implement AWAITING_RECONNECT state
-- Handle agent reconnection with binary verification
-- Implement timeout state machine with user actions
-- 3-layer binary freshness comparison on reconnect
-- Orphaned state detection (RUNNING without agent)
+- ✅ Implement AWAITING_RECONNECT state
+- ✅ Handle agent reconnection with binary verification
+- 🟡 Implement timeout action API (`/api/hosts/{id}/timeout-action`)
+- ✅ 3-layer binary freshness comparison on reconnect
+- ✅ Orphaned state detection (RUNNING without agent)
+
+### Phase 10: The Last Mile (Remaining Wiring) [🆕 NEXT]
+
+**Goal**: Close the loop between Backend, Protocol, and UI
+
+1. **Post-Validation**: Wire `sm.RunPostChecks` into `Hub.handleStatus` for Pull/Test.
+2. **Protocol**: Switch Agent/Dashboard to `TypeCommandComplete` messages.
+3. **UI**: Implement the `timeoutActionDialog` modal in `dashboard.templ`.
+4. **Polish**: Finalize state machine log broadcasts for real-time UI feedback.
 
 ### Phase 7: Known Failure Mode E2E Tests (Days 14-15)
 
