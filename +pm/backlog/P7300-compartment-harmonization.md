@@ -18,11 +18,13 @@ Current dashboard has inconsistencies between compartments and status visualizat
 
 ### Core Principle: Separation of Concerns
 
-**Compartments = STATUS ONLY (read-only)**
+**Compartments = INFO ONLY (safe checks allowed, modifications forbidden)**
 
-- Clicking a compartment triggers info retrieval / status check
-- NO changing actions (no Pull, no Switch, no Force Update)
-- Actions move to dedicated action buttons / menu
+- ✅ Show cached info (modal/popover)
+- ✅ Trigger lightweight agent checks (git status, read generation, etc.)
+- ❌ Modify host (git pull, nixos-rebuild, etc.)
+- ❌ Heavy operations (nix build --dry-run)
+- Modifying actions only available in ellipsis menu
 
 ### Decision Summary
 
@@ -49,13 +51,15 @@ Trace issue: `FleetTarget.AgentVer` likely gets wrong value from version fetcher
 
 Rationale: "Trust first" - agent must be trusted before believing any status it reports.
 
-| #   | Compartment | Icon              | Status                 | Click Action          |
-| --- | ----------- | ----------------- | ---------------------- | --------------------- |
-| 1   | **Agent**   | `icon-package`    | agent binary freshness | Show version details  |
-| 2   | Git         | `icon-git-branch` | repo freshness         | Refresh git status    |
-| 3   | Lock        | `icon-lock`       | flake.lock freshness   | Show lock info        |
-| 4   | System      | `icon-cpu`        | system derivation      | Refresh system status |
-| 5   | Tests       | `icon-check`      | test results           | Show test details     |
+| #   | Compartment | Icon              | Status                 | Click Action (INFO ONLY)            |
+| --- | ----------- | ----------------- | ---------------------- | ----------------------------------- |
+| 1   | **Agent**   | `icon-package`    | agent binary freshness | Show version + build + store path   |
+| 2   | Git         | `icon-git-branch` | repo freshness         | Refresh git status + show diff info |
+| 3   | Lock        | `icon-lock`       | flake.lock freshness   | Show lock commit details            |
+| 4   | System      | `icon-cpu`        | system derivation      | Show generation + derivation path   |
+| 5   | Tests       | `icon-check`      | test results           | Show test results summary           |
+
+**Click = INFO ONLY.** Safe lightweight checks allowed. No host modification. No heavy ops.
 
 **Agent status logic:**
 
@@ -178,11 +182,12 @@ This is the correct pattern. Compartments become pure status display.
 - [ ] Agent status: ✅ when matching dashboard, ⚠️/❌ when mismatched
 - [ ] Tests is now a compartment (5th position)
 
-### Click Behavior
+### Click Behavior (INFO ONLY)
 
-- [ ] Clicking any compartment does NOT trigger Pull/Switch/etc
-- [ ] Clicking compartment shows info or triggers status refresh
-- [ ] Actions remain in ellipsis menu and context bar only
+- [ ] Clicking compartment does NOT modify the host
+- [ ] Clicking compartment may trigger lightweight checks (git status, etc.)
+- [ ] Clicking compartment does NOT trigger heavy ops (nix build --dry-run)
+- [ ] Modifying actions (Pull/Switch/Test) remain in ellipsis menu only
 
 ### Status Dots
 
