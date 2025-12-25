@@ -1029,11 +1029,33 @@ templ Dashboard(data DashboardData) {
 
 			// Helper: Render update status compartments
 			// P7100: Fixed selector to match actual HTML structure (compartment-btn, not update-compartment)
+			// P7300: Added agent compartment handling
 			function renderUpdateStatus(el, host) {
 				const container = el.querySelector('.update-status');
 				if (!container) return;
 
 				const status = host.updateStatus;
+
+				// P7300: Agent compartment (special handling - not from updateStatus)
+				const agentBtn = container.querySelector(`[data-compartment="agent"]`);
+				if (agentBtn) {
+					const agentStatus = host.agentVersion ? (host.agentOutdated ? 'outdated' : 'ok') : 'unknown';
+					agentBtn.dataset.status = agentStatus;
+					agentBtn.classList.toggle('unknown', !host.agentVersion);
+
+					const agentIndicator = agentBtn.querySelector('.compartment-indicator');
+					if (agentIndicator) {
+						agentIndicator.className = 'compartment-indicator';
+						if (host.agentOutdated) {
+							agentIndicator.classList.add('compartment-indicator--error');
+						} else if (host.agentVersion) {
+							agentIndicator.classList.add('compartment-indicator--ok');
+						} else {
+							agentIndicator.classList.add('compartment-indicator--unknown');
+						}
+					}
+				}
+
 				if (!status) return;
 
 				// Find compartment buttons by data-compartment attribute
@@ -2760,19 +2782,17 @@ templ Dashboard(data DashboardData) {
 			const compartmentCooldowns = new Map();
 			const COOLDOWN_MS = 500;
 
-			// P2500: Enhanced hover with full description
+			// P7300: Hover shows info description (no action preview)
 			function handleCompartmentHover(btn) {
 				const hostId = btn.dataset.hostId;
 				const hostname = btn.dataset.hostname;
 				const compartment = btn.dataset.compartment;
-				const action = btn.dataset.action;
 				const description = btn.dataset.description || '';
 
-				// Don't show preview for error/info actions
-				if (action === 'error' || action === 'info') return;
-
+				// P7300: Compartments are info-only, show description in context bar
+				// Map compartment to an info display (no action)
 				window.dispatchEvent(new CustomEvent('action-preview', {
-					detail: { hostId, hostname, command: action, compartment, description }
+					detail: { hostId, hostname, command: 'info', compartment, description }
 				}));
 			}
 
@@ -2780,12 +2800,16 @@ templ Dashboard(data DashboardData) {
 				window.dispatchEvent(new CustomEvent('action-clear'));
 			}
 
-			// P2800: Compartment click triggers force-refresh of that specific status check
-			// This is atomic (one check at a time) and idempotent (same state = same result)
+			// P7300: Compartment click = INFO ONLY
+			// - Safe lightweight checks allowed (git status refresh)
+			// - NO host modification (no pull, switch)
+			// - NO heavy ops (no nix build --dry-run)
+			// For actions, use the ellipsis menu
 			function handleCompartmentClick(btn) {
 				const hostId = btn.dataset.hostId;
 				const hostname = btn.dataset.hostname;
 				const compartment = btn.dataset.compartment;
+				const description = btn.dataset.description || '';
 
 				// Rate limiting (prevent spam clicks)
 				const cooldownKey = `${hostId}-${compartment}`;
@@ -2798,42 +2822,61 @@ templ Dashboard(data DashboardData) {
 					btn.classList.remove('rate-limited');
 				}, COOLDOWN_MS);
 
-				// Open log panel to show refresh progress
-				showLogPanel(hostId);
-				
-				// Log the action
-				appendLogLine(hostId, `🔄 Force-refreshing ${compartment} status...`);
+				// P7300: Different behavior per compartment
+				switch (compartment) {
+					case 'agent':
+						// Agent: show info toast with version details
+						const host = hostStore.get(hostId);
+						if (host) {
+							const agentInfo = host.agentVersion || 'unknown';
+							const status = host.agentOutdated ? '(outdated)' : '(current)';
+							showToast(`Agent: ${agentInfo} ${status}`, 'info');
+						}
+						break;
 
-				// Git is dashboard-side (GitHub API), others are agent-side
-				if (compartment === 'git') {
-					// Make git refresh behave like a normal command in the output panel
-					// (START/END separators + system log entries).
-					window.dispatchEvent(new CustomEvent('output-start', {
-						detail: { hostId, command: 'refresh-git' }
-					}));
+					case 'git':
+						// Git: lightweight refresh (dashboard-side GitHub API call)
+						showLogPanel(hostId);
+						appendLogLine(hostId, `🔄 Refreshing git status...`);
+						window.dispatchEvent(new CustomEvent('output-start', {
+							detail: { hostId, command: 'refresh-git' }
+						}));
 
-					// Dashboard-side refresh via API
-					fetch(`/api/hosts/${hostId}/refresh-git`, {
-						method: 'POST',
-						headers: { 'X-CSRF-Token': CSRF_TOKEN }
-					}).then(resp => {
-						if (!resp.ok) throw new Error('Failed to refresh git status');
-						return resp.json();
-					}).then(data => {
-						appendLogLine(hostId, `✓ Git status: ${data.status} (${data.message})`);
-						refreshHost(hostId);
-						window.dispatchEvent(new CustomEvent('log-complete', {
-							detail: { host_id: hostId, command: 'refresh-git', exit_code: 0 }
-						}));
-					}).catch(err => {
-						appendLogLine(hostId, `✗ ${err.message}`, 'error');
-						window.dispatchEvent(new CustomEvent('log-complete', {
-							detail: { host_id: hostId, command: 'refresh-git', exit_code: 1, error: err.message }
-						}));
-					});
-				} else {
-					// Agent-side refresh via WebSocket command
-					sendCommand(hostId, `refresh-${compartment}`);
+						fetch(`/api/hosts/${hostId}/refresh-git`, {
+							method: 'POST',
+							headers: { 'X-CSRF-Token': CSRF_TOKEN }
+						}).then(resp => {
+							if (!resp.ok) throw new Error('Failed to refresh git status');
+							return resp.json();
+						}).then(data => {
+							appendLogLine(hostId, `✓ Git status: ${data.status} (${data.message})`);
+							refreshHost(hostId);
+							window.dispatchEvent(new CustomEvent('log-complete', {
+								detail: { host_id: hostId, command: 'refresh-git', exit_code: 0 }
+							}));
+						}).catch(err => {
+							appendLogLine(hostId, `✗ ${err.message}`, 'error');
+							window.dispatchEvent(new CustomEvent('log-complete', {
+								detail: { host_id: hostId, command: 'refresh-git', exit_code: 1, error: err.message }
+							}));
+						});
+						break;
+
+					case 'lock':
+						// Lock: lightweight refresh (agent reads flake.lock - fast)
+						showLogPanel(hostId);
+						appendLogLine(hostId, `🔄 Refreshing lock status...`);
+						sendCommand(hostId, 'refresh-lock');
+						break;
+
+					case 'system':
+						// System: INFO ONLY - no refresh (too expensive)
+						// Show toast with current status instead
+						showToast(`System status: ${description}`, 'info');
+						break;
+
+					default:
+						showToast(`Unknown compartment: ${compartment}`, 'error');
 				}
 			}
 
@@ -3839,7 +3882,8 @@ templ testsDots(host Host) {
 	}
 }
 
-// UpdateStatusCell renders the update status indicator (3 compartments with agent badge overlay on Lock)
+// UpdateStatusCell renders the update status indicator
+// P7300: Reordered compartments - Agent → Git → Lock → System
 // P7000: data-* attributes for client-side hydration
 // P1020: UpdateStatusCell with clickable compartments
 templ UpdateStatusCell(host Host) {
@@ -3852,7 +3896,24 @@ templ UpdateStatusCell(host Host) {
 		data-repo-url={ host.RepoURL }
 		data-repo-dir={ host.RepoDir }
 	>
-		<!-- Git compartment (P2500: added data-description for context bar) -->
+		<!-- P7300: Agent compartment (1st - trust first) -->
+		<button
+			type="button"
+			class={ agentCompartmentButtonClass(host) }
+			data-host-id={ host.ID }
+			data-hostname={ host.Hostname }
+			data-compartment="agent"
+			data-status={ getAgentStatus(host) }
+			data-action="info"
+			data-description={ agentContextDescription(host) }
+			onmouseenter="handleCompartmentHover(this)"
+			onmouseleave="handleCompartmentLeave()"
+			onclick="handleCompartmentClick(this)"
+		>
+			<svg class="update-icon"><use href="#icon-package"></use></svg>
+			<span class={ agentIndicatorClass(host) }></span>
+		</button>
+		<!-- Git compartment -->
 		<button
 			type="button"
 			class={ compartmentButtonClass(host.UpdateStatus, "git") }
@@ -3869,7 +3930,7 @@ templ UpdateStatusCell(host Host) {
 			<svg class="update-icon"><use href="#icon-git-branch"></use></svg>
 			<span class={ compartmentIndicatorClass(host.UpdateStatus, "git") }></span>
 		</button>
-		<!-- Lock compartment (P2500: added data-description for context bar) -->
+		<!-- Lock compartment -->
 		<button
 			type="button"
 			class={ lockCompartmentButtonClass(host) }
@@ -3886,7 +3947,7 @@ templ UpdateStatusCell(host Host) {
 			<svg class="update-icon"><use href="#icon-lock"></use></svg>
 			<span class={ lockIndicatorClass(host) }></span>
 		</button>
-		<!-- System compartment (P2500: added data-description for context bar) -->
+		<!-- System compartment -->
 		<button
 			type="button"
 			class={ compartmentButtonClass(host.UpdateStatus, "system") }
@@ -4319,6 +4380,51 @@ func lockIndicatorClass(host Host) string {
 	default:
 		return base + " compartment-indicator--unknown"
 	}
+}
+
+// P7300: Agent compartment helper functions
+
+// agentCompartmentButtonClass returns CSS classes for Agent compartment button
+func agentCompartmentButtonClass(host Host) string {
+	base := "compartment-btn"
+	if host.AgentVersion == "" {
+		return base + " unknown"
+	}
+	return base
+}
+
+// getAgentStatus returns status string for Agent compartment
+func getAgentStatus(host Host) string {
+	if host.AgentVersion == "" {
+		return "unknown"
+	}
+	if host.AgentOutdated {
+		return "outdated"
+	}
+	return "ok"
+}
+
+// agentIndicatorClass returns CSS class for Agent indicator dot
+func agentIndicatorClass(host Host) string {
+	base := "compartment-indicator"
+	if host.AgentVersion == "" {
+		return base + " compartment-indicator--unknown"
+	}
+	if host.AgentOutdated {
+		return base + " compartment-indicator--error"
+	}
+	return base + " compartment-indicator--ok"
+}
+
+// agentContextDescription returns context bar description for Agent compartment
+func agentContextDescription(host Host) string {
+	if host.AgentVersion == "" {
+		return "Agent version unknown"
+	}
+	if host.AgentOutdated {
+		return fmt.Sprintf("Agent %s (outdated, expected %s)", host.AgentVersion, host.ExpectedAgentVersion)
+	}
+	return fmt.Sprintf("Agent %s (current)", host.AgentVersion)
 }
 
 // P1020: compartmentButtonClass returns CSS classes for clickable compartment button
