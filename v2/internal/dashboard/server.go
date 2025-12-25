@@ -183,6 +183,7 @@ func (s *Server) setupRouter() {
 			r.Post("/hosts/{hostID}/refresh", s.handleRefreshHost) // P7000: Per-host status refresh
 			r.Post("/hosts/{hostID}/refresh-git", s.handleRefreshGit) // P2800: Force-refresh git status
 			r.Post("/hosts/{hostID}/theme-color", s.handleSetThemeColor) // P2950: Color picker
+			r.Post("/hosts/{hostID}/reboot", s.handleReboot)             // P6900: Reboot with TOTP
 			r.Delete("/hosts/{hostID}", s.handleDeleteHost)
 			r.Get("/hosts/{hostID}/logs", s.handleGetLogs)
 

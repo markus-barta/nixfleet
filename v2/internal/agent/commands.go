@@ -32,6 +32,10 @@ func (a *Agent) handleCommand(command string) {
 		// Restart also works anytime
 		a.handleRestart()
 		return
+	case "reboot":
+		// P6900: Reboot works anytime (like restart and stop)
+		a.handleReboot()
+		return
 	}
 
 	// Check if already busy (T02: reject concurrent commands)
@@ -530,6 +534,36 @@ func (a *Agent) handleRestart() {
 	a.log.Info().Msg("restart requested, exiting")
 	a.Shutdown()
 	os.Exit(0)
+}
+
+// P6900: handleReboot executes system reboot.
+func (a *Agent) handleReboot() {
+	a.log.Warn().Msg("reboot requested, executing system reboot")
+
+	// Send WebSocket message before reboot (so dashboard knows it's happening)
+	a.sendOutput("⚠️  Reboot command received. System will reboot in 3 seconds...", "stdout")
+
+	// Give time for WebSocket message to be sent
+	time.Sleep(3 * time.Second)
+
+	// Platform-specific reboot command
+	var cmd *exec.Cmd
+	if runtime.GOOS == "darwin" {
+		// macOS
+		cmd = exec.Command("sudo", "reboot")
+	} else {
+		// Linux/NixOS
+		cmd = exec.Command("sudo", "reboot")
+	}
+
+	// Execute reboot (this will terminate the agent)
+	if err := cmd.Run(); err != nil {
+		// If we get here, reboot failed (unlikely but possible)
+		a.log.Error().Err(err).Msg("reboot command failed")
+		// Try to send error message (may not reach dashboard)
+		a.sendOutput(fmt.Sprintf("❌ Reboot failed: %v. Check sudo permissions.", err), "stderr")
+	}
+	// If successful, agent will be terminated by reboot
 }
 
 // handleKillCommand handles kill command from dashboard (P2800).

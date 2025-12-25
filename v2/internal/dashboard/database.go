@@ -82,6 +82,31 @@ func createTables(db *sql.DB) error {
 	);
 
 	CREATE INDEX IF NOT EXISTS idx_metrics_host_time ON metrics(host_id, recorded_at);
+
+	-- P6900: Reboot rate limiting table
+	CREATE TABLE IF NOT EXISTS reboot_attempts (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		host_id TEXT NOT NULL,
+		attempted_at INTEGER NOT NULL,
+		success INTEGER NOT NULL DEFAULT 0,
+		FOREIGN KEY (host_id) REFERENCES hosts(id)
+	);
+
+	CREATE INDEX IF NOT EXISTS idx_reboot_attempts_host_time ON reboot_attempts(host_id, attempted_at);
+
+	-- P6900: Audit log table
+	CREATE TABLE IF NOT EXISTS audit_log (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		action TEXT NOT NULL,
+		host_id TEXT,
+		user_session TEXT,
+		timestamp INTEGER NOT NULL,
+		success INTEGER NOT NULL DEFAULT 0,
+		details TEXT
+	);
+
+	CREATE INDEX IF NOT EXISTS idx_audit_log_action_time ON audit_log(action, timestamp);
+	CREATE INDEX IF NOT EXISTS idx_audit_log_host_time ON audit_log(host_id, timestamp);
 	`
 
 	_, err := db.Exec(schema)

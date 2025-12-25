@@ -1414,3 +1414,187 @@ func (s *Server) handleGetCommandStates(w http.ResponseWriter, r *http.Request) 
 	})
 }
 
+// P6900: handleReboot processes reboot request with TOTP verification.
+// POST /api/hosts/{hostID}/reboot
+func (s *Server) handleReboot(w http.ResponseWriter, r *http.Request) {
+	hostID := chi.URLParam(r, "hostID")
+	session := sessionFromContext(r.Context())
+	ip := r.RemoteAddr
+
+	if session == nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusUnauthorized)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "Unauthorized"})
+		return
+	}
+
+	var req struct {
+		TOTP string `json:"totp"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "Invalid request body"})
+		return
+	}
+
+	// TOTP is mandatory for reboot
+	if !s.cfg.HasTOTP() {
+		s.log.Warn().Msg("reboot rejected: TOTP not configured")
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusForbidden)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "TOTP must be configured to use reboot feature"})
+		return
+	}
+
+	// Validate TOTP
+	if req.TOTP == "" {
+		s.log.Warn().Str("host", hostID).Msg("reboot rejected: missing TOTP")
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusUnauthorized)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "TOTP code required"})
+		return
+	}
+
+	if !s.auth.CheckTOTP(req.TOTP) {
+		s.log.Warn().
+			Str("host", hostID).
+			Str("session", session.ID).
+			Str("ip", ip).
+			Msg("reboot rejected: invalid TOTP")
+		s.auditLogReboot(hostID, session.ID, ip, false, "invalid_totp")
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusUnauthorized)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "Invalid TOTP code"})
+		return
+	}
+
+	// Check rate limit (per-host, rolling 1-hour window)
+	if s.isRebootRateLimited(hostID) {
+		s.log.Warn().
+			Str("host", hostID).
+			Str("session", session.ID).
+			Str("ip", ip).
+			Msg("reboot rejected: rate limit exceeded")
+		s.auditLogReboot(hostID, session.ID, ip, false, "rate_limit")
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusTooManyRequests)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "Too many reboot attempts. Please wait before trying again."})
+		return
+	}
+
+	// Verify host exists
+	var hostname string
+	err := s.db.QueryRow(`SELECT hostname FROM hosts WHERE id = ?`, hostID).Scan(&hostname)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "Host not found"})
+		return
+	}
+
+	// Check if host is online (agent connected)
+	agent := s.hub.GetAgent(hostID)
+	if agent == nil {
+		s.log.Warn().Str("host", hostID).Msg("reboot rejected: host offline")
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusConflict)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "Host is offline"})
+		return
+	}
+
+	// Record attempt in rate limiting table
+	if err := s.recordRebootAttempt(hostID, true); err != nil {
+		s.log.Error().Err(err).Str("host", hostID).Msg("failed to record reboot attempt")
+		// Continue anyway - rate limiting failure shouldn't block reboot
+	}
+
+	// Send reboot command to agent
+	cmdMsg, err := json.Marshal(map[string]any{
+		"type": "command",
+		"payload": map[string]any{
+			"command": "reboot",
+		},
+	})
+	if err != nil {
+		s.log.Error().Err(err).Msg("failed to marshal reboot command")
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "Internal server error"})
+		return
+	}
+
+	if !agent.SafeSend(cmdMsg) {
+		s.log.Warn().Str("host", hostID).Msg("reboot failed: agent send buffer full")
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusServiceUnavailable)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "Agent not responsive"})
+		return
+	}
+
+	s.log.Info().
+		Str("host", hostID).
+		Str("hostname", hostname).
+		Str("session", session.ID).
+		Str("ip", ip).
+		Msg("reboot command sent")
+	s.auditLogReboot(hostID, session.ID, ip, true, "success")
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(map[string]string{
+		"status":  "queued",
+		"message": "Reboot command sent to host",
+	})
+}
+
+// isRebootRateLimited checks if host has exceeded rate limit (5 per hour).
+func (s *Server) isRebootRateLimited(hostID string) bool {
+	cutoff := time.Now().Add(-1 * time.Hour).Unix()
+
+	var count int
+	err := s.db.QueryRow(
+		`SELECT COUNT(*) FROM reboot_attempts WHERE host_id = ? AND attempted_at > ?`,
+		hostID, cutoff,
+	).Scan(&count)
+
+	if err != nil {
+		s.log.Error().Err(err).Str("host", hostID).Msg("failed to check rate limit")
+		// Fail open: if we can't check rate limit, allow the request
+		return false
+	}
+
+	return count >= 5
+}
+
+// recordRebootAttempt records a reboot attempt in the database.
+func (s *Server) recordRebootAttempt(hostID string, success bool) error {
+	successInt := 0
+	if success {
+		successInt = 1
+	}
+	_, err := s.db.Exec(
+		`INSERT INTO reboot_attempts (host_id, attempted_at, success) VALUES (?, ?, ?)`,
+		hostID, time.Now().Unix(), successInt,
+	)
+	return err
+}
+
+// auditLogReboot logs reboot attempt to audit log.
+func (s *Server) auditLogReboot(hostID, sessionID, ip string, success bool, reason string) {
+	successInt := 0
+	if success {
+		successInt = 1
+	}
+	details := fmt.Sprintf(`{"reason": "%s", "ip": "%s"}`, reason, ip)
+	_, err := s.db.Exec(
+		`INSERT INTO audit_log (action, host_id, user_session, timestamp, success, details) VALUES (?, ?, ?, ?, ?, ?)`,
+		"reboot", hostID, sessionID, time.Now().Unix(), successInt, details,
+	)
+	if err != nil {
+		s.log.Error().Err(err).Msg("failed to write audit log")
+	}
+}
+

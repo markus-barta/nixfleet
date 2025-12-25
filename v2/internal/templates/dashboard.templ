@@ -410,6 +410,49 @@ templ Dashboard(data DashboardData) {
 			</div>
 		</div>
 
+		<!-- P6900: Reboot Host Modal with TOTP -->
+		<div class="modal-overlay" id="rebootModal">
+			<div class="modal">
+				<div class="modal-title">
+					<svg class="modal-icon" style="width:24px;height:24px;margin-right:8px;color:var(--danger)">
+						<use href="#icon-power"></use>
+					</svg>
+					Reboot Host
+				</div>
+				<div class="modal-body">
+					<p class="reboot-warning">
+						<strong>⚠️ Warning:</strong> This will immediately reboot <code id="rebootHostName"></code>.
+						<br/>This action cannot be undone.
+					</p>
+					<div class="form-group" style="margin-top: 1.5rem;">
+						<label for="rebootTotp" style="display: block; margin-bottom: 0.5rem;">
+							Enter TOTP Code to confirm:
+						</label>
+						<input
+							type="text"
+							id="rebootTotp"
+							class="form-control totp-input"
+							autocomplete="one-time-code"
+							inputmode="numeric"
+							pattern="[0-9]*"
+							maxlength="6"
+							placeholder="000000"
+							oninput="validateRebootTotp(this)"
+							onkeydown="if(event.key==='Enter' && this.value.length===6) doReboot()"
+							style="width: 100%; padding: 0.75rem; letter-spacing: 0.3em; text-align: center; font-size: 1.2rem; font-family: var(--font-mono);"
+						/>
+					</div>
+				</div>
+				<div class="modal-actions">
+					<button class="modal-btn modal-btn-cancel" onclick="closeRebootModal()">Cancel</button>
+					<button class="modal-btn modal-btn-danger" id="rebootConfirmBtn" onclick="doReboot()" disabled>
+						<span id="rebootBtnText">Reboot</span>
+						<span id="rebootBtnSpinner" style="display: none;">Sending...</span>
+					</button>
+				</div>
+			</div>
+		</div>
+
 		<!-- Add Host Modal (P4390) -->
 		<div class="modal-overlay" id="addHostModal">
 			<div class="modal modal-wide">
@@ -2385,6 +2428,102 @@ templ Dashboard(data DashboardData) {
 				pendingRemoveHostId = null;
 			}
 
+			// P6900: Reboot modal functions
+			let pendingRebootHostId = null;
+			let pendingRebootHostname = null;
+
+			function showRebootModal(hostId, hostname) {
+				// Check host is online before showing modal
+				const host = hostStore.get(hostId);
+				if (!host || !host.online) {
+					showToast('Host is offline', 'error');
+					return;
+				}
+
+				pendingRebootHostId = hostId;
+				pendingRebootHostname = hostname;
+				document.getElementById('rebootHostName').textContent = hostname;
+				document.getElementById('rebootTotp').value = '';
+				document.getElementById('rebootConfirmBtn').disabled = true;
+				document.getElementById('rebootModal').classList.add('open');
+				document.querySelectorAll('.dropdown.open').forEach(d => d.classList.remove('open'));
+				// Auto-focus TOTP input
+				setTimeout(() => document.getElementById('rebootTotp').focus(), 100);
+			}
+
+			function closeRebootModal() {
+				document.getElementById('rebootModal').classList.remove('open');
+				pendingRebootHostId = null;
+				pendingRebootHostname = null;
+			}
+
+			function validateRebootTotp(input) {
+				const value = input.value.replace(/\D/g, ''); // Remove non-digits
+				input.value = value;
+				document.getElementById('rebootConfirmBtn').disabled = value.length !== 6;
+			}
+
+			async function doReboot() {
+				if (!pendingRebootHostId) return;
+
+				const totpInput = document.getElementById('rebootTotp');
+				const confirmBtn = document.getElementById('rebootConfirmBtn');
+				const btnText = document.getElementById('rebootBtnText');
+				const btnSpinner = document.getElementById('rebootBtnSpinner');
+				const totp = totpInput.value;
+
+				// Disable button and show loading state
+				confirmBtn.disabled = true;
+				btnText.style.display = 'none';
+				btnSpinner.style.display = 'inline';
+
+				try {
+					const resp = await fetch(`/api/hosts/${pendingRebootHostId}/reboot`, {
+						method: 'POST',
+						headers: {
+							'Content-Type': 'application/json',
+							'X-CSRF-Token': CSRF_TOKEN
+						},
+						body: JSON.stringify({ totp })
+					});
+
+					const data = await resp.json();
+
+					if (resp.status === 401) {
+						showToast('Invalid TOTP code', 'error');
+						totpInput.focus();
+						totpInput.select();
+						confirmBtn.disabled = false;
+						btnText.style.display = 'inline';
+						btnSpinner.style.display = 'none';
+						return;
+					}
+
+					if (resp.status === 429) {
+						showToast(data.error || 'Too many reboot attempts. Please wait.', 'error');
+						closeRebootModal();
+						return;
+					}
+
+					if (!resp.ok) {
+						showToast(data.error || `Reboot failed: ${resp.statusText}`, 'error');
+						confirmBtn.disabled = false;
+						btnText.style.display = 'inline';
+						btnSpinner.style.display = 'none';
+						return;
+					}
+
+					// Success
+					closeRebootModal();
+					showToast(`Reboot command sent to ${pendingRebootHostname}`, 'info');
+				} catch (err) {
+					showToast(`Network error: ${err.message}`, 'error');
+					confirmBtn.disabled = false;
+					btnText.style.display = 'inline';
+					btnSpinner.style.display = 'none';
+				}
+			}
+
 			function openAddHostModal() {
 				document.getElementById('addHostModal').classList.add('open');
 			}
@@ -3860,6 +3999,16 @@ templ ActionDropdown(host Host) {
 				<svg class="icon"><use href="#icon-refresh-cw"></use></svg>
 				<span>Restart Agent</span>
 			</button>
+			<!-- P6900: Reboot Host (requires TOTP) -->
+			<button
+				type="button"
+				class="dropdown-item danger"
+				onclick={ showRebootModalScript(host.ID, host.Hostname) }
+				disabled?={ !host.Online }
+			>
+				<svg class="icon"><use href="#icon-power"></use></svg>
+				<span>Reboot Host</span>
+			</button>
 			<hr class="dropdown-divider"/>
 			<!-- P2950: Color picker -->
 			<button
@@ -3938,6 +4087,11 @@ func openColorPickerScript(hostID, hostname, currentColor string) templ.Componen
 		currentColor = "#7aa2f7" // Default blue
 	}
 	return templ.ComponentScript{Call: fmt.Sprintf("openColorPicker('%s', '%s', '%s')", hostID, hostname, currentColor)}
+}
+
+// P6900: Open reboot confirmation modal with TOTP
+func showRebootModalScript(hostID, hostname string) templ.ComponentScript {
+	return templ.ComponentScript{Call: fmt.Sprintf("showRebootModal('%s', '%s')", hostID, hostname)}
 }
 
 // DeleteButton renders a delete button for offline hosts
