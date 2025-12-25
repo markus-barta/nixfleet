@@ -222,15 +222,15 @@ func (a *Agent) executeCommand(command string) {
 	// P2800: Post-validation - refresh status and report on goal achievement
 	if exitCode == 0 && (command == "pull" || command == "switch" || command == "pull-switch") {
 		a.sendOutput("", "stdout") // Blank line separator
-		a.sendOutput("📊 Post-validation: Checking if goal was achieved...", "stdout")
+		a.sendOutput("📊 Post-validation: Checking goal achievement...", "stdout")
 		
-		// Force refresh to get updated state
+		// Force refresh Lock status (lightweight - just git log)
+		// System status is NOT auto-refreshed (too heavy - nix build --dry-run)
 		a.statusChecker.ForceRefresh(a.ctx)
 		
 		lockStatus := a.statusChecker.GetLockStatus()
-		sysStatus := a.statusChecker.GetSystemStatus()
 		
-		// Report lock status
+		// Report lock status (lightweight check)
 		lockIcon := "🟢"
 		if lockStatus.Status == "outdated" {
 			lockIcon = "🟡"
@@ -239,14 +239,8 @@ func (a *Agent) executeCommand(command string) {
 		}
 		a.sendOutput(fmt.Sprintf("%s Lock: %s", lockIcon, lockStatus.Message), "stdout")
 		
-		// Report system status
-		sysIcon := "🟢"
-		if sysStatus.Status == "outdated" {
-			sysIcon = "🟡"
-		} else if sysStatus.Status == "error" || sysStatus.Status == "unknown" {
-			sysIcon = "🔴"
-		}
-		a.sendOutput(fmt.Sprintf("%s System: %s", sysIcon, sysStatus.Message), "stdout")
+		// System status not reported automatically (check is too expensive)
+		// User can run refresh-system to check if needed
 		
 		// Overall goal check based on command type
 		switch command {
@@ -260,22 +254,21 @@ func (a *Agent) executeCommand(command string) {
 			}
 		case "switch":
 			// Goal: system should now be current
+			// Note: We infer success from exit code, not system status check
+			// (system check requires nix build --dry-run which is too heavy)
 			a.sendOutput("", "stdout")
-			if sysStatus.Status == "ok" {
-				a.sendOutput("✅ Switch goal achieved: System is current", "stdout")
-			} else {
-				a.sendOutput("⚠️  Switch completed but system still shows outdated (may need agent restart)", "stdout")
-			}
+			a.sendOutput("✅ Switch completed successfully (exit 0)", "stdout")
+			a.sendOutput("   Use refresh-system to verify system status", "stdout")
 		case "pull-switch":
 			// Goal: both should be current
+			// Note: System status inferred from exit code (check too heavy)
 			a.sendOutput("", "stdout")
-			if lockStatus.Status == "ok" && sysStatus.Status == "ok" {
-				a.sendOutput("✅ Pull+Switch goal achieved: Fully up to date", "stdout")
-			} else if sysStatus.Status == "ok" {
-				a.sendOutput("⚠️  System current but lock shows outdated (GitHub cache?)", "stdout")
+			if lockStatus.Status == "ok" {
+				a.sendOutput("✅ Pull+Switch completed: Lock current, switch successful", "stdout")
 			} else {
-				a.sendOutput("⚠️  Commands completed but goals not fully achieved", "stdout")
+				a.sendOutput("⚠️  Switch OK but lock shows outdated (Git cache may need time)", "stdout")
 			}
+			a.sendOutput("   Use refresh-system to verify system status", "stdout")
 		}
 	}
 

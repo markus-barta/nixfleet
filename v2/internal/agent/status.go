@@ -41,10 +41,12 @@ func NewStatusChecker(a *Agent) *StatusChecker {
 
 // GetStatus returns the current update status for Lock and System.
 // Git status is computed dashboard-side from GitHub Pages.
+// NOTE: System status is OPT-IN only (too heavy for automatic checks).
+// Use RefreshSystem() explicitly when user requests it.
 func (s *StatusChecker) GetStatus(ctx context.Context) *protocol.UpdateStatus {
 	now := time.Now()
 
-	// Check lock status if expired
+	// Check lock status if expired (lightweight: just git log)
 	if now.Sub(s.lastLockCheck) > s.lockInterval {
 		s.a.log.Debug().Msg("running lock status check")
 		s.lockStatus = s.checkLockStatus(ctx)
@@ -55,28 +57,26 @@ func (s *StatusChecker) GetStatus(ctx context.Context) *protocol.UpdateStatus {
 			Msg("lock status check completed")
 	}
 
-	// Check system status if expired
-	if now.Sub(s.lastSystemCheck) > s.systemInterval {
-		s.a.log.Debug().Msg("running system status check")
-		s.systemStatus = s.checkSystemStatus(ctx)
-		s.lastSystemCheck = now
-		s.a.log.Debug().
-			Str("status", s.systemStatus.Status).
-			Str("message", s.systemStatus.Message).
-			Msg("system status check completed")
-	}
+	// System status is NOT checked automatically - too expensive!
+	// nix build --dry-run does full flake evaluation, which:
+	// - Consumes significant CPU/RAM
+	// - Can take 30-60+ seconds on small servers
+	// - Makes hosts unresponsive
+	// User must explicitly click refresh-system to check.
 
 	return &protocol.UpdateStatus{
 		// Git is computed dashboard-side
 		Lock:   s.lockStatus,
-		System: s.systemStatus,
+		System: s.systemStatus, // Returns cached/unknown until explicit refresh
 	}
 }
 
-// ForceRefresh forces an immediate refresh of all status checks.
+// ForceRefresh forces an immediate refresh of lightweight status checks only.
+// NOTE: Does NOT refresh System status (too expensive - nix build --dry-run).
+// System status must be explicitly requested via RefreshSystem().
 func (s *StatusChecker) ForceRefresh(ctx context.Context) {
 	s.RefreshLock(ctx)
-	s.RefreshSystem(ctx)
+	// s.RefreshSystem(ctx) - REMOVED: too heavy for automatic refresh
 }
 
 // P2800: RefreshLock forces an immediate refresh of just the lock status.
