@@ -1,249 +1,160 @@
 # P7300: Compartment & Status Harmonization
 
 **Priority:** High  
-**Status:** Refined  
+**Status:** Implemented  
 **Epic:** UI/UX Polish  
-**Created:** 2025-12-25
+**Created:** 2025-12-25  
+**Updated:** 2025-12-25
 
 ## Problem Statement
 
 Current dashboard has inconsistencies between compartments and status visualization:
 
-1. **Header agent target** shows "Agent: master" instead of semantic version like "2.2"
+1. **Header agent target** shows "Agent: master" instead of semantic version like "2.3.0"
 2. **Compartments** only cover Git/Lock/System, missing Agent Version
-3. **Status dots** use a complex multi-phase model that doesn't align with compartments
+3. **Status dots** had complex 3-dot layout that was inconsistent and confusing
 4. **Compartment clicks trigger actions** - conflates status display with action triggering
 
-## Design Decisions (Refined)
+## Design Decisions (Final)
 
 ### Core Principle: Separation of Concerns
 
 **Compartments = INFO ONLY (safe checks allowed, modifications forbidden)**
 
-- ✅ Show cached info (modal/popover)
+- ✅ Show cached info (toast/modal)
 - ✅ Trigger lightweight agent checks (git status, read generation, etc.)
 - ❌ Modify host (git pull, nixos-rebuild, etc.)
 - ❌ Heavy operations (nix build --dry-run)
 - Modifying actions only available in ellipsis menu
 
-### Decision Summary
+### Single Dot Status Indicator
 
-| Question           | Decision                                                             |
-| ------------------ | -------------------------------------------------------------------- |
-| Compartment clicks | Info/check only, NO actions                                          |
-| Dots location      | Inside compartment buttons (3 dots under icon)                       |
-| Lock compartment   | Status indicator only (no dots, current behavior)                    |
-| Dot semantics      | started → running → complete = pre-validate → action → post-validate |
-| Test dots          | Same 3-dot pattern: initiated → running → complete                   |
+**Simplified from 3 dots to 1 dot per compartment with 5 color states:**
 
-## Proposed Solution
+| Color      | State           | Meaning                                 |
+| ---------- | --------------- | --------------------------------------- |
+| **Gray**   | Not checked     | No data, offline, never fetched         |
+| **Blue**   | Working (pulse) | Command/check in progress               |
+| **Green**  | OK              | Status matches expected, up-to-date     |
+| **Yellow** | Warning         | Outdated but not critical               |
+| **Red**    | Error           | Failed, critical mismatch, needs action |
+
+### State Update Timing
+
+States are updated:
+
+1. **On command completion** - Agent sends status with new generation/state
+2. **On explicit refresh** - Compartment click triggers lightweight check
+3. **NOT on heartbeat** - Too expensive to re-check statuses every 5s
+
+## Implemented Solution
 
 ### 1. Header Agent Target Fix
 
-**Current:** `Agent: master`  
-**New:** `Agent: 2.2`
+**Before:** `Agent: master`  
+**After:** `Agent: 2.3.0 • Config: abc1234 (main, 2h ago)`
 
-Trace issue: `FleetTarget.AgentVer` likely gets wrong value from version fetcher.
+Agent version shown first (always), then config commit info if version tracking is configured.
 
-### 2. Compartment Order & New "Agent" Compartment
+### 2. Compartment Order & Agent Compartment
 
-**Order: Agent → Git → Lock → System → Tests**
+**Order: Agent → Git → Lock → System**
 
 Rationale: "Trust first" - agent must be trusted before believing any status it reports.
 
-| #   | Compartment | Icon              | Status                 | Click Action (INFO ONLY)            |
-| --- | ----------- | ----------------- | ---------------------- | ----------------------------------- |
-| 1   | **Agent**   | `icon-package`    | agent binary freshness | Show version + build + store path   |
-| 2   | Git         | `icon-git-branch` | repo freshness         | Refresh git status + show diff info |
-| 3   | Lock        | `icon-lock`       | flake.lock freshness   | Show lock commit details            |
-| 4   | System      | `icon-cpu`        | system derivation      | Show generation + derivation path   |
-| 5   | Tests       | `icon-check`      | test results           | Show test results summary           |
+| #   | Compartment | Icon              | Status Logic                                            |
+| --- | ----------- | ----------------- | ------------------------------------------------------- |
+| 1   | **Agent**   | `icon-robot`      | Green: version matches dashboard, Red: mismatch         |
+| 2   | Git         | `icon-git-branch` | Green: up-to-date, Yellow: behind remote                |
+| 3   | Lock        | `icon-lock`       | Green: matches remote, Yellow: behind, Red: agent issue |
+| 4   | System      | `icon-nixos`      | Green: current gen, Yellow: rebuild needed              |
 
-**Click = INFO ONLY.** Safe lightweight checks allowed. No host modification. No heavy ops.
+### 3. Agent Version Column
 
-**Agent status logic:**
+New explicit column showing agent version per host:
 
-- ✅ OK: `host.AgentVersion == dashboard.Version`
-- ⚠️ Warning: version mismatch
-- ❌ Error: major mismatch or unknown
+- **Green text**: Version matches dashboard (current)
+- **Red text with background**: Version mismatch (outdated)
+- **Gray text**: Version unknown
 
-**Hover:** "Agent v2.2.0 (build: abc1234)"
+### 4. Compartment Click Behavior (INFO ONLY)
 
-### 3. Status Dots - Integrated into Compartments
+| Compartment | Click Action                                           |
+| ----------- | ------------------------------------------------------ |
+| Agent       | Toast with version info                                |
+| Git         | Trigger lightweight git status refresh                 |
+| Lock        | Trigger lightweight lock status refresh                |
+| System      | Trigger lightweight system status refresh (NO dry-run) |
 
-**New visual model - dots INSIDE compartment buttons:**
+**All clicks are safe. No host modifications. No heavy operations.**
 
-```
-┌────────────────────────────────────────────┐
-│  [🤖]   [🔀]   [🔒]   [⚙️]   [🧪]            │
-│  ●●●    ●○○    ●●●    ○○○    ●●○           │
-│  Agent  Git    Lock   Sys    Tests         │
-└────────────────────────────────────────────┘
-```
+### 5. Larger Compartments
 
-Note: No emojis allowed. Use SVG icons instead!
+Compartments increased from 29px to 38px for better visibility.
 
-**Dot meanings (3 dots per compartment):**
-| Dot | State | Visual |
-|-----|-------|--------|
-| 1 - Started | Pre-validation running/complete | ○ dim / ● solid |
-| 2 - Running | Main action running/complete | ○ dim / ◐ pulse / ● solid |
-| 3 - Complete | Post-validation done | ○ dim / ● green (ok) / ● red (fail) |
+## Implementation Summary
 
-**The 3rd dot = current status indicator** (what we have now as single dot)
-
-**Lock compartment:** No dots (info-only, no associated action)
-
-**Test dots:** Same pattern
-| Dot | Meaning |
-|-----|---------|
-| 1 - Initiated | Test command started |
-| 2 - Running | Tests executing |
-| 3 - Complete | All tests done (green=pass, red=fail) |
-
-### 4. Actions Location (Current UI Already Correct)
-
-Current UI has NO per-host action buttons. Actions are triggered via:
-
-1. **Ellipsis (⋮) menu per host** - Pull, Switch, Test, etc.
-2. **Context bar for multi-select** - Bulk actions on selected hosts
-
-This is the correct pattern. Compartments become pure status display.
-
-**New action for Agent compartment:** When agent is outdated, menu shows "Force Update Agent" (P7200).
-
-## Implementation Plan
-
-### Phase 1: Reorder Compartments + Add Agent
-
-1. Reorder existing compartments: Agent → Git → Lock → System
-2. Add Agent compartment with `icon-package`
-3. Add `AgentVersion` + `BuildHash` to HeartbeatPayload
-4. Agent status logic (compare with dashboard version)
-5. Hover tooltip: "Agent v2.2.0 (build: abc1234)"
-
-### Phase 2: Decouple Compartment Clicks
-
-1. Remove `handleCompartmentClick()` action triggering
-2. Change click to show info modal / trigger status refresh
-3. Actions remain in ellipsis menu only
-
-### Phase 3: Integrate 3-Dot Status into Compartments
-
-1. Modify compartment button HTML: icon + 3 dots below
-2. CSS: position dots, define states (dim/pulse/solid/green/red)
-3. Update `renderUpdateStatus()` to update all 3 dots
-4. Remove or repurpose separate Status column
-
-### Phase 4: Tests Compartment
-
-1. Add Tests as 5th compartment (after System)
-2. Same 3-dot pattern: initiated → running → complete
-3. Click shows test results detail
-
-### Phase 5: P6900 + P7200 Integration
-
-1. Handle reboot interruption in dot states
-2. Add "Force Update Agent" to menu when agent outdated
-3. Wire up P7200 command chain
-
-### Phase 6: Header Fix
-
-1. Trace `AgentVer` value source
-2. Fix to show "2.2" not "master"
-
-## Files to Modify
-
-### Protocol
-
-- `v2/internal/protocol/messages.go` - add `AgentVersion`, `BuildHash` to HeartbeatPayload
-
-### Agent
-
-- `v2/internal/agent/heartbeat.go` - populate new fields
-
-### Templates
+### Files Modified
 
 - `v2/internal/templates/dashboard.templ`:
-  - `UpdateStatusCell` - add 4th compartment, integrate dots
-  - `handleCompartmentClick()` - change to info-only
-  - `renderUpdateStatus()` - update all 3 dots per compartment
-- `v2/internal/templates/base.templ` - CSS for 3-dot layout
+  - `FleetTargetLine` - Agent version shown first
+  - `UpdateStatusCell` - 4 compartments with single indicator dots
+  - `AgentVersionCell` - new explicit version column
+  - `handleCompartmentClick()` - info-only behavior
+  - `renderUpdateStatus()` - single dot color updates
+  - Helper functions: `agentIndicatorClass`, `compartmentIndicatorClass`, etc.
 
-### Dashboard
+- `v2/internal/templates/base.templ`:
+  - CSS for 5 indicator colors (gray/blue/green/yellow/red)
+  - Larger compartment buttons (38px)
+  - Robot icon SVG for Agent compartment
 
-- `v2/internal/dashboard/hub.go` - handle new protocol fields
-- `v2/internal/dashboard/handlers.go` - fix `AgentVer` in FleetTarget
+- `v2/internal/dashboard/handlers.go`:
+  - `FleetTarget.AgentVer` correctly set from dashboard Version
 
 ## Acceptance Criteria
 
-### Compartments
+### Compartments ✅
 
-- [ ] Order is: Agent → Git → Lock → System → Tests
-- [ ] Agent compartment shows version/build on hover
-- [ ] Agent status: ✅ when matching dashboard, ⚠️/❌ when mismatched
-- [ ] Tests is now a compartment (5th position)
+- [x] Order is: Agent → Git → Lock → System
+- [x] Agent compartment has robot icon
+- [x] Agent status: green when matching dashboard, red when mismatched
+- [x] Explicit Agent Version column added
 
-### Click Behavior (INFO ONLY)
+### Click Behavior (INFO ONLY) ✅
 
-- [ ] Clicking compartment does NOT modify the host
-- [ ] Clicking compartment may trigger lightweight checks (git status, etc.)
-- [ ] Clicking compartment does NOT trigger heavy ops (nix build --dry-run)
-- [ ] Modifying actions (Pull/Switch/Test) remain in ellipsis menu only
+- [x] Clicking compartment does NOT modify the host
+- [x] Clicking compartment triggers lightweight checks only
+- [x] Clicking compartment does NOT trigger heavy ops (nix build --dry-run)
+- [x] Modifying actions (Pull/Switch/Test) remain in ellipsis menu only
 
-### Status Dots
+### Status Dots ✅
 
-- [ ] Each compartment has 3 dots (except Lock = status only)
-- [ ] Dots show: started → running → complete states
-- [ ] Dot 3 = current status indicator (green/yellow/red)
-- [ ] Test dots: initiated → running → complete
+- [x] Single dot per compartment (simplified from 3-dot layout)
+- [x] 5 color states: gray, blue-pulse, green, yellow, red
+- [x] Consistent sizing (6px) and positioning
 
-### Integration
+### Header ✅
 
-- [ ] P6900: Dots handle reboot interruption gracefully
-- [ ] P7200: "Force Update Agent" in menu when agent outdated
-- [ ] Header shows "Agent: 2.2" not "Agent: master"
+- [x] Shows "Agent: 2.3.0" not "Agent: master"
+- [x] Agent version always shown first
 
 ## Integration with Related Items
 
 ### P6900 - Reboot Handling
 
-Status dots must handle reboot interruptions:
+Status dots handle reboot gracefully:
 
-| Scenario                          | Dot Behavior                |
-| --------------------------------- | --------------------------- |
-| Command running → reboot detected | Dot 2 shows ⚠️ amber pulse  |
-| Agent reconnects after reboot     | Dot 2 → solid, Dot 3 starts |
-| Post-validation after reboot      | Dot 3 completes (green/red) |
+- Gray during reconnection
+- Updates to correct color after agent sends fresh status
 
 ### P7200 - Force Uncached Update
 
-When Agent compartment shows outdated (⚠️ or ❌):
+When Agent compartment shows red (outdated):
 
 - Ellipsis menu shows "Force Update Agent"
-- Triggers: `git pull && nix flake update nixfleet && nixos-rebuild switch --option narinfo-cache-negative-ttl 0`
-- Agent dots show progress: started → running → complete
+- Triggers force uncached rebuild
 
-### P2810 - 3-Layer Binary Freshness
+## Version
 
-Agent compartment status uses P2810 data:
-
-- `SourceCommit` - git commit agent was built from
-- `StorePath` - Nix store path
-- `BinaryHash` - unique build identifier (shown in tooltip)
-
-## Dependencies
-
-- P2810 (3-layer binary freshness) - provides `BinaryHash` ✅ implemented
-- P6900 (Reboot handling) - status dots during reboot
-- P7200 (Force uncached update) - Agent menu action
-
-## Migration Notes
-
-**Breaking change:** Users accustomed to clicking compartments to trigger Pull/Switch will now use the ellipsis menu.
-
-Mitigation:
-
-- Tooltip on compartment hover explains new behavior
-- Context bar shows relevant action when compartment is hovered
-- First-time user guidance / changelog entry
+This feature is part of NixFleet v2.3.0.

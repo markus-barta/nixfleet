@@ -1559,138 +1559,68 @@ templ Base(title string, csrfToken string) {
 			}
 		}
 
-		/* Compartment Status Indicator (P5010) */
+		/* ═══════════════════════════════════════════════════════════════════════════
+		   COMPARTMENT STATUS INDICATOR (P7300 simplified)
+		   Single dot per compartment with 5 color states:
+		   - gray: not checked / no data
+		   - blue pulse: working / in progress
+		   - green: ok / current
+		   - yellow: warning / outdated
+		   - red: error / failed
+		   ═══════════════════════════════════════════════════════════════════════════ */
 		.compartment-indicator {
 			position: absolute;
 			bottom: 4px;
-			right: 3px;
-			width: 4px;
-			height: 4px;
-			border-radius: 50%;
-			pointer-events: none;
-		}
-
-		/* OK state (green) - 3D gradient */
-		.compartment-indicator--ok {
-			background: linear-gradient(to bottom,
-					hsl(142, 71%, 55%),
-					hsl(142, 71%, 35%));
-			box-shadow: 0 0 1px hsla(142, 71%, 45%, 0.5);
-		}
-
-		/* Warning/outdated state (yellow) - 3D gradient + pulse */
-		.compartment-indicator--warning {
-			background: linear-gradient(to bottom,
-					hsl(45, 90%, 60%),
-					hsl(45, 90%, 40%));
-			box-shadow: 0 0 1px hsla(45, 90%, 50%, 0.5);
-			animation: indicator-pulse 2s ease-in-out infinite;
-		}
-
-		/* Error state (red) - 3D gradient + pulse */
-		.compartment-indicator--error {
-			background: linear-gradient(to bottom,
-					hsl(0, 70%, 60%),
-					hsl(0, 70%, 40%));
-			box-shadow: 0 0 1px hsla(0, 70%, 50%, 0.5);
-			animation: indicator-pulse 2s ease-in-out infinite;
-		}
-
-		/* Unknown state (gray) - subtle */
-		.compartment-indicator--unknown {
-			background: linear-gradient(to bottom,
-					hsl(220, 10%, 50%),
-					hsl(220, 10%, 35%));
-			box-shadow: 0 0 1px hsla(220, 10%, 40%, 0.3);
-			opacity: 0.6;
-		}
-
-		/* P7300: 3-dot layout spanning full compartment width */
-		.compartment-dots {
-			position: absolute;
-			bottom: 3px;
-			left: 4px;
 			right: 4px;
-			display: flex;
-			justify-content: space-between;  /* Dots at left, center, right */
+			width: 6px;
+			height: 6px;
+			border-radius: 50%;
 			pointer-events: none;
 		}
 
-		.compartment-dots .dot {
-			width: 4px;
-			height: 4px;
-			border-radius: 50%;
-			background: hsl(220, 10%, 45%);  /* Slightly brighter gray */
-			opacity: 0.6;
-		}
-
-		/* Dot states - idle (dots 1 & 2 stay dim) */
-		.compartment-dots .dot-1,
-		.compartment-dots .dot-2 {
+		/* Gray: Not checked / no data / offline */
+		.compartment-indicator--gray,
+		.compartment-indicator--unknown {
 			background: hsl(220, 10%, 45%);
+			opacity: 0.5;
 		}
 
-		/* Dot 3 = status indicator - MUST override base .dot styles */
-		.compartment-dots .dot-3 {
-			position: relative;
-			width: 5px;
-			height: 5px;
-			opacity: 1;  /* Always fully visible */
+		/* Blue pulse: Working / in progress */
+		.compartment-indicator--working {
+			background: hsl(210, 90%, 55%);
+			box-shadow: 0 0 4px hsla(210, 90%, 55%, 0.8);
+			animation: working-pulse 1.2s ease-in-out infinite;
 		}
 
-		/* Status colors for dot-3 (high specificity to override .dot) */
-		.compartment-dots .dot-3.compartment-indicator--ok {
-			background: linear-gradient(to bottom,
-					hsl(142, 71%, 55%),
-					hsl(142, 71%, 35%)) !important;
-			box-shadow: 0 0 2px hsla(142, 71%, 45%, 0.6);
+		@keyframes working-pulse {
+			0%, 100% {
+				opacity: 0.5;
+				transform: scale(0.9);
+			}
+			50% {
+				opacity: 1;
+				transform: scale(1.1);
+			}
 		}
 
-		.compartment-dots .dot-3.compartment-indicator--warning {
-			background: linear-gradient(to bottom,
-					hsl(45, 90%, 60%),
-					hsl(45, 90%, 40%)) !important;
-			box-shadow: 0 0 2px hsla(45, 90%, 50%, 0.6);
-			animation: indicator-pulse 2s ease-in-out infinite;
+		/* Green: OK / current / up-to-date */
+		.compartment-indicator--ok {
+			background: hsl(142, 71%, 45%);
+			box-shadow: 0 0 3px hsla(142, 71%, 45%, 0.6);
 		}
 
-		.compartment-dots .dot-3.compartment-indicator--error {
-			background: linear-gradient(to bottom,
-					hsl(0, 70%, 60%),
-					hsl(0, 70%, 40%)) !important;
-			box-shadow: 0 0 2px hsla(0, 70%, 50%, 0.6);
-			animation: indicator-pulse 2s ease-in-out infinite;
+		/* Yellow: Warning / outdated but not critical */
+		.compartment-indicator--warning {
+			background: hsl(45, 90%, 50%);
+			box-shadow: 0 0 3px hsla(45, 90%, 50%, 0.6);
 		}
 
-		.compartment-dots .dot-3.compartment-indicator--unknown {
-			background: linear-gradient(to bottom,
-					hsl(220, 10%, 50%),
-					hsl(220, 10%, 35%)) !important;
-			opacity: 0.6;
+		/* Red: Error / failed / critical */
+		.compartment-indicator--error {
+			background: hsl(0, 70%, 55%);
+			box-shadow: 0 0 3px hsla(0, 70%, 55%, 0.6);
 		}
 
-		/* Active states for dots during operations */
-		.compartment-dots .dot.dot-active {
-			opacity: 1;
-			background: linear-gradient(to bottom,
-					hsl(45, 90%, 60%),
-					hsl(45, 90%, 40%));
-			animation: indicator-pulse 1s ease-in-out infinite;
-		}
-
-		.compartment-dots .dot.dot-complete {
-			opacity: 1;
-			background: linear-gradient(to bottom,
-					hsl(142, 71%, 55%),
-					hsl(142, 71%, 35%));
-		}
-
-		.compartment-dots .dot.dot-error {
-			opacity: 1;
-			background: linear-gradient(to bottom,
-					hsl(0, 70%, 60%),
-					hsl(0, 70%, 40%));
-		}
 
 		/* Action Dropdown (P4380) */
 		.action-buttons {
