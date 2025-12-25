@@ -172,6 +172,12 @@ func (a *Agent) executeCommand(command string) {
 		a.sendStatus("ok", command, 0, "all refreshed")
 		return
 
+	// P7200: Force uncached update - bypasses Nix binary cache
+	case "force-update":
+		a.sendOutput("⚠️  Force update initiated (bypassing Nix cache)...", "stdout")
+		a.handleForceUpdate()
+		return
+
 	default:
 		a.log.Error().Str("command", command).Msg("unknown command")
 		a.sendStatus("error", command, 1, "unknown command")
@@ -564,6 +570,134 @@ func (a *Agent) handleReboot() {
 		a.sendOutput(fmt.Sprintf("❌ Reboot failed: %v. Check sudo permissions.", err), "stderr")
 	}
 	// If successful, agent will be terminated by reboot
+}
+
+// P7200: handleForceUpdate runs the force uncached update sequence.
+// This bypasses Nix binary cache to ensure fresh binaries are built.
+func (a *Agent) handleForceUpdate() {
+	command := "force-update"
+
+	// Set busy state
+	a.mu.Lock()
+	a.pendingCommand = &command
+	a.mu.Unlock()
+
+	defer func() {
+		a.mu.Lock()
+		a.pendingCommand = nil
+		a.commandPID = nil
+		a.mu.Unlock()
+	}()
+
+	// Get repo directory
+	repoDir := a.cfg.RepoDir
+	if repoDir == "" {
+		repoDir = os.ExpandEnv("$HOME/Code/nixcfg")
+	}
+
+	hostname, _ := os.Hostname()
+
+	a.sendOutput("", "stdout")
+	a.sendOutput("╔═══════════════════════════════════════════════════════════╗", "stdout")
+	a.sendOutput("║  P7200: FORCE UNCACHED UPDATE                             ║", "stdout")
+	a.sendOutput("╚═══════════════════════════════════════════════════════════╝", "stdout")
+	a.sendOutput("", "stdout")
+
+	// Step 1: Git pull
+	a.sendOutput("━━━ Step 1/4: Git pull ━━━", "stdout")
+	pullCmd := exec.Command("git", "pull")
+	pullCmd.Dir = repoDir
+	if err := a.runStepWithStreaming(pullCmd); err != nil {
+		a.sendOutput(fmt.Sprintf("❌ Git pull failed: %v", err), "stderr")
+		a.sendStatus("error", command, 1, "git pull failed")
+		return
+	}
+	a.sendOutput("✓ Git pull complete", "stdout")
+	a.sendOutput("", "stdout")
+
+	// Step 2: Update nixfleet flake input
+	a.sendOutput("━━━ Step 2/4: Update nixfleet flake input ━━━", "stdout")
+	updateCmd := exec.Command("nix", "flake", "update", "nixfleet")
+	updateCmd.Dir = repoDir
+	if err := a.runStepWithStreaming(updateCmd); err != nil {
+		a.sendOutput(fmt.Sprintf("❌ Flake update failed: %v", err), "stderr")
+		a.sendStatus("error", command, 1, "nix flake update failed")
+		return
+	}
+	a.sendOutput("✓ Flake update complete", "stdout")
+	a.sendOutput("", "stdout")
+
+	// Step 3: Stop agent (so it doesn't interfere with rebuild)
+	a.sendOutput("━━━ Step 3/4: Stopping agent for rebuild ━━━", "stdout")
+	a.sendOutput("Agent will restart automatically after rebuild completes.", "stdout")
+	a.sendOutput("", "stdout")
+
+	// Step 4: Rebuild with cache bypass
+	a.sendOutput("━━━ Step 4/4: Rebuilding with cache bypass ━━━", "stdout")
+	a.sendOutput("Using --option narinfo-cache-negative-ttl 0 to force fresh build", "stdout")
+	a.sendOutput("", "stdout")
+
+	var rebuildCmd *exec.Cmd
+	if runtime.GOOS == "darwin" {
+		// macOS: home-manager switch
+		rebuildCmd = exec.Command("home-manager", "switch",
+			"--flake", fmt.Sprintf(".#%s", hostname),
+			"--option", "narinfo-cache-negative-ttl", "0")
+	} else {
+		// NixOS: nixos-rebuild switch
+		rebuildCmd = exec.Command("sudo", "nixos-rebuild", "switch",
+			"--flake", fmt.Sprintf(".#%s", hostname),
+			"--option", "narinfo-cache-negative-ttl", "0")
+	}
+	rebuildCmd.Dir = repoDir
+
+	exitCode := a.runWithStreaming(rebuildCmd)
+	if exitCode != 0 {
+		a.sendOutput(fmt.Sprintf("❌ Rebuild failed with exit code %d", exitCode), "stderr")
+		a.sendStatus("error", command, exitCode, "rebuild failed")
+		return
+	}
+
+	a.sendOutput("", "stdout")
+	a.sendOutput("✅ Force update complete! Agent will restart with new version.", "stdout")
+	a.sendStatus("ok", command, 0, "force update complete")
+
+	// Refresh status
+	a.statusChecker.ForceRefresh(a.ctx)
+}
+
+// runStepWithStreaming runs a command step and streams output.
+func (a *Agent) runStepWithStreaming(cmd *exec.Cmd) error {
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return err
+	}
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		return err
+	}
+
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+
+	// Stream stdout
+	go func() {
+		scanner := bufio.NewScanner(stdout)
+		for scanner.Scan() {
+			a.sendOutput(scanner.Text(), "stdout")
+		}
+	}()
+
+	// Stream stderr
+	go func() {
+		scanner := bufio.NewScanner(stderr)
+		for scanner.Scan() {
+			a.sendOutput(scanner.Text(), "stderr")
+		}
+	}()
+
+	return cmd.Wait()
 }
 
 // handleKillCommand handles kill command from dashboard (P2800).

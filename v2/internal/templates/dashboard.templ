@@ -4009,6 +4009,18 @@ templ ActionDropdown(host Host) {
 				<svg class="icon"><use href="#icon-power"></use></svg>
 				<span>Reboot Host</span>
 			</button>
+			<!-- P7200: Force Update Agent (when agent is outdated) -->
+			if host.AgentOutdated {
+				<button
+					type="button"
+					class="dropdown-item warning"
+					onclick={ sendCommandScript(host.ID, "force-update") }
+					disabled?={ !host.Online }
+				>
+					<svg class="icon"><use href="#icon-alert-triangle"></use></svg>
+					<span>Force Update Agent</span>
+				</button>
+			}
 			<hr class="dropdown-divider"/>
 			<!-- P2950: Color picker -->
 			<button
