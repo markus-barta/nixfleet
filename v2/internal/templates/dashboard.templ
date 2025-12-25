@@ -1011,9 +1011,9 @@ templ Dashboard(data DashboardData) {
 					if (indicator) {
 						indicator.className = 'compartment-indicator';
 						if (check && check.status) {
-							// Map status to CSS class (outdated → warning to match server-side)
+						// Map status to CSS class (outdated → warning to match server-side)
 							const cssStatus = check.status === 'outdated' ? 'warning' : check.status;
-							indicator.classList.add(`compartment-indicator--${cssStatus}`);
+						indicator.classList.add(`compartment-indicator--${cssStatus}`);
 						} else {
 							indicator.classList.add('compartment-indicator--unknown');
 						}
@@ -1021,7 +1021,7 @@ templ Dashboard(data DashboardData) {
 
 					// Lock-specific: agent outdated overrides indicator to error (red)
 					if (type === 'lock' && indicator && host.agentOutdated) {
-						indicator.className = 'compartment-indicator compartment-indicator--error';
+							indicator.className = 'compartment-indicator compartment-indicator--error';
 					}
 				});
 			}
