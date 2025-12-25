@@ -626,7 +626,9 @@ templ Base(title string, csrfToken string) {
 			background: currentColor;
 			border-radius: 50%;
 			opacity: 0;
-			/* No animation by default */
+			/* Use transform for GPU-accelerated animation (no layout recalc) */
+			will-change: transform, opacity;
+			transform: scale(1);
 		}
 
 		/* Animate only when .heartbeat class is present */
@@ -644,16 +646,12 @@ templ Base(title string, csrfToken string) {
 
 		@keyframes ripple-wave {
 			0% {
-				width: 8px;
-				height: 8px;
-				margin: -4px 0 0 -4px;
+				transform: scale(1);
 				opacity: 0.8;
 			}
 
 			100% {
-				width: 20px;
-				height: 20px;
-				margin: -10px 0 0 -10px;
+				transform: scale(2.5);
 				opacity: 0;
 			}
 		}
