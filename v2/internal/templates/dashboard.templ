@@ -2832,8 +2832,18 @@ templ Dashboard(data DashboardData) {
 					btn.classList.remove('rate-limited');
 				}, COOLDOWN_MS);
 
-				// P7300: Different behavior per compartment (Agent now has dedicated column)
+				// P7300: Different behavior per compartment
 				switch (compartment) {
+					case 'agent':
+						// Agent: show info toast with version details
+						const host = hostStore.get(hostId);
+						if (host) {
+							const agentInfo = host.agentVersion || 'unknown';
+							const status = host.agentOutdated ? '(outdated)' : '(current)';
+							showToast(`Agent: ${agentInfo} ${status}`, 'info');
+						}
+						break;
+
 					case 'git':
 						// Git: lightweight refresh (dashboard-side GitHub API call)
 						showLogPanel(hostId);
@@ -3899,6 +3909,27 @@ templ UpdateStatusCell(host Host) {
 		data-repo-url={ host.RepoURL }
 		data-repo-dir={ host.RepoDir }
 	>
+		<!-- Agent compartment (1st - trust first) with 3 dots -->
+		<button
+			type="button"
+			class={ agentCompartmentButtonClass(host) }
+			data-host-id={ host.ID }
+			data-hostname={ host.Hostname }
+			data-compartment="agent"
+			data-status={ getAgentStatus(host) }
+			data-action="info"
+			data-description={ agentContextDescription(host) }
+			onmouseenter="handleCompartmentHover(this)"
+			onmouseleave="handleCompartmentLeave()"
+			onclick="handleCompartmentClick(this)"
+		>
+			<svg class="update-icon"><use href="#icon-robot"></use></svg>
+			<span class="compartment-dots">
+				<span class="dot dot-1" data-dot="1"></span>
+				<span class="dot dot-2" data-dot="2"></span>
+				<span class={ "dot dot-3 " + agentIndicatorClass(host) } data-dot="3"></span>
+			</span>
+		</button>
 		<!-- Git compartment with 3 dots -->
 		<button
 			type="button"
