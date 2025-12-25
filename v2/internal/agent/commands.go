@@ -281,6 +281,10 @@ func (a *Agent) executeCommand(command string) {
 
 	a.sendStatus(status, command, exitCode, message)
 
+	// P7100: Send immediate heartbeat after command to push fresh status to dashboard
+	// This ensures the UI updates immediately instead of waiting up to 5s for next heartbeat
+	a.sendHeartbeat()
+
 	// Auto-restart after successful switch to pick up new binary
 	// Only on NixOS - macOS is handled by home-manager's launchctl bootout/bootstrap
 	if exitCode == 0 && (command == "switch" || command == "pull-switch") && runtime.GOOS != "darwin" {

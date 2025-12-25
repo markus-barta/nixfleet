@@ -3096,6 +3096,14 @@ templ Dashboard(data DashboardData) {
 					}
 				});
 			}, 1000);
+
+			// P7100: Safety net - refresh all online hosts every 5 minutes
+			// Ensures stale data is eventually corrected even if WebSocket messages are missed
+			setInterval(() => {
+				hostStore.all().filter(h => h.online).forEach(host => {
+					refreshHost(host.id);
+				});
+			}, 5 * 60 * 1000);
 		</script>
 	}
 }

@@ -42,6 +42,107 @@ NixFleet's core value proposition is remote fleet management. If the agent dies,
 
 No exceptions. No "it works most of the time." No manual intervention required.
 
+### Command Lifecycle & State Machine
+
+To ensure this promise, every operation follows a strict state machine with pre- and post-validation.
+
+#### Command Lifecycle State Machine
+
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    COMMAND LIFECYCLE STATE MACHINE                          │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│   ┌───────────────┐    ┌───────────────┐    ┌───────────────┐               │
+│   │  IDLE         │───▶│  VALIDATING   │───▶│  QUEUED       │               │
+│   │               │    │  (pre)        │    │               │               │
+│   └───────────────┘    └───────┬───────┘    └───────┬───────┘               │
+│          ▲                     │ fail               │                       │
+│          │              ┌──────▼──────┐             │                       │
+│          │              │  BLOCKED    │             │                       │
+│          │              │  (show why) │             ▼                       │
+│          │              └─────────────┘    ┌───────────────┐                │
+│          │                                 │  RUNNING      │                │
+│          │                                 │  + progress   │                │
+│          │                                 └───────┬───────┘                │
+│          │                                         │                        │
+│          │                                         ▼                        │
+│          │                                 ┌───────────────┐                │
+│          │                                 │  VALIDATING   │                │
+│          │                                 │  (post)       │                │
+│          │                                 └───────┬───────┘                │
+│          │                                         │                        │
+│          │         ┌───────────────────────────────┼───────────────┐        │
+│          │         ▼                               ▼               ▼        │
+│   ┌──────┴────────────┐                ┌───────────────┐  ┌─────────────┐   │
+│   │  SUCCESS          │                │  PARTIAL      │  │  FAILED     │   │
+│   │  (goal achieved)  │                │  (exit 0 but  │  │  (exit ≠ 0) │   │
+│   └───────────────────┘                │  goal not met)│  └─────────────┘   │
+│                                        └───────────────┘                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+#### The Switch Lifecycle (Reconnection-Based)
+
+For `switch` commands, completion is signaled by the agent reconnecting with a fresh binary, rather than a message (as the agent must die to restart).
+
+```text
+┌───────────┐   ┌─────────┐   ┌─────────┐   ┌───────────────────┐   ┌─────────────┐
+│ VALIDATING│──▶│ QUEUED  │──▶│ RUNNING │──▶│ AWAITING_RECONNECT│──▶│ SUCCESS     │
+└───────────┘   └─────────┘   └─────────┘   │ (agent died)      │   │ (fresh bin) │
+                                            └─────────┬─────────┘   └─────────────┘
+                                                      │             ┌─────────────┐
+                                                      └────────────▶│ STALE_BINARY│
+                                                                    │ (old bin)   │
+                                                                    └─────────────┘
+```
+
+### 3-Layer Binary Freshness Detection
+
+To prevent the "silent failure" where a switch succeeds but the agent continues running an old binary (due to Nix cache issues), the dashboard performs a paranoid 3-layer check on reconnection:
+
+| Layer            | Method                         | Detection Goal                      |
+| ---------------- | ------------------------------ | ----------------------------------- |
+| 1. Source Commit | LDFlags injected at build time | Did the source code change?         |
+| 2. Store Path    | Resolved `/proc/self/exe`      | Did the Nix store path change?      |
+| 3. Binary Hash   | SHA256 of the running binary   | Did the actual bits on disk change? |
+
+**Verdict Logic:**
+
+- **FRESH**: Store Path or Binary Hash changed.
+- **STALE**: Nothing changed (Switch reported success but agent is identical).
+- **SUSPICIOUS**: Source Commit changed but Path/Hash didn't (possible build cache issue).
+
+### Timeout & Abort Escalation
+
+Commands have defined timeouts to prevent "forever-running" UI states.
+
+1.  **Warning Threshold**: Dashboard logs a warning that the command is taking longer than expected.
+2.  **Hard Timeout**: Dashboard enters `TIMEOUT_PENDING` state.
+3.  **User Options**:
+    - **Wait**: Extend the timeout (e.g., +5m or +30m).
+    - **Kill**: Send SIGTERM to the agent (escalates to SIGKILL).
+    - **Ignore**: Mark as ignored and return to IDLE.
+    - **Reboot (Nuclear)**: If Kill fails, offer host reboot (requires TOTP).
+
+### Verbose Logging Principles
+
+To ensure every state transition is transparent and auditable, the system follows a "No Silent Transitions" policy:
+
+- **WHAT happened**: The state change or validation result.
+- **WHY it happened**: The specific condition or error that triggered it.
+- **WHAT'S NEXT**: Expected next step or required user action.
+
+---
+
+### Reboot Integration (P6900)
+
+Forced reboots are integrated into the command state machine as a "nuclear option" for stuck hosts.
+
+1.  **Abortion Logic**: If a reboot is triggered while a command is running, the command is transitioned to `ABORTED_BY_REBOOT` and the pre-state snapshot is cleared.
+2.  **Post-Reboot Recovery**: Upon reconnection after a reboot, the dashboard detects the aborted state and logs a warning to the user, suggesting manual verification.
+3.  **No Auto-Retry**: The system explicitly does **not** auto-retry aborted commands after recovery to ensure safety and prevent reboot loops.
+
 ### Why This Matters
 
 We have repeatedly "fixed" agent issues across the fleet, only to discover they weren't actually fixed. This has happened 10+ times. Each time:

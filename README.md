@@ -54,41 +54,45 @@ We take security seriously. Your fleet is your infrastructure, after all!
 - **CSRF Protection**: All forms are protected against cross-site request forgery
 - **Rate Limiting**: Brute-force protection on login and registration endpoints
 
-## How It Works
+### How It Works
+
+NixFleet uses a robust command state machine to ensure every operation is validated and verified.
 
 ```text
-┌─────────────────────────────────────────────────────────────────────────┐
-│                         NIXFLEET DASHBOARD                              │
-│                       (Go + templ + htmx)                               │
-│                     https://fleet.example.com                           │
-│                                                                         │
-│  ┌──────────────────────────────────────────────────────────────────┐   │
-│  │  Fleet Target: abc1234 (main) - Agent v2.1.0                     │   │
-│  ├──────────────────────────────────────────────────────────────────┤   │
-│  │  HOST           │ STATUS │ UPDATE      │ ACTIONS                 │   │
-│  │  ──────────────────────────────────────────────────────────────  │   │
-│  │  web-server     │ Online │ [G][L][S]   │ [Pull] [Switch] [Test]  │   │
-│  │  home-nas       │ Online │ [G][L][S]   │ [Pull] [Switch] [Test]  │   │
-│  │  macbook-pro    │ Online │ [G][L][S][A]│ [Pull] [Switch] [Test]  │   │
-│  └──────────────────────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────────────────┘
-                                 │ WebSocket
-       ┌────────────┬────────────┼────────────┬────────────┬────────────┐
-       │            │            │            │            │            │
-       ▼            ▼            ▼            ▼            ▼            ▼
-  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐     ...
-  │  NixOS   │ │  NixOS   │ │  macOS   │ │ NixOS.   │ │  NixOS   │
-  │  Server  │ │  Desktop │ │  Laptop  │ │ Gaming   │ │  NAS     │
-  │          │ │          │ │          │ │ PC       │ │          │
-  │ Agent    │ │ Agent    │ │ Agent    │ │ Agent    │ │ Agent    │
-  │ (Go)     │ │ (Go)     │ │ (Go)     │ │ (Go)     │ │ (Go)     │
-  │          │ │          │ │          │ │          │ │          │
-  │ nixos-   │ │ nixos-   │ │ home-    │ │ nixos-   │ │ nixos-   │
-  │ rebuild  │ │ rebuild  │ │ manager  │ │ rebuild  │ │ rebuild  │
-  └──────────┘ └──────────┘ └──────────┘ └──────────┘ └──────────┘
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    COMMAND LIFECYCLE STATE MACHINE                          │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│   ┌───────────────┐    ┌───────────────┐    ┌───────────────┐               │
+│   │  IDLE         │───▶│  VALIDATING   │───▶│  QUEUED       │               │
+│   │               │    │  (pre)        │    │               │               │
+│   └───────────────┘    └───────┬───────┘    └───────┬───────┘               │
+│          ▲                     │ fail               │                       │
+│          │              ┌──────▼──────┐             │                       │
+│          │              │  BLOCKED    │             │                       │
+│          │              │  (show why) │             ▼                       │
+│          │              └─────────────┘     ┌───────────────┐               │
+│          │                                  │  RUNNING      │               │
+│          │                                  │  + progress   │               │
+│          │                                  └───────┬───────┘               │
+│          │                                          │                       │
+│          │                                          ▼                       │
+│          │                                  ┌───────────────┐               │
+│          │                                  │  VALIDATING   │               │
+│          │                                  │  (post)       │               │
+│          │                                  └───────┬───────┘               │
+│          │                                          │                       │
+│          │         ┌────────────────────────────────┼─────────────┐         │
+│          │         ▼                                ▼             ▼         │
+│   ┌──────┴────────────┐                ┌────────────────┐  ┌─────────────┐  │
+│   │  SUCCESS          │                │  PARTIAL       │  │  FAILED     │  │
+│   │  (goal achieved)  │                │  (exit 0 but   │  │  (exit ≠ 0) │  │
+│   └───────────────────┘                │  goal not met) │  └─────────────┘  │
+│                                        └────────────────┘                   │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Understanding the Status Indicators
+#### Understanding the Status Indicators
 
 The dashboard shows a compact status for each host using letter codes. Here's what they mean:
 

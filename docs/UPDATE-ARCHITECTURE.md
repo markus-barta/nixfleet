@@ -38,47 +38,76 @@ The challenge: These components have **dependencies** and must be updated in the
 │                                    │                                        │
 │                                    ▼                                        │
 │  ┌────────────────────────────────────────────────────────────────────┐     │
-│  │  STEP 2: Pull (git fetch + reset)                                  │     │
+│  │  STEP 2: Pull (State: IDLE → VALIDATING → QUEUED → RUNNING)        │     │
 │  │                                                                    │     │
 │  │  Where: Each host's isolated repo                                  │     │
 │  │  Command: git fetch && git reset --hard origin/main                │     │
 │  │  Result: Host has latest nixcfg code + flake.lock                  │     │
-│  │                                                                    │     │
-│  │  UI: Click "Pull" button per host OR "Pull All"                    │     │
+│  │  Post-Check: Verify git status is now "ok"                         │     │
 │  └────────────────────────────────────────────────────────────────────┘     │
 │                                    │                                        │
 │                                    ▼                                        │
 │  ┌────────────────────────────────────────────────────────────────────┐     │
-│  │  STEP 3: Switch (rebuild system)                                   │     │
+│  │  STEP 3: Switch (State: IDLE → VALIDATING → QUEUED → RUNNING)      │     │
 │  │                                                                    │     │
 │  │  Where: Each host                                                  │     │
 │  │  Command: nixos-rebuild switch OR home-manager switch              │     │
-│  │  Result: New system generation, new agent binary installed         │     │
-│  │                                                                    │     │
-│  │  UI: Click "Switch" button per host OR "Switch All"                │     │
+│  │  Result: New system generation, switch exit code 0                 │     │
 │  └────────────────────────────────────────────────────────────────────┘     │
 │                                    │                                        │
 │                                    ▼                                        │
 │  ┌────────────────────────────────────────────────────────────────────┐     │
-│  │  STEP 4: Agent Restart (pick up new binary)                        │     │
+│  │  STEP 4: Agent Restart (State: RUNNING → AWAITING_RECONNECT)       │     │
 │  │                                                                    │     │
 │  │  NixOS: Agent exits with code 101 → systemd restarts with new bin  │     │
-│  │  macOS: Requires launchctl kickstart or activation hook            │     │
+│  │  macOS: Agent detaches switch → launchd restarts with new binary   │     │
 │  │                                                                    │     │
-│  │  Result: Agent running NEW binary, reports NEW version             │     │
+│  │  Result: Agent disconnected, Dashboard waits for reconnection      │     │
 │  └────────────────────────────────────────────────────────────────────┘     │
 │                                    │                                        │
 │                                    ▼                                        │
 │  ┌────────────────────────────────────────────────────────────────────┐     │
-│  │  STEP 5: Verify (confirm update succeeded)                         │     │
+│  │  STEP 5: Verify (State: AWAITING_RECONNECT → SUCCESS/STALE)        │     │
 │  │                                                                    │     │
-│  │  Check: Agent version matches dashboard version                    │     │
-│  │  Check: Generation matches latest commit                           │     │
-│  │  Check: All three compartments green                               │     │
+│  │  Verification: 3-layer freshness (Commit, Path, Hash)              │     │
+│  │  Post-Check: Confirm system status = "ok"                          │     │
+│  │  Final: Goal achieved, host returns to IDLE                        │     │
 │  └────────────────────────────────────────────────────────────────────┘     │
 │                                                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
+
+---
+
+### Agent Lifecycle Integration
+
+NixFleet agents self-restart after a successful switch to pick up the new binary.
+
+#### NixOS (systemd)
+
+The agent module configures systemd to restart on exit code `101`:
+
+```nix
+systemd.services.nixfleet-agent = {
+  restartIfChanged = false;  # Don't restart DURING switch
+  serviceConfig = {
+    Restart = "always";
+    RestartForceExitStatus = "101";
+  };
+};
+```
+
+#### macOS (launchd)
+
+The agent detaches the switch process using `Setsid: true` to survive the agent's own death during the `home-manager` activation (which may reload the agent's plist).
+
+#### 3-Layer Binary Freshness Detection
+
+To ensure the restart actually loaded a new binary, the dashboard verifies:
+
+1. **Source Commit**: LDFlags injected at build.
+2. **Store Path**: Resolved `/proc/self/exe`.
+3. **Binary Hash**: SHA256 of the binary.
 
 ---
 

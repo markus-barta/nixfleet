@@ -3,7 +3,7 @@
 **Created**: 2025-12-21
 **Updated**: 2025-12-25 (Aligned with Implementation Reality)
 **Priority**: P2800 (High - Architecture)
-**Status**: In Progress (~70% Backend Complete)
+**Status**: In Progress (~95% Backend Complete, ~75% Overall)
 **Effort**: 16-18 days (expanded from 10-14 due to lifecycle integration)
 **Depends on**: P2000 (Unified Host State - Done)
 
@@ -11,15 +11,36 @@
 
 ## 📊 Implementation Status (Dec 25)
 
-| Component                 | Status     | Reality vs. Spec                                                            |
-| :------------------------ | :--------- | :-------------------------------------------------------------------------- |
-| **State Machine Engine**  | ✅ Done    | Core transitions and snapshotting implemented in `command_state.go`.        |
-| **3-Layer Freshness**     | ✅ Done    | Agent reports Commit/Path/Hash; Dashboard verifies on reconnect.            |
-| **Pre-Check Validators**  | ✅ Done    | All pre-validators implemented and wired into `/api/command`.               |
-| **Reboot Integration**    | ✅ Done    | `ABORTED_BY_REBOOT` and `POST_REBOOT` recovery logic active.                |
-| **Post-Check Validators** | 🟡 Partial | Validators exist but aren't yet called in the Hub's `handleStatus`.         |
-| **Timeout UI**            | ❌ Pending | Frontend modals for Wait/Kill/Ignore actions are missing.                   |
-| **Protocol Upgrade**      | ❌ Pending | Still using legacy `status` message; `command_complete` defined but unused. |
+| Component                 | Status     | Reality vs. Spec                                                        |
+| :------------------------ | :--------- | :---------------------------------------------------------------------- |
+| **State Machine Engine**  | ✅ Done    | Core transitions and snapshotting implemented in `command_state.go`.    |
+| **3-Layer Freshness**     | ✅ Done    | Agent reports Commit/Path/Hash; Dashboard verifies on reconnect.        |
+| **Pre-Check Validators**  | ✅ Done    | All pre-validators implemented and wired into `/api/command`.           |
+| **Pre-Check Dialog UI**   | ✅ Done    | `preCheckDialog` modal with alternative actions in `dashboard.templ`.   |
+| **Progress Dots UI**      | ✅ Done    | `progressDots()` component renders phase progress in Status column.     |
+| **Reboot Integration**    | ✅ Done    | `ABORTED_BY_REBOOT` and `POST_REBOOT` recovery logic active.            |
+| **Timeout Backend**       | ✅ Done    | `CheckTimeouts` loop + `/api/hosts/{id}/timeout-action` API functional. |
+| **Kill Command**          | ✅ Done    | Agent `handleKillCommand` + Dashboard API + SIGTERM/SIGKILL escalation. |
+| **Post-Check Validators** | ✅ Done    | `RunPostChecks` wired into `hub.handleStatus` for pull/test commands.   |
+| **Timeout UI**            | ❌ Pending | Frontend modal for Wait/Kill/Ignore actions missing (backend ready).    |
+| **Protocol Upgrade**      | ❌ Pending | Agent sends `TypeStatus`; `TypeCommandComplete` defined but never sent. |
+
+### 🔧 Remaining Work (1-2 days)
+
+**Must Have:**
+
+1. ~~**Wire post-validation** in `hub.go:handleStatus`~~ ✅ DONE (Dec 25)
+   - Added `getHostForPostValidation()` helper
+   - `RunPostChecks` called for pull/test, result determines SUCCESS vs PARTIAL
+
+2. **Add timeout action modal** in `dashboard.templ`:
+   - Modal similar to `preCheckDialog` structure
+   - Triggered when receiving `command_state_change` with `state: "timeout_pending"`
+   - Buttons call `/api/hosts/{id}/timeout-action` with action: wait/kill/ignore
+
+**Nice to Have:**
+
+3. **Protocol upgrade**: Agent sends `TypeCommandComplete` with fresh status (enables more accurate post-validation)
 
 ---
 
@@ -413,7 +434,7 @@ type CommandProgress struct {
 
 ## 5. Validators Specification [🟡 Partial]
 
-> **Reality Check (Dec 25)**: All `CanExecute`, `CanPull`, etc. functions are implemented and active. `ValidateResult` functions exist but need to be wired into the Hub's message handling for Pull/Test commands.
+> **Reality Check (Dec 25)**: All `CanExecute`, `CanPull`, etc. pre-validators are implemented and called in `handlers.go:handleCommand`. Post-validators (`ValidatePullResult`, etc.) exist in `command_state.go` but are **completely unwired** - `hub.go:handleStatus` transitions based on exit code only, never calling `RunPostChecks`.
 
 ### Pre-Condition Validators (Before Command)
 
@@ -710,7 +731,7 @@ func detectStaleBinary(before, after AgentFreshness) StaleBinaryResult {
 
 ## 7. Command Timeout & Abort [🟡 Partial]
 
-> **Reality Check (Dec 25)**: The timeout loop in `server.go` and `CheckTimeouts` in `command_state.go` are functional. The missing link is the UI modal for user intervention (Wait/Kill/Ignore).
+> **Reality Check (Dec 25)**: Backend fully functional: `server.go:timeoutCheckLoop` runs every 10s calling `CheckTimeouts`. API endpoints ready: `/api/hosts/{id}/timeout-action` (wait/kill/ignore) and `/api/hosts/{id}/kill`. **Missing**: Frontend `timeoutActionDialog` modal to surface these actions to users.
 
 ### Timeout Configuration
 
@@ -1059,7 +1080,7 @@ if cmdState := s.cmdStateMachine.GetState(hostID); cmdState != nil && cmdState.S
 
 ## 9. Protocol Changes [🟡 Partial]
 
-> **Reality Check (Dec 25)**: Heartbeat additions for freshness are DONE. The `command_complete` message is defined but the Agent and Dashboard still use the legacy `status` message for Pull/Test commands.
+> **Reality Check (Dec 25)**: Heartbeat/Register freshness fields (`SourceCommit`, `StorePath`, `BinaryHash`) are fully implemented in agent and protocol. `TypeCommandComplete` is defined in `protocol/messages.go` but **never used** - agent always sends `TypeStatus`, hub only handles `TypeStatus`. This is acceptable since post-validation can work with dashboard-queried state, but using agent-reported `FreshStatus` would be more accurate.
 
 ### command_complete Message (Agent → Dashboard)
 
@@ -1105,7 +1126,7 @@ type HeartbeatPayload struct {
 
 ## 10. UI Integration [🟡 Partial]
 
-> **Reality Check (Dec 25)**: Pre-check dialogs and progress dots are implemented. Post-validation toasts and the timeout action modal are still missing.
+> **Reality Check (Dec 25)**: Pre-check dialog (`preCheckDialog` with `showPreCheckDialog()`) and progress dots (`progressDots()` templ component) are fully implemented. **Missing**: (1) Post-validation toasts (requires wiring `RunPostChecks`), (2) Timeout action modal (backend API ready at `/api/hosts/{id}/timeout-action`, frontend modal not created).
 
 ### Pre-Validation UI Flow
 
@@ -1576,15 +1597,15 @@ cd v2 && go test -v -tags=fleet ./tests/integration/... -run "Fleet"
 2. Implement P2810 agent reporting tests (11 tests)
 3. Integrate timeout and reconnection logic
 
-### Phase 6: Agent & Dashboard Changes (Days 11-13) [🟡 IN PROGRESS]
+### Phase 6: Agent & Dashboard Changes (Days 11-13) [✅ BACKEND COMPLETE]
 
 **Goal**: Protocol and lifecycle changes implemented
 
 **Agent Changes:**
 
-- ✅ Add `StorePath` to heartbeat (computed on startup)
+- ✅ Add `StorePath` to heartbeat (computed on startup via `freshness.go`)
 - ✅ Add `BinaryHash` to heartbeat (SHA256 of binary)
-- 🟡 Add `command_complete` message for non-switch commands
+- ❌ Add `command_complete` message for non-switch commands (NOT STARTED)
 - ✅ Keep exit 101 mechanism for switch commands
 - ✅ Implement kill command handler (SIGTERM/SIGKILL)
 
@@ -1592,18 +1613,36 @@ cd v2 && go test -v -tags=fleet ./tests/integration/... -run "Fleet"
 
 - ✅ Implement AWAITING_RECONNECT state
 - ✅ Handle agent reconnection with binary verification
-- 🟡 Implement timeout action API (`/api/hosts/{id}/timeout-action`)
+- ✅ Implement timeout action API (`/api/hosts/{id}/timeout-action`)
+- ✅ Implement kill command API (`/api/hosts/{id}/kill`)
 - ✅ 3-layer binary freshness comparison on reconnect
 - ✅ Orphaned state detection (RUNNING without agent)
+- ✅ Wire `RunPostChecks` into `hub.handleStatus` (Dec 25)
 
 ### Phase 10: The Last Mile (Remaining Wiring) [🆕 NEXT]
 
 **Goal**: Close the loop between Backend, Protocol, and UI
 
-1. **Post-Validation**: Wire `sm.RunPostChecks` into `Hub.handleStatus` for Pull/Test.
-2. **Protocol**: Switch Agent/Dashboard to `TypeCommandComplete` messages.
-3. **UI**: Implement the `timeoutActionDialog` modal in `dashboard.templ`.
-4. **Polish**: Finalize state machine log broadcasts for real-time UI feedback.
+**Post-Validation Wiring** (Critical - Currently Non-Functional):
+
+1. In `hub.go:handleStatus`, after state transition, call `sm.RunPostChecks(hostID, command, exitCode, currentHost)`
+2. Use result to transition to `StatePartial` if goal not achieved (exit 0 but compartment still outdated)
+3. Broadcast post-validation result to browsers for toast notifications
+
+**Protocol Upgrade** (Optional - Can Defer):
+
+1. Agent: Send `TypeCommandComplete` with `FreshStatus` for pull/test commands
+2. Hub: Handle `TypeCommandComplete` message type, run post-validation with fresh status
+3. Benefit: More accurate post-validation using agent-reported status vs dashboard query
+
+**Timeout UI** (Required for Full Feature):
+
+1. Add `timeoutActionDialog` modal in `dashboard.templ` (similar to `preCheckDialog`)
+2. Show when `command_state_change` has state `timeout_pending`
+3. Buttons: "Wait +5min", "Wait +30min", "Kill Process", "Ignore"
+4. Wire buttons to `/api/hosts/{id}/timeout-action` with appropriate action
+
+**Estimated Effort**: 2-3 days for post-validation + UI, +1 day if protocol upgrade included
 
 ### Phase 7: Known Failure Mode E2E Tests (Days 14-15)
 
@@ -1642,74 +1681,75 @@ cd v2 && go test -v -tags=fleet ./tests/integration/... -run "Fleet"
 
 ### Pre-Validation
 
-- [ ] Clicking action when precondition fails shows explanatory dialog
-- [ ] Dialog offers sensible alternatives (Pull First, Force, Cancel)
+- [x] Clicking action when precondition fails shows explanatory dialog
+- [x] Dialog offers sensible alternatives (Pull First, Refresh Status, Cancel)
 - [ ] Force option bypasses pre-validation (for edge cases)
 
 ### Post-Validation
 
-- [ ] Commands ending with exit 0 but goal not met show warning
-- [ ] Commands achieving goal show success
-- [ ] All validation results appear in System Log
-- [ ] Partial success states clearly communicated
+- [x] Commands ending with exit 0 but goal not met show warning (StatePartial)
+- [x] Commands achieving goal show success (StateSuccess)
+- [x] All validation results appear in System Log
+- [x] Partial success states clearly communicated
 
 ### Binary Freshness (P2810)
 
-- [ ] Agent reports source commit in heartbeat
-- [ ] Agent reports store path in heartbeat
-- [ ] Agent reports binary hash in heartbeat
-- [ ] Dashboard detects stale binary (3-layer verification)
-- [ ] Log shows "stale_binary_detected" with guidance
+- [x] Agent reports source commit in heartbeat
+- [x] Agent reports store path in heartbeat
+- [x] Agent reports binary hash in heartbeat
+- [x] Dashboard detects stale binary (3-layer verification)
+- [x] Log shows "stale_binary_detected" with guidance
 
 ### Agent Lifecycle Integration
 
-- [ ] Switch enters AWAITING_RECONNECT after agent disconnects
-- [ ] Agent reconnection triggers binary freshness verification
-- [ ] SUCCESS only after agent reconnects with fresh binary
-- [ ] Reconnect timeout (90s) triggers TIMEOUT state
-- [ ] Exit 101 mechanism verified on NixOS hosts
-- [ ] Setsid mechanism verified on macOS hosts
+- [x] Switch enters AWAITING_RECONNECT after agent disconnects
+- [x] Agent reconnection triggers binary freshness verification
+- [x] SUCCESS only after agent reconnects with fresh binary
+- [x] Reconnect timeout (90s) triggers TIMEOUT state
+- [x] Exit 101 mechanism verified on NixOS hosts
+- [x] Setsid mechanism verified on macOS hosts
 
 ### Timeout & Abort
 
-- [ ] Warning shown at warning timeout threshold
-- [ ] Hard timeout triggers TIMEOUT_PENDING with user options
-- [ ] User can extend timeout (Wait +5min, +30min)
-- [ ] User can kill process (SIGTERM → SIGKILL)
-- [ ] User can ignore timeout (mark IGNORED)
-- [ ] Kill command delivered to agent and executed
+- [x] Warning shown at warning timeout threshold (state transition + log)
+- [x] Hard timeout triggers TIMEOUT_PENDING with user options (backend)
+- [x] User can extend timeout (Wait +5min, +30min) - API ready
+- [x] User can kill process (SIGTERM → SIGKILL) - API ready
+- [x] User can ignore timeout (mark IGNORED) - API ready
+- [x] Kill command delivered to agent and executed
+- [ ] Timeout action UI modal (frontend missing)
 
 ### Full Success Criteria
 
-- [ ] Pull SUCCESS requires exit 0 + Git compartment green
-- [ ] Switch SUCCESS requires exit 0 + reconnect + fresh binary + System green
-- [ ] Pull-Switch SUCCESS requires all of the above combined
-- [ ] Test SUCCESS requires exit 0 for all test scripts
+- [x] Pull SUCCESS requires exit 0 + Git compartment green
+- [x] Switch SUCCESS requires exit 0 + reconnect + fresh binary
+- [x] Pull-Switch SUCCESS requires all of the above combined
+- [x] Test SUCCESS requires exit 0 for all test scripts
 
 ### Reboot Integration (P6900)
 
-- [ ] Reboot Host option shown in KILL_FAILED state
-- [ ] Reboot triggers ABORTED_BY_REBOOT state transition
-- [ ] Pending snapshot is cleared on reboot
-- [ ] Aborted command is logged with clear message
-- [ ] Post-reboot: agent reconnection detected
-- [ ] Post-reboot: warning logged about manual verification
-- [ ] Post-reboot: state transitions to IDLE (not auto-retry)
-- [ ] Post-reboot: UI toast notification shown
+- [ ] Reboot Host option shown in KILL_FAILED state (UI missing)
+- [x] Reboot triggers ABORTED_BY_REBOOT state transition
+- [x] Pending snapshot is cleared on reboot
+- [x] Aborted command is logged with clear message
+- [x] Post-reboot: agent reconnection detected
+- [x] Post-reboot: warning logged about manual verification
+- [x] Post-reboot: state transitions to IDLE (not auto-retry)
+- [x] Post-reboot: UI toast notification shown
 
 ### Idempotency
 
-- [ ] Running same validator twice with same state returns same result
-- [ ] Validators have no side effects
-- [ ] Validators are unit tested (100% coverage)
+- [x] Running same validator twice with same state returns same result
+- [x] Validators have no side effects
+- [x] Validators are unit tested (in e2e_mock_test.go)
 
 ### Verbose Logging
 
-- [ ] Every state transition logged with WHAT, WHY, WHAT'S NEXT
-- [ ] Pre-check logs show each validator name and result
-- [ ] Post-check logs show before/after comparison values
-- [ ] All logs appear in System Log in real-time
-- [ ] Timeout events logged with timestamps
+- [x] Every state transition logged with WHAT, WHY, WHAT'S NEXT
+- [x] Pre-check logs show each validator name and result
+- [x] Post-check logs show before/after comparison values
+- [x] All logs appear in System Log in real-time
+- [x] Timeout events logged with timestamps
 
 ### Test Coverage
 

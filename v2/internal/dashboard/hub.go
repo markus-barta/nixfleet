@@ -12,6 +12,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/markus-barta/nixfleet/v2/internal/protocol"
+	"github.com/markus-barta/nixfleet/v2/internal/templates"
 	"github.com/rs/zerolog"
 )
 
@@ -920,13 +921,26 @@ func (h *Hub) handleStatus(hostID string, payload protocol.StatusPayload) {
 			h.cmdStateMachine.TransitionTo(hostID, StateFailed,
 				fmt.Sprintf("Switch failed with exit code %d", payload.ExitCode))
 		} else {
-			// Non-switch commands (pull, test): transition based on exit code
-			if payload.ExitCode == 0 {
-				h.cmdStateMachine.TransitionTo(hostID, StateSuccess,
-					fmt.Sprintf("%s completed successfully", payload.Command))
+			// Non-switch commands (pull, test): run post-validation
+			if host := h.getHostForPostValidation(hostID); host != nil {
+				postResult := h.cmdStateMachine.RunPostChecks(hostID, payload.Command, payload.ExitCode, host)
+				if postResult.Valid {
+					h.cmdStateMachine.TransitionTo(hostID, StateSuccess, postResult.Message)
+				} else if payload.ExitCode == 0 {
+					// Exit 0 but goal not achieved = partial success
+					h.cmdStateMachine.TransitionTo(hostID, StatePartial, postResult.Message)
+				} else {
+					h.cmdStateMachine.TransitionTo(hostID, StateFailed, postResult.Message)
+				}
 			} else {
-				h.cmdStateMachine.TransitionTo(hostID, StateFailed,
-					fmt.Sprintf("%s failed with exit code %d", payload.Command, payload.ExitCode))
+				// Fallback: no host data, just use exit code
+				if payload.ExitCode == 0 {
+					h.cmdStateMachine.TransitionTo(hostID, StateSuccess,
+						fmt.Sprintf("%s completed successfully", payload.Command))
+				} else {
+					h.cmdStateMachine.TransitionTo(hostID, StateFailed,
+						fmt.Sprintf("%s failed with exit code %d", payload.Command, payload.ExitCode))
+				}
 			}
 		}
 	}
@@ -958,6 +972,56 @@ func (h *Hub) handleStatus(hostID string, payload protocol.StatusPayload) {
 		h.versionFetcher.ForceRefresh()
 	}
 	h.BroadcastHostStatus(hostID)
+}
+
+// getHostForPostValidation queries the database for current host state.
+// Used by post-validation to compare before/after snapshots.
+func (h *Hub) getHostForPostValidation(hostID string) *templates.Host {
+	var generation, agentVersion, lockJSON, systemJSON sql.NullString
+
+	err := h.db.QueryRow(`
+		SELECT generation, agent_version, lock_status_json, system_status_json
+		FROM hosts WHERE hostname = ?
+	`, hostID).Scan(&generation, &agentVersion, &lockJSON, &systemJSON)
+	if err != nil {
+		h.log.Debug().Err(err).Str("host", hostID).Msg("failed to get host for post-validation")
+		return nil
+	}
+
+	host := &templates.Host{
+		ID:       hostID,
+		Hostname: hostID,
+	}
+	if generation.Valid {
+		host.Generation = generation.String
+	}
+	if agentVersion.Valid {
+		host.AgentVersion = agentVersion.String
+	}
+
+	// Parse status JSON
+	var lockStatus, systemStatus templates.StatusCheck
+	if lockJSON.Valid {
+		_ = json.Unmarshal([]byte(lockJSON.String), &lockStatus)
+	}
+	if systemJSON.Valid {
+		_ = json.Unmarshal([]byte(systemJSON.String), &systemStatus)
+	}
+
+	// Get git status from version fetcher
+	var gitStatus templates.StatusCheck
+	if h.versionFetcher != nil {
+		status, msg, checked := h.versionFetcher.GetGitStatus(host.Generation)
+		gitStatus = templates.StatusCheck{Status: status, Message: msg, CheckedAt: checked}
+	}
+
+	host.UpdateStatus = &templates.UpdateStatus{
+		Git:    gitStatus,
+		Lock:   lockStatus,
+		System: systemStatus,
+	}
+
+	return host
 }
 
 // GetAgent returns the agent client for a given host ID.
