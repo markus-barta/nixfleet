@@ -9,7 +9,7 @@ import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
 // Login renders the login page
-func Login(errorMsg string) templ.Component {
+func Login(errorMsg string, version string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -42,30 +42,53 @@ func Login(errorMsg string) templ.Component {
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div style=\"display: flex; justify-content: center; align-items: center; min-height: 80vh;\"><div style=\"width: 100%; max-width: 360px;\"><div style=\"text-align: center; margin-bottom: 2rem;\"><h1 style=\"color: var(--blue); font-size: 2rem; margin-bottom: 0.5rem;\">NixFleet</h1><p style=\"color: var(--fg-dark);\">Fleet Management Dashboard</p></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div style=\"display: flex; justify-content: center; align-items: center; min-height: 80vh;\"><div style=\"width: 100%; max-width: 360px;\"><div style=\"text-align: center; margin-bottom: 2rem;\"><h1 style=\"color: var(--blue); font-size: 2rem; margin-bottom: 0.5rem;\">NixFleet</h1><p style=\"color: var(--fg-dark);\">Fleet Management Dashboard</p>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			if errorMsg != "" {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<div style=\"background: rgba(247, 118, 142, 0.15); border: 1px solid var(--red); color: var(--red); padding: 0.75rem 1rem; border-radius: 6px; margin-bottom: 1rem; font-size: 0.9rem;\">")
+			if version != "" {
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<p style=\"color: var(--fg-darker); font-size: 0.75rem; margin-top: 0.5rem;\">v")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var3 string
-				templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(errorMsg)
+				templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(version)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/login.templ`, Line: 15, Col: 16}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `v2/internal/templates/login.templ`, Line: 12, Col: 92}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</div>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</p>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<form method=\"POST\" action=\"/login\" style=\"background: var(--bg-float); border: 1px solid var(--border); border-radius: 8px; padding: 1.5rem;\"><div style=\"margin-bottom: 1rem;\"><label for=\"password\" style=\"display: block; color: var(--fg-dark); font-size: 0.85rem; margin-bottom: 0.5rem;\">Password</label> <input type=\"password\" id=\"password\" name=\"password\" required autofocus style=\"width: 100%; padding: 0.75rem; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; color: var(--fg); font-family: inherit; font-size: 1rem;\" placeholder=\"Enter password\"></div><div style=\"margin-bottom: 1.5rem;\"><label for=\"totp\" style=\"display: block; color: var(--fg-dark); font-size: 0.85rem; margin-bottom: 0.5rem;\">TOTP Code (if enabled)</label> <input type=\"text\" id=\"totp\" name=\"totp\" autocomplete=\"one-time-code\" inputmode=\"numeric\" pattern=\"[0-9]*\" maxlength=\"6\" style=\"width: 100%; padding: 0.75rem; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; color: var(--fg); font-family: inherit; font-size: 1rem; letter-spacing: 0.2em;\" placeholder=\"000000\"></div><button type=\"submit\" class=\"btn btn-primary\" style=\"width: 100%; justify-content: center; padding: 0.75rem; font-size: 1rem;\">Login</button></form></div></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "</div>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			if errorMsg != "" {
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<div style=\"background: rgba(247, 118, 142, 0.15); border: 1px solid var(--red); color: var(--red); padding: 0.75rem 1rem; border-radius: 6px; margin-bottom: 1rem; font-size: 0.9rem;\">")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				var templ_7745c5c3_Var4 string
+				templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(errorMsg)
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `v2/internal/templates/login.templ`, Line: 18, Col: 16}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "</div>")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<form method=\"POST\" action=\"/login\" style=\"background: var(--bg-float); border: 1px solid var(--border); border-radius: 8px; padding: 1.5rem;\"><div style=\"margin-bottom: 1rem;\"><label for=\"password\" style=\"display: block; color: var(--fg-dark); font-size: 0.85rem; margin-bottom: 0.5rem;\">Password</label> <input type=\"password\" id=\"password\" name=\"password\" required autofocus style=\"width: 100%; padding: 0.75rem; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; color: var(--fg); font-family: inherit; font-size: 1rem;\" placeholder=\"Enter password\"></div><div style=\"margin-bottom: 1.5rem;\"><label for=\"totp\" style=\"display: block; color: var(--fg-dark); font-size: 0.85rem; margin-bottom: 0.5rem;\">TOTP Code (if enabled)</label> <input type=\"text\" id=\"totp\" name=\"totp\" autocomplete=\"one-time-code\" inputmode=\"numeric\" pattern=\"[0-9]*\" maxlength=\"6\" style=\"width: 100%; padding: 0.75rem; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; color: var(--fg); font-family: inherit; font-size: 1rem; letter-spacing: 0.2em;\" placeholder=\"000000\"></div><button type=\"submit\" class=\"btn btn-primary\" style=\"width: 100%; justify-content: center; padding: 0.75rem; font-size: 1rem;\">Login</button></form></div></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

@@ -111,7 +111,7 @@ func (s *Server) handleLoginPage(w http.ResponseWriter, r *http.Request) {
 	errorMsg := r.URL.Query().Get("error")
 
 	w.Header().Set("Content-Type", "text/html")
-	_ = templates.Login(errorMsg).Render(context.Background(), w)
+	_ = templates.Login(errorMsg, Version).Render(context.Background(), w)
 }
 
 // handleLogin processes login form submission.
