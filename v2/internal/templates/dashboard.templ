@@ -985,7 +985,7 @@ templ Dashboard(data DashboardData) {
 			}
 
 			// Helper: Render update status compartments
-			// P5100: Simplified - compartment styling constant, only indicator dot shows status
+			// P7100: Fixed selector to match actual HTML structure (compartment-btn, not update-compartment)
 			function renderUpdateStatus(el, host) {
 				const container = el.querySelector('.update-status');
 				if (!container) return;
@@ -993,36 +993,35 @@ templ Dashboard(data DashboardData) {
 				const status = host.updateStatus;
 				if (!status) return;
 
-				const compartments = container.querySelectorAll('.update-compartment');
-
-				['git', 'lock', 'system'].forEach((type, i) => {
-					const comp = compartments[i];
-					if (!comp) return;
+				// Find compartment buttons by data-compartment attribute
+				['git', 'lock', 'system'].forEach((type) => {
+					const btn = container.querySelector(`[data-compartment="${type}"]`);
+					if (!btn) return;
 
 					const check = status[type];
 					
-					// P5100: Only add 'unknown' class for dimming, no other state classes
-					comp.className = 'update-compartment';
-					if (!check || !check.status || check.status === 'unknown') {
-						comp.classList.add('unknown');
-					}
+					// Update data-status attribute for CSS/hover
+					btn.dataset.status = check?.status || 'unknown';
+					
+					// Toggle unknown class for dimming
+					btn.classList.toggle('unknown', !check || !check.status || check.status === 'unknown');
 
 					// Update indicator dot - this is the ONLY status signal
-					const indicator = comp.querySelector('.compartment-indicator');
-					if (indicator && check) {
+					const indicator = btn.querySelector('.compartment-indicator');
+					if (indicator) {
 						indicator.className = 'compartment-indicator';
-						// Map status to CSS class (outdated → warning to match server-side)
-						const cssStatus = check.status === 'outdated' ? 'warning' : (check.status || 'unknown');
-						indicator.classList.add(`compartment-indicator--${cssStatus}`);
+						if (check && check.status) {
+							// Map status to CSS class (outdated → warning to match server-side)
+							const cssStatus = check.status === 'outdated' ? 'warning' : check.status;
+							indicator.classList.add(`compartment-indicator--${cssStatus}`);
+						} else {
+							indicator.classList.add('compartment-indicator--unknown');
+						}
 					}
 
 					// Lock-specific: agent outdated overrides indicator to error (red)
-					if (type === 'lock') {
-						if (indicator && host.agentOutdated) {
-							indicator.className = 'compartment-indicator compartment-indicator--error';
-						}
-						// Pending PR indicator (small dot at top-right)
-						comp.classList.toggle('has-pr', !!globalState.pendingPR);
+					if (type === 'lock' && indicator && host.agentOutdated) {
+						indicator.className = 'compartment-indicator compartment-indicator--error';
 					}
 				});
 			}
