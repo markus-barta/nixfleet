@@ -956,7 +956,7 @@ func (h *Hub) handleStatus(hostID string, payload protocol.StatusPayload) {
 		} else {
 			// Non-switch commands (pull, test): run post-validation
 			if host := h.getHostForPostValidation(hostID); host != nil {
-				postResult := h.cmdStateMachine.RunPostChecks(hostID, payload.Command, payload.ExitCode, host)
+				postResult := h.cmdStateMachine.RunPostChecks(hostID, payload.Command, payload.ExitCode, host, payload.Message)
 				if postResult.Valid {
 					h.cmdStateMachine.TransitionTo(hostID, StateSuccess, postResult.Message)
 				} else if payload.ExitCode == 0 {

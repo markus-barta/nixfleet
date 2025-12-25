@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -214,16 +215,25 @@ func (s *StatusChecker) checkNixOSSystemStatus(ctx context.Context, repoDir, hos
 
 	// Get what the flake would build (dry-run)
 	flakeRef := repoDir + "#nixosConfigurations." + hostname + ".config.system.build.toplevel"
-	cmd := exec.CommandContext(ctx, "nix", "build", "--dry-run", "--json", flakeRef)
+	cmd := exec.CommandContext(ctx, "nix", "build", "--experimental-features", "nix-command flakes", "--dry-run", "--json", flakeRef)
 	cmd.Dir = repoDir
-	output, err := cmd.Output()
+	output, err := cmd.CombinedOutput()
 
 	if err != nil {
 		// If nix build fails, it might be because we're not root or other issues
-		// Fall back to checking if generation matches the repo
+		msg := "Cannot evaluate system (try with sudo)"
+		if len(output) > 0 {
+			errLines := strings.Split(string(output), "\n")
+			if len(errLines) > 0 {
+				msg = fmt.Sprintf("Evaluation failed: %s", strings.TrimSpace(errLines[0]))
+			}
+		} else {
+			msg = fmt.Sprintf("Evaluation failed: %v", err)
+		}
+
 		return protocol.StatusCheck{
 			Status:    "unknown",
-			Message:   "Cannot evaluate system (try with sudo)",
+			Message:   msg,
 			CheckedAt: time.Now().UTC().Format(time.RFC3339),
 		}
 	}
@@ -274,15 +284,26 @@ func (s *StatusChecker) checkMacOSSystemStatus(ctx context.Context, repoDir, hos
 
 	// Get what the flake would build (dry-run)
 	flakeRef := repoDir + "#homeConfigurations." + hostname + ".activationPackage"
-	cmd := exec.CommandContext(ctx, "nix", "build", "--dry-run", "--json", flakeRef)
+	cmd := exec.CommandContext(ctx, "nix", "build", "--experimental-features", "nix-command flakes", "--dry-run", "--json", flakeRef)
 	cmd.Dir = repoDir
-	output, err := cmd.Output()
+	output, err := cmd.CombinedOutput() // Capture stderr too
 
 	if err != nil {
 		// Nix evaluation might fail for various reasons
+		msg := "Cannot evaluate Home Manager config"
+		if len(output) > 0 {
+			// Extract first line of error for brevity
+			errLines := strings.Split(string(output), "\n")
+			if len(errLines) > 0 {
+				msg = fmt.Sprintf("Evaluation failed: %s", strings.TrimSpace(errLines[0]))
+			}
+		} else {
+			msg = fmt.Sprintf("Evaluation failed: %v", err)
+		}
+
 		return protocol.StatusCheck{
 			Status:    "unknown",
-			Message:   "Cannot evaluate Home Manager config",
+			Message:   msg,
 			CheckedAt: time.Now().UTC().Format(time.RFC3339),
 		}
 	}

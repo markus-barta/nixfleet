@@ -730,7 +730,7 @@ func (sm *CommandStateMachine) ClearSnapshot(hostID string) {
 }
 
 // RunPostChecks validates command results and returns the outcome.
-func (sm *CommandStateMachine) RunPostChecks(hostID, command string, exitCode int, currentHost *templates.Host) ValidationResult {
+func (sm *CommandStateMachine) RunPostChecks(hostID, command string, exitCode int, currentHost *templates.Host, agentMessage string) ValidationResult {
 	sm.mu.RLock()
 	before, hasBefore := sm.snapshots[hostID]
 	sm.mu.RUnlock()
@@ -743,6 +743,10 @@ func (sm *CommandStateMachine) RunPostChecks(hostID, command string, exitCode in
 			Message: "No pre-command snapshot found, skipping detailed validation",
 		})
 		if exitCode == 0 {
+			// For refresh commands, check if the agent reported an unknown status in the message
+			if (command == "refresh-system" || command == "refresh-lock" || command == "refresh-all") && agentMessage == "unknown" {
+				return ValidationResult{false, "refresh_unknown", "Status refresh resulted in unknown state"}
+			}
 			return ValidationResult{true, "exit_zero", "Command completed successfully"}
 		}
 		return ValidationResult{false, "exit_nonzero", fmt.Sprintf("Command failed with exit code %d", exitCode)}
@@ -776,6 +780,16 @@ func (sm *CommandStateMachine) RunPostChecks(hostID, command string, exitCode in
 		result = ValidateTestResult(exitCode)
 	case "pull-switch":
 		result = ValidatePullSwitchResult(before, after, exitCode)
+	case "refresh-system", "refresh-lock", "refresh-all":
+		if exitCode == 0 {
+			if agentMessage == "unknown" {
+				result = ValidationResult{false, "refresh_unknown", "Status refresh resulted in unknown state"}
+			} else {
+				result = ValidationResult{true, "refresh_ok", "Status refreshed successfully"}
+			}
+		} else {
+			result = ValidationResult{false, "exit_nonzero", fmt.Sprintf("Refresh failed with exit code %d", exitCode)}
+		}
 	default:
 		if exitCode == 0 {
 			result = ValidationResult{true, "exit_zero", "Command completed successfully"}
