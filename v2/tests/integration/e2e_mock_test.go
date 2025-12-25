@@ -53,7 +53,7 @@ func TestE2E_PullCommand_Success(t *testing.T) {
 	}
 
 	// Step 6: Post-checks
-	postResult := sm.RunPostChecks("host1", "pull", 0, hostAfter)
+	postResult := sm.RunPostChecks("host1", "pull", 0, hostAfter, "")
 	if !postResult.Valid {
 		t.Fatalf("post-check failed: %s", postResult.Message)
 	}
