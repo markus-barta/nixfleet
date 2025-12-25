@@ -220,8 +220,8 @@ templ Dashboard(data DashboardData) {
 					</th>
 					<th class="col-center col-type" title="Location / Device / OS">Type</th>
 					<th>Metrics</th>
-					<th title="Update Status (Git/Lock/System)">Update</th>
-					<th class="col-status" title="Operation Progress + Test Results">Status</th>
+					<th class="col-agent" title="Agent Version">Agent</th>
+					<th title="Git/Lock/System Status">Status</th>
 					<th class="col-right">Last Seen</th>
 					<!-- P1050: Actions removed, P1060: Menu column -->
 					<th class="col-menu"></th>
@@ -904,12 +904,15 @@ templ Dashboard(data DashboardData) {
 						renderMetrics(el, host.metrics);
 					}
 
-					// 5. Update status compartments
+					// 5. Agent version cell
+					renderAgentVersion(el, host);
+
+					// 6. Status compartments (Git/Lock/System)
 					if (host.updateStatus) {
 						renderUpdateStatus(el, host);
 					}
 
-					// 5b. P2800: Operation progress dots
+					// 6b. P2800: Operation progress dots
 					if (host.operationProgress) {
 						renderOperationProgress(el, host.operationProgress);
 					}
@@ -1027,35 +1030,29 @@ templ Dashboard(data DashboardData) {
 				}
 			}
 
-			// Helper: Render update status compartments
+			// Helper: Render agent version cell
+			function renderAgentVersion(el, host) {
+				const cell = el.querySelector('[data-cell="agent-version"] .agent-version');
+				if (!cell) return;
+
+				cell.textContent = host.agentVersion || '—';
+				cell.className = 'agent-version';
+				if (!host.agentVersion) {
+					cell.classList.add('agent-version--unknown');
+				} else if (host.agentOutdated) {
+					cell.classList.add('agent-version--outdated');
+				} else {
+					cell.classList.add('agent-version--ok');
+				}
+			}
+
+			// Helper: Render status compartments (Git/Lock/System)
 			// P7300: 3-dot layout - dot-3 is the status indicator
 			function renderUpdateStatus(el, host) {
 				const container = el.querySelector('.update-status');
 				if (!container) return;
 
 				const status = host.updateStatus;
-
-				// P7300: Agent compartment (special handling - not from updateStatus)
-				const agentBtn = container.querySelector(`[data-compartment="agent"]`);
-				if (agentBtn) {
-					const agentStatus = host.agentVersion ? (host.agentOutdated ? 'outdated' : 'ok') : 'unknown';
-					agentBtn.dataset.status = agentStatus;
-					agentBtn.classList.toggle('unknown', !host.agentVersion);
-
-					// Update dot-3 (status indicator)
-					const dot3 = agentBtn.querySelector('.dot-3');
-					if (dot3) {
-						dot3.className = 'dot dot-3';
-						if (host.agentOutdated) {
-							dot3.classList.add('compartment-indicator--error');
-						} else if (host.agentVersion) {
-							dot3.classList.add('compartment-indicator--ok');
-						} else {
-							dot3.classList.add('compartment-indicator--unknown');
-						}
-					}
-				}
-
 				if (!status) return;
 
 				// Find compartment buttons by data-compartment attribute
@@ -2835,18 +2832,8 @@ templ Dashboard(data DashboardData) {
 					btn.classList.remove('rate-limited');
 				}, COOLDOWN_MS);
 
-				// P7300: Different behavior per compartment
+				// P7300: Different behavior per compartment (Agent now has dedicated column)
 				switch (compartment) {
-					case 'agent':
-						// Agent: show info toast with version details
-						const host = hostStore.get(hostId);
-						if (host) {
-							const agentInfo = host.agentVersion || 'unknown';
-							const status = host.agentOutdated ? '(outdated)' : '(current)';
-							showToast(`Agent: ${agentInfo} ${status}`, 'info');
-						}
-						break;
-
 					case 'git':
 						// Git: lightweight refresh (dashboard-side GitHub API call)
 						showLogPanel(hostId);
@@ -3478,8 +3465,12 @@ templ DependencyDialog() {
 // FleetTargetLine renders the fleet target info in the header
 templ FleetTargetLine(target FleetTarget) {
 	<div class="fleet-target">
+		<!-- Agent version always shown first -->
+		<span class="target-agent-label">Agent:</span>
+		<span class="target-agent" title={ "Expected agent version: " + target.AgentVer }>{ target.AgentVer }</span>
 		if target.HasData {
-			<span class="target-label">Target:</span>
+			<span class="target-separator">•</span>
+			<span class="target-label">Config:</span>
 			<svg class="target-icon"><use href="#icon-git-branch"></use></svg>
 			<a
 				href={ templ.SafeURL("https://github.com/" + target.RepoURL + "/commit/" + target.GitFull) }
@@ -3491,12 +3482,6 @@ templ FleetTargetLine(target FleetTarget) {
 				{ target.GitCommit }
 			</a>
 			<span class="target-branch">({ target.Branch }, { target.TimeAgo })</span>
-			<span class="target-separator">•</span>
-			<span class="target-agent-label">Agent:</span>
-			<span class="target-agent" title={ "Expected agent version: " + target.AgentVer }>{ target.AgentVer }</span>
-		} else {
-			<span class="target-label">Target:</span>
-			<span class="target-unavailable">Version tracking not configured</span>
 		}
 	</div>
 }
@@ -3641,12 +3626,11 @@ templ HostRow(host Host, csrfToken string) {
 				<span class="metrics-na">—</span>
 			}
 		</td>
-		<td class="update-cell" data-cell="update">
-			@UpdateStatusCell(host)
+		<td class="agent-version-cell" data-cell="agent-version">
+			@AgentVersionCell(host)
 		</td>
-		<!-- P2700: STATUS column replaces TESTS -->
-		<td class="status-progress-cell" data-cell="status">
-			@StatusProgressCell(host)
+		<td class="status-cell" data-cell="status">
+			@UpdateStatusCell(host)
 		</td>
 		<td class="col-right" data-cell="last-seen" data-timestamp={ host.LastSeen }>{ valueOrDash(host.LastSeen) }</td>
 		<!-- P1050: Actions column removed - Pull/Switch via compartments, Test via menu -->
@@ -3895,8 +3879,14 @@ templ testsDots(host Host) {
 	}
 }
 
-// UpdateStatusCell renders the update status indicator
-// P7300: Reordered compartments - Agent → Git → Lock → System
+// AgentVersionCell renders the agent version with status indicator
+templ AgentVersionCell(host Host) {
+	<span class={ agentVersionCellClass(host) } title={ agentContextDescription(host) }>
+		{ valueOrDash(host.AgentVersion) }
+	</span>
+}
+
+// UpdateStatusCell renders the status compartments (Git/Lock/System)
 // P7300: 3 dots per compartment (except Lock = status only)
 // P7000: data-* attributes for client-side hydration
 templ UpdateStatusCell(host Host) {
@@ -3909,27 +3899,6 @@ templ UpdateStatusCell(host Host) {
 		data-repo-url={ host.RepoURL }
 		data-repo-dir={ host.RepoDir }
 	>
-		<!-- P7300: Agent compartment (1st - trust first) with 3 dots -->
-		<button
-			type="button"
-			class={ agentCompartmentButtonClass(host) }
-			data-host-id={ host.ID }
-			data-hostname={ host.Hostname }
-			data-compartment="agent"
-			data-status={ getAgentStatus(host) }
-			data-action="info"
-			data-description={ agentContextDescription(host) }
-			onmouseenter="handleCompartmentHover(this)"
-			onmouseleave="handleCompartmentLeave()"
-			onclick="handleCompartmentClick(this)"
-		>
-			<svg class="update-icon"><use href="#icon-package"></use></svg>
-			<span class="compartment-dots">
-				<span class="dot dot-1" data-dot="1"></span>
-				<span class="dot dot-2" data-dot="2"></span>
-				<span class={ "dot dot-3 " + agentIndicatorClass(host) } data-dot="3"></span>
-			</span>
-		</button>
 		<!-- Git compartment with 3 dots -->
 		<button
 			type="button"
@@ -4407,7 +4376,19 @@ func lockIndicatorClass(host Host) string {
 	}
 }
 
-// P7300: Agent compartment helper functions
+// P7300: Agent version cell and compartment helper functions
+
+// agentVersionCellClass returns CSS classes for agent version cell
+func agentVersionCellClass(host Host) string {
+	base := "agent-version"
+	if host.AgentVersion == "" {
+		return base + " agent-version--unknown"
+	}
+	if host.AgentOutdated {
+		return base + " agent-version--outdated"
+	}
+	return base + " agent-version--ok"
+}
 
 // agentCompartmentButtonClass returns CSS classes for Agent compartment button
 func agentCompartmentButtonClass(host Host) string {
