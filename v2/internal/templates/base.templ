@@ -1578,6 +1578,60 @@ templ Base(title string, csrfToken string) {
 			opacity: 0.6;
 		}
 
+		/* P7300: 3-dot layout for compartments */
+		.compartment-dots {
+			position: absolute;
+			bottom: 2px;
+			right: 2px;
+			display: flex;
+			gap: 1px;
+			pointer-events: none;
+		}
+
+		.compartment-dots .dot {
+			width: 3px;
+			height: 3px;
+			border-radius: 50%;
+			background: hsl(220, 10%, 35%);
+			opacity: 0.4;
+		}
+
+		/* Dot states - idle (dots 1 & 2 stay dim) */
+		.compartment-dots .dot-1,
+		.compartment-dots .dot-2 {
+			background: hsl(220, 10%, 40%);
+		}
+
+		/* Dot 3 = status indicator (inherits from compartment-indicator classes) */
+		.compartment-dots .dot-3 {
+			position: relative;
+			width: 4px;
+			height: 4px;
+		}
+
+		/* Active states for dots during operations */
+		.compartment-dots .dot.dot-active {
+			opacity: 1;
+			background: linear-gradient(to bottom,
+					hsl(45, 90%, 60%),
+					hsl(45, 90%, 40%));
+			animation: indicator-pulse 1s ease-in-out infinite;
+		}
+
+		.compartment-dots .dot.dot-complete {
+			opacity: 1;
+			background: linear-gradient(to bottom,
+					hsl(142, 71%, 55%),
+					hsl(142, 71%, 35%));
+		}
+
+		.compartment-dots .dot.dot-error {
+			opacity: 1;
+			background: linear-gradient(to bottom,
+					hsl(0, 70%, 60%),
+					hsl(0, 70%, 40%));
+		}
+
 		/* Action Dropdown (P4380) */
 		.action-buttons {
 			display: flex;

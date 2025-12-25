@@ -1028,8 +1028,7 @@ templ Dashboard(data DashboardData) {
 			}
 
 			// Helper: Render update status compartments
-			// P7100: Fixed selector to match actual HTML structure (compartment-btn, not update-compartment)
-			// P7300: Added agent compartment handling
+			// P7300: 3-dot layout - dot-3 is the status indicator
 			function renderUpdateStatus(el, host) {
 				const container = el.querySelector('.update-status');
 				if (!container) return;
@@ -1043,15 +1042,16 @@ templ Dashboard(data DashboardData) {
 					agentBtn.dataset.status = agentStatus;
 					agentBtn.classList.toggle('unknown', !host.agentVersion);
 
-					const agentIndicator = agentBtn.querySelector('.compartment-indicator');
-					if (agentIndicator) {
-						agentIndicator.className = 'compartment-indicator';
+					// Update dot-3 (status indicator)
+					const dot3 = agentBtn.querySelector('.dot-3');
+					if (dot3) {
+						dot3.className = 'dot dot-3';
 						if (host.agentOutdated) {
-							agentIndicator.classList.add('compartment-indicator--error');
+							dot3.classList.add('compartment-indicator--error');
 						} else if (host.agentVersion) {
-							agentIndicator.classList.add('compartment-indicator--ok');
+							dot3.classList.add('compartment-indicator--ok');
 						} else {
-							agentIndicator.classList.add('compartment-indicator--unknown');
+							dot3.classList.add('compartment-indicator--unknown');
 						}
 					}
 				}
@@ -1071,14 +1071,23 @@ templ Dashboard(data DashboardData) {
 					// Toggle unknown class for dimming
 					btn.classList.toggle('unknown', !check || !check.status || check.status === 'unknown');
 
-					// Update indicator dot - this is the ONLY status signal
-					const indicator = btn.querySelector('.compartment-indicator');
+					// P7300: Update dot-3 (status indicator) or single indicator for Lock
+					const dot3 = btn.querySelector('.dot-3');
+					const singleIndicator = btn.querySelector('.compartment-indicator:not(.dot)');
+					const indicator = dot3 || singleIndicator;
+
 					if (indicator) {
-						indicator.className = 'compartment-indicator';
+						// Reset classes
+						if (dot3) {
+							indicator.className = 'dot dot-3';
+						} else {
+							indicator.className = 'compartment-indicator';
+						}
+						
 						if (check && check.status) {
-						// Map status to CSS class (outdated → warning to match server-side)
+							// Map status to CSS class (outdated → warning to match server-side)
 							const cssStatus = check.status === 'outdated' ? 'warning' : check.status;
-						indicator.classList.add(`compartment-indicator--${cssStatus}`);
+							indicator.classList.add(`compartment-indicator--${cssStatus}`);
 						} else {
 							indicator.classList.add('compartment-indicator--unknown');
 						}
@@ -1086,7 +1095,11 @@ templ Dashboard(data DashboardData) {
 
 					// Lock-specific: agent outdated overrides indicator to error (red)
 					if (type === 'lock' && indicator && host.agentOutdated) {
+						if (dot3) {
+							indicator.className = 'dot dot-3 compartment-indicator--error';
+						} else {
 							indicator.className = 'compartment-indicator compartment-indicator--error';
+						}
 					}
 				});
 			}
@@ -3884,8 +3897,8 @@ templ testsDots(host Host) {
 
 // UpdateStatusCell renders the update status indicator
 // P7300: Reordered compartments - Agent → Git → Lock → System
+// P7300: 3 dots per compartment (except Lock = status only)
 // P7000: data-* attributes for client-side hydration
-// P1020: UpdateStatusCell with clickable compartments
 templ UpdateStatusCell(host Host) {
 	<div
 		class="update-status"
@@ -3896,7 +3909,7 @@ templ UpdateStatusCell(host Host) {
 		data-repo-url={ host.RepoURL }
 		data-repo-dir={ host.RepoDir }
 	>
-		<!-- P7300: Agent compartment (1st - trust first) -->
+		<!-- P7300: Agent compartment (1st - trust first) with 3 dots -->
 		<button
 			type="button"
 			class={ agentCompartmentButtonClass(host) }
@@ -3911,9 +3924,13 @@ templ UpdateStatusCell(host Host) {
 			onclick="handleCompartmentClick(this)"
 		>
 			<svg class="update-icon"><use href="#icon-package"></use></svg>
-			<span class={ agentIndicatorClass(host) }></span>
+			<span class="compartment-dots">
+				<span class="dot dot-1" data-dot="1"></span>
+				<span class="dot dot-2" data-dot="2"></span>
+				<span class={ "dot dot-3 " + agentIndicatorClass(host) } data-dot="3"></span>
+			</span>
 		</button>
-		<!-- Git compartment -->
+		<!-- Git compartment with 3 dots -->
 		<button
 			type="button"
 			class={ compartmentButtonClass(host.UpdateStatus, "git") }
@@ -3928,9 +3945,13 @@ templ UpdateStatusCell(host Host) {
 			onclick="handleCompartmentClick(this)"
 		>
 			<svg class="update-icon"><use href="#icon-git-branch"></use></svg>
-			<span class={ compartmentIndicatorClass(host.UpdateStatus, "git") }></span>
+			<span class="compartment-dots">
+				<span class="dot dot-1" data-dot="1"></span>
+				<span class="dot dot-2" data-dot="2"></span>
+				<span class={ "dot dot-3 " + compartmentIndicatorClass(host.UpdateStatus, "git") } data-dot="3"></span>
+			</span>
 		</button>
-		<!-- Lock compartment -->
+		<!-- Lock compartment (status indicator only, no dots) -->
 		<button
 			type="button"
 			class={ lockCompartmentButtonClass(host) }
@@ -3947,7 +3968,7 @@ templ UpdateStatusCell(host Host) {
 			<svg class="update-icon"><use href="#icon-lock"></use></svg>
 			<span class={ lockIndicatorClass(host) }></span>
 		</button>
-		<!-- System compartment -->
+		<!-- System compartment with 3 dots -->
 		<button
 			type="button"
 			class={ compartmentButtonClass(host.UpdateStatus, "system") }
@@ -3966,7 +3987,11 @@ templ UpdateStatusCell(host Host) {
 			} else {
 				<svg class="update-icon"><use href="#icon-nixos"></use></svg>
 			}
-			<span class={ compartmentIndicatorClass(host.UpdateStatus, "system") }></span>
+			<span class="compartment-dots">
+				<span class="dot dot-1" data-dot="1"></span>
+				<span class="dot dot-2" data-dot="2"></span>
+				<span class={ "dot dot-3 " + compartmentIndicatorClass(host.UpdateStatus, "system") } data-dot="3"></span>
+			</span>
 		</button>
 	</div>
 }
