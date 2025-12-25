@@ -76,8 +76,13 @@ templ Base(title string, csrfToken string) {
 
 		/* Always show scrollbars to prevent layout jump */
 		html {
-			overflow-y: scroll;
-			scrollbar-gutter: stable;
+			overflow-y: scroll !important;
+			scrollbar-gutter: stable !important;
+		}
+		
+		/* Prevent any element from hiding the scrollbar */
+		html, body {
+			min-height: 100%;
 		}
 
 		body {
