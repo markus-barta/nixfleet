@@ -14,6 +14,7 @@
     gopls # Language server
     golangci-lint # Linter
     gotools # goimports, godoc, etc.
+    templ # Template generation
     delve # Debugger
     gotestsum # Better test output
 
