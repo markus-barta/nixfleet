@@ -533,6 +533,12 @@ func (h *Hub) BroadcastHostStatus(hostID string) {
 	if h.versionFetcher != nil {
 		status, msg, checked := h.versionFetcher.GetGitStatus(generation)
 		gitStatus = map[string]any{"status": status, "message": msg, "checked_at": checked}
+		// P7100: Debug logging
+		h.log.Debug().
+			Str("host", hostID).
+			Str("db_generation", generation).
+			Str("git_status", status).
+			Msg("BroadcastHostStatus: git status computed")
 	}
 
 	// Get repo URL/dir
@@ -906,7 +912,34 @@ func (h *Hub) handleStatus(hostID string, payload protocol.StatusPayload) {
 	// Notify completion subscribers (P5300 - deploy tracking)
 	h.notifyCommandCompletion(hostID, payload.Command, payload.ExitCode)
 
+	// P7100: Update generation and refresh caches BEFORE post-validation
+	// This was a critical bug - post-validation was using stale data
+	if payload.Generation != "" {
+		_, err := h.db.Exec(`UPDATE hosts SET generation = ? WHERE hostname = ?`, payload.Generation, hostID)
+		if err != nil {
+			h.log.Error().Err(err).Str("host", hostID).Msg("failed to update generation")
+		}
+	}
+
+	// Force refresh version fetcher for pull commands BEFORE post-validation
+	isPull := payload.Command == "pull" || payload.Command == "pull-switch"
+	if h.versionFetcher != nil && isPull {
+		h.versionFetcher.ForceRefresh()
+		// P7100: Debug logging for git status comparison
+		if latest := h.versionFetcher.GetLatest(); latest != nil {
+			status, msg, _ := h.versionFetcher.GetGitStatus(payload.Generation)
+			h.log.Info().
+				Str("host", hostID).
+				Str("agent_generation", payload.Generation).
+				Str("remote_commit", latest.GitCommit).
+				Str("git_status", status).
+				Str("git_msg", msg).
+				Msg("P7100: git status after pull (pre-validation)")
+		}
+	}
+
 	// P2800: Handle command completion via state machine
+	// NOW post-validation will see updated generation + fresh versionFetcher
 	if h.cmdStateMachine != nil {
 		if isSwitchSuccess {
 			// For successful switch, enter AWAITING_RECONNECT state
@@ -957,20 +990,7 @@ func (h *Hub) handleStatus(hostID string, payload protocol.StatusPayload) {
 		},
 	})
 
-	// Update host generation if provided (agent refreshes after pull)
-	if payload.Generation != "" {
-		_, err := h.db.Exec(`UPDATE hosts SET generation = ? WHERE hostname = ?`, payload.Generation, hostID)
-		if err != nil {
-			h.log.Error().Err(err).Str("host", hostID).Msg("failed to update generation")
-		}
-	}
-
-	// Broadcast updated host status after command completes
-	// This ensures compartments (especially git after pull) are immediately refreshed
-	if h.versionFetcher != nil && (payload.Command == "pull" || payload.Command == "pull-switch") {
-		// Force refresh git status after pull
-		h.versionFetcher.ForceRefresh()
-	}
+	// Broadcast updated host status to browsers
 	h.BroadcastHostStatus(hostID)
 }
 
