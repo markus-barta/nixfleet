@@ -49,6 +49,11 @@ jobs:
             # Latest on default branch
             type=raw,value=latest,enable={{is_default_branch}}
 
+      # P7400: Read version from single source of truth
+      - name: Read VERSION file
+        id: version
+        run: echo "version=$(cat VERSION)" >> $GITHUB_OUTPUT
+
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
@@ -60,10 +65,9 @@ jobs:
           # BuildKit cache - speeds up subsequent builds significantly
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          # Version injection - use hardcoded version, not branch name
-          # The version is maintained in v2/internal/dashboard/version.go
+          # P7400: Version injection from VERSION file
           build-args: |
-            VERSION=2.3.0
+            VERSION=${{ steps.version.outputs.version }}
             GIT_COMMIT=${{ github.sha }}
             BUILD_TIME=${{ github.event.head_commit.timestamp }}
           # Platform - csb1 is amd64

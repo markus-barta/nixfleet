@@ -220,6 +220,8 @@ func (a *Agent) messageLoop() {
 	}
 }
 
-// Version is the agent version.
-const Version = "2.3.0"
+// Version is the agent version, set via ldflags at build time.
+// Source of truth: VERSION file at repo root
+// Example: go build -ldflags "-X github.com/markus-barta/nixfleet/v2/internal/agent.Version=$(cat VERSION)"
+var Version = "dev"
 

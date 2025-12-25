@@ -2,6 +2,8 @@
 #
 # This package builds the Go-based agent that communicates
 # with the dashboard via WebSocket.
+#
+# P7400: Version is read from VERSION file at repo root
 {
   lib,
   buildGoModule,
@@ -12,7 +14,9 @@
 }:
 buildGoModule rec {
   pname = "nixfleet-agent";
-  version = "2.3.0";
+
+  # P7400: Read version from single source of truth
+  version = lib.strings.trim (builtins.readFile ../VERSION);
 
   src = ../v2;
 
@@ -26,7 +30,8 @@ buildGoModule rec {
   ldflags = [
     "-s"
     "-w"
-    "-X main.Version=${version}"
+    # P7400: Inject version from VERSION file
+    "-X github.com/markus-barta/nixfleet/v2/internal/agent.Version=${version}"
     # P2810: Embed source commit for binary freshness verification
     "-X github.com/markus-barta/nixfleet/v2/internal/agent.SourceCommit=${sourceCommit}"
   ];
