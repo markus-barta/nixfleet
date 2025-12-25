@@ -221,5 +221,5 @@ func (a *Agent) messageLoop() {
 }
 
 // Version is the agent version.
-const Version = "2.2.0"
+const Version = "2.3.0"
 
