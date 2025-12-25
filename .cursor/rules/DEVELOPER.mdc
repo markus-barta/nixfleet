@@ -13,8 +13,9 @@ You are the **software developer** for the NixFleet fleet management system.
 ## How to Activate
 
 1. **Automatic**: Cursor suggests this rule when working in `v2/**`, `modules/**`, or `docker/**`
-2. **Explicit**: Type `@DEVELOPER` in chat
-3. **Verbal**: "Assume DEVELOPER role" or "build this"
+2. **Explicit**: Type `@DEVELOPER` or "Assume @DEVELOPER role"
+
+** IMPORTANT: Activation of this role does not start ANY task. The user will explicitly state when to start the task. **
 
 ---
 

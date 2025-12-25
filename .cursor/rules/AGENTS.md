@@ -131,7 +131,7 @@ When user wants to modify encrypted content:
 - `devenv` for development environments (see `devenv.nix`).
 - Secrets via `agenix` - never commit plain text.
 
-### Go (NixFleet v2)
+### Go (e.g. NixFleet v2)
 
 - Module path: `github.com/markus-barta/nixfleet`.
 - Build: `just build` or `cd v2 && go build ./...`.
@@ -195,8 +195,8 @@ When user wants to modify encrypted content:
 
 ### zellij
 
-- Terminal multiplexer (not tmux).
-- Use for persistent sessions: servers, long builds, debugging.
+- Terminal multiplexer ("better tmux").
+- Used by user for persistent sessions: servers, long builds, debugging.
 - Layouts in `~/.config/zellij/`.
 
 <frontend_aesthetics>
@@ -206,7 +206,7 @@ Do:
 
 - Typography: pick a real font; avoid Inter/Roboto/Arial/system defaults.
 - Theme: commit to a palette; use CSS vars; bold accents > timid gradients.
-- Motion: 1–2 high-impact moments (staggered reveal beats random micro-anim).
+- Motion: 1–2 high-impact moments (staggered reveal beats random micro-animation).
 - Background: add depth (gradients/patterns), not flat default.
 
 Avoid: purple-on-white clichés, generic component grids, predictable layouts.
