@@ -747,7 +747,9 @@ templ Dashboard(data DashboardData) {
 			// ═══════════════════════════════════════════════════════════════════════════
 			const globalState = {
 				pendingPR: null, // { number, title, url, mergeable } or null
-				wsConnected: false
+				wsConnected: false,
+				// P7240: Track timeouts for context bar
+				timeouts: new Map() // hostId -> { command, startedAt, state }
 			};
 
 			// Hydrate globalState from config
@@ -915,6 +917,9 @@ templ Dashboard(data DashboardData) {
 					if (host.operationProgress) {
 						renderOperationProgress(el, host.operationProgress);
 					}
+
+					// 6c. P7240: Timeout indicator in Status column
+					renderTimeoutIndicator(el, host);
 
 					// 6. Button states: swap between cmd-buttons and stop button
 					const cmdButtons = el.querySelector('.cmd-buttons');
@@ -1182,6 +1187,51 @@ templ Dashboard(data DashboardData) {
 				});
 			}
 
+			// P7240: Render timeout indicator in Status column
+			function renderTimeoutIndicator(el, host) {
+				const statusCell = el.querySelector('[data-cell="status"]');
+				if (!statusCell) return;
+
+				const timeoutStates = ['running_warning', 'timeout_pending', 'killing', 'kill_failed'];
+				const hostId = el.dataset.hostId;
+				
+				// Check if this host has a timeout state
+				const timeout = globalState.timeouts.get(hostId);
+				let existingIndicator = statusCell.querySelector('.timeout-status-indicator');
+				
+				if (timeout && timeoutStates.includes(host.commandState || timeout.state)) {
+					// Calculate elapsed time
+					const elapsed = Date.now() - timeout.startedAt;
+					const minutes = Math.floor(elapsed / 60000);
+					const seconds = Math.floor((elapsed % 60000) / 1000);
+					const elapsedStr = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+					
+					if (!existingIndicator) {
+						// Create indicator
+						existingIndicator = document.createElement('span');
+						existingIndicator.className = 'timeout-status-indicator';
+						existingIndicator.onclick = () => showLogPanel(hostId);
+						statusCell.appendChild(existingIndicator);
+					}
+					
+					// Update indicator content
+					existingIndicator.innerHTML = `<svg class="icon"><use href="#icon-alert-triangle"></use></svg> ${elapsedStr}`;
+					existingIndicator.title = `${timeout.command} timed out - click to see log`;
+					
+					// Hide progress dots when showing timeout
+					const progressDots = statusCell.querySelector('.status-progress');
+					if (progressDots) progressDots.style.display = 'none';
+				} else {
+					// Remove indicator if present
+					if (existingIndicator) {
+						existingIndicator.remove();
+					}
+					// Show progress dots again
+					const progressDots = statusCell.querySelector('.status-progress');
+					if (progressDots) progressDots.style.display = '';
+				}
+			}
+
 			// ═══════════════════════════════════════════════════════════════════════════
 			// REFRESH HOST (On-demand API call) - P7000
 			// ═══════════════════════════════════════════════════════════════════════════
@@ -1389,17 +1439,23 @@ templ Dashboard(data DashboardData) {
 						handleStateMachineLog(payload);
 						break;
 
-					// P2700: Operation progress updates
-					case 'operation_progress':
-						if (!hostId) return;
-						hostStore.update(hostId, {
-							operationProgress: payload.progress
-						});
-						break;
+				// P2700: Operation progress updates
+				case 'operation_progress':
+					if (!hostId) return;
+					hostStore.update(hostId, {
+						operationProgress: payload.progress
+					});
+					break;
 
-					default:
-						console.debug('Unknown WS message type:', msg.type);
-				}
+				// P7240: Command state changes (timeout handling)
+				case 'command_state_change':
+					if (!hostId) return;
+					handleCommandStateChange(hostId, payload);
+					break;
+
+				default:
+					console.debug('Unknown WS message type:', msg.type);
+			}
 			}
 
 			// ═══════════════════════════════════════════════════════════════════════════
@@ -2332,6 +2388,89 @@ templ Dashboard(data DashboardData) {
 				}
 			}
 
+			// P7240: Handle command state changes for timeout UI
+			function handleCommandStateChange(hostId, payload) {
+				const state = payload.state;
+				const host = hostStore.get(hostId);
+				const hostname = host?.hostname || hostId;
+
+				// States that indicate timeout
+				const timeoutStates = ['running_warning', 'timeout_pending', 'killing', 'kill_failed'];
+				
+				if (timeoutStates.includes(state)) {
+					// Add/update timeout tracking
+					if (!globalState.timeouts.has(hostId)) {
+						globalState.timeouts.set(hostId, {
+							hostname,
+							command: host?.pendingCommand || 'unknown',
+							startedAt: Date.now() - (payload.elapsed_ms || 0),
+							state
+						});
+					} else {
+						const existing = globalState.timeouts.get(hostId);
+						existing.state = state;
+					}
+					
+					// Dispatch event for context bar update
+					window.dispatchEvent(new CustomEvent('timeout-update', { detail: { hostId, state, hostname } }));
+					
+					// Show toast for timeout_pending (needs user action)
+					if (state === 'timeout_pending') {
+						showToast(`⚠️ ${hostname}: command timed out - action required`, 'warning');
+					}
+				} else {
+					// Command completed or state cleared - remove timeout
+					if (globalState.timeouts.has(hostId)) {
+						globalState.timeouts.delete(hostId);
+						window.dispatchEvent(new CustomEvent('timeout-cleared', { detail: { hostId } }));
+					}
+				}
+
+				// Update host store with command state
+				hostStore.update(hostId, { commandState: state });
+			}
+
+			// P7240: Timeout action API calls
+			async function handleTimeoutAction(hostId, action, minutes = 5) {
+				try {
+					const resp = await fetch(`/api/hosts/${hostId}/timeout-action`, {
+						method: 'POST',
+						headers: {
+							'Content-Type': 'application/json',
+							'X-CSRF-Token': CSRF_TOKEN
+						},
+						body: JSON.stringify({ action, minutes })
+					});
+					
+					if (!resp.ok) {
+						const text = await resp.text();
+						throw new Error(text);
+					}
+					
+					const host = hostStore.get(hostId);
+					const hostname = host?.hostname || hostId;
+					
+					switch (action) {
+						case 'wait':
+							showToast(`${hostname}: extended timeout by ${minutes} minutes`, 'info');
+							break;
+						case 'kill':
+							showToast(`${hostname}: kill signal sent`, 'warning');
+							break;
+						case 'ignore':
+							showToast(`${hostname}: timeout ignored`, 'info');
+							break;
+					}
+					
+					// Remove from local timeout tracking
+					globalState.timeouts.delete(hostId);
+					window.dispatchEvent(new CustomEvent('timeout-cleared', { detail: { hostId } }));
+					
+				} catch (err) {
+					showToast(`Failed to ${action}: ${err.message}`, 'error');
+				}
+			}
+
 			// ═══════════════════════════════════════════════════════════════════════════
 			// MODALS & DROPDOWNS (Keep existing, no changes)
 			// ═══════════════════════════════════════════════════════════════════════════
@@ -2961,6 +3100,9 @@ templ Dashboard(data DashboardData) {
 					hostnameHover: null, // For hostname copy hint
 					_clearTimer: null,
 					_hostnameClearTimer: null,
+					// P7240: Timeout tracking
+					timeouts: [],
+					_elapsedInterval: null,
 
 					init() {
 						// Listen for hover events from compartments
@@ -2969,6 +3111,12 @@ templ Dashboard(data DashboardData) {
 						// Listen for hostname hover events
 						window.addEventListener('hostname-hover', (e) => this.handleHostnameHover(e.detail));
 						window.addEventListener('hostname-clear', () => this.handleHostnameClear());
+						// P7240: Listen for timeout events
+						window.addEventListener('timeout-update', (e) => this.handleTimeoutUpdate(e.detail));
+						window.addEventListener('timeout-cleared', (e) => this.handleTimeoutCleared(e.detail));
+						
+						// Update elapsed times every second
+						this._elapsedInterval = setInterval(() => this.updateElapsedTimes(), 1000);
 					},
 
 					// Computed properties
@@ -2989,7 +3137,8 @@ templ Dashboard(data DashboardData) {
 					},
 
 					get hasContent() {
-						return this.hoverAction !== null || this.hostnameHover !== null || this.selectedCount > 0 || this.pendingPR !== null;
+						return this.hoverAction !== null || this.hostnameHover !== null || 
+						       this.selectedCount > 0 || this.pendingPR !== null || this.timeouts.length > 0;
 					},
 
 					get selectionText() {
@@ -3037,6 +3186,56 @@ templ Dashboard(data DashboardData) {
 							this.hostnameHover = null;
 							this._hostnameClearTimer = null;
 						}, 200);
+					},
+
+					// P7240: Timeout handlers
+					handleTimeoutUpdate(detail) {
+						const existing = this.timeouts.find(t => t.hostId === detail.hostId);
+						if (existing) {
+							existing.state = detail.state;
+						} else {
+							const timeout = globalState.timeouts.get(detail.hostId);
+							if (timeout) {
+								this.timeouts.push({
+									hostId: detail.hostId,
+									hostname: timeout.hostname,
+									command: timeout.command,
+									startedAt: timeout.startedAt,
+									state: timeout.state,
+									elapsed: this.formatElapsed(Date.now() - timeout.startedAt)
+								});
+							}
+						}
+					},
+
+					handleTimeoutCleared(detail) {
+						this.timeouts = this.timeouts.filter(t => t.hostId !== detail.hostId);
+					},
+
+					updateElapsedTimes() {
+						const now = Date.now();
+						this.timeouts.forEach(t => {
+							t.elapsed = this.formatElapsed(now - t.startedAt);
+						});
+					},
+
+					formatElapsed(ms) {
+						const seconds = Math.floor(ms / 1000);
+						const minutes = Math.floor(seconds / 60);
+						const secs = seconds % 60;
+						return `${minutes}:${secs.toString().padStart(2, '0')}`;
+					},
+
+					timeoutWait(hostId) {
+						handleTimeoutAction(hostId, 'wait', 5);
+					},
+
+					timeoutKill(hostId) {
+						handleTimeoutAction(hostId, 'kill');
+					},
+
+					timeoutIgnore(hostId) {
+						handleTimeoutAction(hostId, 'ignore');
 					},
 
 					// Bulk actions
@@ -3410,6 +3609,31 @@ templ ContextBar() {
 						@click="clearSelection()"
 					>
 						<svg class="icon"><use href="#icon-x"></use></svg>
+					</button>
+				</div>
+			</div>
+		</template>
+
+		<!-- P7240: Timeout notifications (stacked) -->
+		<template x-for="timeout in timeouts" :key="timeout.hostId">
+			<div class="context-row context-row-timeout">
+				<div class="context-row-info">
+					<svg class="icon timeout-icon"><use href="#icon-alert-triangle"></use></svg>
+					<span class="timeout-host" x-text="timeout.hostname"></span>
+					<span class="timeout-detail">
+						<span x-text="timeout.command"></span> timed out
+					</span>
+					<span class="timeout-elapsed" x-text="timeout.elapsed"></span>
+				</div>
+				<div class="timeout-actions">
+					<button class="btn-timeout btn-timeout-wait" @click="timeoutWait(timeout.hostId)">
+						Wait 5m
+					</button>
+					<button class="btn-timeout btn-timeout-kill" @click="timeoutKill(timeout.hostId)">
+						Kill
+					</button>
+					<button class="btn-timeout btn-timeout-ignore" @click="timeoutIgnore(timeout.hostId)">
+						×
 					</button>
 				</div>
 			</div>

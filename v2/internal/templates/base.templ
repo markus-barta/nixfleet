@@ -1131,6 +1131,38 @@ templ Base(title string, csrfToken string) {
 			font-size: 0.5rem;
 			color: var(--yellow);
 			line-height: 1;
+
+		/* P7240: Timeout indicator in Status column */
+		.timeout-status-indicator {
+			display: inline-flex;
+			align-items: center;
+			gap: 0.25rem;
+			padding: 0.2rem 0.4rem;
+			background: rgba(234, 179, 8, 0.15);
+			border: 1px solid rgba(234, 179, 8, 0.4);
+			border-radius: 4px;
+			color: var(--yellow);
+			font-size: 0.7rem;
+			font-weight: 600;
+			animation: pulse-timeout 1.5s ease-in-out infinite;
+			cursor: pointer;
+		}
+
+		.timeout-status-indicator:hover {
+			background: rgba(234, 179, 8, 0.25);
+		}
+
+		.timeout-status-indicator .icon {
+			width: 12px;
+			height: 12px;
+		}
+
+		@keyframes pulse-timeout {
+			0%, 100% { opacity: 0.7; }
+			50% { opacity: 1; }
+		}
+
+		.hostname {
 			text-transform: uppercase;
 			font-weight: 600;
 		}
@@ -2565,6 +2597,85 @@ templ Base(title string, csrfToken string) {
 			height: 16px;
 			color: var(--blue);
 			flex-shrink: 0;
+		}
+
+		/* P7240: Timeout notification row */
+		.context-row-timeout {
+			background: rgba(234, 179, 8, 0.12);
+			border: 1px solid rgba(234, 179, 8, 0.3);
+		}
+
+		.context-row-timeout .timeout-icon {
+			width: 16px;
+			height: 16px;
+			color: var(--yellow);
+			flex-shrink: 0;
+			animation: pulse-warning 1.5s ease-in-out infinite;
+		}
+
+		.context-row-timeout .timeout-host {
+			font-weight: 600;
+			color: var(--fg);
+		}
+
+		.context-row-timeout .timeout-detail {
+			color: var(--fg-dark);
+			font-size: 0.875rem;
+		}
+
+		.context-row-timeout .timeout-elapsed {
+			color: var(--yellow);
+			font-weight: 600;
+			font-variant-numeric: tabular-nums;
+		}
+
+		.timeout-actions {
+			display: flex;
+			gap: 0.5rem;
+			align-items: center;
+		}
+
+		.btn-timeout {
+			padding: 0.25rem 0.5rem;
+			font-size: 0.75rem;
+			border-radius: 4px;
+			border: 1px solid transparent;
+			cursor: pointer;
+			transition: all 0.15s ease;
+		}
+
+		.btn-timeout-wait {
+			background: rgba(122, 162, 247, 0.15);
+			border-color: rgba(122, 162, 247, 0.3);
+			color: var(--blue);
+		}
+
+		.btn-timeout-wait:hover {
+			background: rgba(122, 162, 247, 0.25);
+		}
+
+		.btn-timeout-kill {
+			background: rgba(239, 68, 68, 0.15);
+			border-color: rgba(239, 68, 68, 0.3);
+			color: var(--red);
+		}
+
+		.btn-timeout-kill:hover {
+			background: rgba(239, 68, 68, 0.25);
+		}
+
+		.btn-timeout-ignore {
+			background: transparent;
+			color: var(--fg-dark);
+		}
+
+		.btn-timeout-ignore:hover {
+			color: var(--fg);
+		}
+
+		@keyframes pulse-warning {
+			0%, 100% { opacity: 0.6; transform: scale(1); }
+			50% { opacity: 1; transform: scale(1.1); }
 		}
 
 		/* Actions in selection row */
