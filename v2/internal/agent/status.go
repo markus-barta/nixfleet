@@ -103,6 +103,28 @@ func (s *StatusChecker) GetSystemStatus() protocol.StatusCheck {
 	return s.systemStatus
 }
 
+// SetSystemOk sets the system status to "ok" without running the expensive check.
+// Called after a successful switch (exit 0) since we know the system is current.
+func (s *StatusChecker) SetSystemOk(message string) {
+	s.systemStatus = protocol.StatusCheck{
+		Status:    "ok",
+		Message:   message,
+		CheckedAt: time.Now().UTC().Format(time.RFC3339),
+	}
+	s.lastSystemCheck = time.Now()
+}
+
+// SetSystemOutdated sets the system status to "outdated" without running the expensive check.
+// Called after a successful pull (exit 0) since the system now differs from the flake.
+func (s *StatusChecker) SetSystemOutdated(message string) {
+	s.systemStatus = protocol.StatusCheck{
+		Status:    "outdated",
+		Message:   message,
+		CheckedAt: time.Now().UTC().Format(time.RFC3339),
+	}
+	s.lastSystemCheck = time.Now()
+}
+
 // checkLockStatus checks how recently the flake.lock was updated.
 func (s *StatusChecker) checkLockStatus(ctx context.Context) protocol.StatusCheck {
 	repoDir := s.a.cfg.RepoDir

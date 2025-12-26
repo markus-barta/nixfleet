@@ -261,30 +261,34 @@ func (a *Agent) executeCommand(command string) {
 		// Overall goal check based on command type
 		switch command {
 		case "pull":
-			// Goal: system should now be outdated (needs rebuild) or already current
+			// Goal: lock should now be current, system needs rebuild
+			// Set system to outdated since we pulled new config
+			a.statusChecker.SetSystemOutdated("Pull completed - rebuild needed")
 			a.sendOutput("", "stdout")
 			if lockStatus.Status == "ok" {
 				a.sendOutput("✅ Pull goal achieved: Lock file is current", "stdout")
 			} else {
 				a.sendOutput("⚠️  Pull completed but lock still appears outdated (cache?)", "stdout")
 			}
+			a.sendOutput("🟡 System: Outdated (rebuild needed)", "stdout")
 		case "switch":
 			// Goal: system should now be current
-			// Note: We infer success from exit code, not system status check
-			// (system check requires nix build --dry-run which is too heavy)
+			// Infer System=ok from exit code (avoids expensive nix build --dry-run)
+			a.statusChecker.SetSystemOk("Switch successful (exit 0)")
 			a.sendOutput("", "stdout")
-			a.sendOutput("✅ Switch completed successfully (exit 0)", "stdout")
-			a.sendOutput("   Use refresh-system to verify system status", "stdout")
+			a.sendOutput("✅ Switch completed successfully", "stdout")
+			a.sendOutput("🟢 System: Current (inferred from exit 0)", "stdout")
 		case "pull-switch":
 			// Goal: both should be current
-			// Note: System status inferred from exit code (check too heavy)
+			// Infer System=ok from exit code (avoids expensive nix build --dry-run)
+			a.statusChecker.SetSystemOk("Pull+Switch successful (exit 0)")
 			a.sendOutput("", "stdout")
 			if lockStatus.Status == "ok" {
 				a.sendOutput("✅ Pull+Switch completed: Lock current, switch successful", "stdout")
 			} else {
 				a.sendOutput("⚠️  Switch OK but lock shows outdated (Git cache may need time)", "stdout")
 			}
-			a.sendOutput("   Use refresh-system to verify system status", "stdout")
+			a.sendOutput("🟢 System: Current (inferred from exit 0)", "stdout")
 		}
 	}
 

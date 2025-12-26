@@ -605,6 +605,33 @@ templ Dashboard(data DashboardData) {
 			</div>
 		</div>
 
+		<!-- System Refresh Confirmation Dialog -->
+		<div class="modal-overlay hidden" id="systemRefreshDialog">
+			<div class="modal">
+				<div class="modal-title">
+					<svg class="modal-icon" style="width:24px;height:24px;margin-right:8px;color:var(--info)">
+						<use href="#icon-nixos"></use>
+					</svg>
+					Refresh System Status
+				</div>
+				<div class="modal-body">
+					<p>Host: <code id="systemRefreshHostname">hostname</code></p>
+					<p style="margin-top:12px;color:var(--fg)">
+						This will check if the running system matches the flake by running:
+					</p>
+					<pre style="margin:12px 0;padding:12px;background:var(--bg-light);border-radius:6px;font-size:0.85rem;overflow-x:auto;"><code id="systemRefreshCommand">nix build --dry-run .#nixosConfigurations.hostname.config.system.build.toplevel</code></pre>
+					<p style="color:var(--warning);font-size:0.9rem;">
+						⚠️ <strong>This operation is heavy</strong> — it does a full flake evaluation and may take 30-60 seconds.
+						The host may become less responsive during this time.
+					</p>
+				</div>
+				<div class="modal-actions">
+					<button class="modal-btn modal-btn-cancel" onclick="closeModal('systemRefreshDialog')">Cancel</button>
+					<button class="modal-btn modal-btn-primary" onclick="confirmSystemRefresh()">Run Check</button>
+				</div>
+			</div>
+		</div>
+
 		<footer class="site-footer">
 			<div class="footer-left">
 				<span class="connection-indicator" id="ws-status">
@@ -1566,6 +1593,50 @@ templ Dashboard(data DashboardData) {
 				const command = dialog.dataset.command;
 				closeModal('preCheckDialog');
 				sendCommand(hostId, command, true);
+			}
+
+			// System refresh confirmation dialog
+			function showSystemRefreshDialog(hostId, hostname, description, status) {
+				const dialog = document.getElementById('systemRefreshDialog');
+				if (!dialog) return;
+
+				// Store host info for confirm action
+				dialog.dataset.hostId = hostId;
+
+				// Populate hostname
+				document.getElementById('systemRefreshHostname').textContent = hostname;
+
+				// Show the exact command that will run
+				// NixOS: nix build --dry-run .#nixosConfigurations.<host>.config.system.build.toplevel
+				// macOS: nix build --dry-run .#homeConfigurations.<user>.activationPackage
+				const hostRow = document.querySelector(`[data-host-id="${hostId}"]`);
+				const hostType = hostRow?.dataset.hostType || 'nixos';
+				let command;
+				if (hostType === 'macos') {
+					command = `nix build --dry-run .#homeConfigurations.${hostname}.activationPackage`;
+				} else {
+					command = `nix build --dry-run .#nixosConfigurations.${hostname}.config.system.build.toplevel`;
+				}
+				document.getElementById('systemRefreshCommand').textContent = command;
+
+				// Show current status in log panel
+				showLogPanel(hostId);
+				appendLogLine(hostId, `ℹ️ Current system status: ${description || status}`);
+
+				// Open dialog
+				dialog.classList.remove('hidden');
+				dialog.classList.add('open');
+			}
+
+			function confirmSystemRefresh() {
+				const dialog = document.getElementById('systemRefreshDialog');
+				const hostId = dialog.dataset.hostId;
+				closeModal('systemRefreshDialog');
+
+				// Send refresh-system command
+				appendLogLine(hostId, `🔄 Starting system status check (this may take 30-60s)...`);
+				showToast('System check started...', 'info');
+				sendCommand(hostId, 'refresh-system');
 			}
 
 			function mergeAndDeploy(prNumber) {
@@ -3044,11 +3115,8 @@ templ Dashboard(data DashboardData) {
 						break;
 
 					case 'system':
-						// System: INFO ONLY - no refresh (too expensive)
-						// Show toast + log with current status
-						showLogPanel(hostId);
-						appendLogLine(hostId, `ℹ️ System status: ${description}`);
-						showToast(`System: ${description || status}`, toastType);
+						// System: show confirmation dialog (refresh is expensive)
+						showSystemRefreshDialog(hostId, hostname, description, status);
 						break;
 
 					default:
