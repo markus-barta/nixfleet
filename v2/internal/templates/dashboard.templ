@@ -1688,11 +1688,49 @@ templ Dashboard(data DashboardData) {
 				const confirmMsg = `Run Pull → Switch → Test on ${onlineHosts.length} online host(s)?`;
 				if (!confirm(confirmMsg)) return;
 
-				// Execute Pull → Switch → Test sequentially on all hosts
+				let remainingHostIds = onlineHosts.map(h => h.id);
+
+				// Helper: wait for all hosts to complete a command
+				const waitForCompletion = (hostIds, command, timeoutMs = 300000) => {
+					return new Promise((resolve) => {
+						const pending = new Set(hostIds);
+						const results = new Map();
+						
+						const handler = (e) => {
+							const { hostId, command: cmd, exit_code } = e.detail;
+							if (cmd === command && pending.has(hostId)) {
+								pending.delete(hostId);
+								results.set(hostId, { success: exit_code === 0, exit_code });
+								if (pending.size === 0) {
+									window.removeEventListener('command-complete', handler);
+									clearTimeout(timer);
+									resolve(results);
+								}
+							}
+						};
+						
+						window.addEventListener('command-complete', handler);
+						
+						const timer = setTimeout(() => {
+							window.removeEventListener('command-complete', handler);
+							pending.forEach(id => results.set(id, { success: false, exit_code: -1, timeout: true }));
+							resolve(results);
+						}, timeoutMs);
+					});
+				};
+
+				// Execute Pull → Switch → Test sequentially
 				for (const command of ['pull', 'switch', 'test']) {
-					onlineHosts.forEach(host => sendCommand(host.id, command));
-					// Wait a moment between command batches
-					await new Promise(r => setTimeout(r, 500));
+					if (remainingHostIds.length === 0) break;
+					
+					remainingHostIds.forEach(hostId => sendCommand(hostId, command));
+					const results = await waitForCompletion(remainingHostIds, command);
+					
+					// Filter out failed hosts
+					remainingHostIds = remainingHostIds.filter(id => {
+						const result = results.get(id);
+						return result && result.success;
+					});
 				}
 			}
 
@@ -3317,20 +3355,62 @@ templ Dashboard(data DashboardData) {
 						onlineHostIds.forEach(hostId => sendCommand(hostId, command));
 					},
 
-					// Do All: Pull → Switch → Test in sequence
+					// Do All: Pull → Switch → Test in sequence, waiting for completion
 					async doAll() {
 						const selected = Alpine.store('selection').selected;
-						const onlineHostIds = selected.filter(id => {
+						let remainingHosts = selected.filter(id => {
 							const host = hostStore.get(id);
 							return host && host.online;
 						});
-						if (onlineHostIds.length === 0) return;
+						if (remainingHosts.length === 0) return;
 
-						// Execute Pull → Switch → Test sequentially on all hosts
-						for (const command of ['pull', 'switch', 'test']) {
-							onlineHostIds.forEach(hostId => sendCommand(hostId, command));
-							// Wait a moment between commands
-							await new Promise(r => setTimeout(r, 500));
+						// Helper: wait for all hosts to complete a command
+						const waitForCompletion = (hostIds, command, timeoutMs = 300000) => {
+							return new Promise((resolve) => {
+								const pending = new Set(hostIds);
+								const results = new Map(); // hostId -> { success, exit_code }
+								
+								const handler = (e) => {
+									const { hostId, command: cmd, exit_code } = e.detail;
+									if (cmd === command && pending.has(hostId)) {
+										pending.delete(hostId);
+										results.set(hostId, { success: exit_code === 0, exit_code });
+										if (pending.size === 0) {
+											window.removeEventListener('command-complete', handler);
+											clearTimeout(timer);
+											resolve(results);
+										}
+									}
+								};
+								
+								window.addEventListener('command-complete', handler);
+								
+								// Timeout fallback
+								const timer = setTimeout(() => {
+									window.removeEventListener('command-complete', handler);
+									// Mark remaining as failed
+									pending.forEach(id => results.set(id, { success: false, exit_code: -1, timeout: true }));
+									resolve(results);
+								}, timeoutMs);
+							});
+						};
+
+						// Execute Pull → Switch → Test sequentially
+						const commands = ['pull', 'switch', 'test'];
+						for (const command of commands) {
+							if (remainingHosts.length === 0) break;
+							
+							// Send command to all remaining hosts
+							remainingHosts.forEach(hostId => sendCommand(hostId, command));
+							
+							// Wait for all to complete
+							const results = await waitForCompletion(remainingHosts, command);
+							
+							// Filter out hosts that failed (don't continue with them)
+							remainingHosts = remainingHosts.filter(id => {
+								const result = results.get(id);
+								return result && result.success;
+							});
 						}
 					},
 
