@@ -43,6 +43,7 @@ A tiny Go binary that runs on each host. It connects to the dashboard, reports i
 - **Clean-Slate Pull**: When you click "Pull", it does a proper `git fetch` + `git reset --hard` so you always get exactly what's on origin
 - **Works Everywhere**: Same agent for NixOS (uses `nixos-rebuild`) and macOS (uses `home-manager`)
 - **Survives Restarts**: On macOS, the agent cleverly detaches before running `home-manager switch` so it doesn't kill itself
+- **CLI Commands**: Run `nixfleet-agent --version`, `--help`, or `--check` to inspect the agent locally
 
 ### Security 🔒
 
@@ -94,14 +95,16 @@ NixFleet uses a robust command state machine to ensure every operation is valida
 
 #### Understanding the Status Indicators
 
-The dashboard shows a compact status for each host using letter codes. Here's what they mean:
+The dashboard shows compartment icons for each host with colored indicator dots:
 
-| Icon  | What It Checks | Green Means                      | Yellow/Red Means                   |
-| ----- | -------------- | -------------------------------- | ---------------------------------- |
-| **G** | Git status     | Host is on the target commit     | Host is behind, needs a pull       |
-| **L** | Lock freshness | flake.lock was updated recently  | Lock file is getting stale         |
-| **S** | System state   | Running config matches the flake | A rebuild would change something   |
-| **A** | Agent version  | (not shown when current)         | Agent is outdated, update the host |
+| Compartment | What It Checks | 🟢 Green                         | 🟡 Yellow                        | 🔴 Red                           |
+| ----------- | -------------- | -------------------------------- | -------------------------------- | -------------------------------- |
+| **Agent**   | Agent version  | Running latest version           | —                                | Agent is outdated, needs restart |
+| **Git**     | Git status     | Host is on the target commit     | Host is behind, needs a pull     | Git error or unknown state       |
+| **Lock**    | Lock freshness | flake.lock matches target        | Lock file differs from target    | Lock check failed                |
+| **System**  | System state   | Running config matches the flake | A rebuild would change something | System check error               |
+
+Click any compartment to see a toast with a quick explanation, or check the host log for full details.
 
 When everything is green, you're golden! ✨
 
@@ -157,9 +160,10 @@ Now tell each host how to connect to your dashboard.
     enable = true;
     url = "wss://fleet.example.com";      # Your dashboard URL (note: wss:// not https://)
     tokenFile = config.age.secrets.nixfleet-token.path;
-    isolatedRepoMode = true;              # Highly recommended!
-    location = "cloud";                   # Where is this machine? (cloud, home, work, other)
-    deviceType = "server";                # What kind of machine? (server, desktop, laptop, gaming, other)
+    repoUrl = "git@github.com:you/nixcfg.git";  # Agent manages its own clone
+    user = "admin";                       # User with sudo access for nixos-rebuild
+    location = "cloud";                   # Where is this machine? (cloud, home, work)
+    deviceType = "server";                # What kind of machine? (server, desktop, laptop, gaming)
   };
 }
 ```
@@ -172,14 +176,14 @@ Now tell each host how to connect to your dashboard.
     enable = true;
     url = "wss://fleet.example.com";
     tokenFile = "/Users/yourname/.config/nixfleet/token";  # Store your token here
-    isolatedRepoMode = true;
+    repoUrl = "git@github.com:you/nixcfg.git";
     location = "home";
     deviceType = "laptop";
   };
 }
 ```
 
-**Pro tip:** The `isolatedRepoMode` option is a game-changer! It means the agent keeps its own separate clone of your config repo. No more conflicts with the repo you're actively editing. 🎉
+**Pro tip:** Using `repoUrl` is a game-changer! It means the agent keeps its own separate clone of your config repo. No more conflicts with the repo you're actively editing. 🎉
 
 ### Step 3: Enable Version Tracking (Recommended)
 
@@ -270,29 +274,39 @@ That's it! Open your browser, log in, and watch your hosts appear as they connec
 
 These options are available for both NixOS and Home Manager modules:
 
-| Option             | Type   | Required | Description                                       |
-| ------------------ | ------ | -------- | ------------------------------------------------- |
-| `enable`           | bool   | -        | Enable the agent                                  |
-| `url`              | string | Yes      | Dashboard WebSocket URL (use `wss://`)            |
-| `tokenFile`        | path   | Yes      | Path to your API token file                       |
-| `isolatedRepoMode` | bool   | No       | Agent manages its own repo clone (default: true)  |
-| `repoUrl`          | string | No       | Git URL for isolated mode (usually auto-detected) |
-| `interval`         | int    | No       | Heartbeat interval in seconds (default: 5)        |
-| `location`         | enum   | No       | Location category (default: "other")              |
-| `deviceType`       | enum   | No       | Device type (default: "server")                   |
-| `themeColor`       | string | No       | Hex color for dashboard row (default: "#769ff0")  |
+| Option       | Type   | Required | Description                                                          |
+| ------------ | ------ | -------- | -------------------------------------------------------------------- |
+| `enable`     | bool   | -        | Enable the agent                                                     |
+| `url`        | string | Yes      | Dashboard WebSocket URL (use `wss://`)                               |
+| `tokenFile`  | path   | Yes      | Path to your API token file                                          |
+| `repoUrl`    | string | Yes      | Git URL — agent clones and manages its own copy                      |
+| `branch`     | string | No       | Git branch to track (default: "main")                                |
+| `interval`   | int    | No       | Heartbeat interval in seconds (default: 5)                           |
+| `location`   | enum   | No       | Location category: home, work, cloud (default: "home")               |
+| `deviceType` | enum   | No       | Device type: server, desktop, laptop, gaming (default: "desktop")    |
+| `themeColor` | string | No       | Hex color for dashboard row (auto: blue for NixOS, purple for macOS) |
+| `hostname`   | string | No       | Override auto-detected hostname                                      |
+| `logLevel`   | enum   | No       | Log verbosity: debug, info, warn, error (default: "info")            |
+| `sshKeyFile` | path   | No       | SSH key for cloning private repos (when using SSH URLs)              |
+
+**NixOS-specific options:**
+
+| Option | Type   | Required | Description                                                    |
+| ------ | ------ | -------- | -------------------------------------------------------------- |
+| `user` | string | Yes      | User to run the agent as (needs sudo access for nixos-rebuild) |
 
 ### Dashboard Commands
 
 These are the actions you can trigger from the UI:
 
-| Command       | What It Does                                           |
-| ------------- | ------------------------------------------------------ |
-| `pull`        | Updates the repo (fetch + reset in isolated mode)      |
-| `switch`      | Runs `nixos-rebuild switch` or `home-manager switch`   |
-| `pull-switch` | Does both in sequence — the "update everything" button |
-| `test`        | Runs your test scripts from `hosts/<host>/tests/T*.sh` |
-| `stop`        | Cancels a currently running command                    |
+| Command         | What It Does                                           |
+| --------------- | ------------------------------------------------------ |
+| `pull`          | Updates the repo (fetch + reset in isolated mode)      |
+| `switch`        | Runs `nixos-rebuild switch` or `home-manager switch`   |
+| `pull-switch`   | Does both in sequence — the "update everything" button |
+| `test`          | Runs your test scripts from `hosts/<host>/tests/T*.sh` |
+| `check-version` | Compares running vs installed agent binary version     |
+| `stop`          | Cancels a currently running command                    |
 
 ### Environment Variables
 
@@ -357,21 +371,24 @@ launchctl kickstart -k gui/$(id -u)/com.nixfleet.agent
 Want to hack on NixFleet? Welcome aboard! 🛠️
 
 ```bash
-# Enter the dev environment
-cd v2
-nix develop
+# Enter the dev environment (uses devenv)
+devenv shell
 
-# Run the dashboard locally
+# Or use just for common tasks
+just dev              # Enter dev shell
+just build-dashboard  # Build dashboard binary
+just build-agent      # Build agent binary
+just deploy           # Push, build Docker, deploy
+
+# Run locally
 go run ./cmd/nixfleet-dashboard
-
-# Run the agent locally
 go run ./cmd/nixfleet-agent
 
 # Run the test suite
 go test ./tests/...
 ```
 
-The codebase uses Go with `templ` for type-safe HTML templates and `htmx` for interactive updates. It's a joy to work with!
+The codebase uses Go with `templ` for type-safe HTML templates, `htmx` for server-driven updates, and `Alpine.js` for client-side interactivity. It's a joy to work with!
 
 ## Building & Deployment
 
