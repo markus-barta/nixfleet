@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
+	"strings"
 	"syscall"
 	"time"
 
@@ -176,6 +177,11 @@ func (a *Agent) executeCommand(command string) {
 	case "force-update":
 		a.sendOutput("⚠️  Force update initiated (bypassing Nix cache)...", "stdout")
 		a.handleForceUpdate()
+		return
+
+	// P7230: Check version - compares running vs installed binary
+	case "check-version":
+		a.handleCheckVersion()
 		return
 
 	default:
@@ -937,5 +943,78 @@ func (a *Agent) buildUpdateCommand() (*exec.Cmd, error) {
 	cmd := exec.CommandContext(a.ctx, args[0], args[1:]...)
 	cmd.Dir = a.cfg.RepoDir
 	return cmd, nil
+}
+
+// P7230: handleCheckVersion compares running vs installed agent binary version.
+// This detects when binary is updated but service hasn't restarted.
+func (a *Agent) handleCheckVersion() {
+	command := "check-version"
+
+	// Running version (from compiled-in constant)
+	runningVersion := Version
+
+	// Find the installed binary path
+	binaryPath := a.findAgentBinaryPath()
+
+	a.sendOutput("🔍 Checking agent version...", "stdout")
+	a.sendOutput(fmt.Sprintf("   Running version: %s", runningVersion), "stdout")
+	a.sendOutput(fmt.Sprintf("   Binary path: %s", binaryPath), "stdout")
+
+	// Execute the installed binary with --version
+	cmd := exec.CommandContext(a.ctx, binaryPath, "--version")
+	output, err := cmd.Output()
+	if err != nil {
+		a.sendOutput(fmt.Sprintf("❌ Failed to check installed version: %v", err), "stderr")
+		a.sendStatus("error", command, 1, "failed to check installed version")
+		return
+	}
+
+	// Parse installed version from output (format: "nixfleet-agent X.Y.Z")
+	installedVersion := strings.TrimSpace(string(output))
+	installedVersion = strings.TrimPrefix(installedVersion, "nixfleet-agent ")
+
+	a.sendOutput(fmt.Sprintf("   Installed version: %s", installedVersion), "stdout")
+	a.sendOutput("", "stdout")
+
+	// Compare versions
+	if runningVersion == installedVersion {
+		a.sendOutput(fmt.Sprintf("✅ Agent OK: running %s, installed %s", runningVersion, installedVersion), "stdout")
+		a.sendStatus("ok", command, 0, fmt.Sprintf("running=%s installed=%s", runningVersion, installedVersion))
+	} else {
+		a.sendOutput(fmt.Sprintf("⚠️  Agent mismatch: running %s, installed %s", runningVersion, installedVersion), "stdout")
+		a.sendOutput("   Restart agent to pick up new version", "stdout")
+		a.sendStatus("warning", command, 0, fmt.Sprintf("mismatch: running=%s installed=%s", runningVersion, installedVersion))
+	}
+}
+
+// findAgentBinaryPath locates the nixfleet-agent binary on the system.
+func (a *Agent) findAgentBinaryPath() string {
+	// Try common Nix paths first
+	paths := []string{
+		"/run/current-system/sw/bin/nixfleet-agent",          // NixOS system-level
+		"/etc/profiles/per-user/" + os.Getenv("USER") + "/bin/nixfleet-agent", // Home Manager
+	}
+
+	// On macOS, also check user-specific paths
+	if runtime.GOOS == "darwin" {
+		home, _ := os.UserHomeDir()
+		paths = append([]string{
+			home + "/.nix-profile/bin/nixfleet-agent",
+		}, paths...)
+	}
+
+	for _, p := range paths {
+		if _, err := os.Stat(p); err == nil {
+			return p
+		}
+	}
+
+	// Fallback: use which/command -v
+	if out, err := exec.Command("which", "nixfleet-agent").Output(); err == nil {
+		return strings.TrimSpace(string(out))
+	}
+
+	// Last resort: assume it's in PATH
+	return "nixfleet-agent"
 }
 

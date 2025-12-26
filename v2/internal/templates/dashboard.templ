@@ -211,21 +211,11 @@ templ Dashboard(data DashboardData) {
 		</div>
 
 		<!-- Desktop: Table View -->
-		<!-- P2700: Reduced from 9 to 7 columns (Loc+Dev+Type→TYPE, Tests→STATUS) -->
+		<!-- P7230: Reordered columns - checkbox first -->
 		<table class="host-table" id="host-table" x-data>
 			<thead>
 				<tr>
-					<th class="col-hosts" title="Online / Total Hosts">
-						<span class={ templ.KV("stat-online-positive", data.Stats.Online > 0) } id="stat-online">{ fmt.Sprint(data.Stats.Online) }</span>/{ fmt.Sprint(data.Stats.Total) } Hosts
-					</th>
-					<th class="col-center col-type" title="Location / Device / OS">Type</th>
-					<th>Metrics</th>
-					<th class="col-agent" title="Agent Version">Agent</th>
-					<th title="Git/Lock/System Status">Status</th>
-					<th class="col-right">Last Seen</th>
-					<!-- P1050: Actions removed, P1060: Menu column -->
-					<th class="col-menu"></th>
-					<!-- P1030: Selection checkbox column (right side) -->
+					<!-- P7230: Selection checkbox column moved to first -->
 					<th class="col-select">
 						<button
 							type="button"
@@ -238,6 +228,15 @@ templ Dashboard(data DashboardData) {
 							<svg class="icon" x-show="$store.selection.headerState === 'all'"><use href="#icon-check-square"></use></svg>
 						</button>
 					</th>
+					<th class="col-hosts" title="Online / Total Hosts">
+						<span class={ templ.KV("stat-online-positive", data.Stats.Online > 0) } id="stat-online">{ fmt.Sprint(data.Stats.Online) }</span>/{ fmt.Sprint(data.Stats.Total) } Hosts
+					</th>
+					<th class="col-center col-type" title="Location / Device / OS">Type</th>
+					<th>Metrics</th>
+					<th class="col-agent" title="Agent Version">Agent</th>
+					<th title="Git/Lock/System Status">Status</th>
+					<th class="col-right">Last Seen</th>
+					<th class="col-menu"></th>
 				</tr>
 			</thead>
 			<tbody>
@@ -2849,22 +2848,27 @@ templ Dashboard(data DashboardData) {
 					btn.classList.remove('rate-limited');
 				}, COOLDOWN_MS);
 
-				// P7300: Different behavior per compartment
+				// P7230: All compartment clicks show toast + log
+				// Toast = short TL;DR, Log = detailed info
+				const status = btn.dataset.status || 'unknown';
+				const toastType = status === 'ok' ? 'success' : 
+								  status === 'error' ? 'error' : 
+								  status === 'outdated' ? 'warning' : 'info';
+
 				switch (compartment) {
 					case 'agent':
-						// Agent: show info toast with version details
-						const host = hostStore.get(hostId);
-						if (host) {
-							const agentInfo = host.agentVersion || 'unknown';
-							const status = host.agentOutdated ? '(outdated)' : '(current)';
-							showToast(`Agent: ${agentInfo} ${status}`, 'info');
-						}
+						// P7230: Agent: run check-version command to compare running vs installed
+						showLogPanel(hostId);
+						appendLogLine(hostId, `🔍 Checking agent version...`);
+						showToast(`Agent: checking version...`, 'info');
+						sendCommand(hostId, 'check-version');
 						break;
 
 					case 'git':
 						// Git: lightweight refresh (dashboard-side GitHub API call)
 						showLogPanel(hostId);
 						appendLogLine(hostId, `🔄 Refreshing git status...`);
+						showToast(`Git: refreshing...`, 'info');
 						window.dispatchEvent(new CustomEvent('output-start', {
 							detail: { hostId, command: 'refresh-git' }
 						}));
@@ -2876,13 +2880,16 @@ templ Dashboard(data DashboardData) {
 							if (!resp.ok) throw new Error('Failed to refresh git status');
 							return resp.json();
 						}).then(data => {
-							appendLogLine(hostId, `✓ Git status: ${data.status} (${data.message})`);
+							const msg = `Git: ${data.status} - ${data.message}`;
+							appendLogLine(hostId, `✓ ${msg}`);
+							showToast(msg, data.status === 'ok' ? 'success' : 'warning');
 							refreshHost(hostId);
 							window.dispatchEvent(new CustomEvent('log-complete', {
 								detail: { host_id: hostId, command: 'refresh-git', exit_code: 0 }
 							}));
 						}).catch(err => {
 							appendLogLine(hostId, `✗ ${err.message}`, 'error');
+							showToast(`Git: ${err.message}`, 'error');
 							window.dispatchEvent(new CustomEvent('log-complete', {
 								detail: { host_id: hostId, command: 'refresh-git', exit_code: 1, error: err.message }
 							}));
@@ -2893,13 +2900,16 @@ templ Dashboard(data DashboardData) {
 						// Lock: lightweight refresh (agent reads flake.lock - fast)
 						showLogPanel(hostId);
 						appendLogLine(hostId, `🔄 Refreshing lock status...`);
+						showToast(`Lock: ${description || 'checking...'}`, toastType);
 						sendCommand(hostId, 'refresh-lock');
 						break;
 
 					case 'system':
 						// System: INFO ONLY - no refresh (too expensive)
-						// Show toast with current status instead
-						showToast(`System status: ${description}`, 'info');
+						// Show toast + log with current status
+						showLogPanel(hostId);
+						appendLogLine(hostId, `ℹ️ System status: ${description}`);
+						showToast(`System: ${description || status}`, toastType);
 						break;
 
 					default:
@@ -3620,9 +3630,26 @@ templ HostRow(host Host, csrfToken string) {
 		x-data
 		x-bind:class={ selectionClassBinding(host.ID) }
 	>
+		<!-- P7230: Selection checkbox moved to first column -->
+		<td class="col-select">
+			<button
+				type="button"
+				class="select-toggle row-select-toggle"
+				@click={ checkboxClickHandler(host.ID) }
+				x-bind:class={ rowSelectedClass(host.ID) }
+				title="Select host"
+			>
+				<svg class="icon" x-bind:style={ iconVisibility(host.ID, false) }><use href="#icon-square"></use></svg>
+				<svg class="icon" x-bind:style={ iconVisibility(host.ID, true) }><use href="#icon-check-square"></use></svg>
+			</button>
+		</td>
 		<td class="status-cell-with-badge">
 			<span class="status-wrapper">
 				@StatusIndicator(host)
+				<!-- P7230: Device type icon prefix before hostname -->
+				<span class="hostname-device-icon" style={ typeIconColorStyle(host.ThemeColor) }>
+					@deviceTypeIcon(host.DeviceType)
+				</span>
 				<span
 					class="hostname hostname-copyable"
 					style={ hostnameColorStyle(host.ThemeColor) }
@@ -3660,22 +3687,8 @@ templ HostRow(host Host, csrfToken string) {
 			@UpdateStatusCell(host)
 		</td>
 		<td class="col-right" data-cell="last-seen" data-timestamp={ host.LastSeen }>{ valueOrDash(host.LastSeen) }</td>
-		<!-- P1050: Actions column removed - Pull/Switch via compartments, Test via menu -->
 		<td class="col-menu">
 			@ActionDropdown(host)
-		</td>
-		<!-- P1030: Selection checkbox (right side, subtle button style) -->
-		<td class="col-select">
-			<button
-				type="button"
-				class="select-toggle row-select-toggle"
-				@click={ checkboxClickHandler(host.ID) }
-				x-bind:class={ rowSelectedClass(host.ID) }
-				title="Select host"
-			>
-				<svg class="icon" x-bind:style={ iconVisibility(host.ID, false) }><use href="#icon-square"></use></svg>
-				<svg class="icon" x-bind:style={ iconVisibility(host.ID, true) }><use href="#icon-check-square"></use></svg>
-			</button>
 		</td>
 	</tr>
 }

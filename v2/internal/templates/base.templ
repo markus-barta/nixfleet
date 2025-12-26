@@ -1153,6 +1153,24 @@ templ Base(title string, csrfToken string) {
 			transform: scale(0.98);
 		}
 
+		/* P7230: Device type icon prefix before hostname */
+		.hostname-device-icon {
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			margin-right: 0.35rem;
+			opacity: 0.7;
+		}
+
+		.hostname-device-icon .icon,
+		.hostname-device-icon .device-icon {
+			width: 10px;
+			height: 10px;
+			color: var(--type-color, var(--fg));
+			fill: var(--type-color, var(--fg));
+			stroke: var(--type-color, var(--fg));
+		}
+
 		/* Footer */
 		footer {
 			margin-top: 2rem;
@@ -1439,12 +1457,10 @@ templ Base(title string, csrfToken string) {
 			background: #4b5563;
 		}
 
+		/* P7230: Icon 20% bigger (11→13px), centered */
 		.update-compartment .update-icon {
-			position: relative;
-			top: -2px;
-			left: -2px;
-			width: 11px;
-			height: 11px;
+			width: 13px;
+			height: 13px;
 			fill: #1f2937;
 			stroke: #1f2937;
 			color: #1f2937;
@@ -1572,12 +1588,13 @@ templ Base(title string, csrfToken string) {
 		   - yellow: warning / outdated
 		   - red: error / failed
 		   ═══════════════════════════════════════════════════════════════════════════ */
+		/* P7230: Indicator dot 15% smaller (6→5px) */
 		.compartment-indicator {
 			position: absolute;
 			bottom: 4px;
 			right: 4px;
-			width: 6px;
-			height: 6px;
+			width: 5px;
+			height: 5px;
 			border-radius: 50%;
 			pointer-events: none;
 		}
@@ -2103,8 +2120,9 @@ templ Base(title string, csrfToken string) {
 		}
 
 		/* Row Toggle (button style, matching header) */
+		/* P7230: Visible at 10% opacity when unchecked */
 		.row-select-toggle {
-			opacity: 0;
+			opacity: 0.1;
 			transition: opacity 150ms ease;
 		}
 
@@ -2245,6 +2263,12 @@ templ Base(title string, csrfToken string) {
 		.toast-success {
 			border-color: var(--green);
 			color: var(--green);
+		}
+
+		/* P7230: Warning toast for outdated status */
+		.toast-warning {
+			border-color: var(--yellow);
+			color: var(--yellow);
 		}
 
 		/* ═══════════════════════════════════════════════════════════════════════════
