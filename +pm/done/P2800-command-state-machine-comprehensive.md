@@ -3,7 +3,7 @@
 **Created**: 2025-12-21
 **Updated**: 2025-12-25 (Aligned with Implementation Reality)
 **Priority**: P2800 (High - Architecture)
-**Status**: In Progress (~95% Backend Complete, ~75% Overall)
+**Status**: Done
 **Effort**: 16-18 days (expanded from 10-14 due to lifecycle integration)
 **Depends on**: P2000 (Unified Host State - Done)
 
@@ -11,19 +11,19 @@
 
 ## 📊 Implementation Status (Dec 25)
 
-| Component                 | Status         | Reality vs. Spec                                                        |
-| :------------------------ | :------------- | :---------------------------------------------------------------------- |
-| **State Machine Engine**  | ✅ Done        | Core transitions and snapshotting implemented in `command_state.go`.    |
-| **3-Layer Freshness**     | ✅ Done        | Agent reports Commit/Path/Hash; Dashboard verifies on reconnect.        |
-| **Pre-Check Validators**  | ✅ Done        | All pre-validators implemented and wired into `/api/command`.           |
-| **Pre-Check Dialog UI**   | ✅ Done        | `preCheckDialog` modal with alternative actions in `dashboard.templ`.   |
-| **Progress Dots UI**      | ✅ Done        | `progressDots()` component renders phase progress in Status column.     |
-| **Reboot Integration**    | ✅ Done        | `ABORTED_BY_REBOOT` and `POST_REBOOT` recovery logic active.            |
-| **Timeout Backend**       | ✅ Done        | `CheckTimeouts` loop + `/api/hosts/{id}/timeout-action` API functional. |
-| **Kill Command**          | ✅ Done        | Agent `handleKillCommand` + Dashboard API + SIGTERM/SIGKILL escalation. |
-| **Post-Check Validators** | ✅ Done        | `RunPostChecks` wired into `hub.handleStatus` for pull/test commands.   |
-| **Timeout UI**            | 🔄 In Progress | Context bar + Status column indicator (no modal). See P7240.            |
-| **Protocol Upgrade**      | ⏭️ Skipped     | Not needed. See reasoning below.                                        |
+| Component                 | Status     | Reality vs. Spec                                                        |
+| :------------------------ | :--------- | :---------------------------------------------------------------------- |
+| **State Machine Engine**  | ✅ Done    | Core transitions and snapshotting implemented in `command_state.go`.    |
+| **3-Layer Freshness**     | ✅ Done    | Agent reports Commit/Path/Hash; Dashboard verifies on reconnect.        |
+| **Pre-Check Validators**  | ✅ Done    | All pre-validators implemented and wired into `/api/command`.           |
+| **Pre-Check Dialog UI**   | ✅ Done    | `preCheckDialog` modal with alternative actions in `dashboard.templ`.   |
+| **Progress Dots UI**      | ✅ Done    | `progressDots()` component renders phase progress in Status column.     |
+| **Reboot Integration**    | ✅ Done    | `ABORTED_BY_REBOOT` and `POST_REBOOT` recovery logic active.            |
+| **Timeout Backend**       | ✅ Done    | `CheckTimeouts` loop + `/api/hosts/{id}/timeout-action` API functional. |
+| **Kill Command**          | ✅ Done    | Agent `handleKillCommand` + Dashboard API + SIGTERM/SIGKILL escalation. |
+| **Post-Check Validators** | ✅ Done    | `RunPostChecks` wired into `hub.handleStatus` for pull/test commands.   |
+| **Timeout UI**            | ✅ Done    | Context bar + Status column indicator (no modal). Implemented in P7240. |
+| **Protocol Upgrade**      | ⏭️ Skipped | Not needed. See reasoning below.                                        |
 
 ### 🔧 Remaining Work
 
