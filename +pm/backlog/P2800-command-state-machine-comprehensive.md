@@ -11,21 +11,21 @@
 
 ## 📊 Implementation Status (Dec 25)
 
-| Component                 | Status     | Reality vs. Spec                                                        |
-| :------------------------ | :--------- | :---------------------------------------------------------------------- |
-| **State Machine Engine**  | ✅ Done    | Core transitions and snapshotting implemented in `command_state.go`.    |
-| **3-Layer Freshness**     | ✅ Done    | Agent reports Commit/Path/Hash; Dashboard verifies on reconnect.        |
-| **Pre-Check Validators**  | ✅ Done    | All pre-validators implemented and wired into `/api/command`.           |
-| **Pre-Check Dialog UI**   | ✅ Done    | `preCheckDialog` modal with alternative actions in `dashboard.templ`.   |
-| **Progress Dots UI**      | ✅ Done    | `progressDots()` component renders phase progress in Status column.     |
-| **Reboot Integration**    | ✅ Done    | `ABORTED_BY_REBOOT` and `POST_REBOOT` recovery logic active.            |
-| **Timeout Backend**       | ✅ Done    | `CheckTimeouts` loop + `/api/hosts/{id}/timeout-action` API functional. |
-| **Kill Command**          | ✅ Done    | Agent `handleKillCommand` + Dashboard API + SIGTERM/SIGKILL escalation. |
-| **Post-Check Validators** | ✅ Done    | `RunPostChecks` wired into `hub.handleStatus` for pull/test commands.   |
-| **Timeout UI**            | ❌ Pending | Frontend modal for Wait/Kill/Ignore actions missing (backend ready).    |
-| **Protocol Upgrade**      | ❌ Pending | Agent sends `TypeStatus`; `TypeCommandComplete` defined but never sent. |
+| Component                 | Status         | Reality vs. Spec                                                        |
+| :------------------------ | :------------- | :---------------------------------------------------------------------- |
+| **State Machine Engine**  | ✅ Done        | Core transitions and snapshotting implemented in `command_state.go`.    |
+| **3-Layer Freshness**     | ✅ Done        | Agent reports Commit/Path/Hash; Dashboard verifies on reconnect.        |
+| **Pre-Check Validators**  | ✅ Done        | All pre-validators implemented and wired into `/api/command`.           |
+| **Pre-Check Dialog UI**   | ✅ Done        | `preCheckDialog` modal with alternative actions in `dashboard.templ`.   |
+| **Progress Dots UI**      | ✅ Done        | `progressDots()` component renders phase progress in Status column.     |
+| **Reboot Integration**    | ✅ Done        | `ABORTED_BY_REBOOT` and `POST_REBOOT` recovery logic active.            |
+| **Timeout Backend**       | ✅ Done        | `CheckTimeouts` loop + `/api/hosts/{id}/timeout-action` API functional. |
+| **Kill Command**          | ✅ Done        | Agent `handleKillCommand` + Dashboard API + SIGTERM/SIGKILL escalation. |
+| **Post-Check Validators** | ✅ Done        | `RunPostChecks` wired into `hub.handleStatus` for pull/test commands.   |
+| **Timeout UI**            | 🔄 In Progress | Context bar + Status column indicator (no modal). See P7240.            |
+| **Protocol Upgrade**      | ⏭️ Skipped     | Not needed. See reasoning below.                                        |
 
-### 🔧 Remaining Work (1-2 days)
+### 🔧 Remaining Work
 
 **Must Have:**
 
@@ -33,14 +33,22 @@
    - Added `getHostForPostValidation()` helper
    - `RunPostChecks` called for pull/test, result determines SUCCESS vs PARTIAL
 
-2. **Add timeout action modal** in `dashboard.templ`:
-   - Modal similar to `preCheckDialog` structure
-   - Triggered when receiving `command_state_change` with `state: "timeout_pending"`
-   - Buttons call `/api/hosts/{id}/timeout-action` with action: wait/kill/ignore
+2. **Timeout UI** → Moved to P7240
+   - Context bar shows timeout notification with Wait/Kill/Ignore actions
+   - Status column shows pulsing ⚠️ indicator with elapsed time
+   - No modal dialogs
 
-**Nice to Have:**
+**Skipped:**
 
-3. **Protocol upgrade**: Agent sends `TypeCommandComplete` with fresh status (enables more accurate post-validation)
+3. ~~**Protocol upgrade**: Agent sends `TypeCommandComplete`~~ — **CANCELLED**
+
+   **Why skipped:** The only benefit would be fresher data for post-validation. However:
+   - Lock status refresh is already fast and works fine
+   - System status check (`nix build --dry-run`) takes 30-60s — too slow to run synchronously at command end
+   - Heartbeat arrives within 5 seconds anyway with fresh data
+   - No observed issues with post-validation using current `TypeStatus` approach
+
+   The `TypeCommandComplete` message type remains defined in protocol for potential future use, but implementing it now adds complexity without clear benefit.
 
 ---
 

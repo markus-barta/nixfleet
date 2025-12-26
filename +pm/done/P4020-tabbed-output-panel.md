@@ -1,5 +1,7 @@
 # P4020 - Tabbed Output Panel
 
+**Status**: Done (refined)
+
 ## Problem
 
 Currently, the dashboard has a single output panel at the bottom that shows command output for one host at a time. When multiple hosts have operations running in parallel, users can only see output from one host, losing visibility into the others.
@@ -46,19 +48,21 @@ Implement a tabbed output panel similar to browser tabs:
 
 ### FR-1: Tab Management
 
-| ID     | Requirement                                                  |
-| ------ | ------------------------------------------------------------ |
-| FR-1.1 | New tab auto-created on first output for a host              |
-| FR-1.2 | Tab shows hostname as label                                  |
-| FR-1.3 | Tab has X button to close/dismiss                            |
-| FR-1.4 | Clicking tab switches to that host's output                  |
-| FR-1.5 | Tabs persist until explicitly closed by user (NO auto-close) |
-| FR-1.6 | Ellipsis menu has "Show Output" option to open/reopen tab    |
-| FR-1.7 | "Show Output" reopens tab with buffered output history       |
-| FR-1.8 | Tabs ordered by creation time (first command = leftmost)     |
-| FR-1.9 | New command on existing tab appends with visual separator    |
+| ID     | Requirement                                                               |
+| ------ | ------------------------------------------------------------------------- |
+| FR-1.1 | New tab auto-created on first output for a host                           |
+| FR-1.2 | Tab shows hostname as label                                               |
+| FR-1.3 | Tab has X button to close/dismiss                                         |
+| FR-1.4 | Clicking tab switches to that host's output                               |
+| FR-1.5 | Tabs persist until explicitly closed by user (NO auto-close)              |
+| FR-1.6 | Ellipsis menu has "Show Output" option to open/reopen tab                 |
+| FR-1.7 | "Show Output" reopens tab with buffered output history                    |
+| FR-1.8 | Tabs ordered by creation time (first command = leftmost)                  |
+| FR-1.9 | ~~New command on existing tab appends with visual separator~~ (CANCELLED) |
 
-### FR-1.9 Detail: Command Separator
+### FR-1.9 Detail: Command Separator (CANCELLED)
+
+> **Refinement Note**: This requirement was cancelled as it was considered not optimal for the flat log view.
 
 When a new command starts on a host that already has an open tab, insert a visual separator:
 
@@ -191,20 +195,20 @@ A special tab that captures all ephemeral UI events (toasts, errors, system mess
 | Git/Lock/System status change        | ❌      | (too verbose) |
 | Heartbeats                           | ❌      | (too verbose) |
 
-### FR-9: Status History in Host Tabs (merged from P6600)
+### FR-9: Status History in Host Tabs (CANCELLED)
 
-Each host tab displays a compact status history summary at the top, showing recent status updates before the full command output.
+> **Refinement Note**: This requirement was cancelled as it was considered not optimal for the compact flat log view. The information is available in the System Log tab and as status lines in the host output.
 
-| ID     | Requirement                                                      |
-| ------ | ---------------------------------------------------------------- |
-| FR-9.1 | Status history appears at top of host tab (above command output) |
-| FR-9.2 | Shows last N status entries (default: 10, configurable)          |
-| FR-9.3 | Each entry shows: timestamp (HH:MM), icon, truncated message     |
-| FR-9.4 | Entries scrollable if history exceeds visible area               |
-| FR-9.5 | Most recent entry highlighted (bold or brighter color)           |
-| FR-9.6 | Error entries shown in red (matching System Log styling)         |
-| FR-9.7 | Status history updates in real-time via WebSocket                |
-| FR-9.8 | History persists across tab close/reopen (session storage)       |
+| ID     | Requirement                                                                      |
+| ------ | -------------------------------------------------------------------------------- |
+| FR-9.1 | ~~Status history appears at top of host tab (above command output)~~ (CANCELLED) |
+| FR-9.2 | ~~Shows last N status entries (default: 10, configurable)~~ (CANCELLED)          |
+| FR-9.3 | ~~Each entry shows: timestamp (HH:MM), icon, truncated message~~ (CANCELLED)     |
+| FR-9.4 | ~~Entries scrollable if history exceeds visible area~~ (CANCELLED)               |
+| FR-9.5 | ~~Most recent entry highlighted (bold or brighter color)~~ (CANCELLED)           |
+| FR-9.6 | ~~Error entries shown in red (matching System Log styling)~~ (CANCELLED)         |
+| FR-9.7 | ~~Status history updates in real-time via WebSocket~~ (CANCELLED)                |
+| FR-9.8 | ~~History persists across tab close/reopen (session storage)~~ (CANCELLED)       |
 
 **Status History Icons** (aligned with P2800 verbose logging):
 
