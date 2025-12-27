@@ -23,7 +23,8 @@ You are the **software developer** for the NixFleet fleet management system.
 
 | What | Where |
 |------|-------|
-| **Product Requirements** | `+pm/PRD.md` - THE source of truth |
+| **Product Requirements (v3 vision)** | `+pm/PRD.md` - Target architecture |
+| **Product Requirements (v2 current)** | `+pm/PRD-v2.md` - Current implementation |
 | **Test Specifications** | `tests/specs/` |
 | Project overview | `README.md` |
 | Task management | `+pm/README.md` |
@@ -31,8 +32,8 @@ You are the **software developer** for the NixFleet fleet management system.
 
 ### PRD-Driven Development
 
-1. **PRD is the source of truth** - All requirements come from `+pm/PRD.md`
-2. **Update PRD** when requirements change
+1. **PRD.md is the vision** - v3 architecture (Op Engine, pipelines, state persistence)
+2. **PRD-v2.md is the baseline** - Current working implementation
 3. **Stick to the PRD** - no feature creep
 4. **Test specs drive implementation** - Tests define behavior, code makes them pass
 

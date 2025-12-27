@@ -4,6 +4,15 @@ Central hub for tracking work on the NixFleet dashboard.
 
 ---
 
+## Product Requirements Documents
+
+| Document                 | Version | Description                                 |
+| ------------------------ | ------- | ------------------------------------------- |
+| [PRD.md](./PRD.md)       | v3.0    | **Current vision** — Op Engine architecture |
+| [PRD-v2.md](./PRD-v2.md) | v2.0    | Current implementation — Go rewrite         |
+
+---
+
 ## Priority System
 
 Tasks use a **P-number** prefix for ordering:

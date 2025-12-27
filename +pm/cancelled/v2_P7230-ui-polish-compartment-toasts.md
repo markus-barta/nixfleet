@@ -2,7 +2,9 @@
 
 **Priority**: Medium  
 **Effort**: Medium  
-**Status**: In Progress
+**Status**: Cancelled (v2-specific)
+
+> **Cancellation Note (2025-12-27):** This v2 UI polish item is superseded by v3 PRD Phase 5 (Frontend Simplification). The compartment behavior and UI polish will be redesigned as part of the thin frontend architecture. Relevant functionality (check-version op) has been added to the v3 Op Registry.
 
 ## UI Polish
 

@@ -1,6 +1,8 @@
-# NixFleet v2.0 - Product Requirements Document
+# NixFleet v3.0 - Product Requirements Document
 
 > **Single Source of Truth** for NixFleet development.
+>
+> For v2.0 PRD (current implementation), see [PRD-v2.md](./PRD-v2.md).
 
 ---
 
@@ -8,563 +10,653 @@
 
 NixFleet is a fleet management system for NixOS and macOS hosts. It enables centralized monitoring, configuration deployment, and testing across a personal infrastructure.
 
-**v2.0 Goal**: Complete rewrite in Go with real-time communication, solving the limitations of the v1.0 prototype.
+**v3.0 Goal**: Architectural refactor introducing the **Op Engine** — a unified, testable, and resilient action system that replaces scattered command handling with well-defined operations and pipelines.
 
 ---
 
 ## Problem Statement
 
-### v1.0 Limitations (Python/Bash)
+### v2.0 Limitations
 
-1. **Agent becomes unresponsive during switch** - Bash agent is single-threaded; can't heartbeat while executing commands
-2. **No live output** - Users wait blindly during long operations
-3. **Mixed technology stack** - Python dashboard + Bash agent = inconsistent patterns
-4. **HTTP polling inefficiency** - Constant polling even when idle
+| Area                      | Problem                                                                  | Impact                                      |
+| ------------------------- | ------------------------------------------------------------------------ | ------------------------------------------- |
+| **Action Duplication**    | Same logic repeated in row buttons, menu, context bar, bulk menu         | Hard to maintain, inconsistent behavior     |
+| **State Fragmentation**   | State split between SQLite, Hub (memory), CommandState (memory), browser | Dashboard restart = lose in-flight commands |
+| **No Command History**    | Commands are ephemeral, no audit trail                                   | Can't trace what happened                   |
+| **No Recovery**           | Dashboard restart orphans running commands                               | Manual intervention needed                  |
+| **Frontend Logic**        | Business logic in JavaScript                                             | Hard to test, duplicates backend            |
+| **Inconsistent Patterns** | Some actions via WebSocket, some via REST                                | Confusing, error-prone                      |
 
-### v2.0 Solutions
+### v3.0 Solutions
 
-1. **Go agent with goroutines** - Concurrent heartbeats and command execution
-2. **WebSocket streaming** - Real-time output from commands to browser
-3. **All-Go stack** - Consistent language, single binaries, easier deployment
-4. **WebSocket communication** - Persistent connections, instant updates
+| Solution              | Benefit                                            |
+| --------------------- | -------------------------------------------------- |
+| **Op Engine**         | Single source of truth for all actions             |
+| **Pipeline Executor** | Sequential ops with `&&` semantics                 |
+| **State Store**       | Unified persistence for commands, pipelines, audit |
+| **Command Journal**   | Resume after dashboard restart                     |
+| **Thin Frontend**     | Dispatcher only, no business logic                 |
+| **Event Bus**         | Consistent state propagation                       |
 
 ---
 
-## Critical Requirement: Agent Resilience
+## Core Concepts
 
-> **This is the #1 requirement of NixFleet. Without resilient agents, the entire system is useless.**
+### Op (Operation)
 
-NixFleet's core value proposition is remote fleet management. If the agent dies, goes offline, or fails to restart after updates, the operator loses visibility and control. **This is unacceptable.**
+An **Op** is an atomic action on a single host. It is:
 
-### The Fundamental Promise
+- **Defined once** in the Op Registry
+- **Validated** before execution (pre-check)
+- **Verified** after execution (post-check)
+- **Testable** in isolation (no UI needed)
+- **Observable** (emits progress events)
 
-**After any operation — switch, pull, reboot, crash, network outage, power failure — the most recent working agent MUST be running and connected to the dashboard within 60 seconds of the host being reachable.**
-
-No exceptions. No "it works most of the time." No manual intervention required.
-
-### Command Lifecycle & State Machine
-
-To ensure this promise, every operation follows a strict state machine with pre- and post-validation.
-
-#### Command Lifecycle State Machine
-
-```text
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                    COMMAND LIFECYCLE STATE MACHINE                          │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
-│   ┌───────────────┐    ┌───────────────┐    ┌───────────────┐               │
-│   │  IDLE         │───▶│  VALIDATING   │───▶│  QUEUED       │               │
-│   │               │    │  (pre)        │    │               │               │
-│   └───────────────┘    └───────┬───────┘    └───────┬───────┘               │
-│          ▲                     │ fail               │                       │
-│          │              ┌──────▼──────┐             │                       │
-│          │              │  BLOCKED    │             │                       │
-│          │              │  (show why) │             ▼                       │
-│          │              └─────────────┘    ┌───────────────┐                │
-│          │                                 │  RUNNING      │                │
-│          │                                 │  + progress   │                │
-│          │                                 └───────┬───────┘                │
-│          │                                         │                        │
-│          │                                         ▼                        │
-│          │                                 ┌───────────────┐                │
-│          │                                 │  VALIDATING   │                │
-│          │                                 │  (post)       │                │
-│          │                                 └───────┬───────┘                │
-│          │                                         │                        │
-│          │         ┌───────────────────────────────┼───────────────┐        │
-│          │         ▼                               ▼               ▼        │
-│   ┌──────┴────────────┐                ┌───────────────┐  ┌─────────────┐   │
-│   │  SUCCESS          │                │  PARTIAL      │  │  FAILED     │   │
-│   │  (goal achieved)  │                │  (exit 0 but  │  │  (exit ≠ 0) │   │
-│   └───────────────────┘                │  goal not met)│  └─────────────┘   │
-│                                        └───────────────┘                    │
-└─────────────────────────────────────────────────────────────────────────────┘
+```go
+type Op struct {
+    ID        string                                  // "pull", "switch", "test"
+    Validate  func(host *Host) *ValidationError      // Pre-check
+    Execute   func(ctx context.Context, host *Host) error
+    PostCheck func(host *Host) *ValidationError      // Post-check
+    Timeout   time.Duration
+    Retryable bool
+}
 ```
 
-#### The Switch Lifecycle (Reconnection-Based)
+### Pipeline
 
-For `switch` commands, completion is signaled by the agent reconnecting with a fresh binary, rather than a message (as the agent must die to restart).
+A **Pipeline** is an ordered sequence of Ops with `&&` semantics:
 
-```text
-┌───────────┐   ┌─────────┐   ┌─────────┐   ┌───────────────────┐   ┌─────────────┐
-│ VALIDATING│──▶│ QUEUED  │──▶│ RUNNING │──▶│ AWAITING_RECONNECT│──▶│ SUCCESS     │
-└───────────┘   └─────────┘   └─────────┘   │ (agent died)      │   │ (fresh bin) │
-                                            └─────────┬─────────┘   └─────────────┘
-                                                      │             ┌─────────────┐
-                                                      └────────────▶│ STALE_BINARY│
-                                                                    │ (old bin)   │
-                                                                    └─────────────┘
+- Execute Op 1 on all hosts
+- Only hosts that succeeded proceed to Op 2
+- Continue until all ops complete or all hosts fail
+
+```go
+type Pipeline struct {
+    ID   string   // "do-all", "merge-deploy"
+    Ops  []string // ["pull", "switch", "test"]
+}
 ```
 
-### 3-Layer Binary Freshness Detection
+### State Store
 
-To prevent the "silent failure" where a switch succeeds but the agent continues running an old binary (due to Nix cache issues), the dashboard performs a paranoid 3-layer check on reconnection:
+All state persists in SQLite:
 
-| Layer            | Method                         | Detection Goal                      |
-| ---------------- | ------------------------------ | ----------------------------------- |
-| 1. Source Commit | LDFlags injected at build time | Did the source code change?         |
-| 2. Store Path    | Resolved `/proc/self/exe`      | Did the Nix store path change?      |
-| 3. Binary Hash   | SHA256 of the running binary   | Did the actual bits on disk change? |
+```sql
+-- Host registry (existing)
+hosts (id, hostname, theme_color, location, device_type, ...)
 
-**Verdict Logic:**
+-- Command journal (new)
+commands (
+    id TEXT PRIMARY KEY,
+    host_id TEXT NOT NULL,
+    op TEXT NOT NULL,
+    pipeline_id TEXT,
+    status TEXT NOT NULL,  -- PENDING, EXECUTING, SUCCESS, ERROR, SKIPPED
+    created_at TIMESTAMP,
+    started_at TIMESTAMP,
+    finished_at TIMESTAMP,
+    exit_code INTEGER,
+    error TEXT,
+    output_file TEXT
+)
 
-- **FRESH**: Store Path or Binary Hash changed.
-- **STALE**: Nothing changed (Switch reported success but agent is identical).
-- **SUSPICIOUS**: Source Commit changed but Path/Hash didn't (possible build cache issue).
+-- Pipeline tracking (new)
+pipelines (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,    -- "do-all"
+    hosts TEXT NOT NULL,   -- JSON array of host IDs
+    current_stage INTEGER,
+    status TEXT NOT NULL,  -- RUNNING, PARTIAL, COMPLETE, FAILED
+    created_at TIMESTAMP,
+    finished_at TIMESTAMP
+)
 
-### Timeout & Abort Escalation
-
-Commands have defined timeouts to prevent "forever-running" UI states.
-
-1.  **Warning Threshold**: Dashboard logs a warning that the command is taking longer than expected.
-2.  **Hard Timeout**: Dashboard enters `TIMEOUT_PENDING` state.
-3.  **User Options**:
-    - **Wait**: Extend the timeout (e.g., +5m or +30m).
-    - **Kill**: Send SIGTERM to the agent (escalates to SIGKILL).
-    - **Ignore**: Mark as ignored and return to IDLE.
-    - **Reboot (Nuclear)**: If Kill fails, offer host reboot (requires TOTP).
-
-### Verbose Logging Principles
-
-To ensure every state transition is transparent and auditable, the system follows a "No Silent Transitions" policy:
-
-- **WHAT happened**: The state change or validation result.
-- **WHY it happened**: The specific condition or error that triggered it.
-- **WHAT'S NEXT**: Expected next step or required user action.
-
----
-
-### Reboot Integration (P6900)
-
-Forced reboots are integrated into the command state machine as a "nuclear option" for stuck hosts.
-
-1.  **Abortion Logic**: If a reboot is triggered while a command is running, the command is transitioned to `ABORTED_BY_REBOOT` and the pre-state snapshot is cleared.
-2.  **Post-Reboot Recovery**: Upon reconnection after a reboot, the dashboard detects the aborted state and logs a warning to the user, suggesting manual verification.
-3.  **No Auto-Retry**: The system explicitly does **not** auto-retry aborted commands after recovery to ensure safety and prevent reboot loops.
-
-### Why This Matters
-
-We have repeatedly "fixed" agent issues across the fleet, only to discover they weren't actually fixed. This has happened 10+ times. Each time:
-
-- "Now it's fixed for all hosts" → Still broken on some
-- "The agent survives switch now" → Agent runs old binary after switch
-- "macOS launchd restarts it" → Agent dead after home-manager switch
-
-This cycle ends now. The requirements below are non-negotiable.
-
-### Resilience Requirements
-
-| ID        | Requirement                            | Acceptance Criteria                                                                                                                                  |
-| --------- | -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **RES-1** | Agent survives its own switch          | Agent continues running during `nixos-rebuild switch` or `home-manager switch`. It does NOT get killed by systemd/launchd during the switch process. |
-| **RES-2** | Agent restarts after successful switch | After switch completes (exit 0), agent automatically restarts to run the NEW binary. The old binary does not continue running indefinitely.          |
-| **RES-3** | Agent survives reboot                  | After system reboot, agent starts automatically and connects to dashboard.                                                                           |
-| **RES-4** | Agent survives crash                   | If agent crashes or is killed (SIGKILL, OOM), systemd/launchd restarts it within 30 seconds.                                                         |
-| **RES-5** | Agent survives network outage          | Agent reconnects automatically when network returns. Uses exponential backoff (1s → 2s → 4s → ... → 60s max).                                        |
-| **RES-6** | Agent survives dashboard restart       | Agent reconnects automatically when dashboard comes back online.                                                                                     |
-| **RES-7** | Agent reports correct generation       | After switch + restart, the agent reports the NEW generation hash, not the old one. Dashboard shows accurate status.                                 |
-| **RES-8** | Isolated repo stays clean              | `git pull` via dashboard always succeeds. Uses `reset --hard` to avoid merge conflicts.                                                              |
-
-### Implementation Details
-
-#### NixOS (systemd)
-
-```nix
-systemd.services.nixfleet-agent = {
-  # CRITICAL: Don't stop/restart during switch - agent is running the switch!
-  restartIfChanged = false;
-  stopIfChanged = false;
-
-  serviceConfig = {
-    Restart = "always";
-    RestartSec = 3;
-    # Exit code 101 = agent requests restart (after successful switch)
-    RestartForceExitStatus = "101";
-  };
-};
+-- Audit log (new)
+audit_log (
+    id TEXT PRIMARY KEY,
+    timestamp TIMESTAMP NOT NULL,
+    actor TEXT,            -- "user", "system", "agent:hsb0"
+    action TEXT NOT NULL,  -- "op:pull", "pipeline:do-all", "host:remove"
+    target TEXT,           -- host ID or "all"
+    details TEXT           -- JSON with context
+)
 ```
 
-**Agent behavior after successful switch:**
+---
 
-1. Send success status to dashboard
-2. Wait 500ms for message delivery
-3. Exit with code 101
-4. systemd restarts with new binary
+## Architecture
 
-#### macOS (launchd)
+### Target State
 
-```nix
-launchd.agents.nixfleet-agent = {
-  config = {
-    KeepAlive = true;  # Restart on any exit
-    RunAtLoad = true;  # Start on login
-  };
-};
 ```
-
-**Agent behavior during home-manager switch:**
-
-1. Run `home-manager switch` in a **new session** (`Setsid: true`)
-2. This prevents the agent from being killed when launchd reloads
-3. After switch, agent exits and launchd restarts with new binary
-
-### Verification Checklist
-
-Before claiming "agent resilience is fixed," verify ALL of these on EVERY host:
-
-- [ ] **Fresh reboot test**: Reboot host → agent connects within 60s
-- [ ] **Switch test**: Click Switch in dashboard → agent survives → agent restarts with new binary
-- [ ] **Pull test**: Click Pull → repo updated to origin/main (verify with `git log -1`)
-- [ ] **Kill test**: `sudo kill -9 $(pgrep nixfleet-agent)` → agent restarts within 30s
-- [ ] **Network test**: Disconnect network 60s → reconnect → agent reconnects
-- [ ] **Generation test**: After switch, dashboard shows NEW generation hash
-
-### Known Failure Modes
-
-| Failure                              | Root Cause                                        | Fix                                              |
-| ------------------------------------ | ------------------------------------------------- | ------------------------------------------------ |
-| Agent runs old binary after switch   | `restartIfChanged=false` prevents systemd restart | Agent self-restarts with exit code 101           |
-| Agent dead after home-manager switch | launchd kills agent when reloading plist          | Run switch in new session with `Setsid: true`    |
-| Pull doesn't update repo             | Regular `git pull` fails with merge conflicts     | Use `git fetch` + `git reset --hard origin/main` |
-| Agent shows old generation           | Agent didn't restart after switch                 | Verify exit code 101 triggers restart            |
-| Isolated repo on wrong branch/commit | Repo was manually modified or diverged            | `git reset --hard origin/main` + `git clean -fd` |
-
-### Monitoring
-
-The dashboard should make agent health obvious:
-
-1. **Online/Offline indicator** - Green dot = connected, Red = disconnected
-2. **Last seen timestamp** - How long since last heartbeat
-3. **Generation mismatch** - Yellow "G" indicator if behind target
-4. **Agent version mismatch** - Red "A" indicator if agent binary is outdated
-
----
-
-## User Stories
-
-### US-1: Fleet Overview
-
-> As a fleet operator, I want to see all my hosts at a glance, so I can quickly identify which need attention.
-
-**Acceptance Criteria:**
-
-- Dashboard shows all registered hosts
-- Each host displays: name, status (online/offline/stale), last seen, current generation
-- Hosts are sorted by criticality, then name
-- Online status updates in real-time (no page refresh needed)
-
-### US-2: Deploy Configuration
-
-> As a fleet operator, I want to deploy configuration changes to a host, so the host runs the latest config.
-
-**Acceptance Criteria:**
-
-- Can trigger "Pull" to update git repository
-- Can trigger "Switch" to apply configuration
-- Can trigger "Pull + Switch" for convenience
-- Command status visible in real-time
-- Output streams to dashboard as it happens
-- Final result (success/failure) clearly indicated
-
-### US-3: Run Tests
-
-> As a fleet operator, I want to run test suites on hosts, so I can verify they're configured correctly.
-
-**Acceptance Criteria:**
-
-- Can trigger "Test" command
-- Progress shown (e.g., "3/10 tests complete")
-- Results show pass/fail counts
-- Failed test details available
-
-### US-4: Monitor Host Health
-
-> As a fleet operator, I want to see host health metrics, so I can identify resource issues.
-
-**Acceptance Criteria:**
-
-- CPU, RAM, swap usage visible (when StaSysMo available)
-- Metrics update with each heartbeat
-- Visual indicators for high usage
-
-### US-5: Secure Access
-
-> As a fleet operator, I want the dashboard to be secure, so only I can control my infrastructure.
-
-**Acceptance Criteria:**
-
-- Password authentication required
-- Optional TOTP (2FA) support
-- Sessions expire after 24 hours
-- CSRF protection on all mutations
-- Rate limiting on login attempts
-
-### US-6: Agent Resilience
-
-> As a fleet operator, I want agents to stay connected reliably, so I always have visibility and control.
-
-**Acceptance Criteria:**
-
-- Agent reconnects automatically after network issues
-- Agent continues heartbeating during long commands
-- Agent survives configuration switch (doesn't die mid-operation)
-- macOS agent restarts reliably after home-manager switch
-
-### US-7: Update Status (P5000)
-
-> As a fleet operator, I want to see at a glance which hosts need updates, so I can keep my fleet current.
-
-**Acceptance Criteria:**
-
-- Three-compartment indicator shows Git, Lock, and System status
-- Git: Compare agent's deployed generation with latest from GitHub Pages
-- Lock: Show days since last flake.lock update, indicate pending PR
-- System: Compare running system with what current config would build
-- Click compartment to refresh that specific check
-- Bulk actions: Update All, Pull All, Switch All, Test All
-
-### US-8: Automated Flake Updates (P5300)
-
-> As a fleet operator, I want NixFleet to handle flake.lock updates automatically, so I stay current without manual PR management.
-
-**Acceptance Criteria:**
-
-- Detect pending update PRs via GitHub API
-- One-click "Merge & Deploy" to merge PR and switch all hosts
-- Optional: Full automation (auto-merge + deploy)
-- Rollback on failure
-- Per-host inclusion/exclusion settings
-
----
-
-## Functional Requirements
-
-### FR-1: Agent
-
-| ID      | Requirement                                                 | Priority |
-| ------- | ----------------------------------------------------------- | -------- |
-| FR-1.1  | Connect to dashboard via WebSocket                          | Must     |
-| FR-1.2  | Send heartbeat every 5s (configurable, range 1-3600s)       | Must     |
-| FR-1.3  | Continue heartbeats during command execution                | Must     |
-| FR-1.4  | Execute commands: pull, switch, test, stop, restart, update | Must     |
-| FR-1.5  | Stream command output to dashboard in real-time             | Must     |
-| FR-1.6  | Report OS version, nixpkgs version, generation              | Must     |
-| FR-1.7  | Report StaSysMo metrics (CPU, RAM, swap, load)              | Should   |
-| FR-1.8  | Auto-reconnect with exponential backoff                     | Must     |
-| FR-1.9  | Support isolated repo mode (agent-managed git clone)        | Must     |
-| FR-1.10 | Support SSH key for git operations                          | Should   |
-
-**FR-1.9 Detail: Isolated Repo Mode**
-
-The agent must maintain its own dedicated repository clone, separate from any user-managed repositories:
-
-| Platform                     | Default Isolated Path                |
-| ---------------------------- | ------------------------------------ |
-| NixOS (systemd)              | `/var/lib/nixfleet-agent/repo`       |
-| macOS (launchd/Home Manager) | `~/.local/state/nixfleet-agent/repo` |
-
-Behavior:
-
-1. **Auto-clone**: If `NIXFLEET_REPO_URL` is set and repo doesn't exist, clone it automatically
-2. **Clean slate**: Pull command does `git fetch` + `git reset --hard origin/<branch>` + `git clean -fd` (no merge conflicts)
-3. **Exclusive access**: Directory owned by agent, mode 0700
-4. **Override**: `NIXFLEET_REPO_DIR` can override default path for backward compatibility
-   | FR-1.11 | Track command PID for stop capability | Must |
-   | FR-1.12 | Work on NixOS (systemd) and macOS (launchd) | Must |
-   | FR-1.13 | Report heartbeat interval on registration | Must |
-   | FR-1.14 | Report flake.lock last-modified date | Should |
-   | FR-1.15 | Detect if system needs rebuild (compare derivations) | Should |
-   | FR-1.16 | Support `flakePath` config for status checks | Should |
-
-### FR-2: Dashboard Backend
-
-| ID      | Requirement                                     | Priority |
-| ------- | ----------------------------------------------- | -------- |
-| FR-2.1  | Accept WebSocket connections from agents        | Must     |
-| FR-2.2  | Accept WebSocket connections from browsers      | Must     |
-| FR-2.3  | Authenticate agents via token                   | Must     |
-| FR-2.4  | Authenticate users via password + optional TOTP | Must     |
-| FR-2.5  | Manage sessions with signed cookies             | Must     |
-| FR-2.6  | Store host data in SQLite                       | Must     |
-| FR-2.7  | Store command logs in files                     | Must     |
-| FR-2.8  | Broadcast host updates to connected browsers    | Must     |
-| FR-2.9  | Forward command output from agents to browsers  | Must     |
-| FR-2.10 | Rate limit login attempts                       | Must     |
-| FR-2.11 | CSRF protection on mutations                    | Must     |
-| FR-2.12 | Security headers (HSTS, CSP, X-Frame-Options)   | Must     |
-| FR-2.13 | Clear stale pending_command for offline hosts   | Must     |
-| FR-2.14 | Fetch nixcfg version from GitHub Pages          | Should   |
-| FR-2.15 | Compare agent generation with latest version    | Should   |
-| FR-2.16 | Store update status per host                    | Should   |
-
-**FR-2.13 Detail**: Stale command detection uses a multiplier-based threshold following industry patterns (Kubernetes, etcd). Default: `120 × heartbeat_interval` with a 5-minute floor. With 5s heartbeat = 10 minutes. This prevents indefinitely stale UI badges when hosts go offline during commands.
-
-### FR-3: Dashboard Frontend
-
-| ID      | Requirement                                      | Priority |
-| ------- | ------------------------------------------------ | -------- |
-| FR-3.1  | Display host list with status                    | Must     |
-| FR-3.2  | Show real-time updates via WebSocket             | Must     |
-| FR-3.3  | Action buttons: Pull, Switch, Test               | Must     |
-| FR-3.4  | Show command output in expandable log viewer     | Must     |
-| FR-3.5  | Show command progress (building X/Y)             | Should   |
-| FR-3.6  | Disable buttons while command running            | Must     |
-| FR-3.7  | Show host metrics (CPU, RAM)                     | Should   |
-| FR-3.8  | Responsive design (mobile-friendly)              | Should   |
-| FR-3.9  | Accessible (keyboard navigation, screen readers) | Should   |
-| FR-3.10 | Three-compartment update status indicator        | Should   |
-| FR-3.11 | Bulk actions: Update All, Pull All, Switch All   | Should   |
-| FR-3.12 | Settings page for configurable intervals         | Could    |
-
----
-
-## Non-Functional Requirements
-
-### NFR-1: Performance
-
-| ID      | Requirement               | Target  |
-| ------- | ------------------------- | ------- |
-| NFR-1.1 | Dashboard page load time  | < 500ms |
-| NFR-1.2 | WebSocket message latency | < 100ms |
-| NFR-1.3 | Agent memory usage        | < 20MB  |
-| NFR-1.4 | Dashboard memory usage    | < 100MB |
-| NFR-1.5 | Support concurrent hosts  | 50+     |
-
-### NFR-2: Reliability
-
-| ID      | Requirement                | Target                  |
-| ------- | -------------------------- | ----------------------- |
-| NFR-2.1 | Agent uptime               | 99.9% (when host is up) |
-| NFR-2.2 | Dashboard uptime           | 99.9%                   |
-| NFR-2.3 | Auto-recovery from crashes | < 30 seconds            |
-| NFR-2.4 | Data persistence           | Survive restarts        |
-
-### NFR-3: Security
-
-| ID      | Requirement      | Target                   |
-| ------- | ---------------- | ------------------------ |
-| NFR-3.1 | Password storage | bcrypt hashed            |
-| NFR-3.2 | Session tokens   | Cryptographically random |
-| NFR-3.3 | Agent tokens     | Per-host, hashed in DB   |
-| NFR-3.4 | TLS              | Required in production   |
-| NFR-3.5 | Rate limiting    | 5 login attempts/minute  |
-
-### NFR-4: Deployability
-
-| ID      | Requirement          | Target                  |
-| ------- | -------------------- | ----------------------- |
-| NFR-4.1 | Dashboard deployment | Single Docker container |
-| NFR-4.2 | Agent deployment     | Nix flake module        |
-| NFR-4.3 | Configuration        | Environment variables   |
-| NFR-4.4 | Upgrade path         | Zero-downtime           |
-
----
-
-## Technical Architecture
-
-### Technology Stack
-
-| Component          | Technology                    |
-| ------------------ | ----------------------------- |
-| Agent              | Go 1.24+                      |
-| Dashboard Backend  | Go 1.24+ with Chi router      |
-| Dashboard Frontend | Templ + HTMX + Alpine.js      |
-| Database           | SQLite                        |
-| Communication      | WebSocket (gorilla/websocket) |
-| Authentication     | bcrypt + TOTP (pquerna/otp)   |
-
-### Component Diagram
-
-```text
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                          NixFleet Dashboard (Go)                         │
-│                                                                          │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌──────────────┐   │
-│  │   Router    │  │   Auth      │  │   WebSocket │  │   Templ      │   │
-│  │   (Chi)     │  │   Middleware│  │   Hub       │  │   Templates  │   │
-│  └─────────────┘  └─────────────┘  └─────────────┘  └──────────────┘   │
-│                              │                                          │
-│  ┌───────────────────────────┴───────────────────────────────────────┐ │
-│  │                     SQLite + File Store                            │ │
-│  └───────────────────────────────────────────────────────────────────┘ │
+│                              BROWSER                                    │
+│  ┌───────────────────────────────────────────────────────────────────┐  │
+│  │  Thin UI Layer                                                    │  │
+│  │  - Renders server state                                           │  │
+│  │  - Dispatches Ops/Pipelines                                       │  │
+│  │  - No business logic                                              │  │
+│  └───────────────────────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────────────────┘
-                              │
-              ┌───────────────┼───────────────┐
-              │ WebSocket     │ WebSocket     │ WebSocket
-              ▼               ▼               ▼
-         Go Agent        Go Agent         Browser
-         (NixOS)         (macOS)          (HTMX)
-```
-
-### Message Protocol
-
-```json
-// Agent → Dashboard
-{"type": "register", "payload": {"hostname": "hsb0", ...}}
-{"type": "heartbeat", "payload": {"metrics": {...}}}
-{"type": "output", "payload": {"line": "building...", "command": "switch"}}
-{"type": "status", "payload": {"status": "ok", "generation": "abc123"}}
-
-// Dashboard → Agent
-{"type": "command", "payload": {"command": "switch"}}
-{"type": "ping"}
-
-// Dashboard → Browser
-{"type": "host_update", "payload": {"host_id": "hsb0", ...}}
-{"type": "command_output", "payload": {"host_id": "hsb0", "line": "..."}}
+                                    │
+                              WebSocket
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         DASHBOARD (Go)                                  │
+│                                                                         │
+│  ┌──────────────────────────────────────────────────────────────────┐   │
+│  │                        Op Engine                                 │   │
+│  │  ┌────────────────┐  ┌───────────────────┐  ┌─────────────────┐  │   │
+│  │  │  Op Registry   │  │ Pipeline Executor │  │  State Machine  │  │   │
+│  │  │  (all ops)     │  │ (&& semantics)    │  │  (per-host)     │  │   │
+│  │  └────────────────┘  └───────────────────┘  └─────────────────┘  │   │
+│  └──────────────────────────────────────────────────────────────────┘   │
+│                                │                                        │
+│  ┌─────────────────────────────┼────────────────────────────────────┐   │
+│  │                       State Store (SQLite)                       │   │
+│  │  ┌───────────────┐  ┌─────────────────┐  ┌────────────────────┐  │   │
+│  │  │ Hosts         │  │ Commands        │  │ AuditLog           │  │   │
+│  │  └───────────────┘  └─────────────────┘  └────────────────────┘  │   │
+│  │  ┌───────────────┐  ┌─────────────────┐                          │   │
+│  │  │ Pipelines     │  │ LiveState (mem) │                          │   │
+│  │  └───────────────┘  └─────────────────┘                          │   │
+│  └──────────────────────────────────────────────────────────────────┘   │
+│                                │                                        │
+│  ┌─────────────────────────────┼────────────────────────────────────┐   │
+│  │                       Event Bus                                  │   │
+│  │  - StateChanged → broadcast to browsers                          │   │
+│  │  - OpProgress → update UI                                        │   │
+│  │  - AuditEvent → persist to log                                   │   │
+│  └──────────────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                              WebSocket
+                                    │
+                                    ▼
+┌───────────────┐  ┌───────────────┐  ┌───────────────┐  ┌───────────────┐
+│    Agent      │  │    Agent      │  │    Agent      │  │    Agent      │
+│   (hsb0)      │  │   (hsb1)      │  │   (gpc0)      │  │   (imac0)     │
+│               │  │               │  │               │  │               │
+│ - Execute Ops │  │ - Execute Ops │  │ - Execute Ops │  │ - Execute Ops │
+│ - Report back │  │ - Report back │  │ - Report back │  │ - Report back │
+│ - Resilient   │  │ - Resilient   │  │ - Resilient   │  │ - Resilient   │
+└───────────────┘  └───────────────┘  └───────────────┘  └───────────────┘
 ```
 
 ---
 
-## Success Metrics
+## Op Registry
 
-| Metric                        | Target     | How to Measure        |
-| ----------------------------- | ---------- | --------------------- |
-| All integration tests pass    | 100%       | CI pipeline           |
-| Agent heartbeat during switch | Continuous | Test with long switch |
-| Output streaming latency      | < 1 second | Manual test           |
-| Successful deployments        | 100%       | Deployment logs       |
+All operations defined in one place. Extracted from [ux-flow-cac-v2.md](../docs/ux-flow-cac-v2.md).
+
+### Host Ops (Agent-Executed)
+
+| Op ID            | Description                  | Pre-Check            | Post-Check               | Timeout |
+| ---------------- | ---------------------------- | -------------------- | ------------------------ | ------- |
+| `pull`           | Git fetch + reset            | Online, no pending   | Lock = ok                | 2 min   |
+| `switch`         | nixos-rebuild/hm switch      | Lock = ok (or force) | System = ok, agent fresh | 10 min  |
+| `test`           | Run host tests               | Online               | Test results             | 5 min   |
+| `restart`        | Restart agent service        | Online               | Agent reconnects         | 1 min   |
+| `stop`           | Stop running command         | Has pending cmd      | No pending cmd           | 30 sec  |
+| `reboot`         | System reboot                | TOTP verified        | Agent reconnects         | 5 min   |
+| `check-version`  | Compare running vs installed | Online               | —                        | 10 sec  |
+| `refresh-git`    | Check GitHub for updates     | Online               | —                        | 30 sec  |
+| `refresh-lock`   | Compare flake.lock           | Online               | —                        | 30 sec  |
+| `refresh-system` | nix build --dry-run          | Online, confirmed    | —                        | 5 min   |
+| `bump-flake`     | nix flake update nixfleet    | Online               | Lock changed             | 2 min   |
+| `force-rebuild`  | Rebuild with cache bypass    | Online               | Agent fresh              | 15 min  |
+
+### Dashboard Ops (Server-Side)
+
+| Op ID       | Description         | Pre-Check    | Post-Check | Timeout |
+| ----------- | ------------------- | ------------ | ---------- | ------- |
+| `merge-pr`  | Merge GitHub PR     | PR mergeable | PR merged  | 30 sec  |
+| `set-color` | Update theme color  | —            | —          | instant |
+| `remove`    | Remove host from DB | —            | —          | instant |
 
 ---
 
-## Out of Scope (v2.0)
+## Pipeline Registry
+
+| Pipeline ID    | Ops                                   | Description                             |
+| -------------- | ------------------------------------- | --------------------------------------- |
+| `do-all`       | `[pull, switch, test]`                | Full update cycle                       |
+| `merge-deploy` | `[merge-pr, pull, switch, test]`      | Merge PR then deploy                    |
+| `update-agent` | `[bump-flake, pull, switch, restart]` | Update agent to latest (P7210)          |
+| `force-update` | `[force-rebuild, restart]`            | Force rebuild with cache bypass (P7220) |
+
+---
+
+## Design Principles
+
+### Idempotency
+
+Ops should be safe to retry:
+
+| Op         | Idempotent? | Notes                             |
+| ---------- | ----------- | --------------------------------- |
+| `pull`     | ✅          | `git reset --hard` is idempotent  |
+| `switch`   | ✅          | Nix rebuilds are deterministic    |
+| `test`     | ✅          | Tests are read-only               |
+| `reboot`   | ⚠️          | Safe but disruptive               |
+| `merge-pr` | ✅          | Already-merged PR returns success |
+
+### Concurrency Control
+
+| Rule                    | Behavior                                        |
+| ----------------------- | ----------------------------------------------- |
+| One op per host         | Second op request returns `BLOCKED`             |
+| Pipelines are exclusive | Can't start pipeline if any target host is busy |
+| Dashboard restart       | Resume pending ops, don't duplicate             |
+
+### Error Handling
+
+| Error Type      | Response                                       |
+| --------------- | ---------------------------------------------- |
+| Pre-check fails | `BLOCKED` with reason, no execution            |
+| Execution fails | `ERROR` with exit code, log details            |
+| Timeout         | `TIMEOUT` with user options (wait/kill/ignore) |
+| Network loss    | `ORPHANED` on dashboard restart, manual review |
+
+### Graceful Shutdown
+
+On dashboard shutdown:
+
+1. Stop accepting new ops
+2. Wait for executing ops to complete (30s max)
+3. Mark incomplete ops as `INTERRUPTED` in journal
+4. On restart, offer to resume or cancel interrupted ops
+
+---
+
+## State Machine
+
+### Pipeline States
+
+```
+┌─────────┐     ┌─────────┐     ┌─────────┐     ┌─────────┐
+│  IDLE   │────▶│ STAGE-1 │────▶│ STAGE-2 │────▶│ STAGE-N │────▶ COMPLETE
+└─────────┘     │  (pull) │     │ (switch)│     │  (test) │
+                └────┬────┘     └────┬────┘     └────┬────┘
+                     │               │               │
+                on failure      on failure      on failure
+                     │               │               │
+                     ▼               ▼               ▼
+                PARTIAL         PARTIAL         PARTIAL
+               (some hosts     (fewer hosts    (report only)
+                continue)       continue)
+```
+
+### Per-Host Op States
+
+```
+┌─────────┐     ┌───────────┐     ┌─────────┐
+│PENDING  │────▶│ EXECUTING │────▶│ SUCCESS │
+└─────────┘     └─────┬─────┘     └─────────┘
+                      │
+                      │           ┌─────────┐
+                      └──────────▶│  ERROR  │
+                      │           └─────────┘
+                      │
+                      │           ┌─────────┐
+                      └──────────▶│ TIMEOUT │──▶ WAIT / KILL / IGNORE
+                                  └─────────┘
+
+SKIPPED: Host failed in earlier op, excluded from subsequent ops
+```
+
+---
+
+## Recovery & Resilience
+
+### Dashboard Restart Recovery
+
+On startup:
+
+1. Load all `PENDING` and `EXECUTING` commands from journal
+2. Mark orphaned `EXECUTING` commands as `ORPHANED`
+3. When agents reconnect, reconcile state
+4. Log recovery actions to audit log
+
+### Command Journal
+
+Every op execution is journaled:
+
+```sql
+INSERT INTO commands (id, host_id, op, status, created_at)
+VALUES ('uuid', 'hsb0', 'switch', 'PENDING', NOW());
+
+-- On start
+UPDATE commands SET status = 'EXECUTING', started_at = NOW() WHERE id = 'uuid';
+
+-- On complete
+UPDATE commands SET status = 'SUCCESS', finished_at = NOW(), exit_code = 0 WHERE id = 'uuid';
+```
+
+---
+
+## Observability & Logging
+
+### Event Log (Unified System + Audit)
+
+All UI events and audit entries persist in SQLite:
+
+```sql
+CREATE TABLE event_log (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    timestamp   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    category    TEXT NOT NULL,     -- 'audit' | 'system' | 'error'
+    level       TEXT NOT NULL,     -- 'info' | 'warn' | 'error' | 'success'
+    actor       TEXT,              -- 'user' | 'agent:hsb0' | 'system'
+    host_id     TEXT,              -- NULL for global events
+    action      TEXT,              -- 'op:pull' | 'connect' | 'disconnect'
+    message     TEXT NOT NULL,
+    details     TEXT               -- JSON for extra context
+);
+
+CREATE INDEX idx_event_log_timestamp ON event_log(timestamp DESC);
+CREATE INDEX idx_event_log_host ON event_log(host_id, timestamp DESC);
+```
+
+| Event Type        | Category | Example                           |
+| ----------------- | -------- | --------------------------------- |
+| Command started   | audit    | `hsb0: pull started`              |
+| Command completed | audit    | `hsb0: switch completed (exit 0)` |
+| Host connected    | system   | `hsb1 connected`                  |
+| Host disconnected | system   | `gpc0 disconnected (timeout)`     |
+| Error             | error    | `Failed to merge PR #42`          |
+
+**Rotation**: Keep 7 days, configurable via `NIXFLEET_LOG_RETENTION_DAYS`.
+
+### Per-Host Command Output
+
+Command output persists in filesystem (existing approach):
+
+```
+/var/lib/nixfleet/logs/
+├── hsb0.log      # Rolling log, last N commands
+├── hsb1.log
+├── gpc0.log
+└── imac0.log
+```
+
+### Logs on Page Load
+
+On browser connect/reconnect:
+
+1. Server sends last 100 event_log entries
+2. If host tab was previously open, send recent output
+3. Continue streaming new entries via WebSocket
+
+```go
+// GET /api/event-log?limit=100
+// GET /api/hosts/{id}/output?lines=500
+```
+
+### Optional: Metrics Endpoint
+
+```
+GET /metrics
+
+nixfleet_ops_total{op="pull",status="success"} 42
+nixfleet_ops_duration_seconds{op="switch",quantile="0.95"} 180
+nixfleet_hosts_online 4
+```
+
+---
+
+## Always-Live UI State
+
+> **Goal**: The UI is NEVER stale. No manual refresh required. Ever.
+
+### The Problem (v2)
+
+- WebSocket messages can be missed (reconnection gaps)
+- Client and server state can diverge
+- No reconciliation mechanism
+- User forced to CMD+R constantly
+
+### The Solution: Version-Based State Sync
+
+Every state change increments a global `state_version`. Clients track their version and detect drift.
+
+```
+Server                                              Browser
+   │                                                    │
+   │──────────── init(state, version=100) ─────────────▶│
+   │                                                    │
+   │──────────── delta(change, version=101) ───────────▶│
+   │──────────── delta(change, version=102) ───────────▶│
+   │                                                    │
+   │         [connection lost, missed 103-105]          │
+   │                                                    │
+   │──────────── reconnect: init(state, v=106) ────────▶│
+   │                                                    │
+   │         [periodic sync beacon every 30s]           │
+   │                                                    │
+   │──────────── sync(version=110) ────────────────────▶│
+   │                                                    │
+   │         [client: my_version=106 != 110 → resync]   │
+   │                                                    │
+   │◀─────────── get_full_state() ──────────────────────│
+   │──────────── full_state(state, v=110) ─────────────▶│
+```
+
+### State Sync Protocol
+
+| Message Type | Direction       | Purpose                                  |
+| ------------ | --------------- | ---------------------------------------- |
+| `init`       | Server → Client | Full state on connect/resync             |
+| `delta`      | Server → Client | Incremental change                       |
+| `sync`       | Server → Client | Periodic version beacon (every 30s)      |
+| `get_state`  | Client → Server | Request full state (on version mismatch) |
+
+### Guarantees
+
+| Scenario         | Behavior                                   |
+| ---------------- | ------------------------------------------ |
+| Normal operation | Deltas applied in order                    |
+| Missed message   | Detected by version gap → auto resync      |
+| Reconnection     | Always full resync                         |
+| Tab inactive     | Sync beacon catches drift within 30s       |
+| Server restart   | Version resets → clients detect and resync |
+
+### Implementation
+
+**Server:**
+
+```go
+type StateManager struct {
+    mu      sync.RWMutex
+    version uint64  // Increments on ANY change
+}
+
+func (sm *StateManager) ApplyChange(change Change) {
+    sm.mu.Lock()
+    sm.version++
+    sm.mu.Unlock()
+
+    sm.broadcast(Message{
+        Type:    "delta",
+        Version: sm.version,
+        Payload: change,
+    })
+}
+```
+
+**Client:**
+
+```javascript
+let stateVersion = 0;
+
+ws.onmessage = (msg) => {
+  const { type, version, payload } = JSON.parse(msg.data);
+
+  if (type === "delta" && version !== stateVersion + 1) {
+    // Missed updates → request full state
+    ws.send(JSON.stringify({ type: "get_state" }));
+    return;
+  }
+
+  if (type === "sync" && version !== stateVersion) {
+    // Drift detected → request full state
+    ws.send(JSON.stringify({ type: "get_state" }));
+    return;
+  }
+
+  // Apply update
+  applyMessage(msg);
+  stateVersion = version;
+};
+```
+
+---
+
+## Implementation Phases
+
+### Phase 1: Op Engine (Foundation)
+
+- [ ] Create `v2/internal/ops/` package
+- [ ] Define Op struct and registry
+- [ ] Define Pipeline struct and executor
+- [ ] Migrate existing commands to Ops
+- [ ] Unit tests for Op validation and execution
+
+**Effort**: 2-3 days
+
+### Phase 2: State Persistence & Logging
+
+- [ ] Add `commands` table to SQLite
+- [ ] Add `pipelines` table to SQLite
+- [ ] Add `event_log` table (unified system + audit)
+- [ ] Journal all op executions
+- [ ] Implement recovery on startup
+- [ ] Add log rotation (7 day default)
+- [ ] Test restart scenarios
+
+**Effort**: 3-4 days
+
+### Phase 3: Always-Live State Sync
+
+- [ ] Add `state_version` to StateManager
+- [ ] Implement `init` message (full state on connect)
+- [ ] Implement `delta` messages (incremental updates)
+- [ ] Implement `sync` beacon (every 30s)
+- [ ] Client: version tracking and auto-resync
+- [ ] Test: reconnection, missed messages, server restart
+
+**Effort**: 2-3 days
+
+### Phase 4: Logs on Page Load
+
+- [ ] API: `GET /api/event-log?limit=100`
+- [ ] API: `GET /api/hosts/{id}/output?lines=500`
+- [ ] Send event_log in `init` payload
+- [ ] Restore host output tabs from server
+- [ ] Test: refresh preserves logs
+
+**Effort**: 1-2 days
+
+### Phase 5: Frontend Simplification
+
+- [ ] Remove business logic from JavaScript
+- [ ] Dispatch ops via single `dispatch(op, targets)` function
+- [ ] Server renders complete state (no client-side derivation)
+- [ ] Test all UI flows work correctly
+
+**Effort**: 2-3 days
+
+### Phase 6: Polish & Testing
+
+- [ ] E2E tests for common workflows
+- [ ] Recovery test (kill dashboard mid-operation)
+- [ ] State sync stress test (rapid changes)
+- [ ] Documentation update
+- [ ] Performance validation
+
+**Effort**: 1-2 days
+
+**Total**: ~12-18 days
+
+---
+
+## Success Criteria
+
+| Metric                             | Target                    |
+| ---------------------------------- | ------------------------- |
+| All existing tests pass            | 100%                      |
+| Ops defined in registry            | 100% (no ad-hoc commands) |
+| Commands survive dashboard restart | Yes                       |
+| Event log captures all mutations   | Yes                       |
+| Logs persist across page refresh   | Yes                       |
+| UI auto-resyncs after reconnect    | Yes (within 1s)           |
+| UI catches drift via sync beacon   | Yes (within 30s)          |
+| No manual CMD+R needed             | **Ever**                  |
+| Frontend has no business logic     | Yes                       |
+
+---
+
+## Migration Path (v2 → v3)
+
+v3 is a refactor, not a rewrite. Agents are unchanged.
+
+### Phase 0: Preparation
+
+- [ ] Create `v2/internal/ops/` package alongside existing code
+- [ ] Define Op structs that wrap existing command handlers
+- [ ] Run both systems in parallel (old code calls new ops internally)
+
+### Phase 1-6: Incremental Migration
+
+Each phase is deployable. No big-bang cutover.
+
+| Phase | v2 Behavior             | v3 Behavior                           |
+| ----- | ----------------------- | ------------------------------------- |
+| 1     | Commands work as before | Ops defined, not yet used             |
+| 2     | Commands work as before | Journaling added to existing commands |
+| 3     | Full state on connect   | State sync protocol active            |
+| 4     | Logs lost on refresh    | Logs persist                          |
+| 5     | JS business logic       | Thin frontend                         |
+| 6     | Complete v3             | Old code removed                      |
+
+### Rollback Strategy
+
+Each phase can be rolled back by:
+
+1. Reverting the commit
+2. Redeploying dashboard
+3. Agents continue working (no agent changes in v3)
+
+---
+
+## Out of Scope (v3.0)
 
 - Multi-user support (single admin only)
 - Role-based access control
 - Scheduled commands
 - Host grouping/tags
-- Audit logging to external system
 - High availability (single instance)
-- nix-darwin support (macOS Home Manager only for now — see P5400)
+- External audit log export (Prometheus metrics optional)
+- Security hardening (deferred to v3.1)
 
 ---
 
 ## References
 
-- [Integration Test Specs](../tests/specs/) - Executable specifications
-- [Backlog](./backlog/) - Implementation tasks (P-numbered)
-- [v1.0 Codebase](../app/, ../agent/) - Reference implementation
+- [PRD-v2.md](./PRD-v2.md) — v2.0 implementation spec (current baseline)
+- [UX Flow v2](../docs/ux-flow-cac-v2.md) — v2 Control-Action-Command mapping (archived)
+- [Integration Test Specs](../tests/specs/) — Executable specifications
+- [Backlog](./backlog/) — Implementation tasks (P-numbered)
 
 ---
 
 ## Changelog
 
-| Date       | Version | Changes                                                                |
-| ---------- | ------- | ---------------------------------------------------------------------- |
-| 2025-12-17 | 1.4     | **CRITICAL**: Added Agent Resilience section as #1 requirement         |
-|            |         | RES-1 through RES-8: Non-negotiable resilience requirements            |
-|            |         | Added verification checklist for agent fixes                           |
-|            |         | Documented known failure modes and fixes                               |
-|            |         | Added monitoring requirements for agent health                         |
-| 2025-12-16 | 1.3     | FR-1.9: Added detailed isolated repo mode spec (P5500)                 |
-|            |         | Specified default paths, auto-clone, clean-slate behavior              |
-| 2025-12-15 | 1.2     | US-7, US-8: Added Update Status and Automated Flake Updates stories    |
-|            |         | FR-1.14-16: Agent update status checks (flakePath, derivation compare) |
-|            |         | FR-2.14-16: Dashboard GitHub Pages integration for version compare     |
-|            |         | FR-3.10-12: Update status UI, bulk actions, settings page              |
-|            |         | Added nix-darwin to Out of Scope (P5400 for future)                    |
-| 2025-12-15 | 1.1     | FR-1.2: Fixed heartbeat from 30s to 5s (matching implementation)       |
-|            |         | FR-1.13: Added heartbeat interval reporting requirement                |
-|            |         | FR-2.13: Added stale command cleanup requirement (multiplier-based)    |
-| 2025-12-14 | 1.0     | Initial PRD for v2.0 rewrite                                           |
+| Date       | Version   | Changes                                       |
+| ---------- | --------- | --------------------------------------------- |
+| 2025-12-27 | 3.0-draft | Initial v3.0 PRD with Op Engine architecture  |
+|            |           | Introduced Op, Pipeline, State Store concepts |
+|            |           | Defined implementation phases                 |
+|            |           | Archived v2.0 PRD as PRD-v2.md                |
