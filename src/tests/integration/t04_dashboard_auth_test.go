@@ -312,8 +312,8 @@ func TestDashboardAuth_CSRF(t *testing.T) {
 
 	t.Logf("extracted CSRF token: %s", csrfToken[:16]+"...")
 
-	// POST to API without CSRF token should fail
-	req, _ := http.NewRequest("POST", td.URL()+"/api/hosts/test/command", strings.NewReader(`{"command":"pull"}`))
+	// v3: POST to API without CSRF token should fail
+	req, _ := http.NewRequest("POST", td.URL()+"/api/dispatch", strings.NewReader(`{"op":"pull","hosts":["test"]}`))
 	req.Header.Set("Content-Type", "application/json")
 	resp, err = client.Do(req)
 	if err != nil {
@@ -325,8 +325,8 @@ func TestDashboardAuth_CSRF(t *testing.T) {
 		t.Errorf("expected 403 without CSRF, got %d", resp.StatusCode)
 	}
 
-	// POST with CSRF token should work (will fail for other reasons, but not CSRF)
-	req, _ = http.NewRequest("POST", td.URL()+"/api/hosts/test/command", strings.NewReader(`{"command":"pull"}`))
+	// v3: POST with CSRF token should work (will fail for other reasons, but not CSRF)
+	req, _ = http.NewRequest("POST", td.URL()+"/api/dispatch", strings.NewReader(`{"op":"pull","hosts":["test"]}`))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-CSRF-Token", csrfToken)
 	resp, err = client.Do(req)
@@ -335,7 +335,7 @@ func TestDashboardAuth_CSRF(t *testing.T) {
 	}
 	_ = resp.Body.Close()
 
-	// Should NOT be 403 (might be 409 for offline host, but that's expected)
+	// Should NOT be 403 (might be 200 with error in results for non-existent host)
 	if resp.StatusCode == http.StatusForbidden {
 		t.Error("CSRF should have passed with valid token")
 	}

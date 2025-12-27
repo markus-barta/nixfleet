@@ -194,9 +194,9 @@ func TestDashboardCommand_QueuePull(t *testing.T) {
 	// Login and get CSRF token
 	client, csrfToken := td.loginAndGetCSRF(t)
 
-	// Send pull command
-	req, _ := http.NewRequest("POST", td.URL()+"/api/hosts/cmd-test-host/command",
-		strings.NewReader(`{"command": "pull"}`))
+	// v3: Send pull command via Op Engine /api/dispatch
+	req, _ := http.NewRequest("POST", td.URL()+"/api/dispatch",
+		strings.NewReader(`{"op": "pull", "hosts": ["cmd-test-host"]}`))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-CSRF-Token", csrfToken)
 
@@ -217,11 +217,17 @@ func TestDashboardCommand_QueuePull(t *testing.T) {
 		t.Fatalf("failed to parse response: %v", err)
 	}
 
-	if result["status"] != "queued" {
-		t.Errorf("expected status 'queued', got %v", result["status"])
+	// v3: Response format is different
+	if result["status"] != "success" && result["status"] != "partial" {
+		t.Errorf("expected status 'success' or 'partial', got %v", result["status"])
 	}
-	if result["command"] != "pull" {
-		t.Errorf("expected command 'pull', got %v", result["command"])
+	// Check that results array has our host
+	if results, ok := result["results"].([]any); ok && len(results) > 0 {
+		if hostResult, ok := results[0].(map[string]any); ok {
+			if hostResult["status"] != "EXECUTING" && hostResult["status"] != "VALIDATING" {
+				t.Errorf("expected host result status 'EXECUTING', got %v", hostResult["status"])
+			}
+		}
 	}
 
 	// Wait briefly for agent to receive command, then close connection to stop goroutine
@@ -268,9 +274,9 @@ func TestDashboardCommand_NonExistentHost(t *testing.T) {
 	// Login without connecting any agent
 	client, csrfToken := td.loginAndGetCSRF(t)
 
-	// Send command to non-existent host
-	req, _ := http.NewRequest("POST", td.URL()+"/api/hosts/non-existent-host/command",
-		strings.NewReader(`{"command": "pull"}`))
+	// v3: Send command to non-existent host via Op Engine
+	req, _ := http.NewRequest("POST", td.URL()+"/api/dispatch",
+		strings.NewReader(`{"op": "pull", "hosts": ["non-existent-host"]}`))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-CSRF-Token", csrfToken)
 
@@ -281,9 +287,16 @@ func TestDashboardCommand_NonExistentHost(t *testing.T) {
 	body, _ := io.ReadAll(resp.Body)
 	_ = resp.Body.Close()
 
-	// Should return 404 Not Found for non-existent host
-	if resp.StatusCode != http.StatusNotFound {
-		t.Errorf("expected 404 Not Found for non-existent host, got %d: %s", resp.StatusCode, body)
+	// v3: Returns 200 with error in results array
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("expected 200 (with error in results), got %d: %s", resp.StatusCode, body)
+	}
+
+	var result map[string]any
+	if err := json.Unmarshal(body, &result); err == nil {
+		if result["status"] != "failed" {
+			t.Errorf("expected status 'failed' for non-existent host, got %v", result["status"])
+		}
 	}
 
 	t.Logf("non-existent host correctly rejected: %s", body)
@@ -301,8 +314,9 @@ func TestDashboardCommand_UnauthenticatedReject(t *testing.T) {
 		},
 	}
 
-	req, _ := http.NewRequest("POST", td.URL()+"/api/hosts/any-host/command",
-		strings.NewReader(`{"command": "pull"}`))
+	// v3: Use Op Engine dispatch endpoint
+	req, _ := http.NewRequest("POST", td.URL()+"/api/dispatch",
+		strings.NewReader(`{"op": "pull", "hosts": ["any-host"]}`))
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := client.Do(req)
@@ -327,9 +341,9 @@ func TestDashboardCommand_CSRFReject(t *testing.T) {
 	// Login but don't use CSRF token
 	client, _ := td.loginAndGetCSRF(t)
 
-	// Send command without CSRF token
-	req, _ := http.NewRequest("POST", td.URL()+"/api/hosts/any-host/command",
-		strings.NewReader(`{"command": "pull"}`))
+	// v3: Send command without CSRF token via Op Engine
+	req, _ := http.NewRequest("POST", td.URL()+"/api/dispatch",
+		strings.NewReader(`{"op": "pull", "hosts": ["any-host"]}`))
 	req.Header.Set("Content-Type", "application/json")
 	// Intentionally NOT setting X-CSRF-Token
 
@@ -402,9 +416,9 @@ func TestDashboardCommand_StatusUpdate(t *testing.T) {
 		}
 	}()
 
-	// Send command
-	req, _ := http.NewRequest("POST", td.URL()+"/api/hosts/status-test-host/command",
-		strings.NewReader(`{"command": "switch"}`))
+	// v3: Send command via Op Engine
+	req, _ := http.NewRequest("POST", td.URL()+"/api/dispatch",
+		strings.NewReader(`{"op": "switch", "hosts": ["status-test-host"]}`))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-CSRF-Token", csrfToken)
 	resp, _ := client.Do(req)
@@ -486,9 +500,9 @@ func TestDashboardCommand_StopCommand(t *testing.T) {
 	// Login
 	client, csrfToken := td.loginAndGetCSRF(t)
 
-	// Send stop command
-	req, _ := http.NewRequest("POST", td.URL()+"/api/hosts/stop-test-host/command",
-		strings.NewReader(`{"command": "stop"}`))
+	// v3: Send stop command via Op Engine
+	req, _ := http.NewRequest("POST", td.URL()+"/api/dispatch",
+		strings.NewReader(`{"op": "stop", "hosts": ["stop-test-host"]}`))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-CSRF-Token", csrfToken)
 

@@ -269,11 +269,11 @@ func main() {
 	// Wait a moment for connection to stabilize
 	time.Sleep(500 * time.Millisecond)
 
-	// Send command via API (using same httpClient with session cookie)
+	// v3: Send command via Op Engine /api/dispatch (using same httpClient with session cookie)
 	log.Printf("🚀 Sending command '%s' to host '%s'...", *command, *hostID)
 	
-	cmdURL := fmt.Sprintf("%s/api/hosts/%s/command", *apiURL, *hostID)
-	cmdBody := fmt.Sprintf(`{"command":"%s","force":true}`, *command)
+	cmdURL := fmt.Sprintf("%s/api/dispatch", *apiURL)
+	cmdBody := fmt.Sprintf(`{"op":"%s","hosts":["%s"],"force":true}`, *command, *hostID)
 	
 	req, err := http.NewRequest("POST", cmdURL, strings.NewReader(cmdBody))
 	if err != nil {

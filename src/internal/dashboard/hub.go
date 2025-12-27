@@ -42,6 +42,13 @@ type flakeUpdateGetter interface {
 	GetPendingPR() *PendingPRInfo
 }
 
+// opExecutorInterface is the subset of ops.Executor used by Hub.
+// Defined as interface to avoid import cycle.
+// Uses interface{} return to avoid importing ops package.
+type opExecutorInterface interface {
+	HandleCommandComplete(hostID, opID string, exitCode int, output string) (interface{}, error)
+}
+
 // Client represents a WebSocket connection (agent or browser).
 type Client struct {
 	conn       *websocket.Conn
@@ -122,6 +129,9 @@ type Hub struct {
 	// P2800: Command state machine reference (set by Server after creation)
 	cmdStateMachine *CommandStateMachine
 
+	// v3: Op Engine executor (set by Server after creation)
+	opExecutor opExecutorInterface
+
 	// P2810: Last known agent freshness (updated on register/heartbeat)
 	agentFreshness map[string]AgentFreshness
 
@@ -174,6 +184,11 @@ func (h *Hub) SetFlakeUpdates(fu flakeUpdateGetter) {
 // Called by Server after creation to avoid circular dependencies.
 func (h *Hub) SetCommandStateMachine(sm *CommandStateMachine) {
 	h.cmdStateMachine = sm
+}
+
+// SetOpExecutor sets the Op Engine executor for v3 command tracking.
+func (h *Hub) SetOpExecutor(exec opExecutorInterface) {
+	h.opExecutor = exec
 }
 
 // GetAgentFreshness returns the last known freshness data for an agent (P2810).
@@ -948,7 +963,16 @@ func (h *Hub) handleStatus(hostID string, payload protocol.StatusPayload) {
 		}
 	}
 
-	// P2800: Handle command completion via state machine
+	// v3: Notify Op Engine of command completion
+	if h.opExecutor != nil {
+		_, err := h.opExecutor.HandleCommandComplete(hostID, payload.Command, payload.ExitCode, payload.Message)
+		if err != nil {
+			h.log.Debug().Err(err).Str("host", hostID).Str("command", payload.Command).
+				Msg("op engine did not track this command (expected during transition)")
+		}
+	}
+
+	// P2800: Handle command completion via state machine (legacy - to be removed)
 	// NOW post-validation will see updated generation + fresh versionFetcher
 	if h.cmdStateMachine != nil {
 		if isSwitchSuccess {

@@ -1488,7 +1488,7 @@ templ Dashboard(data DashboardData) {
 			// ═══════════════════════════════════════════════════════════════════════════
 			// ACTIONS (User-initiated)
 			// ═══════════════════════════════════════════════════════════════════════════
-			// P2800: sendCommand with optional force flag
+			// v3: sendCommand using Op Engine /api/dispatch endpoint
 			function sendCommand(hostId, command, force = false) {
 				const host = hostStore.get(hostId);
 				const hostname = host?.hostname || hostId;
@@ -1501,47 +1501,58 @@ templ Dashboard(data DashboardData) {
 					detail: { hostId, hostname, command }
 				}));
 
-				fetch(`/api/hosts/${hostId}/command`, {
+				// v3: Use new Op Engine dispatch endpoint
+				fetch('/api/dispatch', {
 					method: 'POST',
 					headers: {
 						'Content-Type': 'application/json',
 						'X-CSRF-Token': CSRF_TOKEN
 					},
-					body: JSON.stringify({ command, force })
+					body: JSON.stringify({ 
+						op: command,
+						hosts: [hostId],
+						force: force
+					})
 				}).then(resp => {
-					if (resp.status === 409) {
-						// P2800: Pre-validation failed - show dialog
-						return resp.json().then(data => {
-							hostStore.update(hostId, { pendingCommand: null });
-							showPreCheckDialog(hostId, hostname, command, data.validation);
-							throw { handled: true }; // Skip error handling
-						});
-					}
 					if (!resp.ok) {
-						return resp.text().then(text => { throw new Error(text); });
+						return resp.json().then(data => {
+							// Check for blocked status (pre-validation failed)
+							if (data.results && data.results[0]?.status === 'blocked') {
+								hostStore.update(hostId, { pendingCommand: null });
+								showPreCheckDialog(hostId, hostname, command, {
+									code: data.results[0].code,
+									message: data.results[0].message
+								});
+								throw { handled: true };
+							}
+							throw new Error(data.error || 'Request failed');
+						});
 					}
 					return resp.json();
 				}).then(data => {
-					if (data) console.log('Command queued:', data);
-				}).catch(err => {
-					if (err.handled) return; // Already handled by dialog
+					if (!data) return;
 					
-					console.error('Command failed:', err);
-					// P2800: Parse validation error for friendly message
-					let errorMsg = err.message || 'Unknown error';
-					try {
-						const parsed = JSON.parse(errorMsg);
-						if (parsed.validation && parsed.validation.message) {
-							errorMsg = parsed.validation.message;
-						} else if (parsed.message) {
-							errorMsg = parsed.message;
-						}
-					} catch (e) {
-						// Not JSON, use original message
+					// Check individual host result
+					const result = data.results?.[0];
+					if (result?.status === 'blocked') {
+						hostStore.update(hostId, { pendingCommand: null });
+						showPreCheckDialog(hostId, hostname, command, {
+							code: result.code,
+							message: result.message
+						});
+						return;
 					}
+					if (result?.status === 'error') {
+						throw new Error(result.error || 'Command failed');
+					}
+					console.log('Op dispatched:', command, result?.command_id);
+				}).catch(err => {
+					if (err.handled) return;
+					
+					console.error('Op dispatch failed:', err);
+					const errorMsg = err.message || 'Unknown error';
 					showToast(`Command failed: ${errorMsg}`, 'error');
 					hostStore.update(hostId, { pendingCommand: null });
-					// P1010: Notify Action Bar of failure
 					window.dispatchEvent(new CustomEvent('command-complete', {
 						detail: { hostId, hostname, command, exit_code: 1, error: errorMsg }
 					}));

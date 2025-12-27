@@ -106,6 +106,7 @@ func New(cfg *Config, db *sql.DB, log zerolog.Logger) *Server {
 
 	// Create op executor
 	opExecutor := ops.NewExecutor(log, opRegistry, cmdSender, stateStore, stateStore)
+	hub.SetOpExecutor(&opExecutorWrapper{exec: opExecutor}) // v3: Give hub access to op executor for command completion
 
 	// Create pipeline executor
 	pipelineExecutor := ops.NewPipelineExecutor(log, opExecutor, pipelineRegistry, stateStore, stateStore)

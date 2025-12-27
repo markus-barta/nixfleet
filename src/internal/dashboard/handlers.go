@@ -13,6 +13,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/gorilla/websocket"
 	"github.com/markus-barta/nixfleet/internal/colors"
+	"github.com/markus-barta/nixfleet/internal/ops"
 	"github.com/markus-barta/nixfleet/internal/templates"
 )
 
@@ -519,14 +520,15 @@ func (s *Server) handleGetHosts(w http.ResponseWriter, r *http.Request) {
 }
 
 // handleCommand dispatches a command to an agent.
-// P2800: Now includes pre-validation via CommandStateMachine.
+// v3: This is now a thin adapter that delegates to the Op Engine.
+// Maintained for backward compatibility with tests and existing clients.
 func (s *Server) handleCommand(w http.ResponseWriter, r *http.Request) {
 	hostID := chi.URLParam(r, "hostID")
 
 	var req struct {
 		Command string   `json:"command"`
 		Args    []string `json:"args,omitempty"`
-		Force   bool     `json:"force,omitempty"` // P2800: Skip pre-validation
+		Force   bool     `json:"force,omitempty"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Bad Request", http.StatusBadRequest)
@@ -540,108 +542,36 @@ func (s *Server) handleCommand(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// P2800: Log command initiation
-	s.cmdStateMachine.Log(LogEntry{
-		Level:   LogLevelInfo,
-		HostID:  hostID,
-		State:   "IDLE→VALIDATING",
-		Message: fmt.Sprintf("User clicked %s", req.Command),
-	})
-
-	// P2800: Run pre-validation (unless forced)
-	if !req.Force {
-		result := s.cmdStateMachine.RunPreChecks(host, req.Command)
-		if !result.Valid {
-			// Transition to BLOCKED state
-			s.cmdStateMachine.TransitionTo(hostID, StateBlocked,
-				fmt.Sprintf("Cannot %s: %s", req.Command, result.Message))
-
+	// v3: Delegate to Op Engine
+	hostAdapter := ops.NewHostAdapter(host)
+	cmd, err := s.opExecutor.ExecuteOp(r.Context(), req.Command, hostAdapter, req.Force)
+	if err != nil {
+		// Check if it's a validation error (blocked)
+		if verr, ok := err.(*ops.ValidationError); ok {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusConflict)
 			_ = json.NewEncoder(w).Encode(map[string]any{
-				"status":     "blocked",
-				"validation": result,
+				"status": "blocked",
+				"validation": map[string]any{
+					"valid":   false,
+					"code":    verr.Code,
+					"message": verr.Message,
+				},
 			})
 			return
 		}
-	}
-
-	// P2800: Capture pre-command snapshot for post-validation
-	// P2810: For switch commands, also capture binary freshness for stale binary detection
-	isSwitch := req.Command == "switch" || req.Command == "pull-switch"
-	if isSwitch {
-		if freshness := s.hub.GetAgentFreshness(hostID); freshness != nil {
-			s.cmdStateMachine.CaptureSnapshotWithFreshness(host, freshness)
-		} else {
-			s.cmdStateMachine.CaptureSnapshot(host)
-		}
-	} else {
-		s.cmdStateMachine.CaptureSnapshot(host)
-	}
-
-	// Find agent connection for this host
-	agent := s.hub.GetAgent(hostID)
-	if agent == nil {
-		s.cmdStateMachine.Log(LogEntry{
-			Level:   LogLevelError,
-			HostID:  hostID,
-			State:   "VALIDATING→FAILED",
-			Message: "Host offline - agent not connected",
-			Code:    "host_offline",
-		})
-		http.Error(w, "Host offline", http.StatusConflict)
+		// Other errors
+		s.log.Error().Err(err).Str("host", hostID).Str("command", req.Command).Msg("op execution failed")
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	// Send command to agent
-	cmdMsg, err := json.Marshal(map[string]any{
-		"type": "command",
-		"payload": map[string]any{
-			"command": req.Command,
-			"args":    req.Args,
-		},
-	})
-	if err != nil {
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-		return
-	}
-
-	select {
-	case agent.send <- cmdMsg:
-		// Command sent
-	default:
-		s.cmdStateMachine.Log(LogEntry{
-			Level:   LogLevelError,
-			HostID:  hostID,
-			State:   "QUEUED→FAILED",
-			Message: "Agent not responsive - send buffer full",
-			Code:    "agent_unresponsive",
-		})
-		http.Error(w, "Agent not responsive", http.StatusServiceUnavailable)
-		return
-	}
-
-	// P2800: Transition to RUNNING state
-	s.cmdStateMachine.TransitionTo(hostID, StateRunning,
-		fmt.Sprintf("Command sent to agent: %s", req.Command))
-
-	// Update host status
-	_, _ = s.db.Exec(`UPDATE hosts SET pending_command = ?, status = 'running' WHERE id = ?`,
-		req.Command, hostID)
-
+	// Return response in legacy format for backward compatibility
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]any{
-		"status":  "queued",
-		"command": req.Command,
-	})
-
-	// Broadcast to browsers
-	s.hub.BroadcastToBrowsers(map[string]any{
-		"type": "command_queued",
-		"payload": map[string]any{
-			"host_id": hostID,
-			"command": req.Command,
-		},
+		"status":     "queued",
+		"command":    req.Command,
+		"command_id": cmd.ID, // v3: Include command ID for tracking
 	})
 }
 

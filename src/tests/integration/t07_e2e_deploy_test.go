@@ -12,6 +12,7 @@ package integration
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/cookiejar"
@@ -206,9 +207,9 @@ func testDeployHost(t *testing.T, client *http.Client, cfg *e2eConfig, csrfToken
 		t.Skipf("host %s not found in dashboard", host)
 	}
 
-	// Send pull command
-	req, _ := http.NewRequest("POST", cfg.HTTPBaseURL+"/api/hosts/"+host+"/command",
-		strings.NewReader(`{"command": "pull"}`))
+	// v3: Send pull command via Op Engine
+	req, _ := http.NewRequest("POST", cfg.HTTPBaseURL+"/api/dispatch",
+		strings.NewReader(fmt.Sprintf(`{"op": "pull", "hosts": ["%s"]}`, host)))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-CSRF-Token", csrfToken)
 
@@ -223,7 +224,7 @@ func testDeployHost(t *testing.T, client *http.Client, cfg *e2eConfig, csrfToken
 		t.Fatalf("pull command returned %d: %s", resp.StatusCode, body)
 	}
 
-	t.Logf("pull command queued: %s", body)
+	t.Logf("pull command dispatched: %s", body)
 
 	// Wait for pull to complete
 	if browserWS != nil {
