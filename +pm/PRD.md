@@ -222,19 +222,47 @@ Git revert of the v3 merge commit. Agents continue working (no agent changes in 
 
 ---
 
+## Release & Deployment Flow
+
+NixFleet uses **fully automated releases** via GitHub Actions.
+
+### Flow
+
+```
+1. Push code to nixfleet       →  Docker image builds automatically
+2. Docker build succeeds       →  Triggers nixcfg to update flake.lock
+3. Hosts show "Git outdated"   →  Pull + Switch updates agent
+```
+
+### Key Points
+
+- **No manual tagging required** — every push triggers a build
+- **No manual flake.lock updates** — automation handles it
+- **Dashboard deploys instantly** — `just deploy` pulls latest image
+- **Agents update via Pull + Switch** — standard fleet operation
+
+### Documentation
+
+- [Release Guide](../docs/RELEASE.md) — Simple step-by-step guide
+- [nixcfg Workflow Template](../docs/nixcfg-workflow-template.yml) — Copy to nixcfg
+
+---
+
 ## References
 
 - [Specifications](./spec/) — Core building block contracts
 - [PRD-v2.md](./archive/PRD-v2.md) — v2.0 implementation spec
-- [UX Flow v2](../docs/ux-flow-cac-v2.md) — v2 Control-Action-Command mapping (archived)
 - [Backlog](./backlog/) — Implementation tasks
+- [Release Guide](../docs/RELEASE.md) — How to release NixFleet
 
 ---
 
 ## Changelog
 
-| Date       | Version   | Changes                      |
-| ---------- | --------- | ---------------------------- |
-| 2025-12-27 | 3.0-draft | Initial v3.0 PRD             |
-|            |           | Extracted specs to +pm/spec/ |
-|            |           | Added spec references        |
+| Date       | Version | Changes                                       |
+| ---------- | ------- | --------------------------------------------- |
+| 2025-12-27 | 3.0.1   | Added Release & Deployment Flow section       |
+|            |         | Added automated flake.lock update workflow    |
+| 2025-12-27 | 3.0.0   | Initial v3.0 implementation                   |
+|            |         | Op Engine, State Store, State Sync            |
+|            |         | LifecycleManager replaces CommandStateMachine |

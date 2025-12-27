@@ -75,3 +75,12 @@ jobs:
 
       - name: Image digest
         run: echo "Pushed ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.meta.outputs.digest }}"
+
+      # Trigger nixcfg to update its flake.lock with new nixfleet
+      - name: Trigger nixcfg update
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.NIXCFG_DISPATCH_TOKEN }}
+          repository: markus-barta/nixcfg
+          event-type: nixfleet-updated
+          client-payload: '{"version": "${{ steps.version.outputs.version }}", "sha": "${{ github.sha }}"}'
