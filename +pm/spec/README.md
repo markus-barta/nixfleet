@@ -16,6 +16,7 @@ Specs define **what we must build**. They are stable, citable contracts.
 | CORE-002 | [Pipeline Executor](./CORE-002-pipeline-executor.md) | Multi-op sequences with && semantics               |
 | CORE-003 | [State Store](./CORE-003-state-store.md)             | Unified persistence (SQLite schemas)               |
 | CORE-004 | [State Sync](./CORE-004-state-sync.md)               | Always-live UI via version-based sync              |
+| CORE-005 | [Testing](./CORE-005-testing.md)                     | Testing strategy: layers, pairing, CI pipelines    |
 
 ---
 
