@@ -1,4 +1,4 @@
-# NixFleet UX Flow — Control-Action-Command Reference
+# NixFleet 2.0 UX Flow — Control-Action-Command Reference
 
 > **Purpose:** Map all UI controls, actions, and commands for flow analysis and harmonization.
 
