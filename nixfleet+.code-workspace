@@ -1,0 +1,14 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../nixcfg"
+		}
+	],
+	"settings": {
+		"problems.showCurrentInStatus": false,
+		"problems.autoReveal": false
+	}
+}
