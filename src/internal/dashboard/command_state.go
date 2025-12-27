@@ -180,6 +180,11 @@ type CommandState struct {
 
 	// Reboot tracking (P6900)
 	AbortedCommand string `json:"aborted_command,omitempty"` // Command that was running before reboot
+
+	// Deferred post-check: wait for fresh heartbeat before validating
+	PostCheckPending bool `json:"post_check_pending,omitempty"`
+	PendingExitCode  *int `json:"pending_exit_code,omitempty"`
+	PendingMessage   string `json:"pending_message,omitempty"`
 }
 
 // CommandProgress tracks progress during command execution.
@@ -817,6 +822,71 @@ func (sm *CommandStateMachine) RunPostChecks(hostID, command string, exitCode in
 	sm.mu.Unlock()
 
 	return result
+}
+
+// DeferPostCheck marks that post-check should run on next heartbeat.
+// This avoids running validation on stale data before agent sends fresh status.
+func (sm *CommandStateMachine) DeferPostCheck(hostID string, exitCode int, message string) {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+
+	state := sm.hostStates[hostID]
+	if state == nil {
+		return
+	}
+
+	state.PostCheckPending = true
+	state.PendingExitCode = &exitCode
+	state.PendingMessage = message
+
+	sm.Log(LogEntry{
+		Level:   LogLevelInfo,
+		HostID:  hostID,
+		State:   string(state.State),
+		Message: "Post-check deferred until fresh heartbeat",
+	})
+}
+
+// HasPendingPostCheck returns true if a host has a deferred post-check waiting.
+func (sm *CommandStateMachine) HasPendingPostCheck(hostID string) bool {
+	sm.mu.RLock()
+	defer sm.mu.RUnlock()
+
+	state := sm.hostStates[hostID]
+	return state != nil && state.PostCheckPending
+}
+
+// RunDeferredPostCheck runs the pending post-check with fresh host data.
+// Called from heartbeat handler after receiving fresh status.
+func (sm *CommandStateMachine) RunDeferredPostCheck(hostID string, currentHost *templates.Host) {
+	sm.mu.Lock()
+	state := sm.hostStates[hostID]
+	if state == nil || !state.PostCheckPending {
+		sm.mu.Unlock()
+		return
+	}
+
+	// Clear pending flag and extract data
+	state.PostCheckPending = false
+	exitCode := 0
+	if state.PendingExitCode != nil {
+		exitCode = *state.PendingExitCode
+	}
+	message := state.PendingMessage
+	command := state.Command
+	sm.mu.Unlock()
+
+	// Run the actual post-check with fresh data
+	postResult := sm.RunPostChecks(hostID, command, exitCode, currentHost, message)
+
+	if postResult.Valid {
+		sm.TransitionTo(hostID, StateSuccess, postResult.Message)
+	} else if exitCode == 0 {
+		// Exit 0 but goal not achieved = partial success
+		sm.TransitionTo(hostID, StatePartial, postResult.Message)
+	} else {
+		sm.TransitionTo(hostID, StateFailed, postResult.Message)
+	}
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

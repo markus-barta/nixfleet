@@ -869,6 +869,16 @@ func (h *Hub) handleHeartbeat(hostID string, payload protocol.HeartbeatPayload) 
 		}
 	}
 
+	// Check for deferred post-checks waiting for fresh heartbeat data
+	if h.cmdStateMachine != nil && h.cmdStateMachine.HasPendingPostCheck(hostID) {
+		if host := h.getHostForPostValidation(hostID); host != nil {
+			h.log.Debug().
+				Str("host", hostID).
+				Msg("running deferred post-check with fresh heartbeat data")
+			h.cmdStateMachine.RunDeferredPostCheck(hostID, host)
+		}
+	}
+
 	// Broadcast heartbeat with full status to browsers
 	h.BroadcastToBrowsers(map[string]any{
 		"type": "host_heartbeat",
@@ -954,27 +964,15 @@ func (h *Hub) handleStatus(hostID string, payload protocol.StatusPayload) {
 			h.cmdStateMachine.TransitionTo(hostID, StateFailed,
 				fmt.Sprintf("Switch failed with exit code %d", payload.ExitCode))
 		} else {
-			// Non-switch commands (pull, test): run post-validation
-			if host := h.getHostForPostValidation(hostID); host != nil {
-				postResult := h.cmdStateMachine.RunPostChecks(hostID, payload.Command, payload.ExitCode, host, payload.Message)
-				if postResult.Valid {
-					h.cmdStateMachine.TransitionTo(hostID, StateSuccess, postResult.Message)
-				} else if payload.ExitCode == 0 {
-					// Exit 0 but goal not achieved = partial success
-					h.cmdStateMachine.TransitionTo(hostID, StatePartial, postResult.Message)
-				} else {
-					h.cmdStateMachine.TransitionTo(hostID, StateFailed, postResult.Message)
-				}
-			} else {
-				// Fallback: no host data, just use exit code
-				if payload.ExitCode == 0 {
-					h.cmdStateMachine.TransitionTo(hostID, StateSuccess,
-						fmt.Sprintf("%s completed successfully", payload.Command))
-				} else {
-					h.cmdStateMachine.TransitionTo(hostID, StateFailed,
-						fmt.Sprintf("%s failed with exit code %d", payload.Command, payload.ExitCode))
-				}
-			}
+			// Non-switch commands (pull, test): defer post-validation until fresh heartbeat
+			// The agent sends a heartbeat immediately after command completion,
+			// but it arrives AFTER the command_complete message. By deferring,
+			// we ensure post-checks run with fresh data.
+			h.cmdStateMachine.DeferPostCheck(hostID, payload.ExitCode, payload.Message)
+			h.log.Debug().
+				Str("host", hostID).
+				Str("command", payload.Command).
+				Msg("post-check deferred until fresh heartbeat")
 		}
 	}
 
