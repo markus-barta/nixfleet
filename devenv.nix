@@ -8,6 +8,10 @@
     # devenv-nixpkgs uses rolling channel with latest
   };
 
+  # Use standard GOMODCACHE outside workspace to avoid gopls overlay conflicts
+  # (templ LSP generates overlays for *_templ.go files, which fails for module cache)
+  env.GOMODCACHE = "/Users/markus/go/pkg/mod";
+
   # Development tools
   packages = with pkgs; [
     # Go tools

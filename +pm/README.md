@@ -1,193 +1,107 @@
-# Project Management
+# NixFleet Project Management
 
-Central hub for tracking work on the NixFleet dashboard.
-
----
-
-## Product Requirements Documents
-
-| Document                 | Version | Description                                 |
-| ------------------------ | ------- | ------------------------------------------- |
-| [PRD.md](./PRD.md)       | v3.0    | **Current vision** — Op Engine architecture |
-| [PRD-v2.md](./PRD-v2.md) | v2.0    | Current implementation — Go rewrite         |
+> Project documentation and task management.
 
 ---
 
-## Priority System
-
-Tasks use a **P-number** prefix for ordering:
+## Hierarchy
 
 ```
-P{number}-{name}.md
+PRD + Specs = Source of Truth (cite these in docs/code)
+         ↓
+    Backlog = Work Items (implement these, don't cite)
 ```
 
-**Lower number = Higher priority**
+| Layer       | Purpose                        | Cite in docs/code? |
+| ----------- | ------------------------------ | ------------------ |
+| **PRD**     | Vision, goals, architecture    | ✅ Yes             |
+| **Specs**   | Contracts, interfaces, schemas | ✅ Yes (preferred) |
+| **Backlog** | Tasks to implement specs       | ❌ No              |
 
-| Range       | Priority    | Description                             |
-| ----------- | ----------- | --------------------------------------- |
-| P0000-P1999 | 🔴 Critical | Blocking bugs, system broken, fix now   |
-| P2000-P3999 | 🟠 High     | Important bugs/issues, fix soon         |
-| P4000-P5999 | 🟡 Medium   | Features and improvements, planned work |
-| P6000-P7999 | 🟢 Low      | Nice-to-have, do when time permits      |
-| P8000-P9999 | ⚪ Backlog  | Ideas, future enhancements, someday     |
+---
 
-### Ordering Within Priority
+## Quick Links
 
-- Start at **X000** (e.g., P4000, P5000, P6000)
-- New items: add/subtract 100 (P4100, P4200...)
-- Insert between: use finer granularity (P4050 between P4000 and P4100)
-- **Goal**: Never need to rename existing files when priorities change
+| Document                   | Purpose                                |
+| -------------------------- | -------------------------------------- |
+| [PRD.md](./PRD.md)         | Product Requirements Document (v3.0)   |
+| [spec/](./spec/)           | Core specifications (stable contracts) |
+| [backlog/](./backlog/)     | Implementation tasks                   |
+| [done/](./done/)           | Completed tasks                        |
+| [cancelled/](./cancelled/) | Cancelled/deferred tasks               |
+| [archive/](./archive/)     | Archived documents                     |
 
-### Example
+---
 
-```
-backlog/
-  P1000-reliable-agent-updates.md      # Critical: blocking bug
-  P1100-macos-agent-update-bug.md      # Critical: related analysis
-  P2000-unified-host-state.md          # High: architecture work
-  P4000-new-feature.md                 # Medium: planned feature
-  P6000-heartbeat-visualizer.md        # Low: nice-to-have
-  P8000-future-idea.md                 # Backlog: someday/maybe
-```
+## v3.0 Roadmap
+
+NixFleet v3.0 introduces the **Op Engine** architecture. See [PRD.md](./PRD.md) for details.
+
+### Core Specs
+
+| Spec                                             | Purpose                                |
+| ------------------------------------------------ | -------------------------------------- |
+| [CORE-001](./spec/CORE-001-op-engine.md)         | Op Engine (atomic operations)          |
+| [CORE-002](./spec/CORE-002-pipeline-executor.md) | Pipeline Executor (multi-op sequences) |
+| [CORE-003](./spec/CORE-003-state-store.md)       | State Store (persistence)              |
+| [CORE-004](./spec/CORE-004-state-sync.md)        | State Sync (always-live UI)            |
+
+### Implementation Phases
+
+| Phase | Backlog Item                                        | Description             |
+| ----- | --------------------------------------------------- | ----------------------- |
+| 1     | [P3010](./backlog/P3010-op-engine-foundation.md)    | Op Engine Foundation    |
+| 1     | [P3020](./backlog/P3020-pipeline-executor.md)       | Pipeline Executor       |
+| 2     | [P3100](./backlog/P3100-state-persistence.md)       | State Persistence       |
+| 3     | [P3200](./backlog/P3200-state-sync-protocol.md)     | State Sync Protocol     |
+| 4     | [P3300](./backlog/P3300-logs-on-page-load.md)       | Logs on Page Load       |
+| 5     | [P3400](./backlog/P3400-frontend-simplification.md) | Frontend Simplification |
+
+---
+
+## Backlog Categories
+
+### v3 Core (P3xxx)
+
+Critical architectural work for v3.0. Do these first.
+
+### Features (P4xxx-P6xxx)
+
+New capabilities. Most depend on v3 core.
+
+### Polish (P7xxx-P8xxx)
+
+UI improvements, accessibility, quality-of-life.
+
+---
+
+## Priority Scheme
+
+| Range       | Category | Description                 |
+| ----------- | -------- | --------------------------- |
+| P1xxx       | Critical | Blocking bugs, urgent fixes |
+| P2xxx       | High     | Important features          |
+| P3xxx       | v3 Core  | v3.0 architectural work     |
+| P4xxx-P5xxx | Medium   | Normal features             |
+| P6xxx-P7xxx | Low      | Nice-to-have, polish        |
+| P8xxx       | Future   | Deferred, long-term         |
+
+---
+
+## Archived Documents
+
+| Document                                       | Description                       |
+| ---------------------------------------------- | --------------------------------- |
+| [PRD-v2.md](./archive/PRD-v2.md)               | v2.0 requirements (current impl)  |
+| [ux-flow-cac-v2.md](../docs/ux-flow-cac-v2.md) | v2 Control-Action-Command mapping |
 
 ---
 
 ## Workflow
 
-```
-┌──────────┐                      ┌──────┐
-│ Backlog  │─────────────────────▶│ Done │
-└──────────┘                      └──────┘
-      │
-      ▼
-┌───────────┐
-│ Cancelled │
-└───────────┘
-```
-
-| State         | Folder       | Description                                               |
-| ------------- | ------------ | --------------------------------------------------------- |
-| **Backlog**   | `backlog/`   | All tasks: ideas, planned work, in-progress items         |
-| **Done**      | `done/`      | Verified complete, kept indefinitely as historical record |
-| **Cancelled** | `cancelled/` | No longer relevant/needed, kept for reference             |
-
-### Moving Tasks
-
-- **Backlog → Done**: Task complete, verified working
-- **Backlog → Cancelled**: No longer needed, add note explaining why
-
----
-
-## When to Create a Task
-
-| Situation                        | Create +pm task?                 |
-| -------------------------------- | -------------------------------- |
-| Quick fix, single file, <15 min  | ❌ No, just do it                |
-| Change affects multiple files    | ✅ Yes                           |
-| Change takes >30 min             | ✅ Yes                           |
-| New feature or capability        | ✅ Yes                           |
-| Refactoring or migration         | ✅ Yes                           |
-| Bug fix with root cause analysis | ✅ Yes                           |
-| Documentation-only change        | ❌ No (unless major restructure) |
-
-**Rule of thumb**: If you need to track progress or might get interrupted, create a task.
-
----
-
-## File Naming Convention
-
-```
-P{number}-{short-description}.md
-```
-
-Examples:
-
-- `P4000-agent-resilience-detached-switch.md`
-- `P5100-version-generation-tracking.md`
-
-**Note**: Date is tracked inside the file, not in the filename.
-
----
-
-## Task Template
-
-````markdown
-# Task Title
-
-**Created**: YYYY-MM-DD  
-**Priority**: P{number} (Critical/Medium/Low)  
-**Status**: Backlog  
-**Depends on**: P{other} (optional)
-
----
-
-## Problem
-
-Brief explanation of what needs to be fixed or built.
-
----
-
-## Solution
-
-How we're going to solve it.
-
----
-
-## Acceptance Criteria
-
-- [ ] Criterion 1
-- [ ] Criterion 2
-
----
-
-## Test Plan
-
-### Manual Test
-
-1. Step 1 to verify
-2. Step 2 to verify
-
-### Automated Test
-
-```bash
-# Commands to verify
-```
-````
-
----
-
-## Related
-
-- Depends on: P{number}
-- Enables: P{number}
-
-```
-
----
-
-## Test Requirements
-
-Every task should have tests defined:
-
-| Test Type | Description | Required |
-|-----------|-------------|----------|
-| **Manual Test** | Human verification steps documented in the task | ✅ Yes |
-| **Automated Test** | Script or curl commands that verify the change | Recommended |
-
-### Testing Approaches
-
-| Test Type | How to Test |
-|-----------|-------------|
-| **API** | `curl` commands, check responses |
-| **Dashboard** | Browser test, verify UI elements |
-| **Agent** | Deploy to test host, check registration |
-| **Docker** | `docker compose build && docker compose up -d` |
-| **Nix Modules** | `nix flake check` (on a NixOS machine) |
-
----
-
-## Related
-
-- [Main README](../README.md) - Project overview
-- [nixcfg](https://github.com/markus-barta/nixcfg) - Parent infrastructure repository
-```
+1. **Check spec** before implementing a feature
+2. **Create/update backlog item** with clear acceptance criteria
+3. **Implement** following spec interfaces
+4. **Test** according to acceptance criteria
+5. **Move to done/** when complete
+6. **Update spec's backlog table** with completion status

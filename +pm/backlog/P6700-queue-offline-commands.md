@@ -1,9 +1,11 @@
-# P6700 - Queue Commands for Offline Hosts
+# P6700: Queue Commands for Offline Hosts
 
 **Created**: 2025-12-14  
-**Updated**: 2025-12-19  
+**Updated**: 2025-12-27  
 **Priority**: P6700 (Low)  
-**Status**: Backlog
+**Status**: Backlog  
+**Related Specs**: [CORE-003](../spec/CORE-003-state-store.md) (commands table)  
+**Depends on**: P3100 (State Persistence)
 
 ---
 
@@ -17,9 +19,15 @@ Queue commands for offline hosts; execute when they come back online.
 
 ### Database
 
+Uses the `commands` table from CORE-003 with status `QUEUED`:
+
 ```sql
-ALTER TABLE hosts ADD COLUMN queued_commands TEXT;  -- JSON array
-ALTER TABLE hosts ADD COLUMN queued_at TEXT;
+-- Queue a command for an offline host
+INSERT INTO commands (id, host_id, op, status)
+VALUES (uuid(), 'hsb0', 'pull', 'QUEUED');
+
+-- On agent connect, find queued commands
+SELECT * FROM commands WHERE host_id = ? AND status = 'QUEUED' ORDER BY created_at;
 ```
 
 ### UI

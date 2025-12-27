@@ -2,7 +2,9 @@
 
 **Priority**: Medium  
 **Effort**: Medium  
-**Status**: Backlog
+**Status**: Backlog  
+**Implements**: Pipeline `update-agent` from [CORE-002](../spec/CORE-002-pipeline-executor.md)  
+**Depends on**: P3020 (Pipeline Executor)
 
 ## Problem
 
