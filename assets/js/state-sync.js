@@ -88,6 +88,13 @@ class StateSync {
   /**
    * Dispatch an op to the server.
    * This is the thin frontend's only job - dispatch ops, let server handle logic.
+   *
+   * @param {string} opId - The op ID (e.g., "pull", "switch")
+   * @param {string[]} hostIds - Array of host IDs to execute on
+   * @param {Object} options - Optional settings
+   * @param {boolean} options.force - Skip pre-validation
+   * @param {string} options.totp - TOTP code for protected ops
+   * @param {string} options.csrfToken - CSRF token (required)
    */
   dispatchOp(opId, hostIds, options = {}) {
     if (!this.isConnected) {
@@ -95,14 +102,64 @@ class StateSync {
       return Promise.reject(new Error("Not connected"));
     }
 
+    // CSRF token is required for all API calls
+    const csrfToken = options.csrfToken || window.CSRF_TOKEN;
+    if (!csrfToken) {
+      console.error("[StateSync] No CSRF token available");
+      return Promise.reject(new Error("No CSRF token"));
+    }
+
     // Send via REST API (ops are stateful, need proper HTTP response)
     return fetch("/api/dispatch", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRF-Token": csrfToken,
+      },
       body: JSON.stringify({
         op: opId,
         hosts: hostIds,
         force: options.force || false,
+        totp: options.totp,
+      }),
+    }).then((res) => {
+      if (!res.ok) {
+        return res.json().then((data) => Promise.reject(data));
+      }
+      return res.json();
+    });
+  }
+
+  /**
+   * Dispatch a pipeline to the server.
+   *
+   * @param {string} pipelineId - The pipeline ID (e.g., "do-all", "merge-deploy")
+   * @param {string[]} hostIds - Array of host IDs to execute on
+   * @param {Object} options - Optional settings
+   * @param {string} options.totp - TOTP code for protected pipelines
+   * @param {string} options.csrfToken - CSRF token (required)
+   */
+  dispatchPipeline(pipelineId, hostIds, options = {}) {
+    if (!this.isConnected) {
+      console.warn("[StateSync] Not connected, cannot dispatch pipeline");
+      return Promise.reject(new Error("Not connected"));
+    }
+
+    const csrfToken = options.csrfToken || window.CSRF_TOKEN;
+    if (!csrfToken) {
+      console.error("[StateSync] No CSRF token available");
+      return Promise.reject(new Error("No CSRF token"));
+    }
+
+    return fetch("/api/dispatch/pipeline", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRF-Token": csrfToken,
+      },
+      body: JSON.stringify({
+        pipeline: pipelineId,
+        hosts: hostIds,
         totp: options.totp,
       }),
     }).then((res) => {

@@ -110,9 +110,11 @@ func New(cfg *Config, db *sql.DB, log zerolog.Logger) *Server {
 	// Create pipeline executor
 	pipelineExecutor := ops.NewPipelineExecutor(log, opExecutor, pipelineRegistry, stateStore, stateStore)
 
+	// Create state provider for sync protocol
+	stateProvider := NewDashboardStateProvider(db)
+
 	// Create state manager for sync protocol
-	// StateProvider will be set after server is created (circular dependency)
-	stateManager := sync.NewStateManager(log, stateStore, nil)
+	stateManager := sync.NewStateManager(log, stateStore, stateProvider)
 
 	log.Info().Msg("v3 Op Engine initialized")
 
@@ -166,6 +168,12 @@ func New(cfg *Config, db *sql.DB, log zerolog.Logger) *Server {
 	// P2800: Start timeout checking loop
 	go s.timeoutCheckLoop(hubCtx)
 
+	// v3: Start state sync beacon (CORE-004)
+	s.stateManager.StartBeacon()
+
+	// v3: Start cleanup loop for old commands/events (CORE-003)
+	go s.cleanupLoop(hubCtx)
+
 	return s
 }
 
@@ -181,6 +189,35 @@ func (s *Server) timeoutCheckLoop(ctx context.Context) {
 		case <-ticker.C:
 			if s.cmdStateMachine != nil {
 				s.cmdStateMachine.CheckTimeouts()
+			}
+		}
+	}
+}
+
+// cleanupLoop periodically removes old commands, pipelines, and events.
+// Runs once per hour with 7-day retention (CORE-003).
+func (s *Server) cleanupLoop(ctx context.Context) {
+	ticker := time.NewTicker(1 * time.Hour)
+	defer ticker.Stop()
+
+	retention := 7 * 24 * time.Hour // 7 days
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			if s.stateStore != nil {
+				cmds, _ := s.stateStore.CleanupOldCommands(retention)
+				pls, _ := s.stateStore.CleanupOldPipelines(retention)
+				evts, _ := s.stateStore.CleanupOldEvents(retention)
+				if cmds+pls+evts > 0 {
+					s.log.Info().
+						Int64("commands", cmds).
+						Int64("pipelines", pls).
+						Int64("events", evts).
+						Msg("cleaned up old records")
+				}
 			}
 		}
 	}
@@ -330,6 +367,11 @@ func (s *Server) Run() error {
 // Shutdown gracefully shuts down the server and hub.
 func (s *Server) Shutdown(ctx context.Context) error {
 	s.log.Info().Msg("shutting down server...")
+
+	// Stop v3 state sync beacon
+	if s.stateManager != nil {
+		s.stateManager.StopBeacon()
+	}
 
 	// Cancel hub context first (stops hub goroutines)
 	if s.hubCancel != nil {

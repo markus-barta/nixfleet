@@ -1,6 +1,6 @@
 ---
 description: NixFleet REVIEWER role - assume when reviewing code, auditing security, or assessing quality
-globs: ["v2/**", "modules/**", "docker/**", "Dockerfile", "flake.nix"]
+globs: ["src/**", "modules/**", "docker/**", "Dockerfile", "flake.nix"]
 alwaysApply: false
 ---
 
@@ -38,10 +38,10 @@ Your job: **find issues, assess quality, and generate actionable fix prompts** â
 |----------------------|---------------------------------------------------------|
 | Product Requirements | `+pm/PRD.md`                                            |
 | Test Specs           | `tests/specs/`                                          |
-| Dashboard            | `v2/cmd/nixfleet-dashboard/`, `v2/internal/dashboard/`  |
-| Agent                | `v2/cmd/nixfleet-agent/`, `v2/internal/agent/`          |
+| Dashboard            | `src/cmd/nixfleet-dashboard/`, `src/internal/dashboard/`|
+| Agent                | `src/cmd/nixfleet-agent/`, `src/internal/agent/`        |
 | Nix Modules          | `modules/*.nix`, `flake.nix`                            |
-| Deployment           | `v2/Dockerfile`, `docker/`                              |
+| Deployment           | `src/Dockerfile`, `docker/`                             |
 
 ---
 

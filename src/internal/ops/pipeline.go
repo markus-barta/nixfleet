@@ -83,6 +83,18 @@ func (r *PipelineRegistry) Get(id string) *Pipeline {
 	return r.pipelines[id]
 }
 
+// All returns a copy of all registered pipelines.
+func (r *PipelineRegistry) All() []*Pipeline {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	result := make([]*Pipeline, 0, len(r.pipelines))
+	for _, p := range r.pipelines {
+		result = append(result, p)
+	}
+	return result
+}
+
 // DefaultPipelineRegistry creates the standard NixFleet pipeline registry.
 // All pipelines from CORE-002 are registered here.
 func DefaultPipelineRegistry() *PipelineRegistry {
@@ -221,11 +233,17 @@ func (pe *PipelineExecutor) Execute(ctx context.Context, pipelineID string, host
 				stillActive = append(stillActive, result.Host)
 			} else {
 				// Mark host as skipped for remaining stages
+				errMsg := ""
+				if result.Error != nil {
+					errMsg = result.Error.Error()
+				} else if result.ExitCode != 0 {
+					errMsg = fmt.Sprintf("exit code %d", result.ExitCode)
+				}
 				hostStates = append(hostStates, HostPipelineState{
 					HostID:     result.Host.GetID(),
 					StageIndex: stageIdx,
 					Status:     StatusSkipped,
-					Error:      result.Error.Error(),
+					Error:      errMsg,
 					Skipped:    true,
 				})
 			}

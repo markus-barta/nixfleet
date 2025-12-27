@@ -1,6 +1,7 @@
 package dashboard
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -200,8 +201,9 @@ func (s *Server) handleDispatchPipeline(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// Execute pipeline (async - returns immediately, completion comes via WebSocket)
+	// Use background context since HTTP request context is canceled after response
 	go func() {
-		record, err := s.pipelineExecutor.Execute(r.Context(), req.Pipeline, hosts)
+		record, err := s.pipelineExecutor.Execute(context.Background(), req.Pipeline, hosts)
 		if err != nil {
 			s.log.Error().Err(err).Str("pipeline", req.Pipeline).Msg("pipeline execution failed")
 		} else {
@@ -244,16 +246,19 @@ func (s *Server) handleGetOps(w http.ResponseWriter, r *http.Request) {
 // handleGetPipelines returns the list of available pipelines.
 // GET /api/pipelines
 func (s *Server) handleGetPipelines(w http.ResponseWriter, r *http.Request) {
-	// Get all pipeline IDs and build list
-	pipelines := []map[string]any{
-		{"id": "do-all", "ops": []string{"pull", "switch", "test"}, "description": "Full update cycle"},
-		{"id": "merge-deploy", "ops": []string{"merge-pr", "pull", "switch", "test"}, "description": "Merge PR then deploy"},
-		{"id": "update-agent", "ops": []string{"bump-flake", "pull", "switch", "restart"}, "description": "Update agent to latest"},
-		{"id": "force-update", "ops": []string{"force-rebuild", "restart"}, "description": "Force rebuild with cache bypass"},
+	allPipelines := s.pipelineRegistry.All()
+
+	pipelineList := make([]map[string]any, 0, len(allPipelines))
+	for _, p := range allPipelines {
+		pipelineList = append(pipelineList, map[string]any{
+			"id":          p.ID,
+			"ops":         p.Ops,
+			"description": p.Description,
+		})
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(map[string]any{"pipelines": pipelines})
+	_ = json.NewEncoder(w).Encode(map[string]any{"pipelines": pipelineList})
 }
 
 // handleGetEventLog returns recent events from the event log.
