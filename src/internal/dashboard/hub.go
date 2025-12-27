@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/markus-barta/nixfleet/internal/ops"
 	"github.com/markus-barta/nixfleet/internal/protocol"
 	"github.com/markus-barta/nixfleet/internal/templates"
 	"github.com/rs/zerolog"
@@ -42,11 +43,12 @@ type flakeUpdateGetter interface {
 	GetPendingPR() *PendingPRInfo
 }
 
-// opExecutorInterface is the subset of ops.Executor used by Hub.
+// lifecycleManagerInterface is the subset of ops.LifecycleManager used by Hub.
 // Defined as interface to avoid import cycle.
-// Uses interface{} return to avoid importing ops package.
-type opExecutorInterface interface {
-	HandleCommandComplete(hostID, opID string, exitCode int, output string) (interface{}, error)
+type lifecycleManagerInterface interface {
+	HandleCommandComplete(hostID, opID string, exitCode int, message string) (interface{}, error)
+	HandleHeartbeat(hostID string, freshness interface{})
+	HandleAgentReconnect(hostID string, freshness interface{})
 }
 
 // Client represents a WebSocket connection (agent or browser).
@@ -126,14 +128,11 @@ type Hub struct {
 	// Log storage for command output
 	logStore *LogStore
 
-	// P2800: Command state machine reference (set by Server after creation)
-	cmdStateMachine *CommandStateMachine
-
-	// v3: Op Engine executor (set by Server after creation)
-	opExecutor opExecutorInterface
+	// v3: Lifecycle manager (replaces CommandStateMachine + OpExecutor)
+	lifecycleManager lifecycleManagerInterface
 
 	// P2810: Last known agent freshness (updated on register/heartbeat)
-	agentFreshness map[string]AgentFreshness
+	agentFreshness map[string]ops.AgentFreshness
 
 	// Command completion subscribers (P5300 - proper deploy tracking)
 	completionSubs   map[string][]chan CommandCompletion
@@ -170,7 +169,7 @@ func NewHub(log zerolog.Logger, db *sql.DB, cfg *Config, vf *VersionFetcher) *Hu
 		agentMessages:  make(chan *agentMessage, 256),
 		broadcasts:     make(chan []byte, broadcastQueueSize),
 		completionSubs: make(map[string][]chan CommandCompletion),
-		agentFreshness: make(map[string]AgentFreshness), // P2810
+		agentFreshness: make(map[string]ops.AgentFreshness), // P2810
 	}
 }
 
@@ -180,19 +179,14 @@ func (h *Hub) SetFlakeUpdates(fu flakeUpdateGetter) {
 	h.flakeUpdates = fu
 }
 
-// SetCommandStateMachine sets the command state machine reference (P2800).
+// SetLifecycleManager sets the lifecycle manager reference.
 // Called by Server after creation to avoid circular dependencies.
-func (h *Hub) SetCommandStateMachine(sm *CommandStateMachine) {
-	h.cmdStateMachine = sm
-}
-
-// SetOpExecutor sets the Op Engine executor for v3 command tracking.
-func (h *Hub) SetOpExecutor(exec opExecutorInterface) {
-	h.opExecutor = exec
+func (h *Hub) SetLifecycleManager(lm lifecycleManagerInterface) {
+	h.lifecycleManager = lm
 }
 
 // GetAgentFreshness returns the last known freshness data for an agent (P2810).
-func (h *Hub) GetAgentFreshness(hostID string) *AgentFreshness {
+func (h *Hub) GetAgentFreshness(hostID string) *ops.AgentFreshness {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 	if f, ok := h.agentFreshness[hostID]; ok {
@@ -715,7 +709,7 @@ func (h *Hub) handleAgentRegister(msg *agentMessage) {
 		Msg("agent registered")
 
 	// P2810: Store agent freshness for pre-switch snapshot capture
-	freshness := AgentFreshness{
+	freshness := ops.AgentFreshness{
 		SourceCommit: payload.SourceCommit,
 		StorePath:    payload.StorePath,
 		BinaryHash:   payload.BinaryHash,
@@ -724,16 +718,9 @@ func (h *Hub) handleAgentRegister(msg *agentMessage) {
 	h.agentFreshness[payload.Hostname] = freshness
 	h.mu.Unlock()
 
-	// P2800: Check for reconnection after switch (binary freshness verification)
-	// Also check for post-reboot recovery
-	if h.cmdStateMachine != nil {
-		// Check post-reboot recovery first
-		if h.cmdStateMachine.HandlePostRebootReconnect(payload.Hostname) {
-			return // Already handled
-		}
-
-		// Check for awaiting reconnect (switch completion)
-		h.cmdStateMachine.HandleAgentReconnect(payload.Hostname, freshness)
+	// v3: Notify lifecycle manager of agent reconnection
+	if h.lifecycleManager != nil {
+		h.lifecycleManager.HandleAgentReconnect(payload.Hostname, freshness)
 	}
 }
 
@@ -856,7 +843,7 @@ func (h *Hub) handleHeartbeat(hostID string, payload protocol.HeartbeatPayload) 
 	// P2810: Update agent freshness (for pre-switch snapshot capture)
 	if payload.SourceCommit != "" || payload.StorePath != "" || payload.BinaryHash != "" {
 		h.mu.Lock()
-		h.agentFreshness[hostID] = AgentFreshness{
+		h.agentFreshness[hostID] = ops.AgentFreshness{
 			SourceCommit: payload.SourceCommit,
 			StorePath:    payload.StorePath,
 			BinaryHash:   payload.BinaryHash,
@@ -884,14 +871,12 @@ func (h *Hub) handleHeartbeat(hostID string, payload protocol.HeartbeatPayload) 
 		}
 	}
 
-	// Check for deferred post-checks waiting for fresh heartbeat data
-	if h.cmdStateMachine != nil && h.cmdStateMachine.HasPendingPostCheck(hostID) {
-		if host := h.getHostForPostValidation(hostID); host != nil {
-			h.log.Debug().
-				Str("host", hostID).
-				Msg("running deferred post-check with fresh heartbeat data")
-			h.cmdStateMachine.RunDeferredPostCheck(hostID, host)
-		}
+	// v3: Notify lifecycle manager of heartbeat for deferred post-checks
+	if h.lifecycleManager != nil {
+		h.mu.RLock()
+		freshness := h.agentFreshness[hostID]
+		h.mu.RUnlock()
+		h.lifecycleManager.HandleHeartbeat(hostID, &freshness)
 	}
 
 	// Broadcast heartbeat with full status to browsers
@@ -963,40 +948,12 @@ func (h *Hub) handleStatus(hostID string, payload protocol.StatusPayload) {
 		}
 	}
 
-	// v3: Notify Op Engine of command completion
-	if h.opExecutor != nil {
-		_, err := h.opExecutor.HandleCommandComplete(hostID, payload.Command, payload.ExitCode, payload.Message)
+	// v3: Notify lifecycle manager of command completion
+	if h.lifecycleManager != nil {
+		_, err := h.lifecycleManager.HandleCommandComplete(hostID, payload.Command, payload.ExitCode, payload.Message)
 		if err != nil {
 			h.log.Debug().Err(err).Str("host", hostID).Str("command", payload.Command).
-				Msg("op engine did not track this command (expected during transition)")
-		}
-	}
-
-	// P2800: Handle command completion via state machine (legacy - to be removed)
-	// NOW post-validation will see updated generation + fresh versionFetcher
-	if h.cmdStateMachine != nil {
-		if isSwitchSuccess {
-			// For successful switch, enter AWAITING_RECONNECT state
-			// The agent will exit 101 and we verify binary freshness on reconnect
-			h.log.Info().
-				Str("host", hostID).
-				Str("command", payload.Command).
-				Msg("switch completed, entering AWAITING_RECONNECT for binary verification")
-			h.cmdStateMachine.EnterAwaitingReconnect(hostID)
-		} else if isSwitch && payload.ExitCode != 0 {
-			// Switch failed
-			h.cmdStateMachine.TransitionTo(hostID, StateFailed,
-				fmt.Sprintf("Switch failed with exit code %d", payload.ExitCode))
-		} else {
-			// Non-switch commands (pull, test): defer post-validation until fresh heartbeat
-			// The agent sends a heartbeat immediately after command completion,
-			// but it arrives AFTER the command_complete message. By deferring,
-			// we ensure post-checks run with fresh data.
-			h.cmdStateMachine.DeferPostCheck(hostID, payload.ExitCode, payload.Message)
-			h.log.Debug().
-				Str("host", hostID).
-				Str("command", payload.Command).
-				Msg("post-check deferred until fresh heartbeat")
+				Msg("lifecycle manager did not track this command")
 		}
 	}
 

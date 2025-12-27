@@ -80,8 +80,8 @@ func (s *Server) handleDispatchOp(w http.ResponseWriter, r *http.Request) {
 		// Create host adapter for Op Engine
 		hostAdapter := ops.NewHostAdapter(host)
 
-		// Execute the op
-		cmd, err := s.opExecutor.ExecuteOp(r.Context(), req.Op, hostAdapter, req.Force)
+		// Execute the op via lifecycle manager
+		cmd, err := s.lifecycleManager.ExecuteOp(req.Op, hostAdapter, req.Force)
 		if err != nil {
 			// Check if it's a validation error (blocked)
 			if verr, ok := err.(*ops.ValidationError); ok {

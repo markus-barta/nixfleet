@@ -1,11 +1,11 @@
-// Package integration contains integration tests for NixFleet v2.
+// Package integration contains integration tests for NixFleet.
 // This file tests P2810: Agent Binary Freshness Detection (3-layer verification).
 package integration
 
 import (
 	"testing"
 
-	"github.com/markus-barta/nixfleet/internal/dashboard"
+	"github.com/markus-barta/nixfleet/internal/ops"
 )
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -13,155 +13,155 @@ import (
 // ═══════════════════════════════════════════════════════════════════════════
 
 func TestCompareFreshness_AllChanged(t *testing.T) {
-	before := dashboard.AgentFreshness{
+	before := ops.AgentFreshness{
 		SourceCommit: "abc1234",
 		StorePath:    "/nix/store/xxx-nixfleet-agent-2.0.0/bin/nixfleet-agent",
 		BinaryHash:   "sha256:aaaaaaaabbbbbbbb",
 	}
-	after := dashboard.AgentFreshness{
+	after := ops.AgentFreshness{
 		SourceCommit: "def5678",
 		StorePath:    "/nix/store/yyy-nixfleet-agent-2.1.0/bin/nixfleet-agent",
 		BinaryHash:   "sha256:ccccccccdddddddd",
 	}
 
-	verdict, msg := dashboard.CompareFreshness(before, after)
+	verdict, msg := ops.CompareFreshness(before, after)
 
-	if verdict != dashboard.FreshnessFresh {
+	if verdict != ops.FreshnessFresh {
 		t.Errorf("expected FRESH, got %s: %s", verdict, msg)
 	}
 }
 
 func TestCompareFreshness_NothingChanged(t *testing.T) {
-	before := dashboard.AgentFreshness{
+	before := ops.AgentFreshness{
 		SourceCommit: "abc1234",
 		StorePath:    "/nix/store/xxx-nixfleet-agent-2.0.0/bin/nixfleet-agent",
 		BinaryHash:   "sha256:aaaaaaaabbbbbbbb",
 	}
-	after := dashboard.AgentFreshness{
+	after := ops.AgentFreshness{
 		SourceCommit: "abc1234", // Same
 		StorePath:    "/nix/store/xxx-nixfleet-agent-2.0.0/bin/nixfleet-agent", // Same
 		BinaryHash:   "sha256:aaaaaaaabbbbbbbb", // Same
 	}
 
-	verdict, msg := dashboard.CompareFreshness(before, after)
+	verdict, msg := ops.CompareFreshness(before, after)
 
-	if verdict != dashboard.FreshnessStale {
+	if verdict != ops.FreshnessStale {
 		t.Errorf("expected STALE, got %s: %s", verdict, msg)
 	}
 }
 
 func TestCompareFreshness_OnlyPathChanged(t *testing.T) {
-	before := dashboard.AgentFreshness{
+	before := ops.AgentFreshness{
 		SourceCommit: "abc1234",
 		StorePath:    "/nix/store/xxx-nixfleet-agent-2.0.0/bin/nixfleet-agent",
 		BinaryHash:   "sha256:aaaaaaaabbbbbbbb",
 	}
-	after := dashboard.AgentFreshness{
+	after := ops.AgentFreshness{
 		SourceCommit: "abc1234", // Same
 		StorePath:    "/nix/store/yyy-nixfleet-agent-2.0.0/bin/nixfleet-agent", // Changed
 		BinaryHash:   "sha256:aaaaaaaabbbbbbbb", // Same
 	}
 
-	verdict, msg := dashboard.CompareFreshness(before, after)
+	verdict, msg := ops.CompareFreshness(before, after)
 
-	if verdict != dashboard.FreshnessFresh {
+	if verdict != ops.FreshnessFresh {
 		t.Errorf("expected FRESH (path changed), got %s: %s", verdict, msg)
 	}
 }
 
 func TestCompareFreshness_OnlyHashChanged(t *testing.T) {
-	before := dashboard.AgentFreshness{
+	before := ops.AgentFreshness{
 		SourceCommit: "abc1234",
 		StorePath:    "/nix/store/xxx-nixfleet-agent-2.0.0/bin/nixfleet-agent",
 		BinaryHash:   "sha256:aaaaaaaabbbbbbbb",
 	}
-	after := dashboard.AgentFreshness{
+	after := ops.AgentFreshness{
 		SourceCommit: "abc1234", // Same
 		StorePath:    "/nix/store/xxx-nixfleet-agent-2.0.0/bin/nixfleet-agent", // Same
 		BinaryHash:   "sha256:ccccccccdddddddd", // Changed
 	}
 
-	verdict, msg := dashboard.CompareFreshness(before, after)
+	verdict, msg := ops.CompareFreshness(before, after)
 
-	if verdict != dashboard.FreshnessFresh {
+	if verdict != ops.FreshnessFresh {
 		t.Errorf("expected FRESH (hash changed), got %s: %s", verdict, msg)
 	}
 }
 
 func TestCompareFreshness_CommitChangedButBinaryDidnt(t *testing.T) {
-	before := dashboard.AgentFreshness{
+	before := ops.AgentFreshness{
 		SourceCommit: "abc1234",
 		StorePath:    "/nix/store/xxx-nixfleet-agent-2.0.0/bin/nixfleet-agent",
 		BinaryHash:   "sha256:aaaaaaaabbbbbbbb",
 	}
-	after := dashboard.AgentFreshness{
+	after := ops.AgentFreshness{
 		SourceCommit: "def5678", // Changed
 		StorePath:    "/nix/store/xxx-nixfleet-agent-2.0.0/bin/nixfleet-agent", // Same
 		BinaryHash:   "sha256:aaaaaaaabbbbbbbb", // Same
 	}
 
-	verdict, msg := dashboard.CompareFreshness(before, after)
+	verdict, msg := ops.CompareFreshness(before, after)
 
-	if verdict != dashboard.FreshnessSuspicious {
+	if verdict != ops.FreshnessSuspicious {
 		t.Errorf("expected SUSPICIOUS, got %s: %s", verdict, msg)
 	}
 }
 
 func TestCompareFreshness_MissingBeforeData(t *testing.T) {
-	before := dashboard.AgentFreshness{
+	before := ops.AgentFreshness{
 		SourceCommit: "abc1234",
 		StorePath:    "", // Missing
 		BinaryHash:   "", // Missing
 	}
-	after := dashboard.AgentFreshness{
+	after := ops.AgentFreshness{
 		SourceCommit: "def5678",
 		StorePath:    "/nix/store/yyy-nixfleet-agent-2.1.0/bin/nixfleet-agent",
 		BinaryHash:   "sha256:ccccccccdddddddd",
 	}
 
-	verdict, msg := dashboard.CompareFreshness(before, after)
+	verdict, msg := ops.CompareFreshness(before, after)
 
-	if verdict != dashboard.FreshnessUnknown {
+	if verdict != ops.FreshnessUnknown {
 		t.Errorf("expected UNKNOWN (missing data), got %s: %s", verdict, msg)
 	}
 }
 
 func TestCompareFreshness_MissingAfterData(t *testing.T) {
-	before := dashboard.AgentFreshness{
+	before := ops.AgentFreshness{
 		SourceCommit: "abc1234",
 		StorePath:    "/nix/store/xxx-nixfleet-agent-2.0.0/bin/nixfleet-agent",
 		BinaryHash:   "sha256:aaaaaaaabbbbbbbb",
 	}
-	after := dashboard.AgentFreshness{
+	after := ops.AgentFreshness{
 		SourceCommit: "def5678",
 		StorePath:    "", // Missing
 		BinaryHash:   "", // Missing
 	}
 
-	verdict, msg := dashboard.CompareFreshness(before, after)
+	verdict, msg := ops.CompareFreshness(before, after)
 
-	if verdict != dashboard.FreshnessUnknown {
+	if verdict != ops.FreshnessUnknown {
 		t.Errorf("expected UNKNOWN (missing data), got %s: %s", verdict, msg)
 	}
 }
 
 func TestCompareFreshness_PathChangedHashSame(t *testing.T) {
 	// Edge case: Store path changed but binary content same (possible with same derivation)
-	before := dashboard.AgentFreshness{
+	before := ops.AgentFreshness{
 		SourceCommit: "abc1234",
 		StorePath:    "/nix/store/xxx-nixfleet-agent-2.0.0/bin/nixfleet-agent",
 		BinaryHash:   "sha256:aaaaaaaabbbbbbbb",
 	}
-	after := dashboard.AgentFreshness{
+	after := ops.AgentFreshness{
 		SourceCommit: "abc1234",
 		StorePath:    "/nix/store/yyy-nixfleet-agent-2.0.0/bin/nixfleet-agent", // Different path
 		BinaryHash:   "sha256:aaaaaaaabbbbbbbb", // Same content
 	}
 
-	verdict, msg := dashboard.CompareFreshness(before, after)
+	verdict, msg := ops.CompareFreshness(before, after)
 
 	// Path changed is still FRESH - the derivation was rebuilt
-	if verdict != dashboard.FreshnessFresh {
+	if verdict != ops.FreshnessFresh {
 		t.Errorf("expected FRESH (path changed), got %s: %s", verdict, msg)
 	}
 }
@@ -176,26 +176,26 @@ func TestFreshnessDecisionMatrix(t *testing.T) {
 		commitChanged  bool
 		pathChanged    bool
 		hashChanged    bool
-		expectedVerdict dashboard.FreshnessVerdict
+		expectedVerdict ops.FreshnessVerdict
 	}{
-		{"commit+path+hash changed", true, true, true, dashboard.FreshnessFresh},
-		{"commit+path changed", true, true, false, dashboard.FreshnessFresh},
-		{"commit+hash changed", true, false, true, dashboard.FreshnessFresh},
-		{"commit only changed", true, false, false, dashboard.FreshnessSuspicious},
-		{"path+hash changed", false, true, true, dashboard.FreshnessFresh},
-		{"path only changed", false, true, false, dashboard.FreshnessFresh},
-		{"hash only changed", false, false, true, dashboard.FreshnessFresh},
-		{"nothing changed", false, false, false, dashboard.FreshnessStale},
+		{"commit+path+hash changed", true, true, true, ops.FreshnessFresh},
+		{"commit+path changed", true, true, false, ops.FreshnessFresh},
+		{"commit+hash changed", true, false, true, ops.FreshnessFresh},
+		{"commit only changed", true, false, false, ops.FreshnessSuspicious},
+		{"path+hash changed", false, true, true, ops.FreshnessFresh},
+		{"path only changed", false, true, false, ops.FreshnessFresh},
+		{"hash only changed", false, false, true, ops.FreshnessFresh},
+		{"nothing changed", false, false, false, ops.FreshnessStale},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			before := dashboard.AgentFreshness{
+			before := ops.AgentFreshness{
 				SourceCommit: "abc1234",
 				StorePath:    "/nix/store/old",
 				BinaryHash:   "hash-old",
 			}
-			after := dashboard.AgentFreshness{
+			after := ops.AgentFreshness{
 				SourceCommit: "abc1234",
 				StorePath:    "/nix/store/old",
 				BinaryHash:   "hash-old",
@@ -211,7 +211,7 @@ func TestFreshnessDecisionMatrix(t *testing.T) {
 				after.BinaryHash = "hash-new"
 			}
 
-			verdict, _ := dashboard.CompareFreshness(before, after)
+			verdict, _ := ops.CompareFreshness(before, after)
 
 			if verdict != tc.expectedVerdict {
 				t.Errorf("expected %s, got %s", tc.expectedVerdict, verdict)
@@ -232,7 +232,7 @@ func TestAgentFreshness_GetFreshness(t *testing.T) {
 	// We can't test the actual agent freshness detection without
 	// running as the agent, but we can verify the types work correctly
 
-	freshness := dashboard.AgentFreshness{
+	freshness := ops.AgentFreshness{
 		SourceCommit: "test-commit",
 		StorePath:    "/test/path",
 		BinaryHash:   "test-hash",

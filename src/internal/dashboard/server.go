@@ -25,20 +25,19 @@ type Server struct {
 	hub            *Hub
 	logStore       *LogStore
 	versionFetcher *VersionFetcher
-	flakeUpdates   *FlakeUpdateService  // P5300: Automated flake updates
-	cmdStateMachine *CommandStateMachine // P2800: Command validation state machine (legacy, being replaced)
-	nixcfgRepo     *colors.NixcfgRepo   // P2950: Color picker nixcfg integration
+	flakeUpdates   *FlakeUpdateService // P5300: Automated flake updates
+	nixcfgRepo     *colors.NixcfgRepo  // P2950: Color picker nixcfg integration
 	router         *chi.Mux
 	wsUpgrader     *websocket.Upgrader
 	httpServer     *http.Server
 
 	// v3 Op Engine components (CORE-001 through CORE-004)
-	stateStore       *store.StateStore       // CORE-003: Unified persistence
-	opRegistry       *ops.Registry           // CORE-001: Op definitions
-	opExecutor       *ops.Executor           // CORE-001: Op execution
-	pipelineRegistry *ops.PipelineRegistry   // CORE-002: Pipeline definitions
-	pipelineExecutor *ops.PipelineExecutor   // CORE-002: Pipeline execution
-	stateManager     *sync.StateManager      // CORE-004: State sync protocol
+	stateStore        *store.StateStore        // CORE-003: Unified persistence
+	opRegistry        *ops.Registry            // CORE-001: Op definitions
+	lifecycleManager  *ops.LifecycleManager    // CORE-001: Complete lifecycle management
+	pipelineRegistry  *ops.PipelineRegistry    // CORE-002: Pipeline definitions
+	pipelineExecutor  *ops.PipelineExecutor    // CORE-002: Pipeline execution
+	stateManager      *sync.StateManager       // CORE-004: State sync protocol
 
 	// Context for hub lifecycle (created in New, canceled in Shutdown)
 	hubCtx    context.Context
@@ -86,10 +85,6 @@ func New(cfg *Config, db *sql.DB, log zerolog.Logger) *Server {
 		log.Info().Str("repo", cfg.GitHubRepo).Msg("GitHub flake updates enabled")
 	}
 
-	// Create command state machine (P2800) - legacy, being replaced by Op Engine
-	cmdStateMachine := NewCommandStateMachine(log, hub)
-	hub.SetCommandStateMachine(cmdStateMachine) // P2800: Give hub direct access to state machine
-
 	// v3 Op Engine initialization (CORE-001 through CORE-004)
 	// Create state store (wraps existing db with v3 schema)
 	stateStore := store.New(log, db)
@@ -101,15 +96,17 @@ func New(cfg *Config, db *sql.DB, log zerolog.Logger) *Server {
 	opRegistry := ops.DefaultRegistry()
 	pipelineRegistry := ops.DefaultPipelineRegistry()
 
-	// Create command sender adapter for op executor
+	// Create command sender adapter
 	cmdSender := &hubCommandSender{hub: hub}
 
-	// Create op executor
-	opExecutor := ops.NewExecutor(log, opRegistry, cmdSender, stateStore, stateStore)
-	hub.SetOpExecutor(&opExecutorWrapper{exec: opExecutor}) // v3: Give hub access to op executor for command completion
+	// Create lifecycle manager (replaces CommandStateMachine + Executor)
+	lifecycleManager := ops.NewLifecycleManager(log, opRegistry, cmdSender, stateStore, stateStore)
+	lifecycleManager.SetHostProvider(&hostProviderAdapter{db: db})
+	lifecycleManager.SetBroadcastSender(&broadcastSenderAdapter{hub: hub})
+	hub.SetLifecycleManager(&lifecycleManagerWrapper{lm: lifecycleManager})
 
-	// Create pipeline executor
-	pipelineExecutor := ops.NewPipelineExecutor(log, opExecutor, pipelineRegistry, stateStore, stateStore)
+	// Create pipeline executor (uses lifecycle manager for op execution)
+	pipelineExecutor := ops.NewPipelineExecutor(log, nil, pipelineRegistry, stateStore, stateStore) // TODO: Update to use lifecycle manager
 
 	// Create state provider for sync protocol
 	stateProvider := NewDashboardStateProvider(db)
@@ -144,11 +141,10 @@ func New(cfg *Config, db *sql.DB, log zerolog.Logger) *Server {
 		logStore:         logStore,
 		versionFetcher:   versionFetcher,
 		flakeUpdates:     flakeUpdates,
-		cmdStateMachine:  cmdStateMachine,
 		nixcfgRepo:       nixcfgRepo,
 		stateStore:       stateStore,
 		opRegistry:       opRegistry,
-		opExecutor:       opExecutor,
+		lifecycleManager: lifecycleManager,
 		pipelineRegistry: pipelineRegistry,
 		pipelineExecutor: pipelineExecutor,
 		stateManager:     stateManager,
@@ -166,9 +162,6 @@ func New(cfg *Config, db *sql.DB, log zerolog.Logger) *Server {
 		go s.flakeUpdates.Start(hubCtx)
 	}
 
-	// P2800: Start timeout checking loop
-	go s.timeoutCheckLoop(hubCtx)
-
 	// v3: Start state sync beacon (CORE-004)
 	s.stateManager.StartBeacon()
 
@@ -176,23 +169,6 @@ func New(cfg *Config, db *sql.DB, log zerolog.Logger) *Server {
 	go s.cleanupLoop(hubCtx)
 
 	return s
-}
-
-// timeoutCheckLoop periodically checks for command timeouts.
-func (s *Server) timeoutCheckLoop(ctx context.Context) {
-	ticker := time.NewTicker(10 * time.Second)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			if s.cmdStateMachine != nil {
-				s.cmdStateMachine.CheckTimeouts()
-			}
-		}
-	}
 }
 
 // cleanupLoop periodically removes old commands, pipelines, and events.

@@ -542,9 +542,9 @@ func (s *Server) handleCommand(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// v3: Delegate to Op Engine
+	// v3: Delegate to Lifecycle Manager
 	hostAdapter := ops.NewHostAdapter(host)
-	cmd, err := s.opExecutor.ExecuteOp(r.Context(), req.Command, hostAdapter, req.Force)
+	cmd, err := s.lifecycleManager.ExecuteOp(req.Command, hostAdapter, req.Force)
 	if err != nil {
 		// Check if it's a validation error (blocked)
 		if verr, ok := err.(*ops.ValidationError); ok {
@@ -658,7 +658,7 @@ func (s *Server) getHostByID(hostID string) (*templates.Host, error) {
 	return host, nil
 }
 
-// handleGetSystemLogs returns recent state machine logs (P2800).
+// handleGetSystemLogs returns recent events from the event log.
 func (s *Server) handleGetSystemLogs(w http.ResponseWriter, r *http.Request) {
 	limit := 100
 	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
@@ -667,10 +667,17 @@ func (s *Server) handleGetSystemLogs(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	logs := s.cmdStateMachine.GetRecentLogs(limit)
+	// v3: Use event log from state store
+	events, err := s.stateStore.GetRecentEvents(limit)
+	if err != nil {
+		s.log.Error().Err(err).Msg("failed to get events")
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{"logs": []any{}})
+		return
+	}
 
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(map[string]any{"logs": logs})
+	_ = json.NewEncoder(w).Encode(map[string]any{"logs": events})
 }
 
 // handleAddHost manually adds a host to the database.
@@ -1229,39 +1236,9 @@ func (s *Server) handleKillCommand(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get agent connection
-	agent := s.hub.GetAgent(hostID)
-	if agent == nil {
-		http.Error(w, "Host offline", http.StatusConflict)
-		return
-	}
-
-	// Get current command PID from state
-	state := s.cmdStateMachine.GetState(hostID)
-	var pid int
-	if state != nil && state.Progress != nil {
-		// We don't have PID in progress, agent will use its current PID
-		pid = 0
-	}
-
-	// Log the kill attempt
-	s.cmdStateMachine.InitiateKill(hostID, req.Signal, pid)
-
-	// Send kill command to agent
-	cmdMsg, _ := json.Marshal(map[string]any{
-		"type": "kill_command",
-		"payload": map[string]any{
-			"signal": req.Signal,
-			"pid":    pid,
-		},
-	})
-
-	select {
-	case agent.send <- cmdMsg:
-		// Kill command sent
-	default:
-		s.cmdStateMachine.MarkKillFailed(hostID)
-		http.Error(w, "Agent not responsive", http.StatusServiceUnavailable)
+	// v3: Use lifecycle manager for kill
+	if err := s.lifecycleManager.KillCommand(hostID, req.Signal, 0); err != nil {
+		http.Error(w, err.Error(), http.StatusConflict)
 		return
 	}
 
@@ -1291,30 +1268,29 @@ func (s *Server) handleTimeoutAction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// v3: Handle timeout actions via lifecycle manager
 	switch req.Action {
 	case "wait":
 		if req.Minutes <= 0 {
 			req.Minutes = 5
 		}
-		s.cmdStateMachine.ExtendTimeout(hostID, req.Minutes)
+		if err := s.lifecycleManager.ExtendTimeout(hostID, req.Minutes); err != nil {
+			http.Error(w, err.Error(), http.StatusConflict)
+			return
+		}
 
 	case "kill":
-		// Redirect to kill handler
-		s.cmdStateMachine.InitiateKill(hostID, "SIGTERM", 0)
-		agent := s.hub.GetAgent(hostID)
-		if agent != nil {
-			cmdMsg, _ := json.Marshal(map[string]any{
-				"type": "kill_command",
-				"payload": map[string]any{
-					"signal": "SIGTERM",
-					"pid":    0,
-				},
-			})
-			agent.SafeSend(cmdMsg)
+		if err := s.lifecycleManager.KillCommand(hostID, "SIGTERM", 0); err != nil {
+			http.Error(w, err.Error(), http.StatusConflict)
+			return
 		}
 
 	case "ignore":
-		s.cmdStateMachine.MarkIgnored(hostID)
+		// Mark command as cancelled
+		if err := s.lifecycleManager.CancelCommand(hostID); err != nil {
+			http.Error(w, err.Error(), http.StatusConflict)
+			return
+		}
 
 	default:
 		http.Error(w, "Invalid action", http.StatusBadRequest)
@@ -1336,7 +1312,8 @@ func (s *Server) handleTimeoutAction(w http.ResponseWriter, r *http.Request) {
 // handleGetCommandStates returns all current command states.
 // GET /api/command-states
 func (s *Server) handleGetCommandStates(w http.ResponseWriter, r *http.Request) {
-	states := s.cmdStateMachine.GetAllHostStates()
+	// v3: Get active commands from lifecycle manager
+	states := s.lifecycleManager.GetAllActiveCommands()
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]any{
