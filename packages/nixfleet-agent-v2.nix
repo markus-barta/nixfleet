@@ -18,10 +18,11 @@ buildGoModule rec {
   # P7400: Read version from single source of truth
   version = lib.strings.trim (builtins.readFile ../VERSION);
 
-  src = ../v2;
+  src = ../src;
 
-  # Computed by running: nix-build -E 'with import <nixpkgs> {}; buildGoModule { src = ./v2; vendorHash = lib.fakeHash; }'
+  # Computed by running: nix-build -E 'with import <nixpkgs> {}; buildGoModule { src = ./src; vendorHash = lib.fakeHash; }'
   # and extracting the expected hash from the error message
+  # NOTE: Will need to be updated after v2->src rename
   vendorHash = "sha256-UIPfKQ2cDYcTKZrMfP5V6pJaDQDvG4D6KTgbeVT7JDE=";
 
   # Only build the agent, not the dashboard
@@ -31,9 +32,9 @@ buildGoModule rec {
     "-s"
     "-w"
     # P7400: Inject version from VERSION file
-    "-X github.com/markus-barta/nixfleet/v2/internal/agent.Version=${version}"
+    "-X github.com/markus-barta/nixfleet/internal/agent.Version=${version}"
     # P2810: Embed source commit for binary freshness verification
-    "-X github.com/markus-barta/nixfleet/v2/internal/agent.SourceCommit=${sourceCommit}"
+    "-X github.com/markus-barta/nixfleet/internal/agent.SourceCommit=${sourceCommit}"
   ];
 
   meta = with lib; {

@@ -270,15 +270,11 @@ interface FullState {
 ## Implementation Location
 
 ```
-v2/internal/hub/
-├── state.go          # StateManager struct
-├── sync.go           # Sync protocol implementation
-├── broadcast.go      # Client message distribution
-└── ...
+src/internal/sync/
+├── sync.go           # StateManager, sync protocol
 
-v2/internal/templates/
-├── dashboard.templ   # JS StateSync class
-└── ...
+src/static/js/
+├── state-sync.js     # Client-side StateSync class
 ```
 
 ---

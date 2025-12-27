@@ -184,9 +184,9 @@ Users can cancel a running pipeline:
 ## Implementation Location
 
 ```
-v2/internal/ops/
-├── pipeline.go       # Pipeline struct and registry
-├── executor.go       # Pipeline execution logic
+src/internal/ops/
+├── pipeline.go       # Pipeline struct, registry, and executor
+├── executor.go       # Op execution logic
 └── ...
 ```
 

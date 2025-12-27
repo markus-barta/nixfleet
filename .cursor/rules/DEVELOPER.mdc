@@ -1,6 +1,6 @@
 ---
 description: NixFleet DEVELOPER role - assume when working on the dashboard, agent, or modules
-globs: ["v2/**", "modules/**", "docker/**"]
+globs: ["src/**", "modules/**", "docker/**"]
 alwaysApply: false
 ---
 
@@ -12,7 +12,7 @@ You are the **software developer** for the NixFleet fleet management system.
 
 ## How to Activate
 
-1. **Automatic**: Cursor suggests this rule when working in `v2/**`, `modules/**`, or `docker/**`
+1. **Automatic**: Cursor suggests this rule when working in `src/**`, `modules/**`, or `docker/**`
 2. **Explicit**: Type `@DEVELOPER` or "Assume @DEVELOPER role"
 
 ** IMPORTANT: Activation of this role does not start ANY task. The user will explicitly state when to start the task. **
@@ -39,7 +39,7 @@ You are the **software developer** for the NixFleet fleet management system.
 
 ---
 
-## Architecture (v2)
+## Architecture
 
 ```text
 ┌─────────────────────────────────────────────────────────────────┐
@@ -50,7 +50,7 @@ You are the **software developer** for the NixFleet fleet management system.
 │  │   (net/http)    │  │  Templates  │  │   (data store)    │    │
 │  └─────────────────┘  └─────────────┘  └───────────────────┘    │
 │                                                                 │
-│  v2/cmd/nixfleet-dashboard/    v2/internal/dashboard/           │
+│  src/cmd/nixfleet-dashboard/    src/internal/dashboard/         │
 └─────────────────────────────────────────────────────────────────┘
                               │
               ┌───────────────┼───────────────┐
@@ -62,20 +62,23 @@ You are the **software developer** for the NixFleet fleet management system.
         │ (systemd)│    │ (systemd)│    │ (launchd)│
         └──────────┘    └──────────┘    └──────────┘
 
-        v2/cmd/nixfleet-agent/    v2/internal/agent/
+        src/cmd/nixfleet-agent/    src/internal/agent/
 ```
 
 ### Key Paths
 
 | Path | Purpose |
 |------|---------|
-| `v2/cmd/nixfleet-dashboard/` | Dashboard entrypoint |
-| `v2/cmd/nixfleet-agent/` | Agent entrypoint |
-| `v2/internal/dashboard/` | Dashboard handlers, templates, SSE |
-| `v2/internal/agent/` | Agent logic, heartbeat, command execution |
-| `v2/internal/protocol/` | Shared message types |
+| `src/cmd/nixfleet-dashboard/` | Dashboard entrypoint |
+| `src/cmd/nixfleet-agent/` | Agent entrypoint |
+| `src/internal/dashboard/` | Dashboard handlers, templates, SSE |
+| `src/internal/agent/` | Agent logic, heartbeat, command execution |
+| `src/internal/ops/` | Op Engine (CORE-001, CORE-002) |
+| `src/internal/store/` | State Store (CORE-003) |
+| `src/internal/sync/` | State Sync Protocol (CORE-004) |
+| `src/internal/protocol/` | Shared message types |
 | `modules/*.nix` | NixOS/Home Manager modules |
-| `v2/Dockerfile` | Container build |
+| `src/Dockerfile` | Container build |
 | `docker/` | Production compose files |
 
 ---
@@ -124,13 +127,13 @@ When you change code:
 ### Before Any Change
 
 1. Read the relevant source files
-2. Understand the v2 architecture (Go + Templ + SQLite)
+2. Understand the architecture (Go + Templ + SQLite + Op Engine)
 3. Check for existing patterns to follow
 
 ### After Any Change
 
 1. Test locally: `just build && ./bin/nixfleet-dashboard`
-2. Verify Docker build: `docker build -f v2/Dockerfile .`
+2. Verify Docker build: `docker build -f src/Dockerfile .`
 3. Update documentation if needed
 
 ---
@@ -142,7 +145,7 @@ When you change code:
 1. **Build locally** to verify:
    ```bash
    just build-agent
-   # or: cd v2 && go build ./cmd/nixfleet-agent
+   # or: cd src && go build ./cmd/nixfleet-agent
    ```
 
 2. **Update nixcfg flake lock**:

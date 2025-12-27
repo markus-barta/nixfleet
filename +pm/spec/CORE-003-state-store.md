@@ -235,18 +235,10 @@ func (s *StateStore) StartCommand(hostID, op string) (*Command, error) {
 ## Implementation Location
 
 ```
-v2/internal/store/
-├── store.go        # StateStore struct and initialization
-├── hosts.go        # Host CRUD operations
-├── commands.go     # Command journal operations
-├── pipelines.go    # Pipeline tracking
-├── events.go       # Event log operations
-├── retention.go    # Cleanup/rotation logic
-└── migrations/
-    ├── 001_hosts.sql
-    ├── 002_commands.sql
-    ├── 003_pipelines.sql
-    └── 004_event_log.sql
+src/internal/store/
+├── store.go        # StateStore struct, initialization, all operations
+├── recovery.go     # Orphaned command recovery, retention cleanup
+└── (migrations inline in store.go)
 ```
 
 ---

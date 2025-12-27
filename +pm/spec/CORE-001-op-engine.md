@@ -149,16 +149,13 @@ Ops should be safe to retry when marked `Retryable`:
 ## Implementation Location
 
 ```
-v2/internal/ops/
+src/internal/ops/
 ├── op.go           # Op struct and interfaces
 ├── registry.go     # Op registration and lookup
 ├── executor.go     # Execution engine
-├── validation.go   # Pre/post check helpers
-└── ops/
-    ├── pull.go
-    ├── switch.go
-    ├── test.go
-    └── ...
+├── pipeline.go     # Pipeline definitions and executor
+├── host_adapter.go # Adapts templates.Host to ops.Host
+└── (ops defined inline in registry.go)
 ```
 
 ---

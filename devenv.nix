@@ -34,21 +34,21 @@
   # Scripts for common tasks
   scripts = {
     test-agent.exec = ''
-      cd v2 && go test ./tests/integration/... -v -count=1 "$@"
+      cd src && go test ./tests/integration/... -v -count=1 "$@"
     '';
     build-agent.exec = ''
-      cd v2 && go build -o ../bin/nixfleet-agent ./cmd/nixfleet-agent
+      cd src && go build -o ../bin/nixfleet-agent ./cmd/nixfleet-agent
     '';
     run-agent.exec = ''
-      cd v2 && go run ./cmd/nixfleet-agent "$@"
+      cd src && go run ./cmd/nixfleet-agent "$@"
     '';
     lint.exec = ''
-      cd v2 && golangci-lint run ./...
+      cd src && golangci-lint run ./...
     '';
   };
 
   enterShell = ''
-    echo "🚀 NixFleet v2 development environment"
+    echo "🚀 NixFleet development environment"
     echo ""
     echo "Commands:"
     echo "  test-agent   - Run agent integration tests"

@@ -139,62 +139,30 @@ Version-based WebSocket protocol ensures UI is always live. No manual refresh re
 
 ---
 
-## Implementation Phases
+## Implementation Scope
 
-### Phase 1: Op Engine Foundation
+v3 is implemented as a **single cohesive change** — all components built and validated together.
 
-- Create `v2/internal/ops/` package
-- Define Op struct and registry
-- Define Pipeline struct and executor
-- Migrate existing commands to Ops
-- Unit tests for validation/execution
+### Core Components (All Required)
 
-**Effort**: 2-3 days
+| Component             | Spec                                             | Description                            |
+| --------------------- | ------------------------------------------------ | -------------------------------------- |
+| **Op Engine**         | [CORE-001](./spec/CORE-001-op-engine.md)         | Op struct, registry, executor          |
+| **Pipeline Executor** | [CORE-002](./spec/CORE-002-pipeline-executor.md) | Multi-op sequences with `&&` semantics |
+| **State Store**       | [CORE-003](./spec/CORE-003-state-store.md)       | SQLite persistence, recovery, audit    |
+| **State Sync**        | [CORE-004](./spec/CORE-004-state-sync.md)        | Version-based WebSocket protocol       |
+| **Thin Frontend**     | —                                                | Dispatcher only, no business logic     |
 
-### Phase 2: State Persistence
+### Estimated Effort
 
-- Add `commands`, `pipelines`, `event_log` tables
-- Journal all op executions
-- Implement startup recovery
-- Add log rotation
-
-**Effort**: 3-4 days
-
-### Phase 3: Always-Live State Sync
-
-- Add `state_version` to StateManager
-- Implement init/delta/sync messages
-- Client-side version tracking
-- Auto-resync on drift
-
-**Effort**: 2-3 days
-
-### Phase 4: Logs on Page Load
-
-- API: `GET /api/event-log`
-- API: `GET /api/hosts/{id}/output`
-- Event log in init payload
-- Host output restoration
-
-**Effort**: 1-2 days
-
-### Phase 5: Frontend Simplification
-
-- Remove business logic from JavaScript
-- Single `dispatch(op, targets)` function
-- Server renders complete state
-
-**Effort**: 2-3 days
-
-### Phase 6: Polish & Testing
-
-- E2E tests for workflows
-- Recovery stress tests
-- Documentation update
-
-**Effort**: 1-2 days
-
-**Total**: ~12-18 days
+| Area                     | Effort      |
+| ------------------------ | ----------- |
+| Op Engine + Pipeline     | 2-3 days    |
+| State Store + Migrations | 2-3 days    |
+| State Sync Protocol      | 2-3 days    |
+| Frontend Simplification  | 2-3 days    |
+| Integration + Testing    | 2-3 days    |
+| **Total**                | ~10-15 days |
 
 ---
 
@@ -214,22 +182,32 @@ Version-based WebSocket protocol ensures UI is always live. No manual refresh re
 
 ---
 
-## Migration Path (v2 → v3)
+## Migration Strategy: Hard Cut
 
-v3 is a refactor, not a rewrite. Agents are unchanged.
+v3 is a **complete architectural replacement** — no parallel code, no gradual migration.
 
-| Phase | v2 Behavior             | v3 Behavior                           |
-| ----- | ----------------------- | ------------------------------------- |
-| 1     | Commands work as before | Ops defined, not yet used             |
-| 2     | Commands work as before | Journaling added to existing commands |
-| 3     | Full state on connect   | State sync protocol active            |
-| 4     | Logs lost on refresh    | Logs persist                          |
-| 5     | JS business logic       | Thin frontend                         |
-| 6     | Complete v3             | Old code removed                      |
+### Approach
+
+| Principle                   | Description                                                       |
+| --------------------------- | ----------------------------------------------------------------- |
+| **Big Bang**                | All v3 components implemented and validated together before merge |
+| **Delete, Don't Deprecate** | Old patterns removed as new ones land — no `*_legacy` files       |
+| **Clean Slate**             | Each file either fully v3 or untouched — no hybrid code           |
+| **Agents Unchanged**        | Dashboard-only refactor; agent protocol stays compatible          |
+
+### What Gets Replaced
+
+| v2 Code                              | Replaced By             | Notes                      |
+| ------------------------------------ | ----------------------- | -------------------------- |
+| `handleCommand()` scattered handlers | Op Registry + Executor  | Single source of truth     |
+| `CommandStateMachine`                | Op Engine state machine | Formalized, spec-driven    |
+| Ad-hoc SQLite queries                | State Store layer       | Unified persistence        |
+| Current WebSocket messages           | State Sync Protocol     | Version-based, always-live |
+| Frontend business logic              | Thin dispatcher         | Server-authoritative       |
 
 ### Rollback Strategy
 
-Each phase can be rolled back by reverting the commit. Agents continue working (no agent changes in v3).
+Git revert of the v3 merge commit. Agents continue working (no agent changes in v3).
 
 ---
 

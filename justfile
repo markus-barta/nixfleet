@@ -15,19 +15,19 @@ default:
 
 # Build dashboard with version injection
 build-dashboard:
-    cd v2 && templ generate && go build \
+    cd src && templ generate && go build \
         -ldflags="-s -w \
-            -X github.com/markus-barta/nixfleet/v2/internal/dashboard.Version={{ version }} \
-            -X github.com/markus-barta/nixfleet/v2/internal/dashboard.GitCommit={{ git_commit }} \
-            -X github.com/markus-barta/nixfleet/v2/internal/dashboard.BuildTime={{ build_time }}" \
+            -X github.com/markus-barta/nixfleet/internal/dashboard.Version={{ version }} \
+            -X github.com/markus-barta/nixfleet/internal/dashboard.GitCommit={{ git_commit }} \
+            -X github.com/markus-barta/nixfleet/internal/dashboard.BuildTime={{ build_time }}" \
         -o ../bin/nixfleet-dashboard \
         ./cmd/nixfleet-dashboard
 
 # Build agent with version injection
 build-agent:
-    cd v2 && go build \
+    cd src && go build \
         -ldflags="-s -w \
-            -X github.com/markus-barta/nixfleet/v2/internal/agent.Version={{ version }}" \
+            -X github.com/markus-barta/nixfleet/internal/agent.Version={{ version }}" \
         -o ../bin/nixfleet-agent \
         ./cmd/nixfleet-agent
 
