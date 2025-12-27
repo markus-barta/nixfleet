@@ -231,11 +231,11 @@ templ Dashboard(data DashboardData) {
 					<th class="col-hosts" title="Online / Total Hosts">
 						<span class={ templ.KV("stat-online-positive", data.Stats.Online > 0) } id="stat-online">{ fmt.Sprint(data.Stats.Online) }</span>/{ fmt.Sprint(data.Stats.Total) } Hosts
 					</th>
-					<th class="col-center col-type" title="Location / Device / OS">Type</th>
+					<th class="col-center col-type" title="Location / OS">Type</th>
 					<th>Metrics</th>
+					<th class="col-right col-last-seen">Last Seen</th>
 					<th class="col-agent" title="Agent Version">Agent</th>
 					<th title="Git/Lock/System Status">Status</th>
-					<th class="col-right">Last Seen</th>
 					<th class="col-menu"></th>
 				</tr>
 			</thead>
@@ -619,9 +619,9 @@ templ Dashboard(data DashboardData) {
 					<p style="margin-top:12px;color:var(--fg)">
 						This will check if the running system matches the flake by running:
 					</p>
-					<pre style="margin:12px 0;padding:12px;background:var(--bg-light);border-radius:6px;font-size:0.85rem;overflow-x:auto;"><code id="systemRefreshCommand">nix build --dry-run .#nixosConfigurations.hostname.config.system.build.toplevel</code></pre>
+					<pre style="margin:12px 0;padding:12px;background:var(--bg-light);border-radius:6px;font-size:0.85rem;white-space:pre-wrap;word-break:break-word;"><code id="systemRefreshCommand">nix build --dry-run .#nixosConfigurations.hostname.config.system.build.toplevel</code></pre>
 					<p style="color:var(--warning);font-size:0.9rem;">
-						⚠️ <strong>This operation is heavy</strong> — it does a full flake evaluation and may take 30-60 seconds.
+						⚠️ <strong>This operation is heavy</strong> — it does a full flake evaluation and may take quite some time.
 						The host may become less responsive during this time.
 					</p>
 				</div>
@@ -4063,13 +4063,13 @@ templ HostRow(host Host, csrfToken string) {
 				<span class="metrics-na">—</span>
 			}
 		</td>
+		<td class="col-right col-last-seen" data-cell="last-seen" data-timestamp={ host.LastSeen }>{ valueOrDash(host.LastSeen) }</td>
 		<td class="agent-version-cell" data-cell="agent-version">
 			@AgentVersionCell(host)
 		</td>
 		<td class="status-cell" data-cell="status">
 			@UpdateStatusCell(host)
 		</td>
-		<td class="col-right" data-cell="last-seen" data-timestamp={ host.LastSeen }>{ valueOrDash(host.LastSeen) }</td>
 		<td class="col-menu">
 			@ActionDropdown(host)
 		</td>
@@ -4215,7 +4215,7 @@ templ TestsCell(progress *TestProgress) {
 // All icons use 100% primary host theme color
 templ CompositeTypeCell(host Host) {
 	<div
-		class="type-composite"
+		class="type-composite type-compact"
 		data-host-id={ host.ID }
 		data-location={ host.Location }
 		data-device={ host.DeviceType }
@@ -4223,16 +4223,12 @@ templ CompositeTypeCell(host Host) {
 		title={ compositeTypeTitle(host) }
 		style={ typeIconColorStyle(host.ThemeColor) }
 	>
-		<!-- DEV icon (main) -->
-		<span class="type-dev-main">
-			@deviceTypeIcon(host.DeviceType)
-		</span>
-		<!-- LOC icon (superscript) -->
-		<span class="type-loc-super">
+		<!-- LOC icon (left) -->
+		<span class="type-loc-icon">
 			@locationIcon(host.Location)
 		</span>
-		<!-- OS icon (subscript) -->
-		<span class="type-os-sub">
+		<!-- OS icon (right) -->
+		<span class="type-os-icon">
 			@osTypeIcon(host.HostType)
 		</span>
 	</div>

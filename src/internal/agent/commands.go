@@ -157,7 +157,7 @@ func (a *Agent) executeCommand(command string) {
 		a.sendStatus("ok", command, 0, lockStatus.Status)
 		return
 	case "refresh-system":
-		a.sendOutput("Refreshing system status (this may take 30-60s)...", "stdout")
+		a.sendOutput("Refreshing system status (this may take some time)...", "stdout")
 		a.statusChecker.RefreshSystem(a.ctx)
 		sysStatus := a.statusChecker.GetSystemStatus()
 		a.sendOutput(fmt.Sprintf("✓ System status: %s (%s)", sysStatus.Status, sysStatus.Message), "stdout")

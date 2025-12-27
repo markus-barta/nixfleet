@@ -1191,7 +1191,8 @@ templ Base(title string, csrfToken string) {
 			display: inline-flex;
 			align-items: center;
 			justify-content: center;
-			margin-right: 0.35rem;
+			margin-left: 0.5rem;
+			margin-right: 0.2rem;
 			opacity: 0.7;
 		}
 
@@ -2803,9 +2804,9 @@ templ Base(title string, csrfToken string) {
 			   ═══════════════════════════════════════════════════════════════════════════ */
 
 		.col-type {
-			width: 48px;
-			min-width: 48px;
-			max-width: 48px;
+			width: 40px;
+			min-width: 40px;
+			max-width: 40px;
 			padding: 0.25rem !important;
 		}
 
@@ -2817,7 +2818,36 @@ templ Base(title string, csrfToken string) {
 			margin: 0 auto;
 		}
 
-		/* Main device icon - fills most of the space */
+		/* Compact layout: LOC + OS side by side */
+		.type-composite.type-compact {
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			gap: 0.25rem;
+			width: auto;
+			height: auto;
+		}
+
+		.type-loc-icon,
+		.type-os-icon {
+			display: flex;
+			align-items: center;
+			justify-content: center;
+		}
+
+		.type-loc-icon .icon,
+		.type-loc-icon .location-icon,
+		.type-os-icon .icon,
+		.type-os-icon .type-icon {
+			width: 12px;
+			height: 12px;
+			color: var(--type-color, var(--fg));
+			fill: var(--type-color, var(--fg));
+			stroke: var(--type-color, var(--fg));
+			opacity: 0.85;
+		}
+
+		/* Main device icon - fills most of the space (legacy, kept for compatibility) */
 		.type-dev-main {
 			position: absolute;
 			left: 0;
@@ -2840,7 +2870,7 @@ templ Base(title string, csrfToken string) {
 			stroke: var(--type-color, var(--fg));
 		}
 
-		/* Location icon - top-right superscript */
+		/* Location icon - top-right superscript (legacy) */
 		.type-loc-super {
 			position: absolute;
 			top: 1px;
@@ -2862,7 +2892,7 @@ templ Base(title string, csrfToken string) {
 			stroke: var(--type-color, var(--fg));
 		}
 
-		/* OS icon - bottom-right subscript (moved 2px up from original) */
+		/* OS icon - bottom-right subscript (legacy) */
 		.type-os-sub {
 			position: absolute;
 			bottom: 0px;
