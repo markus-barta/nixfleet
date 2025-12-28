@@ -5477,7 +5477,7 @@ func testsIndicatorClass(host Host) string {
 // testsContextDescription returns a short description for context bar
 func testsContextDescription(host Host) string {
 	if host.UpdateStatus == nil {
-		return "Tests not configured"
+		return "Tests: waiting for agent status"
 	}
 	check := host.UpdateStatus.Tests
 	switch check.Status {
@@ -5496,7 +5496,8 @@ func testsContextDescription(host Host) string {
 	case "working":
 		return "Tests running..."
 	default:
-		return "Tests not configured"
+		// Empty status means tests haven't been run since agent restart
+		return "Tests: not run yet — click Test to run"
 	}
 }
 

@@ -855,6 +855,16 @@ func (h *Hub) handleHeartbeat(hostID string, payload protocol.HeartbeatPayload) 
 		lockHashPtr = &payload.LockHash
 	}
 
+	// P1000-FIX: Ensure pending_command is properly cleared
+	// The agent sends nil pointer when no command is running.
+	// We need to explicitly handle this to ensure NULL is stored in SQLite.
+	var pendingCommandDB interface{}
+	if payload.PendingCommand != nil && *payload.PendingCommand != "" {
+		pendingCommandDB = *payload.PendingCommand
+	} else {
+		pendingCommandDB = nil // Explicitly set to nil for SQL NULL
+	}
+
 	// Update host last_seen and status in database
 	_, err := h.db.Exec(`
 		UPDATE hosts SET 
@@ -868,7 +878,7 @@ func (h *Hub) handleHeartbeat(hostID string, payload protocol.HeartbeatPayload) 
 			system_status_json = ?,
 			lock_hash = ?
 		WHERE hostname = ?
-	`, payload.Generation, payload.NixpkgsVersion, payload.PendingCommand, metricsJSON, lockStatusJSON, systemStatusJSON, lockHashPtr, hostID)
+	`, payload.Generation, payload.NixpkgsVersion, pendingCommandDB, metricsJSON, lockStatusJSON, systemStatusJSON, lockHashPtr, hostID)
 
 	if err != nil {
 		h.log.Error().Err(err).Str("host", hostID).Msg("failed to update heartbeat")

@@ -811,6 +811,7 @@ func (s *Server) handleDeleteHost(w http.ResponseWriter, r *http.Request) {
 
 // handleRefreshHost fetches fresh status for a single host (P7000).
 // POST /api/hosts/{hostID}/refresh
+// P1000-FIX: Also clears stale pending_command if agent is online but lifecycle has no active command.
 func (s *Server) handleRefreshHost(w http.ResponseWriter, r *http.Request) {
 	hostID := chi.URLParam(r, "hostID")
 
@@ -824,17 +825,34 @@ func (s *Server) handleRefreshHost(w http.ResponseWriter, r *http.Request) {
 		RepoURL          *string
 		RepoDir          *string
 		Status           string
+		PendingCommand   *string
 	}
 
 	err := s.db.QueryRow(`
 		SELECT hostname, generation, agent_version, lock_status_json,
-		       system_status_json, repo_url, repo_dir, status
+		       system_status_json, repo_url, repo_dir, status, pending_command
 		FROM hosts WHERE id = ?
 	`, hostID).Scan(
 		&h.Hostname, &h.Generation, &h.AgentVersion,
 		&h.LockStatusJSON, &h.SystemStatusJSON,
-		&h.RepoURL, &h.RepoDir, &h.Status,
+		&h.RepoURL, &h.RepoDir, &h.Status, &h.PendingCommand,
 	)
+
+	// P1000-FIX: Clear stale pending_command if agent is online but no active command in lifecycle
+	if h.PendingCommand != nil && *h.PendingCommand != "" {
+		isAgentConnected := s.hub.GetAgent(h.Hostname) != nil
+		hasActiveCommand := s.lifecycleManager != nil && s.lifecycleManager.GetActiveCommand(h.Hostname) != nil
+
+		if isAgentConnected && !hasActiveCommand {
+			s.log.Info().
+				Str("host", h.Hostname).
+				Str("stale_command", *h.PendingCommand).
+				Msg("P1000-FIX: clearing stale pending_command (agent online, no active command)")
+
+			_, _ = s.db.Exec(`UPDATE hosts SET pending_command = NULL WHERE id = ?`, hostID)
+			h.PendingCommand = nil // Update local struct
+		}
+	}
 	if err != nil {
 		http.Error(w, "Host not found", http.StatusNotFound)
 		return
