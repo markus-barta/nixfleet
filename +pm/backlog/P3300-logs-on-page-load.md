@@ -1,11 +1,11 @@
 # P3300: Logs on Page Load
 
 **Priority**: P3300 (🔴 Critical Path - Sprint 1)  
-**Status**: Backlog  
-**Effort**: Small-Medium (1-2 days)  
+**Status**: ✅ Done (Needs Manual Testing)  
+**Effort**: Small-Medium (1-2 days) → Actual: 2 hours  
 **Implements**: [CORE-003](../spec/CORE-003-state-store.md), [CORE-004](../spec/CORE-004-state-sync.md)  
 **Depends on**: P3100, P3200 (State Persistence + Sync) - ✅ Done  
-**Updated**: 2025-12-28 (Priority raised - completes v3 State Sync)
+**Updated**: 2025-12-28 (Implemented - ready for testing)
 
 ---
 
@@ -89,18 +89,42 @@ async function openHostTab(hostId) {
 
 ## Acceptance Criteria
 
-- [ ] `/api/event-log` returns recent events
-- [ ] `/api/hosts/{id}/output` returns recent command output
-- [ ] `init` payload includes events
-- [ ] System log tab populated on page load
-- [ ] Host output tabs restored from server
-- [ ] Test: refresh page → logs still visible
-- [ ] Test: close/reopen tab → output restored
+- [x] `/api/event-log` returns recent events (already existed as `/api/events`)
+- [x] `/api/hosts/{id}/output` returns recent command output
+- [x] `init` payload includes events (already implemented in State Sync)
+- [x] System log tab populated on page load
+- [x] Host output tabs restored from server
+- [ ] Test: refresh page → logs still visible (needs manual browser test)
+- [ ] Test: close/reopen tab → output restored (needs manual browser test)
+
+---
+
+## Implementation Summary (2025-12-28)
+
+### Backend
+
+- Added `GET /api/hosts/{hostID}/output?lines=N` endpoint
+- Added `LogStore.GetLatestLogContent()` - reads most recent log file
+- Added `LogStore.GetCurrentCommandOutput()` - reads active command output
+- `/api/events` endpoint already existed
+
+### Frontend
+
+- Added `restoreEventLog()` - fetches last 50 events on page load
+- Added `restoreHostOutput()` - fetches last 500 lines when tab opens
+- Modified `switchTab()` - triggers restore on first tab open
+- Added `getCategoryIcon()` - maps event categories to icons
+
+### Flow
+
+1. **Page Load**: `restoreEventLog()` → populates system log
+2. **Open Host Tab**: `switchTab()` → `restoreHostOutput()` → populates output
+3. **Live Updates**: WebSocket continues to stream new output
 
 ---
 
 ## Related
 
-- **CORE-003**: State Store (event_log table)
-- **CORE-004**: State Sync (init payload)
-- **P3200**: State Sync Protocol (sends init)
+- **CORE-003**: State Store (event_log table) - ✅ Used
+- **CORE-004**: State Sync (init payload) - ✅ Events included
+- **P3200**: State Sync Protocol (sends init) - ✅ Done
