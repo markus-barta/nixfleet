@@ -1,10 +1,11 @@
 # P3300: Logs on Page Load
 
-**Priority**: P3300 (High - v3 Phase 4)  
+**Priority**: P3300 (🔴 Critical Path - Sprint 1)  
 **Status**: Backlog  
 **Effort**: Small-Medium (1-2 days)  
 **Implements**: [CORE-003](../spec/CORE-003-state-store.md), [CORE-004](../spec/CORE-004-state-sync.md)  
-**Depends on**: P3100, P3200 (State Persistence + Sync)
+**Depends on**: P3100, P3200 (State Persistence + Sync) - ✅ Done  
+**Updated**: 2025-12-28 (Priority raised - completes v3 State Sync)
 
 ---
 

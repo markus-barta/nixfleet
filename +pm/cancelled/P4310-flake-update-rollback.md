@@ -2,8 +2,25 @@
 
 **Created**: 2025-12-17  
 **Priority**: P4310 (Medium)  
-**Status**: Backlog  
+**Status**: ❌ **CANCELLED** - 2025-12-28  
+**Superseded by**: P5600 (Rollback Operations)  
 **Depends on**: P4300 (Automated Flake Lock Updates)
+
+---
+
+## Cancellation Reason
+
+This item has been superseded by **P5600 - Rollback Operations**, which provides a more comprehensive solution:
+
+- **P5600 includes**:
+  - Per-host rollback with generation visibility
+  - Fleet-wide PR revert
+  - Integration with new compartment system
+  - Better UX with rollback dialog
+
+P5600 is the better design and should be implemented instead.
+
+---
 
 ---
 

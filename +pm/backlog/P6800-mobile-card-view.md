@@ -1,9 +1,12 @@
 # P6800 - Mobile Card View
 
 **Created**: 2025-12-19  
-**Priority**: P6800 (Low)  
+**Updated**: 2025-12-28  
+**Priority**: P9100 (⚪ Very Low Priority - Future)  
 **Status**: Backlog  
 **Depends on**: P1000 (Action Bar refactor)
+
+**Note**: Priority lowered - desktop UI works on mobile, optimization not urgent
 
 ---
 

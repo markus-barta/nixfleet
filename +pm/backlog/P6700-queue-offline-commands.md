@@ -1,11 +1,13 @@
 # P6700: Queue Commands for Offline Hosts
 
 **Created**: 2025-12-14  
-**Updated**: 2025-12-27  
-**Priority**: P6700 (Low)  
+**Updated**: 2025-12-28  
+**Priority**: P8100 (⚪ Low Priority - Future)  
 **Status**: Backlog  
 **Related Specs**: [CORE-003](../spec/CORE-003-state-store.md) (commands table)  
-**Depends on**: P3100 (State Persistence)
+**Depends on**: P3100 (State Persistence) - ✅ Done
+
+**Note**: Priority lowered - edge case feature, not critical
 
 ---
 

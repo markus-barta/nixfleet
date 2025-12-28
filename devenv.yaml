@@ -1,7 +1,8 @@
 # yaml-language-server: $schema=https://devenv.sh/devenv.schema.json
 inputs:
   nixpkgs:
-    url: github:cachix/devenv-nixpkgs/rolling
+    # I don't like pinning to a release, but this something we have to take care of soon: P8600-devenv-release-pin-update.md
+    url: github:nixos/nixpkgs/release-25.05
   shared:
     # Provides common.just with shared justfile recipes
     url: github:pbek/nix-shared

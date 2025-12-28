@@ -1,10 +1,12 @@
 # P6200 - Security Hardening
 
 **Created**: 2025-12-14  
-**Updated**: 2025-12-15  
-**Priority**: P6200 (Low)  
+**Updated**: 2025-12-28  
+**Priority**: P6200 (🟢 Medium Priority - Sprint 3)  
 **Status**: Backlog  
 **Depends on**: None (post-MVP)
+
+**Note**: Priority raised - important for production deployment
 
 ---
 

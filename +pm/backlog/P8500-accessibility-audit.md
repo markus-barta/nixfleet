@@ -1,8 +1,11 @@
 # P8500 - Accessibility Audit & Implementation
 
 **Created**: 2025-12-19  
-**Priority**: P8500 (Low - Future)  
-**Status**: Backlog  
+**Updated**: 2025-12-28  
+**Priority**: P9300 (⚪ Very Low Priority - Future)  
+**Status**: Backlog
+
+**Note**: Priority lowered - good practice but not urgent for personal tool  
 **Estimated Effort**: 2-3 days  
 **Depends on**: P1000 complete
 

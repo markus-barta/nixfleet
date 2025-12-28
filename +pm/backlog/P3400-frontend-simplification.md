@@ -1,9 +1,10 @@
 # P3400: Frontend Simplification
 
-**Priority**: P3400 (High - v3 Phase 5)  
+**Priority**: P3400 (🟡 High Priority - Sprint 2)  
 **Status**: Backlog  
 **Effort**: Medium (2-3 days)  
-**Depends on**: P3010, P3200 (Op Engine + State Sync)
+**Depends on**: P3010, P3200 (Op Engine + State Sync) - ✅ Done  
+**Updated**: 2025-12-28 (Priority maintained - do after P5000 compartment work)
 
 ---
 

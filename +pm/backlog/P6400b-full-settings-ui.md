@@ -1,9 +1,12 @@
-# P6400 - Settings Page
+# P6400b - Full Settings UI
 
 **Created**: 2025-12-15  
-**Priority**: P6400 (Low)  
+**Updated**: 2025-12-28 (Split from P6400, renamed to P6400b)  
+**Priority**: P7500 (⚪ Low Priority - Future)  
 **Status**: Backlog  
-**Depends on**: Core dashboard (P4xxx)
+**Depends on**: P6400a (Minimal Settings)
+
+**Note**: This is the full settings page. For immediate needs (test configuration), see **P6400a - Minimal Settings UI**.
 
 ---
 

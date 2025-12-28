@@ -1,8 +1,12 @@
 # P7220: Dashboard Force Uncached Rebuild
 
-**Priority**: Medium  
+**Created**: 2025-12-19  
+**Updated**: 2025-12-28  
+**Priority**: P9200 (⚪ Very Low Priority - Future)  
 **Effort**: Small  
-**Status**: Backlog  
+**Status**: Backlog
+
+**Note**: Priority lowered - niche development tool, workaround exists  
 **Implements**: Pipeline `force-update` from [CORE-002](../spec/CORE-002-pipeline-executor.md)  
 **Depends on**: P3020 (Pipeline Executor)
 

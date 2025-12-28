@@ -1,11 +1,13 @@
 # P6300 - Security: Per-Host Agent Tokens
 
 **Created**: 2025-12-14  
-**Updated**: 2025-12-15  
-**Priority**: P6300 (Low)  
+**Updated**: 2025-12-28  
+**Priority**: P7400 (⚪ Low Priority - Future)  
 **Status**: Backlog  
 **Effort**: Medium  
 **References**: NFR-3.3, T01 (Agent Connection)
+
+**Note**: Priority lowered - nice-to-have security feature
 
 ## Problem
 

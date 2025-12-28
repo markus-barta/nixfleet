@@ -1,10 +1,12 @@
 # P6000 - Heartbeat & Communication Visualizer
 
 **Created**: 2025-12-14  
-**Updated**: 2025-12-15  
-**Priority**: P6000 (Low)  
+**Updated**: 2025-12-28  
+**Priority**: P7300 (⚪ Low Priority - Future)  
 **Status**: Backlog  
 **Depends on**: None (UI polish)
+
+**Note**: Priority lowered - cosmetic enhancement, not critical
 
 ---
 

@@ -1,9 +1,12 @@
 # P4400 - nix-darwin Support
 
 **Created**: 2025-12-15  
-**Priority**: P4400 (Medium)  
+**Updated**: 2025-12-28  
+**Priority**: P6300 (🟢 Medium Priority - Sprint 3)  
 **Status**: Backlog  
-**Depends on**: None
+**Depends on**: P5300 (System Compartment Inference)
+
+**Note**: Renamed from P9400. Integrates with P5300 for system status checks.
 
 ---
 

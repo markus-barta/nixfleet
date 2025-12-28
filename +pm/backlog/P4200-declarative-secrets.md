@@ -1,10 +1,12 @@
 # P4200 - Declarative Secrets Deployment
 
 **Created**: 2025-12-14  
-**Updated**: 2025-12-15  
-**Priority**: P4200 (Medium)  
+**Updated**: 2025-12-28  
+**Priority**: P7200 (⚪ Low Priority - Future)  
 **Status**: Backlog  
 **Depends on**: P4400 (Dashboard Packaging)
+
+**Note**: Priority lowered - nice-to-have feature, not critical path
 
 ---
 
