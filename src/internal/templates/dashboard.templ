@@ -877,6 +877,17 @@ templ Dashboard(data DashboardData) {
 				}
 			},
 
+			// P5100: Calculate available ops locally (mirrors server logic)
+			// Used when state changes locally before server confirms
+			_calculateAvailableOps(host) {
+				// If offline or has pending command, no ops available
+				if (!host.online || host.pendingCommand) {
+					return [];
+				}
+				// Standard ops for online, idle hosts
+				return ['pull', 'switch', 'test', 'reboot'];
+			},
+
 				get(id) {
 					return this._hosts.get(id);
 				},
@@ -886,30 +897,35 @@ templ Dashboard(data DashboardData) {
 				},
 
 				// Update host state and trigger render
-				update(id, patch) {
-					const current = this._hosts.get(id);
-					if (!current) {
-						console.warn(`hostStore: unknown host ${id}`);
-						return;
-					}
+			update(id, patch) {
+				const current = this._hosts.get(id);
+				if (!current) {
+					console.warn(`hostStore: unknown host ${id}`);
+					return;
+				}
 
-					// Start with shallow merge
-					const next = { ...current, ...patch };
+				// Start with shallow merge
+				const next = { ...current, ...patch };
 
-					// Deep merge for known nested objects
-					if (patch.metrics && current.metrics) {
-						next.metrics = { ...current.metrics, ...patch.metrics };
-					}
-					if (patch.updateStatus && current.updateStatus) {
-						next.updateStatus = { ...current.updateStatus, ...patch.updateStatus };
-					}
+				// Deep merge for known nested objects
+				if (patch.metrics && current.metrics) {
+					next.metrics = { ...current.metrics, ...patch.metrics };
+				}
+				if (patch.updateStatus && current.updateStatus) {
+					next.updateStatus = { ...current.updateStatus, ...patch.updateStatus };
+				}
 
-					// Preserve cached elements
-					next._elements = current._elements;
+				// P5100: Recalculate availableOps when online/pendingCommand changes
+				if ('online' in patch || 'pendingCommand' in patch) {
+					next.availableOps = this._calculateAvailableOps(next);
+				}
 
-					this._hosts.set(id, next);
-					renderHost(id);
-				},
+				// Preserve cached elements
+				next._elements = current._elements;
+
+				this._hosts.set(id, next);
+				renderHost(id);
+			},
 
 				setOffline(id) {
 					this.update(id, { online: false, pendingCommand: null });
@@ -962,18 +978,38 @@ templ Dashboard(data DashboardData) {
 					// 6c. P7240: Timeout indicator in Status column
 					renderTimeoutIndicator(el, host);
 
-					// 6. Button states: swap between cmd-buttons and stop button
-					const cmdButtons = el.querySelector('.cmd-buttons');
-					const stopBtn = el.querySelector('.btn-stop');
-					if (cmdButtons) {
-						cmdButtons.style.display = isBusy ? 'none' : '';
-						cmdButtons.querySelectorAll('button').forEach(btn => {
-							btn.disabled = !buttonsEnabled;
-						});
-					}
-					if (stopBtn) {
-						stopBtn.style.display = isBusy ? '' : 'none';
-					}
+				// 6. Button states: swap between cmd-buttons and stop button
+				const cmdButtons = el.querySelector('.cmd-buttons');
+				const stopBtn = el.querySelector('.btn-stop');
+				if (cmdButtons) {
+					cmdButtons.style.display = isBusy ? 'none' : '';
+					cmdButtons.querySelectorAll('button').forEach(btn => {
+						btn.disabled = !buttonsEnabled;
+					});
+				}
+				if (stopBtn) {
+					stopBtn.style.display = isBusy ? '' : 'none';
+				}
+
+				// P5100: Update dropdown menu button states based on availableOps
+				const dropdown = el.querySelector('.dropdown-menu');
+				if (dropdown) {
+					const availableOps = host.availableOps || [];
+					dropdown.querySelectorAll('.dropdown-item').forEach(btn => {
+						const onclick = btn.getAttribute('onclick') || '';
+						// Match sendCommand('hostId', 'command') pattern
+						const cmdMatch = onclick.match(/sendCommand\([^,]+,\s*'([^']+)'\)/);
+						// Match showRebootModal pattern (reboot button)
+						const rebootMatch = onclick.match(/showRebootModal\(/);
+						
+						if (cmdMatch) {
+							const command = cmdMatch[1];
+							btn.disabled = !availableOps.includes(command);
+						} else if (rebootMatch) {
+							btn.disabled = !availableOps.includes('reboot');
+						}
+					});
+				}
 
 					// 7. Last seen
 					const lastSeenCell = el.querySelector('[data-cell="last-seen"]');
