@@ -21,7 +21,7 @@ COPY src/go.mod src/go.sum ./
 RUN go mod download
 
 # Install templ BEFORE copying source (cached across builds)
-RUN go install github.com/a-h/templ/cmd/templ@v0.3.865
+RUN go install github.com/a-h/templ/cmd/templ@v0.3.960
 
 # Copy source (src/ contains Go code, assets/ contains static files)
 COPY src/ ./
