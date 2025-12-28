@@ -1,10 +1,10 @@
-# P3400: Frontend Simplification
+# P5100: Frontend Simplification
 
 **Priority**: P5100 (🟢 After Compartment Epic)  
-**Status**: Backlog  
-**Effort**: Medium (2-3 days)  
-**Depends on**: P3010, P3200 (Op Engine + State Sync) - ✅ Done, Compartment Epic (P3700-P4800)  
-**Updated**: 2025-12-28 (Moved after compartment work - do when foundation is solid)
+**Status**: 90% Done (Testing Needed)  
+**Effort**: Small (1h remaining)  
+**Depends on**: P3010, P3200 (Op Engine + State Sync) - ✅ Done  
+**Updated**: 2025-12-28 (Implemented server-driven UI with availableOps)
 
 ---
 
@@ -107,28 +107,49 @@ function renderHostActions(host) {
 
 ## Acceptance Criteria
 
-- [ ] All validation logic in Go
-- [ ] Single `dispatch()` function in JS
-- [ ] Server sends `availableOps`/`availablePipelines` per host
-- [ ] Frontend renders what server says (no derivation)
-- [ ] No business logic in JavaScript
-- [ ] All existing UI flows work correctly
+- [x] All validation logic in Go
+- [x] Single `dispatch()` function in JS (stateSync.dispatchOp)
+- [x] Server sends `availableOps` per host
+- [x] Frontend renders what server says (dropdown buttons use isOpAvailable)
+- [x] No business logic in JavaScript (removed host.online checks)
+- [ ] All existing UI flows work correctly (needs browser testing)
 - [ ] Unit tests for available actions in Go
 
 ---
 
-## Migration Notes
+## Implementation Summary (2025-12-28)
 
-This is a significant refactor. Approach:
+### ✅ Completed
 
-1. Add `availableOps` field to host state (server-side)
-2. Keep old JS logic, but log warnings if it disagrees with server
-3. Gradually replace JS checks with server state
-4. Remove old JS logic once all flows work
+**Backend:**
+
+- Added `calculateAvailableOps()` in `handlers.go` and `state_provider.go`
+- Server logic: `online + no pending = [pull, switch, test, reboot]`
+- Added `AvailableOps []string` to `templates.Host` struct
+- Included in both initial page render and State Sync messages
+
+**Frontend:**
+
+- Updated dropdown menu to use `isOpAvailable(host, op)` instead of `!host.Online`
+- Removed client-side "host is offline" check in `showRebootModal()`
+- Added `data-available-ops` attribute to `HostRow` for JS hydration
+- Updated `hostStore._parseAvailableOps()` to cache server state
+
+### 🔄 Remaining Work (~1h)
+
+1. **Browser Testing**: Verify buttons enable/disable correctly
+   - Test with online host → buttons enabled
+   - Test with offline host → buttons disabled
+   - Test with pending command → buttons disabled
+   - Test reboot modal only opens when button is enabled
+
+2. **State Sync Updates**: Ensure `availableOps` updates on state changes
+   - When host goes offline → buttons should disable
+   - When command completes → buttons should re-enable
 
 ---
 
 ## Related
 
-- **P3010**: Op Engine (defines available ops)
-- **P3200**: State Sync (sends available ops in state)
+- **P3010**: Op Engine (defines available ops) - ✅ Done
+- **P3200**: State Sync (sends available ops in state) - ✅ Done

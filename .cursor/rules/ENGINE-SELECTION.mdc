@@ -1,86 +1,57 @@
-# Engine Selection Rule
+# Engine Selection
 
-## Overview
-Before executing ANY command or task, perform a quick self-evaluation to determine if the current engine is appropriate. If a different model would be significantly more suitable, **STOP and inform the user to switch models FIRST**—do NOT proceed with execution on the wrong engine.
+Quick check before executing. If wrong engine → tell user to switch, don't proceed.
 
-## Model Selection Criteria
+## Fast Decision (5 seconds)
 
-### Haiku (claude-4.5-haiku-thinking)
-**Best for:**
-- Simple, straightforward questions
-- Quick lookups and grep searches
-- Minor edits or single-file changes
-- Fast decision-making with clear context
-- Tasks with minimal reasoning complexity
+Scan request for these signals:
 
-**Avoid for:**
-- Complex architectural decisions
-- Deep codebase analysis requiring navigation across many files
-- Substantial code generation (>100-200 lines)
-- Debugging intricate logic flows
-- Large refactoring efforts
+| Signal | Engine |
+|--------|--------|
+| "what is", "where is", grep, lookup, 1-2 files | **Haiku** ✓ |
+| "fix bug", single edit, clear scope | **Haiku** ✓ |
+| Add feature, implement, 3-5 files | **Sonnet** |
+| Refactor, debug across files, review PR | **Sonnet** |
+| "audit", "architecture", "security", "redesign" | **Opus** |
+| Vague scope + complex domain | **Opus** |
+| 10+ files or >500 LOC expected | **Opus** |
 
-### Sonnet (claude-3.5-sonnet)
-**Best for:**
-- Standard development tasks (most common)
-- Medium complexity refactoring
-- Feature implementation (100-500 lines)
-- Code reviews and analysis
-- Most debugging scenarios
-- Balanced reasoning and speed
+## Escalation Triggers
 
-**Default choice** for most NixFleet development work.
+**→ Sonnet** if any:
+- Need to trace logic across 3+ files
+- Expected output >150 lines
+- "Why does X happen?" requiring cross-file analysis
 
-### Opus (claude-3-opus)
-**Best for:**
-- Complex architectural decisions
-- Deep codebase analysis requiring holistic understanding
-- Large-scale refactoring (>500 lines, multiple files)
-- Tricky debugging scenarios
-- Security audits or comprehensive code reviews
-- Novel problem-solving
-- Generating comprehensive documentation
+**→ Opus** if any:
+- "Audit", "review all", "security"
+- Vague scope + uncertain approach
+- Multi-system integration
+- Novel problem (no clear pattern to follow)
+- User explicitly wants quality over speed
 
-## Decision Flow
+## Stay on Haiku
 
-When you receive a task:
+- Question answerable from 1-2 files
+- Single-file edit with clear diff
+- Running commands, reading output
+- Config/rule changes (like this one)
+- Quick code lookup or grep
 
-1. **Identify task complexity**: Is this simple, medium, or complex?
-2. **Estimate scope**: How many files? How many lines of code?
-3. **Assess reasoning needs**: Does this need deep analysis or is it straightforward?
-4. **Self-evaluate**: Is my current engine (Haiku) a good fit?
+## Stop Format
 
-## When to STOP and Ask for Engine Switch
+If wrong engine, say exactly:
 
-**STOP execution and inform the user if:**
+> ⚡ Switch to **[SONNET/OPUS]**: [1 reason]. Then re-send.
 
-- Task requires deep architectural analysis or large codebase navigation
-- Substantial code generation is needed (>200 lines)
-- Complex debugging across multiple interconnected systems
-- Comprehensive security or quality audit
-- Problem-solving that requires extensive reasoning chains
-- The task is clearly beyond Haiku's optimal performance window
+Then STOP. No partial work.
 
-**Format your response like this:**
+## Cost Math
 
-> This task would be better served by **[MODEL]** because [brief reason]. Please switch your engine and I'll complete the task with proper context and capability.
+| Model | Speed | $/1M tokens | Best ROI |
+|-------|-------|-------------|----------|
+| Haiku | Fast | $ | Simple bounded tasks |
+| Sonnet | Med | $$ | Most dev work |
+| Opus | Slow | $$$$ | Complex/unbounded |
 
-Then STOP—do not proceed with the current (Haiku) engine.
-
-## NixFleet-Specific Guidance
-
-For this project:
-- Dashboard template work (substantial): Often Sonnet or Opus
-- Simple bug fixes: Haiku is fine
-- Complex agent behavior or state management: Sonnet minimum, Opus for deep issues
-- Integration between agent/dashboard: Sonnet minimum
-- Security-related changes: Opus preferred
-- Test writing: Sonnet or Haiku depending on complexity
-- Documentation: Haiku is usually fine
-
-## Important Notes
-
-- This rule takes precedence over speed/efficiency concerns
-- Better to pause and switch than to deliver suboptimal results
-- Users appreciate transparency about model limitations
-- Include the brief reason so the user understands the reasoning
+**Rule**: Use cheapest model that won't fail. Haiku failing = wasted tokens. Opus on simple = overspend.
