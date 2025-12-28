@@ -886,6 +886,7 @@ templ Dashboard(data DashboardData) {
 						git: JSON.parse(container.dataset.git || 'null'),
 						lock: JSON.parse(container.dataset.lock || 'null'),
 						system: JSON.parse(container.dataset.system || 'null'),
+						tests: JSON.parse(container.dataset.tests || 'null'),
 						repoUrl: container.dataset.repoUrl || '',
 						repoDir: container.dataset.repoDir || ''
 					};
@@ -994,6 +995,20 @@ templ Dashboard(data DashboardData) {
 
 					// 5. Agent version cell
 					renderAgentVersion(el, host);
+
+					// 5b. P4500: Generation cell
+					const genCell = el.querySelector('[data-cell="generation"]');
+					if (genCell && host.generation) {
+						const span = genCell.querySelector('.gen-hash, .gen-unknown');
+						if (span) {
+							span.className = 'gen-hash';
+							span.textContent = host.generation.slice(0, 7);
+							span.title = 'Configuration: ' + host.generation;
+						} else {
+							// Create new span if it doesn't exist
+							genCell.innerHTML = `<span class="gen-hash" title="Configuration: ${host.generation}">${host.generation.slice(0, 7)}</span>`;
+						}
+					}
 
 					// 6. Status compartments (Git/Lock/System)
 					if (host.updateStatus) {
@@ -1184,8 +1199,8 @@ templ Dashboard(data DashboardData) {
 
 				if (!status) return;
 
-				// Update Git/Lock/System compartments
-				['git', 'lock', 'system'].forEach((type) => {
+				// Update Git/Lock/System/Tests compartments
+				['git', 'lock', 'system', 'tests'].forEach((type) => {
 					const btn = container.querySelector(`[data-compartment="${type}"]`);
 					if (!btn) return;
 
@@ -1193,6 +1208,11 @@ templ Dashboard(data DashboardData) {
 					
 					// Update data-status attribute for CSS/hover
 					btn.dataset.status = check?.status || 'unknown';
+					
+					// Update data-description from message
+					if (check && check.message) {
+						btn.dataset.description = check.message;
+					}
 					
 					// Toggle unknown class for dimming
 					btn.classList.toggle('unknown', !check || !check.status || check.status === 'unknown');
@@ -3323,6 +3343,18 @@ templ Dashboard(data DashboardData) {
 						showSystemRefreshDialog(hostId, hostname, description, status);
 						break;
 
+					case 'tests':
+						// P3900: Tests compartment - run tests or show last results
+						showLogPanel(hostId);
+						if (status === 'working') {
+							showToast('Tests already running...', 'info');
+						} else {
+							appendLogLine(hostId, `🧪 Running tests...`);
+							showToast('Tests: running...', 'info');
+							sendCommand(hostId, 'test');
+						}
+						break;
+
 					default:
 						showToast(`Unknown compartment: ${compartment}`, 'error');
 				}
@@ -4532,6 +4564,7 @@ templ UpdateStatusCell(host Host) {
 		data-git={ updateStatusJSON(host.UpdateStatus, "git") }
 		data-lock={ updateStatusJSON(host.UpdateStatus, "lock") }
 		data-system={ updateStatusJSON(host.UpdateStatus, "system") }
+		data-tests={ updateStatusJSON(host.UpdateStatus, "tests") }
 		data-repo-url={ host.RepoURL }
 		data-repo-dir={ host.RepoDir }
 	>

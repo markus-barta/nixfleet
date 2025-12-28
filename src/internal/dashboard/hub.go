@@ -909,6 +909,10 @@ func (h *Hub) handleHeartbeat(hostID string, payload protocol.HeartbeatPayload) 
 	if systemStatus.Status != "" {
 		updateStatus["system"] = systemStatus
 	}
+	// P3900: Include tests status from agent
+	if payload.UpdateStatus != nil && payload.UpdateStatus.Tests.Status != "" {
+		updateStatus["tests"] = payload.UpdateStatus.Tests
+	}
 
 	// v3: Notify lifecycle manager of heartbeat for deferred post-checks
 	if h.lifecycleManager != nil {
