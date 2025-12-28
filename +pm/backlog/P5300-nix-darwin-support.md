@@ -2,11 +2,11 @@
 
 **Created**: 2025-12-15  
 **Updated**: 2025-12-28  
-**Priority**: P6300 (🟢 Medium Priority - Sprint 3)  
+**Priority**: P5300 (🟢 After Compartment Epic)  
 **Status**: Backlog  
-**Depends on**: P5300 (System Compartment Inference)
+**Depends on**: P3800 (System Compartment Inference)
 
-**Note**: Renamed from P9400. Integrates with P5300 for system status checks.
+**Note**: Renamed from P9400 → P4400 → P5300. Integrates with P3800 for system status checks.
 
 ---
 

@@ -2,7 +2,7 @@
 
 **Created**: 2025-12-14  
 **Updated**: 2025-12-28  
-**Priority**: P7200 (⚪ Low Priority - Future)  
+**Priority**: P6200 (⚪ Low Priority - Future)  
 **Status**: Backlog  
 **Depends on**: P4400 (Dashboard Packaging)
 

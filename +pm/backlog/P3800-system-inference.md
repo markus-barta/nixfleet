@@ -1,10 +1,10 @@
-# P5300 - System Compartment: Inference-Based Status
+# P3800 - System Compartment: Inference-Based Status
 
 **Created**: 2025-12-28  
-**Priority**: P5300 (High - Core Feature)  
+**Priority**: P3800 (🔴 Critical Path - Sprint 1)  
 **Status**: Backlog  
 **Effort**: 2-3 hours  
-**Depends on**: P5200
+**Depends on**: P3700
 
 ---
 

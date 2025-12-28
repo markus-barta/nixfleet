@@ -2,11 +2,11 @@
 
 **Created**: 2025-12-17  
 **Updated**: 2025-12-28  
-**Priority**: P6100 (🟢 Medium Priority - Sprint 3)  
+**Priority**: P5200 (🟢 After Compartment Epic)  
 **Status**: Backlog  
-**Depends on**: P4300 (Automated Flake Lock Updates) - ✅ Done, P5700 (Merge PR Workflow)
+**Depends on**: P4300 (Automated Flake Lock Updates) - ✅ Done, P4700 (Merge PR Workflow)
 
-**⚠️ Note**: This spec needs updating after P5700 is implemented. The workflow has changed from "Merge & Deploy" to manual deployment control.
+**⚠️ Note**: This spec needs updating after P4700 is implemented. The workflow has changed from "Merge & Deploy" to manual deployment control.
 
 ---
 

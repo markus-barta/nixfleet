@@ -42,7 +42,7 @@ Five-compartment pipeline with accurate, lightweight status tracking:
 
 ### Phase 1: Lock Compartment Fix
 
-**Backlog Item**: [P5200 - Lock Version Tracking](./P5200-lock-version-tracking.md)  
+**Backlog Item**: [P3700 - Lock Version Tracking](./P3700-lock-version-tracking.md)  
 **Effort**: 3-4 hours  
 **Priority**: Must Have
 
@@ -59,7 +59,7 @@ Five-compartment pipeline with accurate, lightweight status tracking:
 
 ### Phase 2: System Compartment Fix
 
-**Backlog Item**: [P5300 - System Inference](./P5300-system-inference.md)  
+**Backlog Item**: [P3800 - System Inference](./P3800-system-inference.md)  
 **Effort**: 2-3 hours  
 **Priority**: Must Have
 
@@ -77,7 +77,7 @@ Five-compartment pipeline with accurate, lightweight status tracking:
 
 ### Phase 3: Tests Compartment
 
-**Backlog Item**: [P5400 - Tests Compartment](./P5400-tests-compartment.md)  
+**Backlog Item**: [P3900 - Tests Compartment](./P3900-tests-compartment.md)  
 **Effort**: 4-5 hours  
 **Priority**: Must Have
 
@@ -94,7 +94,7 @@ Five-compartment pipeline with accurate, lightweight status tracking:
 
 ### Phase 4: Generation Tracking
 
-**Backlog Item**: [P5500 - Generation Tracking](./P5500-generation-tracking.md)  
+**Backlog Item**: [P4500 - Generation Tracking](./P4500-generation-tracking.md)  
 **Effort**: 2-3 hours  
 **Priority**: Should Have
 
@@ -111,7 +111,7 @@ Five-compartment pipeline with accurate, lightweight status tracking:
 
 ### Phase 5: Rollback Operations
 
-**Backlog Item**: [P5600 - Rollback Operations](./P5600-rollback-operations.md)  
+**Backlog Item**: [P4600 - Rollback Operations](./P4600-rollback-operations.md)  
 **Effort**: 3-4 hours  
 **Priority**: Should Have
 
@@ -128,7 +128,7 @@ Five-compartment pipeline with accurate, lightweight status tracking:
 
 ### Phase 6: Merge PR Workflow
 
-**Backlog Item**: [P5700 - Merge PR Workflow](./P5700-merge-pr-workflow.md)  
+**Backlog Item**: [P4700 - Merge PR Workflow](./P4700-merge-pr-workflow.md)  
 **Effort**: 2-3 hours  
 **Priority**: Should Have
 
@@ -145,7 +145,7 @@ Five-compartment pipeline with accurate, lightweight status tracking:
 
 ### Phase 7: Documentation
 
-**Backlog Item**: [P5800 - Compartment Docs](./P5800-compartment-docs.md)  
+**Backlog Item**: [P4800 - Compartment Docs](./P4800-compartment-docs.md)  
 **Effort**: 1-2 hours  
 **Priority**: Should Have
 
@@ -164,42 +164,42 @@ Five-compartment pipeline with accurate, lightweight status tracking:
 
 ### Recommended Sequence
 
-1. **P5200** (Lock) - Foundation for everything else
-2. **P5300** (System) - Complements Lock, both needed for accurate state
-3. **P5500** (Generation) - Needed before Rollback
-4. **P5400** (Tests) - Can work independently, but benefits from 1-3
-5. **P5600** (Rollback) - Depends on Generation tracking
-6. **P5700** (Merge PR) - Depends on Lock tracking
-7. **P5800** (Docs) - Last, after all features implemented
+1. **P3700** (Lock) - Foundation for everything else
+2. **P3800** (System) - Complements Lock, both needed for accurate state
+3. **P4500** (Generation) - Needed before Rollback
+4. **P3900** (Tests) - Can work independently, but benefits from 1-3
+5. **P4600** (Rollback) - Depends on Generation tracking
+6. **P4700** (Merge PR) - Depends on Lock tracking
+7. **P4800** (Docs) - Last, after all features implemented
 
 ### Alternative: Parallel Tracks
 
 **Track A** (Core Status):
 
-- P5200 (Lock) → P5300 (System) → P5400 (Tests)
+- P3700 (Lock) → P3800 (System) → P3900 (Tests)
 
 **Track B** (Operations):
 
-- P5500 (Generation) → P5600 (Rollback) → P5700 (Merge PR)
+- P4500 (Generation) → P4600 (Rollback) → P4700 (Merge PR)
 
 **Track C** (Documentation):
 
-- P5800 (Docs) - anytime after Track A completes
+- P4800 (Docs) - anytime after Track A completes
 
 ---
 
 ## Dependencies
 
 ```
-P5200 (Lock)
-  ├─→ P5300 (System) - infers from Lock status
-  ├─→ P5400 (Tests) - runs after System updates
-  └─→ P5700 (Merge PR) - updates Lock compartments
+P3700 (Lock)
+  ├─→ P3800 (System) - infers from Lock status
+  ├─→ P3900 (Tests) - runs after System updates
+  └─→ P4700 (Merge PR) - updates Lock compartments
 
-P5500 (Generation)
-  └─→ P5600 (Rollback) - shows generation history
+P4500 (Generation)
+  └─→ P4600 (Rollback) - shows generation history
 
-All → P5800 (Docs) - documents final system
+All → P4800 (Docs) - documents final system
 ```
 
 ---
@@ -275,13 +275,13 @@ All → P5800 (Docs) - documents final system
 
 | Phase              | Effort     | Priority    |
 | ------------------ | ---------- | ----------- |
-| P5200 - Lock       | 3-4h       | Must Have   |
-| P5300 - System     | 2-3h       | Must Have   |
-| P5400 - Tests      | 4-5h       | Must Have   |
-| P5500 - Generation | 2-3h       | Should Have |
-| P5600 - Rollback   | 3-4h       | Should Have |
-| P5700 - Merge PR   | 2-3h       | Should Have |
-| P5800 - Docs       | 1-2h       | Should Have |
+| P3700 - Lock       | 3-4h       | Must Have   |
+| P3800 - System     | 2-3h       | Must Have   |
+| P3900 - Tests      | 4-5h       | Must Have   |
+| P4500 - Generation | 2-3h       | Should Have |
+| P4600 - Rollback   | 3-4h       | Should Have |
+| P4700 - Merge PR   | 2-3h       | Should Have |
+| P4800 - Docs       | 1-2h       | Should Have |
 | **Total**          | **18-24h** |             |
 
 **Must Have**: 9-12 hours  
@@ -291,7 +291,7 @@ All → P5800 (Docs) - documents final system
 
 ## Next Steps
 
-1. Review and refine each backlog item (P5200-P5800)
+1. Review and refine each backlog item (P3700-P4800)
 2. Update PRD to reference this epic
 3. Create CORE-006 spec (Compartment Status System)
-4. Begin implementation with P5200 (Lock tracking)
+4. Begin implementation with P3700 (Lock tracking)

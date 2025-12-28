@@ -1,10 +1,10 @@
-# P5400 - Tests Compartment: Fifth Compartment
+# P3900 - Tests Compartment: Fifth Compartment
 
 **Created**: 2025-12-28  
-**Priority**: P5400 (High - Core Feature)  
+**Priority**: P3900 (🔴 Critical Path - Sprint 1)  
 **Status**: Backlog  
 **Effort**: 4-5 hours  
-**Depends on**: P5200, P5300
+**Depends on**: P3700, P3800
 
 ---
 

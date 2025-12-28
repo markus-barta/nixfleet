@@ -1,10 +1,10 @@
 # P3400: Frontend Simplification
 
-**Priority**: P3400 (🟡 High Priority - Sprint 2)  
+**Priority**: P5100 (🟢 After Compartment Epic)  
 **Status**: Backlog  
 **Effort**: Medium (2-3 days)  
-**Depends on**: P3010, P3200 (Op Engine + State Sync) - ✅ Done  
-**Updated**: 2025-12-28 (Priority maintained - do after P5000 compartment work)
+**Depends on**: P3010, P3200 (Op Engine + State Sync) - ✅ Done, Compartment Epic (P3700-P4800)  
+**Updated**: 2025-12-28 (Moved after compartment work - do when foundation is solid)
 
 ---
 

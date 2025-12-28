@@ -1,10 +1,10 @@
-# P5800 - Compartment State Documentation
+# P4800 - Compartment State Documentation
 
 **Created**: 2025-12-28  
-**Priority**: P5800 (Low - Documentation)  
+**Priority**: P4800 (🟡 High Priority - Sprint 2)  
 **Status**: Backlog  
 **Effort**: 1-2 hours  
-**Depends on**: P5200, P5300, P5400
+**Depends on**: P3700, P3800, P3900
 
 ---
 

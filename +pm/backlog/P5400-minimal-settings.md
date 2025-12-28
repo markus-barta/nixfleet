@@ -1,10 +1,10 @@
-# P6400a - Minimal Settings UI
+# P5400 - Minimal Settings UI
 
 **Created**: 2025-12-28 (Split from P6400)  
-**Priority**: P6400 (🟢 Medium Priority - Sprint 3)  
+**Priority**: P5400 (🟢 After Compartment Epic)  
 **Status**: Backlog  
 **Effort**: Small (1 day)  
-**Depends on**: P5400 (Tests Compartment)
+**Depends on**: P3900 (Tests Compartment)
 
 ---
 
@@ -140,5 +140,5 @@ INSERT INTO settings (key, value) VALUES
 
 ## Related
 
-- **P5400**: Tests Compartment (uses these settings)
-- **P6400b**: Full Settings UI (future enhancement)
+- **P3900**: Tests Compartment (uses these settings)
+- **P7600**: Full Settings UI (future enhancement)

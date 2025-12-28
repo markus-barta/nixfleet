@@ -1,10 +1,10 @@
-# P5500 - Generation Tracking and Visibility
+# P4500 - Generation Tracking and Visibility
 
 **Created**: 2025-12-28  
-**Priority**: P5500 (Medium - UX Enhancement)  
+**Priority**: P4500 (🟡 High Priority - Sprint 2)  
 **Status**: Backlog  
 **Effort**: 2-3 hours  
-**Depends on**: P5200, P5300
+**Depends on**: P3700, P3800
 
 ---
 

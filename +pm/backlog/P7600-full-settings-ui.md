@@ -1,12 +1,12 @@
-# P6400b - Full Settings UI
+# P7600 - Full Settings UI
 
 **Created**: 2025-12-15  
-**Updated**: 2025-12-28 (Split from P6400, renamed to P6400b)  
-**Priority**: P7500 (⚪ Low Priority - Future)  
+**Updated**: 2025-12-28 (Split from P6400, renamed to P7600)  
+**Priority**: P7600 (⚪ Low Priority - Future)  
 **Status**: Backlog  
-**Depends on**: P6400a (Minimal Settings)
+**Depends on**: P5400 (Minimal Settings)
 
-**Note**: This is the full settings page. For immediate needs (test configuration), see **P6400a - Minimal Settings UI**.
+**Note**: This is the full settings page. For immediate needs (test configuration), see **P5400 - Minimal Settings UI**.
 
 ---
 

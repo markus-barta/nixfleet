@@ -1,10 +1,10 @@
-# P5700 - Merge PR Workflow
+# P4700 - Merge PR Workflow
 
 **Created**: 2025-12-28  
-**Priority**: P5700 (Medium - Workflow Feature)  
+**Priority**: P4700 (🟡 High Priority - Sprint 2)  
 **Status**: Backlog  
 **Effort**: 2-3 hours  
-**Depends on**: P5200
+**Depends on**: P3700
 
 ---
 

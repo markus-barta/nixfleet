@@ -1,7 +1,7 @@
-# P5200 - Lock Compartment: Version-Based Tracking
+# P3700 - Lock Compartment: Version-Based Tracking
 
 **Created**: 2025-12-28  
-**Priority**: P5200 (High - Core Feature)  
+**Priority**: P3700 (🔴 Critical Path - Sprint 1)  
 **Status**: Backlog  
 **Effort**: 3-4 hours  
 **Depends on**: None

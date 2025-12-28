@@ -1,10 +1,10 @@
-# P5600 - Rollback Operations
+# P4600 - Rollback Operations
 
 **Created**: 2025-12-28  
-**Priority**: P5600 (Medium - Safety Feature)  
+**Priority**: P4600 (🟡 High Priority - Sprint 2)  
 **Status**: Backlog  
 **Effort**: 3-4 hours  
-**Depends on**: P5500
+**Depends on**: P4500
 
 ---
 
