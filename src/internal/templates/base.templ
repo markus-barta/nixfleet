@@ -595,16 +595,17 @@ templ Base(title string, csrfToken string) {
 			}
 		}
 
-		/* Heartbeat indicator for online hosts */
-		.status-ripple {
-			width: 12px;
-			height: 12px;
-			position: relative;
-			display: flex;
-			align-items: center;
-			justify-content: center;
-			color: var(--green);
-		}
+	/* Heartbeat indicator for online hosts */
+	.status-ripple {
+		width: 12px;
+		height: 12px;
+		position: relative;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		color: var(--green);
+		overflow: hidden; /* P1000-FIX: Prevent ripple animation from causing scrollbar wiggle */
+	}
 
 		.status-ripple .hb-core {
 			width: 8px;
@@ -1111,16 +1112,17 @@ templ Base(title string, csrfToken string) {
 			gap: 0.25rem;
 		}
 
-		/* For table cells: use flexbox for consistent status + badge alignment */
-		td.status-cell-with-badge {
-			vertical-align: middle;
-		}
+	/* For table cells: use flexbox for consistent status + badge alignment */
+	td.status-cell-with-badge {
+		vertical-align: middle;
+		overflow: hidden; /* P1000-FIX: Prevent ripple animation from causing scrollbar wiggle */
+	}
 
-		td.status-cell-with-badge .status-wrapper {
-			display: inline-flex;
-			align-items: center;
-			gap: 0.5rem;
-		}
+	td.status-cell-with-badge .status-wrapper {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.5rem;
+	}
 
 		.progress-badge-mini {
 			display: inline-flex;
