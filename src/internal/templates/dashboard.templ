@@ -38,6 +38,7 @@ type UpdateStatus struct {
 	Git     StatusCheck `json:"git"`
 	Lock    StatusCheck `json:"lock"`
 	System  StatusCheck `json:"system"`
+	Tests   StatusCheck `json:"tests"` // P3900: 5th compartment for test results
 	RepoURL string      `json:"repo_url"` // git repo URL (for Git tooltip)
 	RepoDir string      `json:"repo_dir"` // local repo path (for Git tooltip)
 }
@@ -153,11 +154,11 @@ templ Dashboard(data DashboardData) {
 						More
 					</button>
 				<div class="dropdown-menu" id="bulk-actions-menu" onkeydown="handleBulkMenuKeydown(event)">
-					<!-- P7000: Merge & Deploy moved here from global banner -->
+					<!-- P7000/P4700: Merge PR (no auto-deploy - deployment is manual) -->
 					if data.PendingPR != nil && data.PendingPR.Mergeable {
-						<button class="dropdown-item" onclick={ templ.ComponentScript{Call: fmt.Sprintf("mergeAndDeploy(%d); closeBulkMenu()", data.PendingPR.Number)} }>
-							<svg class="icon"><use href="#icon-check"></use></svg>
-							Merge & Deploy PR #{ strconv.Itoa(data.PendingPR.Number) }
+						<button class="dropdown-item" onclick={ templ.ComponentScript{Call: fmt.Sprintf("mergePROnly(%d); closeBulkMenu()", data.PendingPR.Number)} }>
+							<svg class="icon"><use href="#icon-git-merge"></use></svg>
+							Merge PR #{ strconv.Itoa(data.PendingPR.Number) }
 						</button>
 						<div class="dropdown-divider"></div>
 					}
@@ -236,7 +237,8 @@ templ Dashboard(data DashboardData) {
 					<th>Metrics</th>
 					<th class="col-right col-last-seen">Last Seen</th>
 					<th class="col-agent" title="Agent Version">Agent</th>
-					<th title="Git/Lock/System Status">Status</th>
+					<th class="col-gen" title="Configuration Generation (Git Commit)">Gen</th>
+					<th title="Agent/Git/Lock/System/Tests Status">Status</th>
 					<th class="col-menu"></th>
 				</tr>
 			</thead>
@@ -448,6 +450,34 @@ templ Dashboard(data DashboardData) {
 					<button class="modal-btn modal-btn-danger" id="rebootConfirmBtn" onclick="doReboot()" disabled>
 						<span id="rebootBtnText">Reboot</span>
 						<span id="rebootBtnSpinner" style="display: none;">Sending...</span>
+					</button>
+				</div>
+			</div>
+		</div>
+
+		<!-- P4600: Rollback System Modal -->
+		<div class="modal-overlay" id="rollbackModal">
+			<div class="modal">
+				<div class="modal-title">
+					<svg class="modal-icon" style="width:24px;height:24px;margin-right:8px;color:var(--warning)">
+						<use href="#icon-refresh"></use>
+					</svg>
+					Rollback System
+				</div>
+				<div class="modal-body">
+					<p class="rollback-info">
+						This will rollback <code id="rollbackHostName"></code> to the previous generation.
+					</p>
+					<p style="margin-top: 1rem; font-size: 0.9rem; color: var(--fg-muted);">
+						The system will revert to the last known working configuration.
+						<br/>Tests will need to be re-run after rollback.
+					</p>
+				</div>
+				<div class="modal-actions">
+					<button class="modal-btn modal-btn-cancel" onclick="closeRollbackModal()">Cancel</button>
+					<button class="modal-btn modal-btn-warning" id="rollbackConfirmBtn" onclick="doRollback()">
+						<span id="rollbackBtnText">Rollback</span>
+						<span id="rollbackBtnSpinner" style="display: none;">Rolling back...</span>
 					</button>
 				</div>
 			</div>
@@ -1700,10 +1730,11 @@ templ Dashboard(data DashboardData) {
 				sendCommand(hostId, 'refresh-system');
 			}
 
-			function mergeAndDeploy(prNumber) {
-				if (!confirm('Merge PR #' + prNumber + ' and deploy to all online hosts?')) return;
+			// P4700: Merge PR only (no auto-deploy - deployment is manual)
+			function mergePROnly(prNumber) {
+				if (!confirm('Merge PR #' + prNumber + '?\n\nThis will update flake.lock on GitHub.\nYou\'ll then need to Pull + Switch hosts manually.')) return;
 
-				fetch('/api/flake-updates/merge-and-deploy', {
+				fetch('/api/flake-updates/merge-pr', {
 					method: 'POST',
 					headers: {
 						'Content-Type': 'application/json',
@@ -1712,15 +1743,20 @@ templ Dashboard(data DashboardData) {
 					body: JSON.stringify({ pr_number: prNumber })
 				})
 				.then(resp => {
-					if (!resp.ok) throw new Error('Failed to start deployment');
+					if (!resp.ok) throw new Error('Failed to merge PR');
 					return resp.json();
 				})
 				.then(data => {
-					console.log('Deployment started:', data.job_id);
+					showToast('PR #' + prNumber + ' merged successfully. Pull + Switch hosts to deploy.', 'success');
 				})
 				.catch(err => {
-					alert('Failed to start deployment: ' + err.message);
+					alert('Failed to merge PR: ' + err.message);
 				});
+			}
+
+			// Legacy: keep for backwards compatibility
+			function mergeAndDeploy(prNumber) {
+				mergePROnly(prNumber);
 			}
 
 			function bulkCommand(command) {
@@ -2905,6 +2941,51 @@ templ Dashboard(data DashboardData) {
 				}
 			}
 
+			// ═══════════════════════════════════════════════════════════════════════════
+			// P4600: Rollback System Functions
+			// ═══════════════════════════════════════════════════════════════════════════
+			let pendingRollbackHostId = null;
+			let pendingRollbackHostname = null;
+
+			function showRollbackModal(hostId, hostname) {
+				pendingRollbackHostId = hostId;
+				pendingRollbackHostname = hostname;
+				document.getElementById('rollbackHostName').textContent = hostname;
+				document.getElementById('rollbackModal').classList.add('open');
+				document.querySelectorAll('.dropdown.open').forEach(d => d.classList.remove('open'));
+			}
+
+			function closeRollbackModal() {
+				document.getElementById('rollbackModal').classList.remove('open');
+				pendingRollbackHostId = null;
+				pendingRollbackHostname = null;
+			}
+
+			async function doRollback() {
+				if (!pendingRollbackHostId) return;
+
+				const confirmBtn = document.getElementById('rollbackConfirmBtn');
+				const btnText = document.getElementById('rollbackBtnText');
+				const btnSpinner = document.getElementById('rollbackBtnSpinner');
+
+				// Disable button and show loading state
+				confirmBtn.disabled = true;
+				btnText.style.display = 'none';
+				btnSpinner.style.display = 'inline';
+
+				try {
+					// Send rollback command via Op Engine
+					stateSync.dispatchOp(pendingRollbackHostId, 'rollback');
+					closeRollbackModal();
+					showToast(`Rollback command sent to ${pendingRollbackHostname}`, 'info');
+				} catch (err) {
+					showToast(`Failed to send rollback: ${err.message}`, 'error');
+					confirmBtn.disabled = false;
+					btnText.style.display = 'inline';
+					btnSpinner.style.display = 'none';
+				}
+			}
+
 			function openAddHostModal() {
 				document.getElementById('addHostModal').classList.add('open');
 			}
@@ -3500,9 +3581,10 @@ templ Dashboard(data DashboardData) {
 					},
 
 					// P2500: Merge and deploy PR
-					mergeAndDeployPR() {
+					// P4700: Renamed from mergeAndDeployPR to mergePR
+					mergePR() {
 						if (!this.pendingPR) return;
-						mergeAndDeploy(this.pendingPR.number);
+						mergePROnly(this.pendingPR.number);
 					},
 
 					// P2500: Get human-readable PR description for sysop context
@@ -3815,9 +3897,10 @@ templ ContextBar() {
 					<span class="pr-label">PR #<span x-text="pendingPR.number"></span></span>
 					<span class="pr-detail" x-text="getPRDescription()"></span>
 				</div>
-				<button class="btn btn-merge" @click="mergeAndDeployPR()">
+				<!-- P4700: Renamed from "Merge & Deploy" to "Merge PR" - deployment is manual -->
+				<button class="btn btn-merge" @click="mergePR()">
 					<svg class="icon"><use href="#icon-git-merge"></use></svg>
-					<span>Merge & Deploy</span>
+					<span>Merge PR</span>
 				</button>
 			</div>
 		</template>
@@ -4183,6 +4266,10 @@ templ HostRow(host Host, csrfToken string) {
 		<td class="agent-version-cell" data-cell="agent-version">
 			@AgentVersionCell(host)
 		</td>
+		<!-- P4500: Generation column -->
+		<td class="gen-cell" data-cell="generation">
+			@GenerationCell(host)
+		</td>
 		<td class="status-cell" data-cell="status">
 			@UpdateStatusCell(host)
 		</td>
@@ -4421,6 +4508,20 @@ templ AgentVersionCell(host Host) {
 	</span>
 }
 
+// P4500: GenerationCell renders the configuration generation (git commit hash)
+templ GenerationCell(host Host) {
+	if host.Generation != "" {
+		<span 
+			class={ generationCellClass(host) }
+			title={ generationTooltip(host) }
+		>
+			{ shortGeneration(host.Generation) }
+		</span>
+	} else {
+		<span class="gen-unknown">—</span>
+	}
+}
+
 // UpdateStatusCell renders the status compartments (Agent/Git/Lock/System)
 // P7300: Single dot per compartment with 5 color states
 // Colors: gray (unchecked), blue-pulse (working), green (ok), yellow (warning), red (error)
@@ -4505,6 +4606,23 @@ templ UpdateStatusCell(host Host) {
 				<svg class="update-icon"><use href="#icon-nixos"></use></svg>
 			}
 			<span class={ compartmentIndicatorClass(host.UpdateStatus, "system") }></span>
+		</button>
+		<!-- P3900: Tests compartment (5th) -->
+		<button
+			type="button"
+			class={ testsCompartmentButtonClass(host) }
+			data-host-id={ host.ID }
+			data-hostname={ host.Hostname }
+			data-compartment="tests"
+			data-status={ getTestsStatus(host) }
+			data-action={ getTestsActionType(host) }
+			data-description={ testsContextDescription(host) }
+			onmouseenter="handleCompartmentHover(this)"
+			onmouseleave="handleCompartmentLeave()"
+			onclick="handleCompartmentClick(this)"
+		>
+			<svg class="update-icon"><use href="#icon-flask"></use></svg>
+			<span class={ testsIndicatorClass(host) }></span>
 		</button>
 	</div>
 }
@@ -4599,6 +4717,16 @@ templ ActionDropdown(host Host) {
 		>
 			<svg class="icon"><use href="#icon-refresh-cw"></use></svg>
 			<span>Restart Agent</span>
+		</button>
+		<!-- P4600: Rollback System (to previous generation) -->
+		<button
+			type="button"
+			class="dropdown-item warning"
+			onclick={ showRollbackModalScript(host.ID, host.Hostname) }
+			disabled?={ !host.Online }
+		>
+			<svg class="icon"><use href="#icon-refresh"></use></svg>
+			<span>Rollback System</span>
 		</button>
 		<!-- P6900: Reboot Host (requires TOTP) -->
 		<button
@@ -4724,6 +4852,11 @@ func openColorPickerScript(hostID, hostname, currentColor string) templ.Componen
 // P6900: Open reboot confirmation modal with TOTP
 func showRebootModalScript(hostID, hostname string) templ.ComponentScript {
 	return templ.ComponentScript{Call: fmt.Sprintf("showRebootModal('%s', '%s')", hostID, hostname)}
+}
+
+// P4600: Open rollback confirmation modal
+func showRollbackModalScript(hostID, hostname string) templ.ComponentScript {
+	return templ.ComponentScript{Call: fmt.Sprintf("showRollbackModal('%s', '%s')", hostID, hostname)}
 }
 
 // DeleteButton renders a delete button for offline hosts
@@ -5156,31 +5289,35 @@ func gitContextDescription(host Host) string {
 }
 
 // lockContextDescription returns a short description for context bar (flake.lock status)
+// P3700: lockContextDescription now uses version-based status
 func lockContextDescription(host Host) string {
 	status := host.UpdateStatus
 	if status == nil {
-		return "Checking dependencies..."
+		return "Checking flake.lock..."
 	}
 	check := status.Lock
 	switch check.Status {
 	case "ok":
-		return fmt.Sprintf("Dependencies up to date (flake.lock synced)")
+		// Version-based: exact match with latest
+		return "flake.lock is current"
 	case "outdated":
+		// Version-based: hash mismatch with latest
 		if check.Message != "" {
 			return check.Message
 		}
-		return "flake.lock outdated — merge PR to update dependencies"
+		return "flake.lock outdated — run Pull to update"
 	case "error":
 		if check.Message != "" {
 			return check.Message
 		}
 		return "Lock check failed"
 	default:
-		return "Checking dependencies..."
+		return "Checking flake.lock..."
 	}
 }
 
 // systemContextDescription returns a short description for context bar
+// P3800: systemContextDescription now uses inference-based messages
 func systemContextDescription(host Host) string {
 	status := host.UpdateStatus
 	isMac := host.HostType == "macos"
@@ -5194,30 +5331,33 @@ func systemContextDescription(host Host) string {
 	switch check.Status {
 	case "ok":
 		if host.Generation != "" {
-			return fmt.Sprintf("Configuration applied (gen %s)", host.Generation)
+			return fmt.Sprintf("System current (gen %s)", host.Generation)
 		}
 		if isMac {
-			return "Home Manager up to date"
+			return "Home Manager is current"
 		}
-		return "System up to date"
+		return "System is current"
 	case "outdated":
 		if check.Message != "" {
 			return check.Message
 		}
 		if isMac {
-			return "Home Manager changed — click to switch"
+			return "Home Manager outdated — run Switch"
 		}
-		return "Config changed — click to switch"
+		return "System outdated — run Switch"
 	case "error":
 		if check.Message != "" {
 			return check.Message
 		}
-		return "System check failed"
+		if isMac {
+			return "Home Manager switch failed"
+		}
+		return "Switch failed"
 	default:
 		if isMac {
-			return "Checking Home Manager..."
+			return "Home Manager status unknown"
 		}
-		return "Checking system..."
+		return "System status unknown"
 	}
 }
 
@@ -5233,6 +5373,125 @@ func formatStatus(status string) string {
 	default:
 		return "? Unknown"
 	}
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// P3900: Tests Compartment Helper Functions
+// ═══════════════════════════════════════════════════════════════════════════
+
+// testsCompartmentButtonClass returns CSS classes for Tests compartment button
+func testsCompartmentButtonClass(host Host) string {
+	base := "compartment-btn"
+	if host.UpdateStatus == nil {
+		return base + " unknown"
+	}
+	if host.UpdateStatus.Tests.Status == "" || host.UpdateStatus.Tests.Status == "unknown" {
+		return base + " unknown"
+	}
+	return base
+}
+
+// getTestsStatus returns status string for Tests compartment
+func getTestsStatus(host Host) string {
+	if host.UpdateStatus == nil {
+		return "unknown"
+	}
+	if host.UpdateStatus.Tests.Status == "" {
+		return "unknown"
+	}
+	return host.UpdateStatus.Tests.Status
+}
+
+// getTestsActionType returns action type for Tests compartment
+func getTestsActionType(host Host) string {
+	if host.UpdateStatus == nil || host.UpdateStatus.Tests.Status == "" {
+		return "test"
+	}
+	switch host.UpdateStatus.Tests.Status {
+	case "ok":
+		return "info" // Tests passed, just show info
+	case "outdated":
+		return "test" // Tests not run yet, offer to run
+	case "error":
+		return "test" // Tests failed, offer to re-run
+	case "working":
+		return "info" // Tests running, just show info
+	default:
+		return "test"
+	}
+}
+
+// testsIndicatorClass returns CSS class for Tests indicator dot
+func testsIndicatorClass(host Host) string {
+	base := "compartment-indicator"
+	if host.UpdateStatus == nil {
+		return base + " compartment-indicator--gray"
+	}
+	switch host.UpdateStatus.Tests.Status {
+	case "ok":
+		return base + " compartment-indicator--ok"
+	case "outdated":
+		return base + " compartment-indicator--warning"
+	case "error":
+		return base + " compartment-indicator--error"
+	case "working":
+		return base + " compartment-indicator--working"
+	default:
+		return base + " compartment-indicator--gray"
+	}
+}
+
+// testsContextDescription returns a short description for context bar
+func testsContextDescription(host Host) string {
+	if host.UpdateStatus == nil {
+		return "Tests not configured"
+	}
+	check := host.UpdateStatus.Tests
+	switch check.Status {
+	case "ok":
+		if check.Message != "" {
+			return check.Message
+		}
+		return "All tests passed"
+	case "outdated":
+		return "Tests not run — run Test to verify system"
+	case "error":
+		if check.Message != "" {
+			return check.Message
+		}
+		return "Tests failed"
+	case "working":
+		return "Tests running..."
+	default:
+		return "Tests not configured"
+	}
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// P4500: Generation Tracking Helper Functions
+// ═══════════════════════════════════════════════════════════════════════════
+
+// shortGeneration returns first 7 chars of generation hash
+func shortGeneration(gen string) string {
+	if len(gen) >= 7 {
+		return gen[:7]
+	}
+	return gen
+}
+
+// generationCellClass returns CSS classes for generation cell
+func generationCellClass(host Host) string {
+	base := "gen-hash"
+	// Future: Add gen-drift class if generation differs from fleet majority
+	return base
+}
+
+// generationTooltip returns full tooltip for generation
+func generationTooltip(host Host) string {
+	if host.Generation == "" {
+		return "Generation unknown"
+	}
+	return "Configuration: " + host.Generation
 }
 
 // formatTimestamp formats an ISO timestamp for display
@@ -5257,6 +5516,8 @@ func updateStatusJSON(status *UpdateStatus, compartment string) string {
 		check = status.Lock
 	case "system":
 		check = status.System
+	case "tests":
+		check = status.Tests
 	}
 	data, err := json.Marshal(check)
 	if err != nil {

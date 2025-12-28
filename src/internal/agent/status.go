@@ -13,13 +13,14 @@ import (
 	"github.com/markus-barta/nixfleet/internal/protocol"
 )
 
-// StatusChecker handles update status checks for Lock and System compartments.
+// StatusChecker handles update status checks for Lock, System, and Tests compartments.
 type StatusChecker struct {
 	a *Agent
 
 	// Cached status
 	lockStatus   protocol.StatusCheck
 	systemStatus protocol.StatusCheck
+	testsStatus  protocol.StatusCheck // P3900: Tests compartment
 
 	// Last check times
 	lastLockCheck   time.Time
@@ -68,6 +69,7 @@ func (s *StatusChecker) GetStatus(ctx context.Context) *protocol.UpdateStatus {
 		// Git is computed dashboard-side
 		Lock:   s.lockStatus,
 		System: s.systemStatus, // Returns cached/unknown until explicit refresh
+		Tests:  s.testsStatus,  // P3900: Tests compartment status
 	}
 }
 
@@ -123,6 +125,61 @@ func (s *StatusChecker) SetSystemOutdated(message string) {
 		CheckedAt: time.Now().UTC().Format(time.RFC3339),
 	}
 	s.lastSystemCheck = time.Now()
+}
+
+// P3800: SetSystemError sets the system status to "error" without running the expensive check.
+// Called after a failed switch to indicate the system is in an error state.
+func (s *StatusChecker) SetSystemError(message string) {
+	s.systemStatus = protocol.StatusCheck{
+		Status:    "error",
+		Message:   message,
+		CheckedAt: time.Now().UTC().Format(time.RFC3339),
+	}
+	s.lastSystemCheck = time.Now()
+}
+
+// P3900: Tests compartment status methods
+
+// SetTestsOk sets the tests status to "ok" after all tests pass.
+func (s *StatusChecker) SetTestsOk(message string) {
+	s.testsStatus = protocol.StatusCheck{
+		Status:    "ok",
+		Message:   message,
+		CheckedAt: time.Now().UTC().Format(time.RFC3339),
+	}
+}
+
+// SetTestsOutdated sets the tests status to "outdated" (not run yet).
+// Called after a successful switch to indicate tests need to be run.
+func (s *StatusChecker) SetTestsOutdated(message string) {
+	s.testsStatus = protocol.StatusCheck{
+		Status:    "outdated",
+		Message:   message,
+		CheckedAt: time.Now().UTC().Format(time.RFC3339),
+	}
+}
+
+// SetTestsError sets the tests status to "error" after tests fail.
+func (s *StatusChecker) SetTestsError(message string) {
+	s.testsStatus = protocol.StatusCheck{
+		Status:    "error",
+		Message:   message,
+		CheckedAt: time.Now().UTC().Format(time.RFC3339),
+	}
+}
+
+// SetTestsWorking sets the tests status to "working" while tests are running.
+func (s *StatusChecker) SetTestsWorking() {
+	s.testsStatus = protocol.StatusCheck{
+		Status:    "working",
+		Message:   "Tests running...",
+		CheckedAt: time.Now().UTC().Format(time.RFC3339),
+	}
+}
+
+// GetTestsStatus returns the current tests status.
+func (s *StatusChecker) GetTestsStatus() protocol.StatusCheck {
+	return s.testsStatus
 }
 
 // checkLockStatus checks how recently the flake.lock was updated.

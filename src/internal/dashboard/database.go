@@ -149,6 +149,14 @@ func createTables(db *sql.DB) error {
 		_, _ = db.Exec(m)
 	}
 
+	// P3700: Add lock_hash column for version-based Lock compartment tracking
+	lockHashMigrations := []string{
+		`ALTER TABLE hosts ADD COLUMN lock_hash TEXT`,
+	}
+	for _, m := range lockHashMigrations {
+		_, _ = db.Exec(m)
+	}
+
 	return nil
 }
 

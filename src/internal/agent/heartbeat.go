@@ -1,6 +1,8 @@
 package agent
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -48,6 +50,9 @@ func (a *Agent) sendHeartbeat() {
 	// Get binary freshness data (P2810)
 	freshness := GetFreshness()
 
+	// P3700: Compute lock hash for version-based Lock compartment tracking
+	lockHash := a.computeLockHash()
+
 	payload := protocol.HeartbeatPayload{
 		Generation:     a.generation,
 		NixpkgsVersion: a.nixpkgsVersion,
@@ -59,6 +64,8 @@ func (a *Agent) sendHeartbeat() {
 		SourceCommit: freshness.SourceCommit,
 		StorePath:    freshness.StorePath,
 		BinaryHash:   freshness.BinaryHash,
+		// P3700: Lock version tracking
+		LockHash: lockHash,
 	}
 
 	if err := a.ws.SendMessage(protocol.TypeHeartbeat, payload); err != nil {
@@ -188,6 +195,24 @@ func (a *Agent) detectNixpkgsVersion() string {
 
 	// Fallback: return empty
 	return ""
+}
+
+// P3700: computeLockHash computes SHA256 hash of flake.lock content.
+// This is cheap (<1ms) and provides 100% accurate version tracking.
+func (a *Agent) computeLockHash() string {
+	if a.cfg.RepoDir == "" {
+		return ""
+	}
+
+	lockPath := filepath.Join(a.cfg.RepoDir, "flake.lock")
+	data, err := os.ReadFile(lockPath)
+	if err != nil {
+		a.log.Debug().Err(err).Msg("failed to read flake.lock for hash")
+		return ""
+	}
+
+	hash := sha256.Sum256(data)
+	return hex.EncodeToString(hash[:])
 }
 
 // detectGeneration returns the current git commit hash of the deployed config.

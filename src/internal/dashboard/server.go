@@ -257,7 +257,8 @@ func (s *Server) setupRouter() {
 			r.Route("/flake-updates", func(r chi.Router) {
 				r.Get("/status", s.handleFlakeUpdateStatus)
 				r.Post("/check", s.handleFlakeUpdateCheck)
-				r.Post("/merge-and-deploy", s.handleMergeAndDeploy)
+				r.Post("/merge-and-deploy", s.handleMergeAndDeploy) // Legacy
+				r.Post("/merge-pr", s.handleMergePR)                // P4700: Merge only (no deploy)
 			})
 
 			// v3 Op Engine API (CORE-001 through CORE-004)

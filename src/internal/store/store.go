@@ -80,6 +80,7 @@ func runMigrations(db *sql.DB) error {
 		repo_dir     TEXT,
 		lock_status_json TEXT,
 		system_status_json TEXT,
+		lock_hash    TEXT,
 		created_at   DATETIME DEFAULT CURRENT_TIMESTAMP
 	);
 

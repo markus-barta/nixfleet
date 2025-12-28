@@ -15,6 +15,8 @@ type RemoteVersion struct {
 	Branch    string `json:"branch"`
 	Timestamp string `json:"timestamp"`
 	Repo      string `json:"repo"`
+	// P3700: Lock version tracking
+	LockHash string `json:"lockHash"`
 }
 
 // VersionFetcher periodically fetches version info from a remote URL.
@@ -150,5 +152,55 @@ func (vf *VersionFetcher) HasData() bool {
 // P2800: ForceRefresh triggers an immediate fetch of version data.
 func (vf *VersionFetcher) ForceRefresh() {
 	vf.fetch()
+}
+
+// P3700: GetLockStatus compares the given lock hash with the latest.
+// Returns: status ("ok", "outdated", "unknown"), message string, checkedAt timestamp
+func (vf *VersionFetcher) GetLockStatus(agentLockHash string) (status, message, checkedAt string) {
+	vf.mu.RLock()
+	defer vf.mu.RUnlock()
+
+	checkedAt = time.Now().UTC().Format(time.RFC3339)
+
+	if vf.cached == nil {
+		return "unknown", "Version tracking not available", checkedAt
+	}
+
+	latestHash := vf.cached.LockHash
+	if latestHash == "" {
+		return "unknown", "No lockHash in version.json", checkedAt
+	}
+
+	if agentLockHash == "" {
+		return "unknown", "Agent has not reported lock hash", checkedAt
+	}
+
+	// Exact hash comparison for 100% accuracy
+	if agentLockHash == latestHash {
+		return "ok", "flake.lock is current", checkedAt
+	}
+
+	// Show short hashes for readability
+	latestShort := latestHash
+	if len(latestShort) > 8 {
+		latestShort = latestShort[:8]
+	}
+	agentShort := agentLockHash
+	if len(agentShort) > 8 {
+		agentShort = agentShort[:8]
+	}
+
+	message = "flake.lock outdated (host: " + agentShort + ", latest: " + latestShort + ")"
+	return "outdated", message, checkedAt
+}
+
+// P3700: GetLatestLockHash returns the latest lock hash, or empty if not available.
+func (vf *VersionFetcher) GetLatestLockHash() string {
+	vf.mu.RLock()
+	defer vf.mu.RUnlock()
+	if vf.cached == nil {
+		return ""
+	}
+	return vf.cached.LockHash
 }
 

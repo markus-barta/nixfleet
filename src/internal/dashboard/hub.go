@@ -804,17 +804,55 @@ func (h *Hub) handleHeartbeat(hostID string, payload protocol.HeartbeatPayload) 
 		}
 	}
 
-	// Serialize update status to JSON if available
+	// P3700: Compute Lock status from hash comparison (version-based, not time-based)
+	var lockStatus protocol.StatusCheck
+	if h.versionFetcher != nil && payload.LockHash != "" {
+		status, msg, checked := h.versionFetcher.GetLockStatus(payload.LockHash)
+		lockStatus = protocol.StatusCheck{
+			Status:    status,
+			Message:   msg,
+			CheckedAt: checked,
+		}
+	} else if payload.UpdateStatus != nil && payload.UpdateStatus.Lock.Status != "" {
+		// Fallback to agent's time-based status if no lock hash or version fetcher
+		lockStatus = payload.UpdateStatus.Lock
+	}
+
+	// P3800: Compute System status with inference
+	// Rule: If Lock is outdated → System MUST be outdated (can't be current with old deps)
+	var systemStatus protocol.StatusCheck
+	if payload.UpdateStatus != nil && payload.UpdateStatus.System.Status != "" {
+		systemStatus = payload.UpdateStatus.System
+	}
+	// P3800: Override system status if lock is outdated
+	if lockStatus.Status == "outdated" && systemStatus.Status == "ok" {
+		// Lock outdated means system can't be current - override to outdated
+		systemStatus = protocol.StatusCheck{
+			Status:    "outdated",
+			Message:   "System outdated (flake.lock is behind)",
+			CheckedAt: lockStatus.CheckedAt,
+		}
+	}
+
+	// Serialize update status to JSON
 	var lockStatusJSON, systemStatusJSON *string
-	if payload.UpdateStatus != nil {
-		if data, err := json.Marshal(payload.UpdateStatus.Lock); err == nil {
+	if lockStatus.Status != "" {
+		if data, err := json.Marshal(lockStatus); err == nil {
 			s := string(data)
 			lockStatusJSON = &s
 		}
-		if data, err := json.Marshal(payload.UpdateStatus.System); err == nil {
+	}
+	if systemStatus.Status != "" {
+		if data, err := json.Marshal(systemStatus); err == nil {
 			s := string(data)
 			systemStatusJSON = &s
 		}
+	}
+
+	// P3700: Store lock_hash in database
+	var lockHashPtr *string
+	if payload.LockHash != "" {
+		lockHashPtr = &payload.LockHash
 	}
 
 	// Update host last_seen and status in database
@@ -827,9 +865,10 @@ func (h *Hub) handleHeartbeat(hostID string, payload protocol.HeartbeatPayload) 
 			pending_command = ?,
 			metrics_json = ?,
 			lock_status_json = ?,
-			system_status_json = ?
+			system_status_json = ?,
+			lock_hash = ?
 		WHERE hostname = ?
-	`, payload.Generation, payload.NixpkgsVersion, payload.PendingCommand, metricsJSON, lockStatusJSON, systemStatusJSON, hostID)
+	`, payload.Generation, payload.NixpkgsVersion, payload.PendingCommand, metricsJSON, lockStatusJSON, systemStatusJSON, lockHashPtr, hostID)
 
 	if err != nil {
 		h.log.Error().Err(err).Str("host", hostID).Msg("failed to update heartbeat")
@@ -838,6 +877,7 @@ func (h *Hub) handleHeartbeat(hostID string, payload protocol.HeartbeatPayload) 
 	h.log.Debug().
 		Str("host", hostID).
 		Str("generation", payload.Generation).
+		Str("lock_hash", payload.LockHash).
 		Msg("heartbeat received")
 
 	// P2810: Update agent freshness (for pre-switch snapshot capture)
@@ -861,14 +901,13 @@ func (h *Hub) handleHeartbeat(hostID string, payload protocol.HeartbeatPayload) 
 	updateStatus := map[string]any{
 		"git": gitStatus,
 	}
-	if payload.UpdateStatus != nil {
-		// Check if Lock/System have meaningful data (Status field is set)
-		if payload.UpdateStatus.Lock.Status != "" {
-			updateStatus["lock"] = payload.UpdateStatus.Lock
-		}
-		if payload.UpdateStatus.System.Status != "" {
-			updateStatus["system"] = payload.UpdateStatus.System
-		}
+	// P3700: Always use the computed lockStatus (version-based)
+	if lockStatus.Status != "" {
+		updateStatus["lock"] = lockStatus
+	}
+	// P3800: Use inferred systemStatus
+	if systemStatus.Status != "" {
+		updateStatus["system"] = systemStatus
 	}
 
 	// v3: Notify lifecycle manager of heartbeat for deferred post-checks

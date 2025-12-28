@@ -1,116 +1,306 @@
 # Understanding Flake Updates in NixFleet
 
-## The Three Compartments Explained
+## The Five Compartments Explained
+
+NixFleet uses a **five-stage pipeline** to track your fleet's state:
 
 ```
-┌──────────┬──────────┬──────────┐
-│   Git    │   Lock   │  System  │
-└──────────┴──────────┴──────────┘
+┌─────────┬─────────┬─────────┬─────────┬─────────┐
+│  Agent  │   Git   │  Lock   │ System  │  Tests  │
+└─────────┴─────────┴─────────┴─────────┴─────────┘
 ```
 
-### 🔀 Git Compartment
+Each compartment answers a specific question:
 
-**Question it answers:** "Is my local repo up to date with GitHub?"
+| #   | Compartment | Question                                  | Managed By              |
+| --- | ----------- | ----------------------------------------- | ----------------------- |
+| 1   | **Agent**   | Is my nixfleet-agent binary current?      | Dashboard version check |
+| 2   | **Git**     | Is my local repo up to date with GitHub?  | GitHub API comparison   |
+| 3   | **Lock**    | Are my dependencies (flake.lock) current? | Content hash comparison |
+| 4   | **System**  | Is my running system current?             | Inferred from commands  |
+| 5   | **Tests**   | Is my system actually working?            | Test execution results  |
 
-- **Green**: Local repo matches `origin/main`
-- **Yellow**: Local repo is behind (need to `git pull`)
+### Compartment States
 
-**How it works:** Dashboard compares the agent's reported generation (commit hash) with the latest commit on GitHub.
+| Color     | Meaning               | Action              |
+| --------- | --------------------- | ------------------- |
+| 🟢 Green  | Current / Passed      | No action needed    |
+| 🟡 Yellow | Outdated / Not run    | Update needed       |
+| 🔴 Red    | Failed / Error        | Fix required        |
+| 🔵 Blue   | Working / In progress | Wait for completion |
+| ⚪ Gray   | Unknown / Disabled    | Check configuration |
 
 ---
 
-### 🔒 Lock Compartment
+## Common Scenarios
 
-**Question it answers:** "How old is my `flake.lock` file?"
-
-- **Green**: Updated within the last 7 days
-- **Yellow (8-30 days)**: Consider updating
-- **Yellow (>30 days)**: Needs update
-
-**What is `flake.lock`?**
+### Scenario 1: Everything Current ✓
 
 ```
-nixcfg/
-├── flake.nix          ← Defines WHAT inputs you use (nixpkgs, home-manager, etc.)
-└── flake.lock         ← Pins WHICH VERSION of each input (specific git commits)
+┌─────────┬─────────┬─────────┬─────────┬─────────┐
+│  Agent  │   Git   │  Lock   │ System  │  Tests  │
+│   🟢    │   🟢    │   🟢    │   🟢    │   🟢    │
+└─────────┴─────────┴─────────┴─────────┴─────────┘
 ```
 
-The `flake.lock` is like a `package-lock.json` or `Cargo.lock` — it freezes your dependencies to specific versions.
+**Meaning**: All up to date, system working correctly  
+**Action**: None - enjoy your day ☕
 
-**Why update it?**
+### Scenario 2: Config Updated on GitHub
 
-- Get security patches from nixpkgs
-- Get new package versions
-- Get bug fixes from home-manager, etc.
+```
+┌─────────┬─────────┬─────────┬─────────┬─────────┐
+│  Agent  │   Git   │  Lock   │ System  │  Tests  │
+│   🟢    │   🟡    │   🟢    │   🟢    │   🟢    │
+└─────────┴─────────┴─────────┴─────────┴─────────┘
+```
+
+**Meaning**: New config available on GitHub (you or someone else pushed)  
+**Action**: Click Git → Pull
+
+### Scenario 3: After Pull
+
+```
+┌─────────┬─────────┬─────────┬─────────┬─────────┐
+│  Agent  │   Git   │  Lock   │ System  │  Tests  │
+│   🟢    │   🟢    │   🟢    │   🟡    │   🟢    │
+└─────────┴─────────┴─────────┴─────────┴─────────┘
+```
+
+**Meaning**: Pulled new config, but not yet applied  
+**Action**: Click System → Switch
+
+### Scenario 4: After Switch
+
+```
+┌─────────┬─────────┬─────────┬─────────┬─────────┐
+│  Agent  │   Git   │  Lock   │ System  │  Tests  │
+│   🟢    │   🟢    │   🟢    │   🟢    │   🟡    │
+└─────────┴─────────┴─────────┴─────────┴─────────┘
+```
+
+**Meaning**: Switch succeeded, tests not run yet  
+**Action**: Click Tests → Run Tests (or wait for auto-run)
+
+### Scenario 5: Lock Outdated (PR Merged)
+
+```
+┌─────────┬─────────┬─────────┬─────────┬─────────┐
+│  Agent  │   Git   │  Lock   │ System  │  Tests  │
+│   🟢    │   🟢    │   🟡    │   🟢    │   🟢    │
+└─────────┴─────────┴─────────┴─────────┴─────────┘
+```
+
+**Meaning**: New flake.lock available (PR merged on GitHub)  
+**Action**: Click Git → Pull (to get new flake.lock)
+
+### Scenario 6: Agent Outdated
+
+```
+┌─────────┬─────────┬─────────┬─────────┬─────────┐
+│  Agent  │   Git   │  Lock   │ System  │  Tests  │
+│   🔴    │   🟢    │   🟢    │   🟢    │   🟢    │
+└─────────┴─────────┴─────────┴─────────┴─────────┘
+```
+
+**Meaning**: Agent binary is outdated (dashboard was updated)  
+**Action**: Pull + Switch (this updates the agent binary)
+
+### Scenario 7: Switch Failed ⚠️
+
+```
+┌─────────┬─────────┬─────────┬─────────┬─────────┐
+│  Agent  │   Git   │  Lock   │ System  │  Tests  │
+│   🟢    │   🟢    │   🟢    │   🔴    │   🟢    │
+└─────────┴─────────┴─────────┴─────────┴─────────┘
+```
+
+**Meaning**: Switch command failed (config error)  
+**Action**: Click System → View logs, fix config error
+
+### Scenario 8: Tests Failed ⚠️
+
+```
+┌─────────┬─────────┬─────────┬─────────┬─────────┐
+│  Agent  │   Git   │  Lock   │ System  │  Tests  │
+│   🟢    │   🟢    │   🟢    │   🟢    │   🔴    │
+└─────────┴─────────┴─────────┴─────────┴─────────┘
+```
+
+**Meaning**: Switch succeeded, but system is broken  
+**Action**: Host → ⋮ → Rollback System
+
+### Scenario 9: During Update (In Progress)
+
+```
+┌─────────┬─────────┬─────────┬─────────┬─────────┐
+│  Agent  │   Git   │  Lock   │ System  │  Tests  │
+│   🟢    │   🔵    │   🟢    │   🟢    │   🟢    │
+└─────────┴─────────┴─────────┴─────────┴─────────┘
+```
+
+**Meaning**: Pull command is running  
+**Action**: Wait for completion
+
+### Scenario 10: Everything Broken (Oh No!)
+
+```
+┌─────────┬─────────┬─────────┬─────────┬─────────┐
+│  Agent  │   Git   │  Lock   │ System  │  Tests  │
+│   🔴    │   🟡    │   🟡    │   🔴    │   🔴    │
+└─────────┴─────────┴─────────┴─────────┴─────────┘
+```
+
+**Meaning**: Multiple issues, system in bad state  
+**Action**: Rollback System, then investigate logs
 
 ---
 
-### ❄️ System Compartment
+## Complete Update Flow
 
-**Question it answers:** "Does my running system match what the config would build?"
+### Normal Weekly Update
 
-- **Green**: Running system = what flake would build
-- **Yellow**: Running system is outdated (need to `switch`)
+```
+Week 1: GitHub Action runs
+↓
+┌─────────┬─────────┬─────────┬─────────┬─────────┐
+│   🟢    │   🟢    │   🟢    │   🟢    │   🟢    │
+└─────────┴─────────┴─────────┴─────────┴─────────┘
 
-**How it works:** Compares `/run/current-system` with `nix build --dry-run` output.
+GitHub Action creates PR with new flake.lock
+↓
+┌─────────┬─────────┬─────────┬─────────┬─────────┐
+│   🟢    │   🟢    │   🟡    │   🟢    │   🟢    │  <- Lock yellow (PR pending)
+└─────────┴─────────┴─────────┴─────────┴─────────┘
+
+You click "Merge PR" in dashboard
+↓
+┌─────────┬─────────┬─────────┬─────────┬─────────┐
+│   🟢    │   🟡    │   🟡    │   🟢    │   🟢    │  <- Git yellow (PR merged)
+└─────────┴─────────┴─────────┴─────────┴─────────┘
+
+You click "Pull" on host
+↓
+┌─────────┬─────────┬─────────┬─────────┬─────────┐
+│   🟢    │   🟢    │   🟢    │   🟡    │   🟢    │  <- System yellow (need switch)
+└─────────┴─────────┴─────────┴─────────┴─────────┘
+
+You click "Switch" on host
+↓
+┌─────────┬─────────┬─────────┬─────────┬─────────┐
+│   🟢    │   🟢    │   🟢    │   🟢    │   🟡    │  <- Tests yellow (need run)
+└─────────┴─────────┴─────────┴─────────┴─────────┘
+
+Tests auto-run and pass
+↓
+┌─────────┬─────────┬─────────┬─────────┬─────────┐
+│   🟢    │   🟢    │   🟢    │   🟢    │   🟢    │  <- All good! ✓
+└─────────┴─────────┴─────────┴─────────┴─────────┘
+```
 
 ---
 
-## The Update Workflow (Current - Manual)
+## Troubleshooting
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│  1. GitHub Action runs weekly                                   │
-│     └── Runs `nix flake update` (bumps all inputs)              │
-│     └── Creates a PR with the new flake.lock                    │
-│                                                                 │
-│  2. You manually review and merge the PR on GitHub              │
-│                                                                 │
-│  3. You click "Pull" in NixFleet dashboard                      │
-│     └── Each host does `git pull` to get new flake.lock         │
-│                                                                 │
-│  4. You click "Switch" in NixFleet dashboard                    │
-│     └── Each host rebuilds with new packages                    │
-└─────────────────────────────────────────────────────────────────┘
-```
+### Agent Compartment
 
-### The Pain Points
+#### Problem: Agent shows red (outdated)
 
-1. **The Lock compartment only sees the deployed flake.lock**
-   - It doesn't know there's a PR waiting on GitHub
-   - It just measures "how old is the file I have"
+**Cause**: Dashboard was updated, agent binary is old  
+**Fix**: Pull + Switch (this updates agent binary)  
+**Note**: On macOS, may need "Restart Agent" after switch
 
-2. **You have to manually merge the PR**
-   - Go to GitHub → find the PR → review → merge
-   - Then go back to NixFleet → Pull → Switch
+#### Problem: Agent shows gray (unknown)
 
-3. **No visibility into pending updates**
-   - Dashboard doesn't show "hey, there's an update PR waiting"
+**Cause**: Host offline or never connected  
+**Fix**: Check host connectivity, restart agent
 
 ---
 
-## The Ideal Workflow (P4300 Goal)
+### Git Compartment
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│  1. GitHub Action creates update PR (same as before)            │
-│                                                                 │
-│  2. NixFleet dashboard detects the PR                           │
-│     └── Lock compartment shows "Update PR pending"              │
-│     └── Badge or notification appears                           │
-│                                                                 │
-│  3. You click "Merge & Deploy" in NixFleet                      │
-│     └── Dashboard merges the PR via GitHub API                  │
-│     └── Dashboard triggers Pull on all hosts                    │
-│     └── Dashboard triggers Switch on all hosts                  │
-│     └── Shows progress: "Deploying 3/9 hosts..."                │
-│                                                                 │
-│  4. (Optional) Full automation                                  │
-│     └── Auto-merge after 1 hour (let CI pass)                   │
-│     └── Auto-deploy to all hosts                                │
-│     └── Notify you of success/failure                           │
-└─────────────────────────────────────────────────────────────────┘
-```
+#### Problem: Git stuck on yellow after pull
+
+**Cause**: Pull failed (local changes, conflicts)  
+**Fix**:
+
+1. SSH to host
+2. Run: `cd ~/Code/nixcfg && git status`
+3. Resolve conflicts manually
+
+#### Problem: Git shows outdated but I didn't push anything
+
+**Cause**: Someone else pushed, or automated commit  
+**Fix**: Check GitHub commit history, then pull
+
+---
+
+### Lock Compartment
+
+#### Problem: Lock shows yellow but no PR visible
+
+**Cause**: PR was merged directly (not via dashboard)  
+**Fix**: Pull to get new flake.lock
+
+#### Problem: Lock shows green but packages are old
+
+**Cause**: flake.lock hasn't been updated in weeks  
+**Fix**: Wait for weekly GitHub Action to create update PR
+
+---
+
+### System Compartment
+
+#### Problem: System stuck on yellow after switch
+
+**Cause**: Switch command failed or timed out  
+**Fix**: Check logs, retry switch
+
+#### Problem: System shows red (switch failed)
+
+**Cause**: Config error (syntax, missing option, etc.)  
+**Fix**:
+
+1. Click System → View logs
+2. Find error message
+3. Fix in nixcfg
+4. Push, Pull, Switch again
+
+---
+
+### Tests Compartment
+
+#### Problem: Tests always gray
+
+**Cause**: Tests disabled for this host  
+**Fix**: Enable tests in host configuration
+
+#### Problem: Tests fail after successful switch
+
+**Cause**: Config broke something (GPU, X11, networking)  
+**Fix**: Rollback to previous generation
+
+---
+
+## Rollback Operations
+
+### Per-Host Rollback (⋮ → Rollback System)
+
+Use when: "This host has a problem"
+
+1. Click host **⋮** menu → **Rollback System**
+2. Confirm the rollback
+3. Agent runs `nixos-rebuild --rollback switch`
+4. Tests compartment turns yellow (need re-run)
+
+### Fleet-Wide PR Revert
+
+Use when: "This PR broke everyone"
+
+1. If tests fail on multiple hosts after merge
+2. Dashboard offers **Revert PR** button
+3. Creates revert commit on GitHub
+4. All hosts can then pull the revert
 
 ---
 
@@ -123,179 +313,8 @@ The `flake.lock` is like a `package-lock.json` or `Cargo.lock` — it freezes yo
 | **nixpkgs**    | The main Nix package repository (80,000+ packages)           |
 | **generation** | A commit hash representing a deployed configuration version  |
 | **switch**     | Apply a new system configuration (`nixos-rebuild switch`)    |
+| **rollback**   | Revert to a previous NixOS generation                        |
 | **PR**         | Pull Request on GitHub                                       |
-
----
-
-## Example: What Happens When You Update
-
-**Before update (flake.lock):**
-
-```json
-{
-  "nixpkgs": {
-    "locked": {
-      "rev": "abc123...",
-      "lastModified": 1702234567 // Dec 10, 2025
-    }
-  }
-}
-```
-
-**After `nix flake update` (new flake.lock):**
-
-```json
-{
-  "nixpkgs": {
-    "locked": {
-      "rev": "def456...",
-      "lastModified": 1702839367 // Dec 17, 2025
-    }
-  }
-}
-```
-
-This means all packages will be built from the newer nixpkgs snapshot, potentially with:
-
-- Security fixes
-- New package versions
-- Bug fixes
-- Breaking changes (rare but possible)
-
----
-
-## The Fundamental Question: Who Runs the Update?
-
-**Someone has to run `nix flake update`.** This command fetches the latest versions of all inputs and writes them to `flake.lock`.
-
-There are two options for WHO does this:
-
-| Option            | Who runs `nix flake update`? | How it gets to all hosts            |
-| ----------------- | ---------------------------- | ----------------------------------- |
-| **GitHub-driven** | GitHub Action (CI)           | Creates PR → merge → hosts pull     |
-| **Host-driven**   | One of your hosts            | Commits → pushes → other hosts pull |
-
-### Option C: GitHub-Driven (Current Plan - P4300)
-
-```
-GitHub Action  ──→  PR  ──→  NixFleet detects  ──→  Merge & Deploy
-```
-
-**Why this approach:**
-
-- It's the existing workflow (from pbek/hokage) — we change as little as possible
-- GitHub Actions is already set up and running weekly
-- CI can run checks before you merge
-- Clear audit trail in git history
-
-**P4300 just makes it smoother** — instead of manually reviewing PRs on GitHub, NixFleet shows "update available" and offers one-click merge + deploy.
-
-### Option A: Host-Driven (Future Feature)
-
-```
-Dashboard "Update Inputs" button  ──→  One host runs update  ──→  Push  ──→  Deploy all
-```
-
-**Why this might be added later:**
-
-- Simpler for users who don't want/need the GitHub PR workflow
-- Fewer moving parts
-- Works without GitHub Actions configured
-
-**This will be a toggle in the Settings page** — choose your preferred update strategy.
-
----
-
-## Agent Version Tracking
-
-The NixFleet agent has its own versioning, **separate** from your `flake.lock`:
-
-```
-┌──────────────────────────────────────────────────────────────────┐
-│  flake.lock   = which version of nixpkgs/home-manager you use   │
-│  agent        = which version of the NixFleet agent is running  │
-└──────────────────────────────────────────────────────────────────┘
-```
-
-### How It Works
-
-1. **Dashboard knows** its own version (compiled in at build time)
-2. **Agents report** their version in every heartbeat
-3. **If they differ** → Agent is outdated
-
-### Visual Indicator
-
-When an agent is outdated, the **Lock compartment indicator turns red**:
-
-```
-┌──────────┬──────────┬──────────┐
-│   Git    │   Lock   │  System  │
-│   🟢     │   🔴     │   🟢     │  ← Red Lock = agent outdated
-└──────────┴──────────┴──────────┘
-```
-
-The Lock compartment's tooltip shows detailed agent version info:
-
-```
-✗ Agent needs update
-
-Installed: 2.0.0
-Expected:  2.1.0
-
-Run 'switch' to update the agent.
-
-─────────────────────────
-
-✓ Dependencies up to date
-
-flake.lock matches the latest
-available package versions.
-```
-
-### Why on Lock? (Not a 4th Compartment)
-
-The agent version is tied to your `flake.lock` because:
-
-- The agent is defined as a Nix input in `flake.nix`
-- Updating `flake.lock` (via `nix flake update`) bumps the agent input
-- Running `switch` deploys the new agent
-
-So **updating the Lock** → **updates the Agent**. They're conceptually linked.
-
-### macOS-Specific Issue
-
-On macOS, even after a successful `switch`, the agent may still report the old version. This is because launchd doesn't automatically reload the updated plist.
-
-**Fix**: After switch on macOS, restart the agent:
-
-- Dashboard: **⋮** → **Restart Agent**
-- CLI: `launchctl kickstart -k gui/$(id -u)/com.nixfleet.agent`
-
-See [P1000](../+pm/backlog/P1000-reliable-agent-updates.md) for the fix to this issue.
-
-### Potential Issues: Browser Caching
-
-⚠️ The dashboard's version comes from its compiled code. If your browser caches an old dashboard version, it might show false positives ("agent outdated" when it isn't).
-
-**If you see unexpected red Lock indicators:**
-
-1. Hard refresh: `Cmd+Shift+R` (Mac) or `Ctrl+Shift+R` (Windows/Linux)
-2. Clear browser cache for the dashboard URL
-3. Verify the dashboard container restarted after deploy
-
----
-
-## Summary: Update Modes
-
-NixFleet supports three update modes for flexibility:
-
-| Mode                   | Scope       | Control Level  | Best For                |
-| ---------------------- | ----------- | -------------- | ----------------------- |
-| **Manual per-step**    | Per host    | Full manual    | Debugging, testing      |
-| **Per-host automatic** | Single host | Semi-automatic | Individual host updates |
-| **Fleet-wide**         | All hosts   | Automated      | Regular maintenance     |
-
-See [UPDATE-ARCHITECTURE.md](./UPDATE-ARCHITECTURE.md) for complete documentation of the update flow.
 
 ---
 
@@ -303,5 +322,9 @@ See [UPDATE-ARCHITECTURE.md](./UPDATE-ARCHITECTURE.md) for complete documentatio
 
 - [UPDATE-ARCHITECTURE.md](./UPDATE-ARCHITECTURE.md) — Complete update flow and troubleshooting
 - [BUILD-DEPLOY.md](./BUILD-DEPLOY.md) — How components are built and deployed
-- [P4300](../+pm/done/P4300-automated-flake-updates.md) — Automated flake updates (completed)
-- [P1000](../+pm/backlog/P1000-reliable-agent-updates.md) — Reliable agent updates (in progress)
+- [P3700](../+pm/done/P3700-lock-version-tracking.md) — Lock compartment version tracking
+- [P3800](../+pm/done/P3800-system-inference.md) — System compartment inference
+- [P3900](../+pm/done/P3900-tests-compartment.md) — Tests compartment (5th)
+- [P4500](../+pm/done/P4500-generation-tracking.md) — Generation tracking
+- [P4600](../+pm/done/P4600-rollback-operations.md) — Rollback operations
+- [P4700](../+pm/done/P4700-merge-pr-workflow.md) — Merge PR workflow

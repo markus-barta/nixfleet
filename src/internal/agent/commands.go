@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"syscall"
@@ -140,6 +141,10 @@ func (a *Agent) executeCommand(command string) {
 		// P2800: Signal tests phase starting
 		a.sendOperationProgress("tests", "in_progress", 0, 8)
 		cmd, err = a.buildTestCommand()
+	case "rollback":
+		// P4600: Rollback to previous generation
+		a.sendOutput("🔄 Rolling back to previous generation...", "stdout")
+		cmd, err = a.buildRollbackCommand()
 	case "update":
 		cmd, err = a.buildUpdateCommand()
 
@@ -207,18 +212,22 @@ func (a *Agent) executeCommand(command string) {
 	}
 
 	// P2800: Send completion progress based on command type
+	// P3800: Update system status on failures (inference-based)
 	switch command {
 	case "pull":
 		if exitCode == 0 {
 			a.sendOperationProgress("pull", "complete", 4, 4)
 		} else {
 			a.sendOperationProgress("pull", "error", 0, 4)
+			// Pull failure doesn't change system status (system is whatever it was)
 		}
 	case "switch":
 		if exitCode == 0 {
 			a.sendOperationProgress("system", "complete", 3, 3)
 		} else {
 			a.sendOperationProgress("system", "error", 0, 3)
+			// P3800: Switch failed → set system to error
+			a.statusChecker.SetSystemError(fmt.Sprintf("Switch failed (exit %d)", exitCode))
 		}
 	case "pull-switch":
 		// Pull already marked complete, now mark system
@@ -226,12 +235,27 @@ func (a *Agent) executeCommand(command string) {
 			a.sendOperationProgress("system", "complete", 3, 3)
 		} else {
 			a.sendOperationProgress("system", "error", 0, 3)
+			// P3800: Switch portion failed → set system to error
+			a.statusChecker.SetSystemError(fmt.Sprintf("Pull+Switch failed (exit %d)", exitCode))
 		}
 	case "test":
 		if exitCode == 0 {
 			a.sendOperationProgress("tests", "complete", 8, 8)
+			// P3900: Set tests status to ok
+			a.statusChecker.SetTestsOk("All tests passed")
 		} else {
 			a.sendOperationProgress("tests", "error", 0, 8)
+			// P3900: Set tests status to error
+			a.statusChecker.SetTestsError(fmt.Sprintf("Tests failed (exit %d)", exitCode))
+		}
+	case "rollback":
+		// P4600: Rollback updates system status
+		if exitCode == 0 {
+			a.statusChecker.SetSystemOk("Rollback successful (exit 0)")
+			// Tests need re-run after rollback
+			a.statusChecker.SetTestsOutdated("Tests not run — run Test to verify system after rollback")
+		} else {
+			a.statusChecker.SetSystemError(fmt.Sprintf("Rollback failed (exit %d)", exitCode))
 		}
 	}
 
@@ -275,13 +299,18 @@ func (a *Agent) executeCommand(command string) {
 			// Goal: system should now be current
 			// Infer System=ok from exit code (avoids expensive nix build --dry-run)
 			a.statusChecker.SetSystemOk("Switch successful (exit 0)")
+			// P3900: Mark tests as outdated after switch (need to verify system works)
+			a.statusChecker.SetTestsOutdated("Tests not run — run Test to verify system")
 			a.sendOutput("", "stdout")
 			a.sendOutput("✅ Switch completed successfully", "stdout")
 			a.sendOutput("🟢 System: Current (inferred from exit 0)", "stdout")
+			a.sendOutput("🟡 Tests: Run tests to verify system", "stdout")
 		case "pull-switch":
 			// Goal: both should be current
 			// Infer System=ok from exit code (avoids expensive nix build --dry-run)
 			a.statusChecker.SetSystemOk("Pull+Switch successful (exit 0)")
+			// P3900: Mark tests as outdated after switch (need to verify system works)
+			a.statusChecker.SetTestsOutdated("Tests not run — run Test to verify system")
 			a.sendOutput("", "stdout")
 			if lockStatus.Status == "ok" {
 				a.sendOutput("✅ Pull+Switch completed: Lock current, switch successful", "stdout")
@@ -289,6 +318,7 @@ func (a *Agent) executeCommand(command string) {
 				a.sendOutput("⚠️  Switch OK but lock shows outdated (Git cache may need time)", "stdout")
 			}
 			a.sendOutput("🟢 System: Current (inferred from exit 0)", "stdout")
+			a.sendOutput("🟡 Tests: Run tests to verify system", "stdout")
 		}
 	}
 
@@ -937,6 +967,31 @@ func (a *Agent) buildTestCommand() (*exec.Cmd, error) {
 	cmd := exec.CommandContext(a.ctx, "sh", "-c",
 		"for f in "+testDir+"/*.sh; do [ -x \"$f\" ] && \"$f\"; done",
 	)
+	cmd.Dir = a.cfg.RepoDir
+	return cmd, nil
+}
+
+// P4600: buildRollbackCommand builds the rollback command for the current OS.
+// NixOS: nixos-rebuild --rollback switch
+// macOS: Activate previous Home Manager generation
+func (a *Agent) buildRollbackCommand() (*exec.Cmd, error) {
+	if runtime.GOOS == "darwin" {
+		// macOS: Find and activate previous Home Manager generation
+		// List generations, find the second-to-last one
+		profilePath := filepath.Join(os.Getenv("HOME"), ".local/state/nix/profiles/home-manager")
+		cmd := exec.CommandContext(a.ctx, "sh", "-c",
+			// Get the previous generation (second to last)
+			`prev=$(ls -1 ~/.local/state/nix/profiles/home-manager-*-link 2>/dev/null | tail -2 | head -1) && `+
+				`if [ -n "$prev" ] && [ -L "$prev" ]; then `+
+				`echo "Rolling back to: $prev" && "$prev/activate"; `+
+				`else echo "No previous generation found" && exit 1; fi`,
+		)
+		_ = profilePath // referenced in comment
+		return cmd, nil
+	}
+
+	// NixOS: Use the built-in rollback mechanism
+	cmd := exec.CommandContext(a.ctx, "sudo", "nixos-rebuild", "--rollback", "switch")
 	cmd.Dir = a.cfg.RepoDir
 	return cmd, nil
 }

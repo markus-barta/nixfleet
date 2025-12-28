@@ -46,6 +46,7 @@ type UpdateStatus struct {
 	Git     StatusCheck `json:"git"`
 	Lock    StatusCheck `json:"lock"`
 	System  StatusCheck `json:"system"`
+	Tests   StatusCheck `json:"tests"`    // P3900: 5th compartment for test results
 	RepoURL string      `json:"repo_url"` // git repo URL (for Git tooltip)
 	RepoDir string      `json:"repo_dir"` // local repo path (for Git tooltip)
 }
@@ -177,7 +178,7 @@ func Dashboard(data DashboardData) templ.Component {
 			var templ_7745c5c3_Var3 string
 			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(data.HeartbeatInterval))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 137, Col: 65}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 138, Col: 65}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 			if templ_7745c5c3_Err != nil {
@@ -190,7 +191,7 @@ func Dashboard(data DashboardData) templ.Component {
 			var templ_7745c5c3_Var4 string
 			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(pendingPRJSON(data.PendingPR))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 138, Col: 50}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 139, Col: 50}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 			if templ_7745c5c3_Err != nil {
@@ -204,12 +205,12 @@ func Dashboard(data DashboardData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "</div><div class=\"header-actions\"><div class=\"dropdown bulk-actions-dropdown\"><button class=\"btn btn-header\" onclick=\"toggleBulkMenu(event)\" onkeydown=\"if(event.key==='ArrowDown'){event.preventDefault();toggleBulkMenu(event);}\"><svg class=\"icon\"><use href=\"#icon-more-vertical\"></use></svg> More</button><div class=\"dropdown-menu\" id=\"bulk-actions-menu\" onkeydown=\"handleBulkMenuKeydown(event)\"><!-- P7000: Merge & Deploy moved here from global banner -->")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "</div><div class=\"header-actions\"><div class=\"dropdown bulk-actions-dropdown\"><button class=\"btn btn-header\" onclick=\"toggleBulkMenu(event)\" onkeydown=\"if(event.key==='ArrowDown'){event.preventDefault();toggleBulkMenu(event);}\"><svg class=\"icon\"><use href=\"#icon-more-vertical\"></use></svg> More</button><div class=\"dropdown-menu\" id=\"bulk-actions-menu\" onkeydown=\"handleBulkMenuKeydown(event)\"><!-- P7000/P4700: Merge PR (no auto-deploy - deployment is manual) -->")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			if data.PendingPR != nil && data.PendingPR.Mergeable {
-				templ_7745c5c3_Err = templ.RenderScriptItems(ctx, templ_7745c5c3_Buffer, templ.ComponentScript{Call: fmt.Sprintf("mergeAndDeploy(%d); closeBulkMenu()", data.PendingPR.Number)})
+				templ_7745c5c3_Err = templ.RenderScriptItems(ctx, templ_7745c5c3_Buffer, templ.ComponentScript{Call: fmt.Sprintf("mergePROnly(%d); closeBulkMenu()", data.PendingPR.Number)})
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -217,19 +218,19 @@ func Dashboard(data DashboardData) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var5 templ.ComponentScript = templ.ComponentScript{Call: fmt.Sprintf("mergeAndDeploy(%d); closeBulkMenu()", data.PendingPR.Number)}
+				var templ_7745c5c3_Var5 templ.ComponentScript = templ.ComponentScript{Call: fmt.Sprintf("mergePROnly(%d); closeBulkMenu()", data.PendingPR.Number)}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var5.Call)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "\"><svg class=\"icon\"><use href=\"#icon-check\"></use></svg> Merge & Deploy PR #")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "\"><svg class=\"icon\"><use href=\"#icon-git-merge\"></use></svg> Merge PR #")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var6 string
 				templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(data.PendingPR.Number))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 160, Col: 63}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 161, Col: 54}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 				if templ_7745c5c3_Err != nil {
@@ -247,7 +248,7 @@ func Dashboard(data DashboardData) templ.Component {
 			var templ_7745c5c3_Var7 string
 			templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(data.CSRFToken)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 199, Col: 66}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 200, Col: 66}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 			if templ_7745c5c3_Err != nil {
@@ -292,7 +293,7 @@ func Dashboard(data DashboardData) templ.Component {
 			var templ_7745c5c3_Var10 string
 			templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprint(data.Stats.Online))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 233, Col: 126}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 234, Col: 126}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 			if templ_7745c5c3_Err != nil {
@@ -305,13 +306,13 @@ func Dashboard(data DashboardData) templ.Component {
 			var templ_7745c5c3_Var11 string
 			templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprint(data.Stats.Total))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 233, Col: 166}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 234, Col: 166}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, " Hosts</th><th class=\"col-center col-type\" title=\"Location / OS\">Type</th><th>Metrics</th><th class=\"col-right col-last-seen\">Last Seen</th><th class=\"col-agent\" title=\"Agent Version\">Agent</th><th title=\"Git/Lock/System Status\">Status</th><th class=\"col-menu\"></th></tr></thead> <tbody>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, " Hosts</th><th class=\"col-center col-type\" title=\"Location / OS\">Type</th><th>Metrics</th><th class=\"col-right col-last-seen\">Last Seen</th><th class=\"col-agent\" title=\"Agent Version\">Agent</th><th class=\"col-gen\" title=\"Configuration Generation (Git Commit)\">Gen</th><th title=\"Agent/Git/Lock/System/Tests Status\">Status</th><th class=\"col-menu\"></th></tr></thead> <tbody>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -337,20 +338,20 @@ func Dashboard(data DashboardData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, " <!-- Remove Host Confirmation Modal (P4390) --> <div class=\"modal-overlay\" id=\"removeHostModal\"><div class=\"modal\"><div class=\"modal-title\">Remove Host</div><div class=\"modal-body\">Are you sure you want to remove <code id=\"removeHostName\"></code>?<br><br>This will delete the host from the dashboard. The host can re-register when the agent reconnects.</div><div class=\"modal-actions\"><button class=\"modal-btn modal-btn-cancel\" onclick=\"closeModal('removeHostModal')\">Cancel</button> <button class=\"modal-btn modal-btn-danger\" id=\"confirmRemoveBtn\" onclick=\"doRemoveHost()\">Remove</button></div></div></div><!-- P6900: Reboot Host Modal with TOTP --> <div class=\"modal-overlay\" id=\"rebootModal\"><div class=\"modal\"><div class=\"modal-title\"><svg class=\"modal-icon\" style=\"width:24px;height:24px;margin-right:8px;color:var(--danger)\"><use href=\"#icon-power\"></use></svg> Reboot Host</div><div class=\"modal-body\"><p class=\"reboot-warning\"><strong>⚠️ Warning:</strong> This will immediately reboot <code id=\"rebootHostName\"></code>.<br>This action cannot be undone.</p><div class=\"form-group\" style=\"margin-top: 1.5rem;\"><label for=\"rebootTotp\" style=\"display: block; margin-bottom: 0.5rem;\">Enter TOTP Code to confirm:</label> <input type=\"text\" id=\"rebootTotp\" class=\"form-control totp-input\" autocomplete=\"one-time-code\" inputmode=\"numeric\" pattern=\"[0-9]*\" maxlength=\"6\" placeholder=\"000000\" oninput=\"validateRebootTotp(this)\" onkeydown=\"if(event.key==='Enter' && this.value.length===6) doReboot()\" style=\"width: 100%; padding: 0.75rem; letter-spacing: 0.3em; text-align: center; font-size: 1.2rem; font-family: var(--font-mono);\"></div></div><div class=\"modal-actions\"><button class=\"modal-btn modal-btn-cancel\" onclick=\"closeRebootModal()\">Cancel</button> <button class=\"modal-btn modal-btn-danger\" id=\"rebootConfirmBtn\" onclick=\"doReboot()\" disabled><span id=\"rebootBtnText\">Reboot</span> <span id=\"rebootBtnSpinner\" style=\"display: none;\">Sending...</span></button></div></div></div><!-- Add Host Modal (P4390) --> <div class=\"modal-overlay\" id=\"addHostModal\"><div class=\"modal modal-wide\"><div class=\"modal-title\">Add Host</div><div class=\"modal-body\"><form id=\"addHostForm\"><div class=\"form-group\"><label>Hostname *</label> <input type=\"text\" name=\"hostname\" required pattern=\"[a-zA-Z][a-zA-Z0-9\\-]{0,62}\" placeholder=\"e.g., hsb1\"></div><div class=\"form-row\"><div class=\"form-group\"><label>OS Type</label> <select name=\"host_type\"><option value=\"nixos\">NixOS</option> <option value=\"macos\">macOS</option></select></div><div class=\"form-group\"><label>Location</label> <select name=\"location\"><option value=\"home\">Home</option> <option value=\"work\">Work</option> <option value=\"cloud\">Cloud</option></select></div></div><div class=\"form-row\"><div class=\"form-group\"><label>Device Type</label> <select name=\"device_type\"><option value=\"server\">Server</option> <option value=\"desktop\">Desktop</option> <option value=\"laptop\">Laptop</option> <option value=\"gaming\">Gaming</option></select></div><div class=\"form-group\"><label>Theme Color</label> <input type=\"color\" name=\"theme_color\" value=\"#7aa2f7\"></div></div></form></div><div class=\"modal-actions\"><button class=\"modal-btn modal-btn-cancel\" onclick=\"closeModal('addHostModal')\">Cancel</button> <button class=\"modal-btn modal-btn-primary\" onclick=\"doAddHost()\">Add Host</button></div></div></div><!-- P2950: Color Picker Modal --> <div class=\"modal-overlay\" id=\"colorPickerModal\"><div class=\"modal modal-wide\"><div class=\"modal-title\">Change Theme Color</div><div class=\"modal-body\"><p class=\"color-picker-host\">Host: <code id=\"colorPickerHostname\"></code></p><!-- Preset palettes --><div class=\"form-group\"><label>Presets</label><div class=\"color-presets\"><button type=\"button\" class=\"color-preset\" data-color=\"#98b8d8\" data-palette=\"iceBlue\" title=\"Ice Blue (cloud)\" onclick=\"selectPreset(this)\"><span class=\"color-swatch\" style=\"background: #98b8d8\"></span></button> <button type=\"button\" class=\"color-preset\" data-color=\"#769ff0\" data-palette=\"blue\" title=\"Blue (cloud)\" onclick=\"selectPreset(this)\"><span class=\"color-swatch\" style=\"background: #769ff0\"></span></button> <button type=\"button\" class=\"color-preset\" data-color=\"#d4c060\" data-palette=\"yellow\" title=\"Yellow (home)\" onclick=\"selectPreset(this)\"><span class=\"color-swatch\" style=\"background: #d4c060\"></span></button> <button type=\"button\" class=\"color-preset\" data-color=\"#68c878\" data-palette=\"green\" title=\"Green (home)\" onclick=\"selectPreset(this)\"><span class=\"color-swatch\" style=\"background: #68c878\"></span></button> <button type=\"button\" class=\"color-preset\" data-color=\"#e09050\" data-palette=\"orange\" title=\"Orange (home)\" onclick=\"selectPreset(this)\"><span class=\"color-swatch\" style=\"background: #e09050\"></span></button> <button type=\"button\" class=\"color-preset\" data-color=\"#9868d0\" data-palette=\"purple\" title=\"Purple (gaming)\" onclick=\"selectPreset(this)\"><span class=\"color-swatch\" style=\"background: #9868d0\"></span></button> <button type=\"button\" class=\"color-preset\" data-color=\"#e070a0\" data-palette=\"pink\" title=\"Pink (gaming)\" onclick=\"selectPreset(this)\"><span class=\"color-swatch\" style=\"background: #e070a0\"></span></button> <button type=\"button\" class=\"color-preset\" data-color=\"#a8aeb8\" data-palette=\"lightGray\" title=\"Light Gray (work)\" onclick=\"selectPreset(this)\"><span class=\"color-swatch\" style=\"background: #a8aeb8\"></span></button> <button type=\"button\" class=\"color-preset\" data-color=\"#686c70\" data-palette=\"darkGray\" title=\"Dark Gray (work)\" onclick=\"selectPreset(this)\"><span class=\"color-swatch\" style=\"background: #686c70\"></span></button> <button type=\"button\" class=\"color-preset\" data-color=\"#a8a098\" data-palette=\"warmGray\" title=\"Warm Gray (work)\" onclick=\"selectPreset(this)\"><span class=\"color-swatch\" style=\"background: #a8a098\"></span></button> <button type=\"button\" class=\"color-preset\" data-color=\"#c8a8a0\" data-palette=\"roseGold\" title=\"Rose Gold (work)\" onclick=\"selectPreset(this)\"><span class=\"color-swatch\" style=\"background: #c8a8a0\"></span></button></div></div><!-- Custom color picker --><div class=\"form-group\"><label>Custom Color</label><div class=\"custom-color-row\"><input type=\"color\" id=\"colorPickerInput\" value=\"#7aa2f7\" onchange=\"updateColorPreview(this.value)\"> <input type=\"text\" id=\"colorPickerHex\" value=\"#7aa2f7\" pattern=\"^#[0-9a-fA-F]{6}$\" placeholder=\"#rrggbb\" oninput=\"syncHexInput(this.value)\"></div></div><!-- Preview --><div class=\"form-group\"><label>Preview</label><div class=\"color-preview-row\" id=\"colorPreviewRow\"><span class=\"preview-segment preview-lightest\"></span> <span class=\"preview-segment preview-primary\"></span> <span class=\"preview-segment preview-secondary\"></span> <span class=\"preview-segment preview-midDark\"></span> <span class=\"preview-segment preview-dark\"></span> <span class=\"preview-segment preview-darker\"></span> <span class=\"preview-segment preview-darkest\"></span></div></div><input type=\"hidden\" id=\"colorPickerHostId\"> <input type=\"hidden\" id=\"colorPickerPalette\" value=\"\"></div><div class=\"modal-actions\"><button class=\"modal-btn modal-btn-cancel\" onclick=\"closeModal('colorPickerModal')\">Cancel</button> <button class=\"modal-btn modal-btn-primary\" onclick=\"applyColor()\">Apply Color</button></div></div></div><!-- P2800: Pre-Check Dialog --> <div class=\"modal-overlay hidden\" id=\"preCheckDialog\"><div class=\"modal\"><div class=\"modal-title\"><svg class=\"modal-icon warning\" style=\"width:24px;height:24px;margin-right:8px;color:var(--warning)\"><use href=\"#icon-alert-triangle\"></use></svg> Cannot <span id=\"preCheckCommand\">Switch</span></div><div class=\"modal-body\"><p>Host: <code id=\"preCheckHostname\">hostname</code></p><p id=\"preCheckMessage\" style=\"margin-top:12px;color:var(--fg)\">Pre-check message here</p><p style=\"margin-top:8px;font-size:0.85rem;color:var(--muted)\">(Status may be cached - code: <code id=\"preCheckCode\">code</code>)</p></div><div class=\"modal-actions\"><button class=\"modal-btn modal-btn-cancel\" onclick=\"closeModal('preCheckDialog')\">Cancel</button> <button class=\"modal-btn\" id=\"preCheckAltAction\" style=\"background:var(--info)\">Refresh Status</button> <button class=\"modal-btn modal-btn-danger\" onclick=\"forceCommand()\">Force</button></div></div></div><!-- System Refresh Confirmation Dialog --> <div class=\"modal-overlay hidden\" id=\"systemRefreshDialog\"><div class=\"modal\"><div class=\"modal-title\"><svg class=\"modal-icon\" style=\"width:24px;height:24px;margin-right:8px;color:var(--info)\"><use href=\"#icon-nixos\"></use></svg> Refresh System Status</div><div class=\"modal-body\"><p>Host: <code id=\"systemRefreshHostname\">hostname</code></p><p style=\"margin-top:12px;color:var(--fg)\">This will check if the running system matches the flake by running:</p><pre style=\"margin:12px 0;padding:12px;background:var(--bg-light);border-radius:6px;font-size:0.85rem;white-space:pre-wrap;word-break:break-word;\"><code id=\"systemRefreshCommand\">nix build --dry-run .#nixosConfigurations.hostname.config.system.build.toplevel</code></pre><p style=\"color:var(--warning);font-size:0.9rem;\">⚠️ <strong>This operation is heavy</strong> — it does a full flake evaluation and may take quite some time. The host may become less responsive during this time.</p></div><div class=\"modal-actions\"><button class=\"modal-btn modal-btn-cancel\" onclick=\"closeModal('systemRefreshDialog')\">Cancel</button> <button class=\"modal-btn modal-btn-primary\" onclick=\"confirmSystemRefresh()\">Run Check</button></div></div></div><footer class=\"site-footer\"><div class=\"footer-left\"><span class=\"connection-indicator\" id=\"ws-status\"><span class=\"status-dot status-offline\"></span> Connecting...</span> <span class=\"footer-sep\">•</span> <span>NixFleet ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, " <!-- Remove Host Confirmation Modal (P4390) --> <div class=\"modal-overlay\" id=\"removeHostModal\"><div class=\"modal\"><div class=\"modal-title\">Remove Host</div><div class=\"modal-body\">Are you sure you want to remove <code id=\"removeHostName\"></code>?<br><br>This will delete the host from the dashboard. The host can re-register when the agent reconnects.</div><div class=\"modal-actions\"><button class=\"modal-btn modal-btn-cancel\" onclick=\"closeModal('removeHostModal')\">Cancel</button> <button class=\"modal-btn modal-btn-danger\" id=\"confirmRemoveBtn\" onclick=\"doRemoveHost()\">Remove</button></div></div></div><!-- P6900: Reboot Host Modal with TOTP --> <div class=\"modal-overlay\" id=\"rebootModal\"><div class=\"modal\"><div class=\"modal-title\"><svg class=\"modal-icon\" style=\"width:24px;height:24px;margin-right:8px;color:var(--danger)\"><use href=\"#icon-power\"></use></svg> Reboot Host</div><div class=\"modal-body\"><p class=\"reboot-warning\"><strong>⚠️ Warning:</strong> This will immediately reboot <code id=\"rebootHostName\"></code>.<br>This action cannot be undone.</p><div class=\"form-group\" style=\"margin-top: 1.5rem;\"><label for=\"rebootTotp\" style=\"display: block; margin-bottom: 0.5rem;\">Enter TOTP Code to confirm:</label> <input type=\"text\" id=\"rebootTotp\" class=\"form-control totp-input\" autocomplete=\"one-time-code\" inputmode=\"numeric\" pattern=\"[0-9]*\" maxlength=\"6\" placeholder=\"000000\" oninput=\"validateRebootTotp(this)\" onkeydown=\"if(event.key==='Enter' && this.value.length===6) doReboot()\" style=\"width: 100%; padding: 0.75rem; letter-spacing: 0.3em; text-align: center; font-size: 1.2rem; font-family: var(--font-mono);\"></div></div><div class=\"modal-actions\"><button class=\"modal-btn modal-btn-cancel\" onclick=\"closeRebootModal()\">Cancel</button> <button class=\"modal-btn modal-btn-danger\" id=\"rebootConfirmBtn\" onclick=\"doReboot()\" disabled><span id=\"rebootBtnText\">Reboot</span> <span id=\"rebootBtnSpinner\" style=\"display: none;\">Sending...</span></button></div></div></div><!-- P4600: Rollback System Modal --> <div class=\"modal-overlay\" id=\"rollbackModal\"><div class=\"modal\"><div class=\"modal-title\"><svg class=\"modal-icon\" style=\"width:24px;height:24px;margin-right:8px;color:var(--warning)\"><use href=\"#icon-refresh\"></use></svg> Rollback System</div><div class=\"modal-body\"><p class=\"rollback-info\">This will rollback <code id=\"rollbackHostName\"></code> to the previous generation.</p><p style=\"margin-top: 1rem; font-size: 0.9rem; color: var(--fg-muted);\">The system will revert to the last known working configuration.<br>Tests will need to be re-run after rollback.</p></div><div class=\"modal-actions\"><button class=\"modal-btn modal-btn-cancel\" onclick=\"closeRollbackModal()\">Cancel</button> <button class=\"modal-btn modal-btn-warning\" id=\"rollbackConfirmBtn\" onclick=\"doRollback()\"><span id=\"rollbackBtnText\">Rollback</span> <span id=\"rollbackBtnSpinner\" style=\"display: none;\">Rolling back...</span></button></div></div></div><!-- Add Host Modal (P4390) --> <div class=\"modal-overlay\" id=\"addHostModal\"><div class=\"modal modal-wide\"><div class=\"modal-title\">Add Host</div><div class=\"modal-body\"><form id=\"addHostForm\"><div class=\"form-group\"><label>Hostname *</label> <input type=\"text\" name=\"hostname\" required pattern=\"[a-zA-Z][a-zA-Z0-9\\-]{0,62}\" placeholder=\"e.g., hsb1\"></div><div class=\"form-row\"><div class=\"form-group\"><label>OS Type</label> <select name=\"host_type\"><option value=\"nixos\">NixOS</option> <option value=\"macos\">macOS</option></select></div><div class=\"form-group\"><label>Location</label> <select name=\"location\"><option value=\"home\">Home</option> <option value=\"work\">Work</option> <option value=\"cloud\">Cloud</option></select></div></div><div class=\"form-row\"><div class=\"form-group\"><label>Device Type</label> <select name=\"device_type\"><option value=\"server\">Server</option> <option value=\"desktop\">Desktop</option> <option value=\"laptop\">Laptop</option> <option value=\"gaming\">Gaming</option></select></div><div class=\"form-group\"><label>Theme Color</label> <input type=\"color\" name=\"theme_color\" value=\"#7aa2f7\"></div></div></form></div><div class=\"modal-actions\"><button class=\"modal-btn modal-btn-cancel\" onclick=\"closeModal('addHostModal')\">Cancel</button> <button class=\"modal-btn modal-btn-primary\" onclick=\"doAddHost()\">Add Host</button></div></div></div><!-- P2950: Color Picker Modal --> <div class=\"modal-overlay\" id=\"colorPickerModal\"><div class=\"modal modal-wide\"><div class=\"modal-title\">Change Theme Color</div><div class=\"modal-body\"><p class=\"color-picker-host\">Host: <code id=\"colorPickerHostname\"></code></p><!-- Preset palettes --><div class=\"form-group\"><label>Presets</label><div class=\"color-presets\"><button type=\"button\" class=\"color-preset\" data-color=\"#98b8d8\" data-palette=\"iceBlue\" title=\"Ice Blue (cloud)\" onclick=\"selectPreset(this)\"><span class=\"color-swatch\" style=\"background: #98b8d8\"></span></button> <button type=\"button\" class=\"color-preset\" data-color=\"#769ff0\" data-palette=\"blue\" title=\"Blue (cloud)\" onclick=\"selectPreset(this)\"><span class=\"color-swatch\" style=\"background: #769ff0\"></span></button> <button type=\"button\" class=\"color-preset\" data-color=\"#d4c060\" data-palette=\"yellow\" title=\"Yellow (home)\" onclick=\"selectPreset(this)\"><span class=\"color-swatch\" style=\"background: #d4c060\"></span></button> <button type=\"button\" class=\"color-preset\" data-color=\"#68c878\" data-palette=\"green\" title=\"Green (home)\" onclick=\"selectPreset(this)\"><span class=\"color-swatch\" style=\"background: #68c878\"></span></button> <button type=\"button\" class=\"color-preset\" data-color=\"#e09050\" data-palette=\"orange\" title=\"Orange (home)\" onclick=\"selectPreset(this)\"><span class=\"color-swatch\" style=\"background: #e09050\"></span></button> <button type=\"button\" class=\"color-preset\" data-color=\"#9868d0\" data-palette=\"purple\" title=\"Purple (gaming)\" onclick=\"selectPreset(this)\"><span class=\"color-swatch\" style=\"background: #9868d0\"></span></button> <button type=\"button\" class=\"color-preset\" data-color=\"#e070a0\" data-palette=\"pink\" title=\"Pink (gaming)\" onclick=\"selectPreset(this)\"><span class=\"color-swatch\" style=\"background: #e070a0\"></span></button> <button type=\"button\" class=\"color-preset\" data-color=\"#a8aeb8\" data-palette=\"lightGray\" title=\"Light Gray (work)\" onclick=\"selectPreset(this)\"><span class=\"color-swatch\" style=\"background: #a8aeb8\"></span></button> <button type=\"button\" class=\"color-preset\" data-color=\"#686c70\" data-palette=\"darkGray\" title=\"Dark Gray (work)\" onclick=\"selectPreset(this)\"><span class=\"color-swatch\" style=\"background: #686c70\"></span></button> <button type=\"button\" class=\"color-preset\" data-color=\"#a8a098\" data-palette=\"warmGray\" title=\"Warm Gray (work)\" onclick=\"selectPreset(this)\"><span class=\"color-swatch\" style=\"background: #a8a098\"></span></button> <button type=\"button\" class=\"color-preset\" data-color=\"#c8a8a0\" data-palette=\"roseGold\" title=\"Rose Gold (work)\" onclick=\"selectPreset(this)\"><span class=\"color-swatch\" style=\"background: #c8a8a0\"></span></button></div></div><!-- Custom color picker --><div class=\"form-group\"><label>Custom Color</label><div class=\"custom-color-row\"><input type=\"color\" id=\"colorPickerInput\" value=\"#7aa2f7\" onchange=\"updateColorPreview(this.value)\"> <input type=\"text\" id=\"colorPickerHex\" value=\"#7aa2f7\" pattern=\"^#[0-9a-fA-F]{6}$\" placeholder=\"#rrggbb\" oninput=\"syncHexInput(this.value)\"></div></div><!-- Preview --><div class=\"form-group\"><label>Preview</label><div class=\"color-preview-row\" id=\"colorPreviewRow\"><span class=\"preview-segment preview-lightest\"></span> <span class=\"preview-segment preview-primary\"></span> <span class=\"preview-segment preview-secondary\"></span> <span class=\"preview-segment preview-midDark\"></span> <span class=\"preview-segment preview-dark\"></span> <span class=\"preview-segment preview-darker\"></span> <span class=\"preview-segment preview-darkest\"></span></div></div><input type=\"hidden\" id=\"colorPickerHostId\"> <input type=\"hidden\" id=\"colorPickerPalette\" value=\"\"></div><div class=\"modal-actions\"><button class=\"modal-btn modal-btn-cancel\" onclick=\"closeModal('colorPickerModal')\">Cancel</button> <button class=\"modal-btn modal-btn-primary\" onclick=\"applyColor()\">Apply Color</button></div></div></div><!-- P2800: Pre-Check Dialog --> <div class=\"modal-overlay hidden\" id=\"preCheckDialog\"><div class=\"modal\"><div class=\"modal-title\"><svg class=\"modal-icon warning\" style=\"width:24px;height:24px;margin-right:8px;color:var(--warning)\"><use href=\"#icon-alert-triangle\"></use></svg> Cannot <span id=\"preCheckCommand\">Switch</span></div><div class=\"modal-body\"><p>Host: <code id=\"preCheckHostname\">hostname</code></p><p id=\"preCheckMessage\" style=\"margin-top:12px;color:var(--fg)\">Pre-check message here</p><p style=\"margin-top:8px;font-size:0.85rem;color:var(--muted)\">(Status may be cached - code: <code id=\"preCheckCode\">code</code>)</p></div><div class=\"modal-actions\"><button class=\"modal-btn modal-btn-cancel\" onclick=\"closeModal('preCheckDialog')\">Cancel</button> <button class=\"modal-btn\" id=\"preCheckAltAction\" style=\"background:var(--info)\">Refresh Status</button> <button class=\"modal-btn modal-btn-danger\" onclick=\"forceCommand()\">Force</button></div></div></div><!-- System Refresh Confirmation Dialog --> <div class=\"modal-overlay hidden\" id=\"systemRefreshDialog\"><div class=\"modal\"><div class=\"modal-title\"><svg class=\"modal-icon\" style=\"width:24px;height:24px;margin-right:8px;color:var(--info)\"><use href=\"#icon-nixos\"></use></svg> Refresh System Status</div><div class=\"modal-body\"><p>Host: <code id=\"systemRefreshHostname\">hostname</code></p><p style=\"margin-top:12px;color:var(--fg)\">This will check if the running system matches the flake by running:</p><pre style=\"margin:12px 0;padding:12px;background:var(--bg-light);border-radius:6px;font-size:0.85rem;white-space:pre-wrap;word-break:break-word;\"><code id=\"systemRefreshCommand\">nix build --dry-run .#nixosConfigurations.hostname.config.system.build.toplevel</code></pre><p style=\"color:var(--warning);font-size:0.9rem;\">⚠️ <strong>This operation is heavy</strong> — it does a full flake evaluation and may take quite some time. The host may become less responsive during this time.</p></div><div class=\"modal-actions\"><button class=\"modal-btn modal-btn-cancel\" onclick=\"closeModal('systemRefreshDialog')\">Cancel</button> <button class=\"modal-btn modal-btn-primary\" onclick=\"confirmSystemRefresh()\">Run Check</button></div></div></div><footer class=\"site-footer\"><div class=\"footer-left\"><span class=\"connection-indicator\" id=\"ws-status\"><span class=\"status-dot status-offline\"></span> Connecting...</span> <span class=\"footer-sep\">•</span> <span>NixFleet ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var12 string
 			templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(data.Version)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 643, Col: 33}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 673, Col: 33}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "</span> <a href=\"https://github.com/markus-barta/nixfleet\" class=\"footer-link\" target=\"_blank\" rel=\"noopener\"><svg class=\"icon\"><use href=\"#icon-github\"></use></svg> Source</a> <a href=\"https://www.gnu.org/licenses/agpl-3.0.html\" class=\"footer-link\" target=\"_blank\" rel=\"noopener\"><svg class=\"icon\"><use href=\"#icon-license\"></use></svg> AGPL-3.0</a></div><div class=\"footer-right\"><span class=\"made-with\">Made with <svg class=\"icon heart\"><use href=\"#icon-heart\"></use></svg> by <a href=\"https://x.com/markusbarta\" target=\"_blank\" rel=\"noopener\">&#64;markusbarta</a> using Claude &amp; Cursor</span></div></footer><!-- DEBUG: Raw streaming output (hidden by default, toggle via More menu) --> <div id=\"debug-panel\" style=\"display: none; position: fixed; bottom: 0; left: 0; right: 0; background: #1a1a2e; border-top: 2px solid #f00; z-index: 9999; max-height: 200px;\"><div style=\"padding: 4px 8px; background: #f00; color: #fff; font-weight: bold;\">DEBUG: Raw WebSocket Output (toggle via More → Toggle Debug Panel)</div><textarea id=\"debug-output\" style=\"width: 100%; height: 150px; background: #0a0a1a; color: #0f0; font-family: monospace; font-size: 12px; border: none; resize: none;\" readonly></textarea></div><!-- WebSocket and Alpine.js logic - P7000 Unified Host State Management --> <script>\n\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\t// CONSTANTS\n\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\tconst HEARTBEAT_INTERVAL = parseInt(document.getElementById('config').dataset.heartbeatInterval) || 5;\n\t\t\tconst CSRF_TOKEN = document.body.dataset.csrfToken;\n\n\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\t// SELECTION STORE (P1030) - Single Source of Truth for host selection\n\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\tdocument.addEventListener('alpine:init', () => {\n\t\t\t\tAlpine.store('selection', {\n\t\t\t\t\tselected: [],\n\t\t\t\t\tlastSelected: null,\n\n\t\t\t\t\ttoggle(id) {\n\t\t\t\t\t\tconst idx = this.selected.indexOf(id);\n\t\t\t\t\t\tif (idx === -1) {\n\t\t\t\t\t\t\tthis.selected.push(id);\n\t\t\t\t\t\t} else {\n\t\t\t\t\t\t\tthis.selected.splice(idx, 1);\n\t\t\t\t\t\t}\n\t\t\t\t\t\tthis.lastSelected = id;\n\t\t\t\t\t},\n\n\t\t\t\t\tselect(id) {\n\t\t\t\t\t\tif (!this.selected.includes(id)) {\n\t\t\t\t\t\t\tthis.selected.push(id);\n\t\t\t\t\t\t}\n\t\t\t\t\t\tthis.lastSelected = id;\n\t\t\t\t\t},\n\n\t\t\t\t\tdeselect(id) {\n\t\t\t\t\t\tconst idx = this.selected.indexOf(id);\n\t\t\t\t\t\tif (idx !== -1) {\n\t\t\t\t\t\t\tthis.selected.splice(idx, 1);\n\t\t\t\t\t\t}\n\t\t\t\t\t},\n\n\t\t\t\t\tisSelected(id) {\n\t\t\t\t\t\treturn this.selected.includes(id);\n\t\t\t\t\t},\n\n\t\t\t\t\tselectAll() {\n\t\t\t\t\t\tconst allIds = this._getAllHostIds();\n\t\t\t\t\t\tthis.selected = [...allIds];\n\t\t\t\t\t\tthis.lastSelected = allIds[allIds.length - 1] || null;\n\t\t\t\t\t},\n\n\t\t\t\t\tselectNone() {\n\t\t\t\t\t\tthis.selected = [];\n\t\t\t\t\t\tthis.lastSelected = null;\n\t\t\t\t\t},\n\n\t\t\t\t\tselectRange(targetId) {\n\t\t\t\t\t\tif (!this.lastSelected) {\n\t\t\t\t\t\t\tthis.toggle(targetId);\n\t\t\t\t\t\t\treturn;\n\t\t\t\t\t\t}\n\t\t\t\t\t\tconst allIds = this._getAllHostIds();\n\t\t\t\t\t\tconst startIdx = allIds.indexOf(this.lastSelected);\n\t\t\t\t\t\tconst endIdx = allIds.indexOf(targetId);\n\t\t\t\t\t\tif (startIdx === -1 || endIdx === -1) {\n\t\t\t\t\t\t\tthis.toggle(targetId);\n\t\t\t\t\t\t\treturn;\n\t\t\t\t\t\t}\n\t\t\t\t\t\tconst minIdx = Math.min(startIdx, endIdx);\n\t\t\t\t\t\tconst maxIdx = Math.max(startIdx, endIdx);\n\t\t\t\t\t\tfor (let i = minIdx; i <= maxIdx; i++) {\n\t\t\t\t\t\t\tif (!this.selected.includes(allIds[i])) {\n\t\t\t\t\t\t\t\tthis.selected.push(allIds[i]);\n\t\t\t\t\t\t\t}\n\t\t\t\t\t\t}\n\t\t\t\t\t},\n\n\t\t\t\t\tget count() {\n\t\t\t\t\t\treturn this.selected.length;\n\t\t\t\t\t},\n\n\t\t\t\t\tget onlineCount() {\n\t\t\t\t\t\treturn this.selected.filter(id => {\n\t\t\t\t\t\t\tconst host = hostStore.get(id);\n\t\t\t\t\t\t\treturn host && host.online;\n\t\t\t\t\t\t}).length;\n\t\t\t\t\t},\n\n\t\t\t\t\tget headerState() {\n\t\t\t\t\t\tconst allIds = this._getAllHostIds();\n\t\t\t\t\t\tif (allIds.length === 0) return 'none';\n\t\t\t\t\t\tif (this.selected.length === 0) return 'none';\n\t\t\t\t\t\tif (this.selected.length === allIds.length) return 'all';\n\t\t\t\t\t\treturn 'some';\n\t\t\t\t\t},\n\n\t\t\t\t\t_getAllHostIds() {\n\t\t\t\t\t\tconst ids = [];\n\t\t\t\t\t\tdocument.querySelectorAll('tr[data-host-id]').forEach(row => {\n\t\t\t\t\t\t\tids.push(row.dataset.hostId);\n\t\t\t\t\t\t});\n\t\t\t\t\t\treturn ids;\n\t\t\t\t\t}\n\t\t\t\t});\n\t\t\t});\n\n\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\t// GLOBAL STATE (non-host-specific)\n\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\tconst globalState = {\n\t\t\t\tpendingPR: null, // { number, title, url, mergeable } or null\n\t\t\t\twsConnected: false,\n\t\t\t\t// P7240: Track timeouts for context bar\n\t\t\t\ttimeouts: new Map() // hostId -> { command, startedAt, state }\n\t\t\t};\n\n\t\t\t// Hydrate globalState from config\n\t\t\t(function hydrateGlobalState() {\n\t\t\t\tconst prData = document.getElementById('config').dataset.pendingPr;\n\t\t\t\tif (prData && prData !== 'null') {\n\t\t\t\t\ttry {\n\t\t\t\t\t\tglobalState.pendingPR = JSON.parse(prData);\n\t\t\t\t\t} catch (e) {\n\t\t\t\t\t\tconsole.warn('Failed to parse pendingPR:', e);\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t})();\n\n\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\t// HOST STORE (Single Source of Truth) - P7000\n\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\tconst hostStore = {\n\t\t\t\t_hosts: new Map(),\n\n\t\t\t\t// Initialize store from server-rendered DOM\n\t\t\t\thydrate() {\n\t\t\t\t\tdocument.querySelectorAll('tr[data-host-id]').forEach((row) => {\n\t\t\t\t\t\tconst id = row.dataset.hostId;\n\t\t\t\t\t\tif (this._hosts.has(id)) return;\n\n\t\t\t\t\t\t// Cache element references for O(1) access\n\t\t\t\t\t\tconst card = document.querySelector(`.host-card[data-host-id=\"${id}\"]`);\n\n\t\t\t\tthis._hosts.set(id, {\n\t\t\t\t\t// Identity\n\t\t\t\t\tid: id,\n\t\t\t\t\thostname: row.dataset.hostname || id,\n\t\t\t\t\thostType: row.dataset.hostType || 'nixos',\n\t\t\t\t\tthemeColor: row.dataset.themeColor || '#7aa2f7',\n\n\t\t\t\t\t// State\n\t\t\t\t\tonline: !row.classList.contains('host-offline'),\n\t\t\t\t\tlastSeen: row.querySelector('[data-cell=\"last-seen\"]')?.dataset.timestamp || null,\n\t\t\t\t\tpendingCommand: row.dataset.pendingCommand || null,\n\n\t\t\t\t\t// Data\n\t\t\t\t\tmetrics: this._parseMetrics(row),\n\t\t\t\t\tupdateStatus: this._parseUpdateStatus(row),\n\t\t\t\t\tgeneration: row.dataset.generation || null,\n\t\t\t\t\tagentVersion: row.dataset.agentVersion || null,\n\t\t\t\t\tagentOutdated: row.dataset.agentOutdated === 'true',\n\t\t\t\t\tavailableOps: this._parseAvailableOps(row), // P5100: Server-driven available operations\n\n\t\t\t\t\t// Cached DOM references\n\t\t\t\t\t_elements: { row, card }\n\t\t\t\t});\n\t\t\t\t\t});\n\t\t\t\t\tconsole.log(`hostStore: hydrated ${this._hosts.size} hosts`);\n\t\t\t\t},\n\n\t\t\t\t_parseMetrics(row) {\n\t\t\t\t\tconst cell = row.querySelector('[data-cell=\"metrics\"]');\n\t\t\t\t\tif (!cell) return null;\n\t\t\t\t\tconst cpu = cell.querySelector('[data-metric=\"cpu\"]');\n\t\t\t\t\tconst ram = cell.querySelector('[data-metric=\"ram\"]');\n\t\t\t\t\tif (!cpu && !ram) return null;\n\t\t\t\t\treturn {\n\t\t\t\t\t\tcpu: parseFloat(cpu?.dataset.value) || 0,\n\t\t\t\t\t\tram: parseFloat(ram?.dataset.value) || 0,\n\t\t\t\t\t\tswap: parseFloat(ram?.dataset.swap) || 0,\n\t\t\t\t\t\tload: parseFloat(ram?.dataset.load) || 0\n\t\t\t\t\t};\n\t\t\t\t},\n\n\t\t\t_parseUpdateStatus(row) {\n\t\t\t\tconst container = row.querySelector('.update-status');\n\t\t\t\tif (!container) return null;\n\t\t\t\ttry {\n\t\t\t\t\treturn {\n\t\t\t\t\t\tgit: JSON.parse(container.dataset.git || 'null'),\n\t\t\t\t\t\tlock: JSON.parse(container.dataset.lock || 'null'),\n\t\t\t\t\t\tsystem: JSON.parse(container.dataset.system || 'null'),\n\t\t\t\t\t\trepoUrl: container.dataset.repoUrl || '',\n\t\t\t\t\t\trepoDir: container.dataset.repoDir || ''\n\t\t\t\t\t};\n\t\t\t\t} catch (e) {\n\t\t\t\t\tconsole.warn('Failed to parse updateStatus:', e);\n\t\t\t\t\treturn null;\n\t\t\t\t}\n\t\t\t},\n\n\t\t\t// P5100: Parse available operations from data attribute\n\t\t\t_parseAvailableOps(row) {\n\t\t\t\tconst opsStr = row.dataset.availableOps;\n\t\t\t\tif (!opsStr) return [];\n\t\t\t\ttry {\n\t\t\t\t\treturn JSON.parse(opsStr);\n\t\t\t\t} catch (e) {\n\t\t\t\t\tconsole.error('Failed to parse availableOps:', e);\n\t\t\t\t\treturn [];\n\t\t\t\t}\n\t\t\t},\n\n\t\t\t// P5100: Calculate available ops locally (mirrors server logic)\n\t\t\t// Used when state changes locally before server confirms\n\t\t\t_calculateAvailableOps(host) {\n\t\t\t\t// If offline or has pending command, no ops available\n\t\t\t\tif (!host.online || host.pendingCommand) {\n\t\t\t\t\treturn [];\n\t\t\t\t}\n\t\t\t\t// Standard ops for online, idle hosts\n\t\t\t\treturn ['pull', 'switch', 'test', 'reboot'];\n\t\t\t},\n\n\t\t\t\tget(id) {\n\t\t\t\t\treturn this._hosts.get(id);\n\t\t\t\t},\n\n\t\t\t\tall() {\n\t\t\t\t\treturn Array.from(this._hosts.values());\n\t\t\t\t},\n\n\t\t\t\t// Update host state and trigger render\n\t\t\tupdate(id, patch) {\n\t\t\t\tconst current = this._hosts.get(id);\n\t\t\t\tif (!current) {\n\t\t\t\t\tconsole.warn(`hostStore: unknown host ${id}`);\n\t\t\t\t\treturn;\n\t\t\t\t}\n\n\t\t\t\t// Start with shallow merge\n\t\t\t\tconst next = { ...current, ...patch };\n\n\t\t\t\t// Deep merge for known nested objects\n\t\t\t\tif (patch.metrics && current.metrics) {\n\t\t\t\t\tnext.metrics = { ...current.metrics, ...patch.metrics };\n\t\t\t\t}\n\t\t\t\tif (patch.updateStatus && current.updateStatus) {\n\t\t\t\t\tnext.updateStatus = { ...current.updateStatus, ...patch.updateStatus };\n\t\t\t\t}\n\n\t\t\t\t// P5100: Recalculate availableOps when online/pendingCommand changes\n\t\t\t\tif ('online' in patch || 'pendingCommand' in patch) {\n\t\t\t\t\tnext.availableOps = this._calculateAvailableOps(next);\n\t\t\t\t}\n\n\t\t\t\t// Preserve cached elements\n\t\t\t\tnext._elements = current._elements;\n\n\t\t\t\tthis._hosts.set(id, next);\n\t\t\t\trenderHost(id);\n\t\t\t},\n\n\t\t\t\tsetOffline(id) {\n\t\t\t\t\tthis.update(id, { online: false, pendingCommand: null });\n\t\t\t\t}\n\t\t\t};\n\n\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\t// RENDER (Single Render Function) - P7000\n\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\tfunction renderHost(hostId) {\n\t\t\t\tconst host = hostStore.get(hostId);\n\t\t\t\tif (!host) return;\n\n\t\t\t\t// Derived state\n\t\t\t\tconst isOnline = host.online;\n\t\t\t\tconst isBusy = !!host.pendingCommand;\n\t\t\t\tconst buttonsEnabled = isOnline && !isBusy;\n\n\t\t\t\t// Use cached element references\n\t\t\t\tconst { row, card } = host._elements || {};\n\n\t\t\t\t[row, card].filter(Boolean).forEach((el) => {\n\t\t\t\t\t// 1. Offline class\n\t\t\t\t\tel.classList.toggle('host-offline', !isOnline);\n\n\t\t\t\t\t// 2. Status indicator (ripple/dot)\n\t\t\t\t\trenderStatusIndicator(el, isOnline, isBusy);\n\n\t\t\t\t\t// 3. Progress badge\n\t\t\t\t\trenderProgressBadge(el, host.pendingCommand);\n\n\t\t\t\t\t// 4. Metrics\n\t\t\t\t\tif (host.metrics) {\n\t\t\t\t\t\trenderMetrics(el, host.metrics);\n\t\t\t\t\t}\n\n\t\t\t\t\t// 5. Agent version cell\n\t\t\t\t\trenderAgentVersion(el, host);\n\n\t\t\t\t\t// 6. Status compartments (Git/Lock/System)\n\t\t\t\t\tif (host.updateStatus) {\n\t\t\t\t\t\trenderUpdateStatus(el, host);\n\t\t\t\t\t}\n\n\t\t\t\t\t// 6b. P2800: Operation progress dots\n\t\t\t\t\tif (host.operationProgress) {\n\t\t\t\t\t\trenderOperationProgress(el, host.operationProgress);\n\t\t\t\t\t}\n\n\t\t\t\t\t// 6c. P7240: Timeout indicator in Status column\n\t\t\t\t\trenderTimeoutIndicator(el, host);\n\n\t\t\t\t// 6. Button states: swap between cmd-buttons and stop button\n\t\t\t\tconst cmdButtons = el.querySelector('.cmd-buttons');\n\t\t\t\tconst stopBtn = el.querySelector('.btn-stop');\n\t\t\t\tif (cmdButtons) {\n\t\t\t\t\tcmdButtons.style.display = isBusy ? 'none' : '';\n\t\t\t\t\tcmdButtons.querySelectorAll('button').forEach(btn => {\n\t\t\t\t\t\tbtn.disabled = !buttonsEnabled;\n\t\t\t\t\t});\n\t\t\t\t}\n\t\t\t\tif (stopBtn) {\n\t\t\t\t\tstopBtn.style.display = isBusy ? '' : 'none';\n\t\t\t\t}\n\n\t\t\t\t// P5100: Update dropdown menu button states based on availableOps\n\t\t\t\tconst dropdown = el.querySelector('.dropdown-menu');\n\t\t\t\tif (dropdown) {\n\t\t\t\t\tconst availableOps = host.availableOps || [];\n\t\t\t\t\tdropdown.querySelectorAll('.dropdown-item').forEach(btn => {\n\t\t\t\t\t\tconst onclick = btn.getAttribute('onclick') || '';\n\t\t\t\t\t\t// Match sendCommand('hostId', 'command') pattern\n\t\t\t\t\t\tconst cmdMatch = onclick.match(/sendCommand\\([^,]+,\\s*'([^']+)'\\)/);\n\t\t\t\t\t\t// Match showRebootModal pattern (reboot button)\n\t\t\t\t\t\tconst rebootMatch = onclick.match(/showRebootModal\\(/);\n\t\t\t\t\t\t\n\t\t\t\t\t\tif (cmdMatch) {\n\t\t\t\t\t\t\tconst command = cmdMatch[1];\n\t\t\t\t\t\t\tbtn.disabled = !availableOps.includes(command);\n\t\t\t\t\t\t} else if (rebootMatch) {\n\t\t\t\t\t\t\tbtn.disabled = !availableOps.includes('reboot');\n\t\t\t\t\t\t}\n\t\t\t\t\t});\n\t\t\t\t}\n\n\t\t\t\t\t// 7. Last seen\n\t\t\t\t\tconst lastSeenCell = el.querySelector('[data-cell=\"last-seen\"]');\n\t\t\t\t\tif (lastSeenCell && host.lastSeen) {\n\t\t\t\t\t\tlastSeenCell.dataset.timestamp = host.lastSeen;\n\t\t\t\t\t\tconst result = formatLastSeen(host.lastSeen);\n\t\t\t\t\t\tlastSeenCell.textContent = result.text;\n\t\t\t\t\t\tlastSeenCell.className = result.className;\n\t\t\t\t\t}\n\t\t\t\t});\n\t\t\t}\n\n\t\t\t// Helper: Render status indicator\n\t\t\tfunction renderStatusIndicator(el, isOnline, isBusy) {\n\t\t\t\tconst wrapper = el.querySelector('.status-wrapper') || el.querySelector('.status-with-badge');\n\t\t\t\tif (!wrapper) return;\n\n\t\t\t\tconst existing = wrapper.querySelector('.status-ripple, .status-dot');\n\n\t\t\t\tlet html;\n\t\t\t\tif (isOnline && !isBusy) {\n\t\t\t\t\tif (existing?.classList.contains('status-ripple')) {\n\t\t\t\t\t\ttriggerHeartbeat(existing);\n\t\t\t\t\t\treturn;\n\t\t\t\t\t}\n\t\t\t\t\thtml = '<span class=\"status-ripple\"><span class=\"hb-wave\"></span><span class=\"hb-wave\"></span><span class=\"hb-wave\"></span><span class=\"hb-core\"></span></span>';\n\t\t\t\t} else if (isBusy) {\n\t\t\t\t\thtml = '<span class=\"status-dot status-running\"></span>';\n\t\t\t\t} else {\n\t\t\t\t\thtml = '<span class=\"status-dot status-offline\"></span>';\n\t\t\t\t}\n\n\t\t\t\tif (existing) {\n\t\t\t\t\tconst temp = document.createElement('div');\n\t\t\t\t\ttemp.innerHTML = html;\n\t\t\t\t\texisting.replaceWith(temp.firstChild);\n\t\t\t\t\tif (isOnline && !isBusy) {\n\t\t\t\t\t\ttriggerHeartbeat(wrapper.querySelector('.status-ripple'));\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t}\n\n\t\t\t// Helper: Render progress badge\n\t\t\tfunction renderProgressBadge(el, pendingCommand) {\n\t\t\t\tconst wrapper = el.querySelector('.status-wrapper') || el.querySelector('.status-with-badge');\n\t\t\t\tif (!wrapper) return;\n\n\t\t\t\tlet badge = wrapper.querySelector('.progress-badge-mini');\n\t\t\t\tif (pendingCommand) {\n\t\t\t\t\tif (!badge) {\n\t\t\t\t\t\tbadge = document.createElement('span');\n\t\t\t\t\t\tbadge.className = 'progress-badge-mini';\n\t\t\t\t\t\twrapper.appendChild(badge);\n\t\t\t\t\t}\n\t\t\t\t\tbadge.textContent = pendingCommand;\n\t\t\t\t} else if (badge) {\n\t\t\t\t\tbadge.remove();\n\t\t\t\t}\n\t\t\t}\n\n\t\t\t// Helper: Render metrics\n\t\t\tfunction renderMetrics(el, metrics) {\n\t\t\t\tconst cell = el.querySelector('[data-cell=\"metrics\"]');\n\t\t\t\tif (!cell) return;\n\n\t\t\t\tconst cpuEl = cell.querySelector('[data-metric=\"cpu\"]');\n\t\t\t\tconst ramEl = cell.querySelector('[data-metric=\"ram\"]');\n\n\t\t\t\tif (cpuEl) {\n\t\t\t\t\tconst val = cpuEl.querySelector('.metric-val');\n\t\t\t\t\tif (val) val.textContent = Math.round(metrics.cpu) + '%';\n\t\t\t\t\tcpuEl.classList.toggle('metric-high', metrics.cpu >= 80);\n\t\t\t\t\tcpuEl.dataset.value = metrics.cpu;\n\t\t\t\t}\n\n\t\t\t\tif (ramEl) {\n\t\t\t\t\tconst val = ramEl.querySelector('.metric-val');\n\t\t\t\t\tif (val) val.textContent = Math.round(metrics.ram) + '%';\n\t\t\t\t\tramEl.classList.toggle('metric-high', metrics.ram >= 80);\n\t\t\t\t\tramEl.dataset.value = metrics.ram;\n\t\t\t\t\tramEl.dataset.swap = metrics.swap;\n\t\t\t\t\tramEl.dataset.load = metrics.load;\n\t\t\t\t\tramEl.title = `RAM: ${Math.round(metrics.ram)}%, Swap: ${Math.round(metrics.swap)}%, Load: ${metrics.load.toFixed(2)}`;\n\t\t\t\t}\n\n\t\t\t\t// Replace \"—\" placeholder if needed\n\t\t\t\tconst naSpan = cell.querySelector('.metrics-na');\n\t\t\t\tif (naSpan) {\n\t\t\t\t\tcell.innerHTML = `\n\t\t\t\t\t\t<span class=\"metric\" data-metric=\"cpu\" data-value=\"${metrics.cpu}\">\n\t\t\t\t\t\t\t<svg class=\"metric-icon\"><use href=\"#icon-cpu\"></use></svg>\n\t\t\t\t\t\t\t<span class=\"metric-val\">${Math.round(metrics.cpu)}%</span>\n\t\t\t\t\t\t</span>\n\t\t\t\t\t\t<span class=\"metric\" data-metric=\"ram\" data-value=\"${metrics.ram}\">\n\t\t\t\t\t\t\t<svg class=\"metric-icon\"><use href=\"#icon-ram\"></use></svg>\n\t\t\t\t\t\t\t<span class=\"metric-val\">${Math.round(metrics.ram)}%</span>\n\t\t\t\t\t\t</span>\n\t\t\t\t\t`;\n\t\t\t\t}\n\t\t\t}\n\n\t\t\t// Helper: Render agent version cell\n\t\t\tfunction renderAgentVersion(el, host) {\n\t\t\t\tconst cell = el.querySelector('[data-cell=\"agent-version\"] .agent-version');\n\t\t\t\tif (!cell) return;\n\n\t\t\t\tcell.textContent = host.agentVersion || '—';\n\t\t\t\tcell.className = 'agent-version';\n\t\t\t\tif (!host.agentVersion) {\n\t\t\t\t\tcell.classList.add('agent-version--unknown');\n\t\t\t\t} else if (host.agentOutdated) {\n\t\t\t\t\tcell.classList.add('agent-version--outdated');\n\t\t\t\t} else {\n\t\t\t\t\tcell.classList.add('agent-version--ok');\n\t\t\t\t}\n\t\t\t}\n\n\t\t\t// Helper: Render status compartments (Agent/Git/Lock/System)\n\t\t\t// P7300: Single dot per compartment with 5 color states\n\t\t\t// Colors: gray (unchecked), blue-pulse (working), green (ok), yellow (warning), red (error)\n\t\t\tfunction renderUpdateStatus(el, host) {\n\t\t\t\tconst container = el.querySelector('.update-status');\n\t\t\t\tif (!container) return;\n\n\t\t\t\tconst status = host.updateStatus;\n\n\t\t\t\t// Update Agent compartment (not from updateStatus)\n\t\t\t\tconst agentBtn = container.querySelector('[data-compartment=\"agent\"]');\n\t\t\t\tif (agentBtn) {\n\t\t\t\t\tconst indicator = agentBtn.querySelector('.compartment-indicator');\n\t\t\t\t\tif (indicator) {\n\t\t\t\t\t\tindicator.className = 'compartment-indicator';\n\t\t\t\t\t\tif (!host.agentVersion) {\n\t\t\t\t\t\t\tindicator.classList.add('compartment-indicator--gray');\n\t\t\t\t\t\t} else if (host.agentOutdated) {\n\t\t\t\t\t\t\tindicator.classList.add('compartment-indicator--error');\n\t\t\t\t\t\t} else {\n\t\t\t\t\t\t\tindicator.classList.add('compartment-indicator--ok');\n\t\t\t\t\t\t}\n\t\t\t\t\t}\n\t\t\t\t}\n\n\t\t\t\tif (!status) return;\n\n\t\t\t\t// Update Git/Lock/System compartments\n\t\t\t\t['git', 'lock', 'system'].forEach((type) => {\n\t\t\t\t\tconst btn = container.querySelector(`[data-compartment=\"${type}\"]`);\n\t\t\t\t\tif (!btn) return;\n\n\t\t\t\t\tconst check = status[type];\n\t\t\t\t\t\n\t\t\t\t\t// Update data-status attribute for CSS/hover\n\t\t\t\t\tbtn.dataset.status = check?.status || 'unknown';\n\t\t\t\t\t\n\t\t\t\t\t// Toggle unknown class for dimming\n\t\t\t\t\tbtn.classList.toggle('unknown', !check || !check.status || check.status === 'unknown');\n\n\t\t\t\t\t// Update single indicator dot\n\t\t\t\t\tconst indicator = btn.querySelector('.compartment-indicator');\n\t\t\t\t\tif (indicator) {\n\t\t\t\t\t\tindicator.className = 'compartment-indicator';\n\t\t\t\t\t\t\n\t\t\t\t\t\tif (check && check.status) {\n\t\t\t\t\t\t\t// Map status to CSS class\n\t\t\t\t\t\t\tswitch (check.status) {\n\t\t\t\t\t\t\t\tcase 'ok':\n\t\t\t\t\t\t\t\t\tindicator.classList.add('compartment-indicator--ok');\n\t\t\t\t\t\t\t\t\tbreak;\n\t\t\t\t\t\t\t\tcase 'outdated':\n\t\t\t\t\t\t\t\t\tindicator.classList.add('compartment-indicator--warning');\n\t\t\t\t\t\t\t\t\tbreak;\n\t\t\t\t\t\t\t\tcase 'error':\n\t\t\t\t\t\t\t\t\tindicator.classList.add('compartment-indicator--error');\n\t\t\t\t\t\t\t\t\tbreak;\n\t\t\t\t\t\t\t\tdefault:\n\t\t\t\t\t\t\t\t\tindicator.classList.add('compartment-indicator--gray');\n\t\t\t\t\t\t\t}\n\t\t\t\t\t\t} else {\n\t\t\t\t\t\t\tindicator.classList.add('compartment-indicator--gray');\n\t\t\t\t\t\t}\n\t\t\t\t\t}\n\n\t\t\t\t\t// Lock-specific: agent outdated overrides indicator to error (red)\n\t\t\t\t\tif (type === 'lock' && indicator && host.agentOutdated) {\n\t\t\t\t\t\tindicator.className = 'compartment-indicator compartment-indicator--error';\n\t\t\t\t\t}\n\t\t\t\t});\n\t\t\t}\n\n\t\t\t// P2800: Render operation progress dots in Status column\n\t\t\tfunction renderOperationProgress(el, progress) {\n\t\t\t\tconst container = el.querySelector('.status-progress');\n\t\t\t\tif (!container) return;\n\n\t\t\t\t// Phase mapping: name → segment class\n\t\t\t\tconst phases = {\n\t\t\t\t\tpull: { selector: '.segment-pull', total: 4 },\n\t\t\t\t\tlock: { selector: '.segment-lock', total: 2 },\n\t\t\t\t\tsystem: { selector: '.segment-system', total: 3 },\n\t\t\t\t\ttests: { selector: '.segment-tests', total: 8 }\n\t\t\t\t};\n\n\t\t\t\tObject.entries(phases).forEach(([name, config]) => {\n\t\t\t\t\tconst segment = container.querySelector(config.selector);\n\t\t\t\t\tif (!segment) return;\n\n\t\t\t\t\tconst phaseData = progress[name];\n\t\t\t\t\tconst dots = segment.querySelectorAll('.progress-dot');\n\n\t\t\t\t\tdots.forEach((dot, i) => {\n\t\t\t\t\t\t// Reset classes\n\t\t\t\t\t\tdot.className = 'progress-dot';\n\n\t\t\t\t\t\tif (!phaseData) {\n\t\t\t\t\t\t\t// No data = idle state\n\t\t\t\t\t\t\tdot.classList.add('dot-idle');\n\t\t\t\t\t\t\tdot.textContent = '●';\n\t\t\t\t\t\t\treturn;\n\t\t\t\t\t\t}\n\n\t\t\t\t\t\tswitch (phaseData.status) {\n\t\t\t\t\t\t\tcase 'complete':\n\t\t\t\t\t\t\t\tdot.classList.add('dot-complete');\n\t\t\t\t\t\t\t\tdot.textContent = '●';\n\t\t\t\t\t\t\t\tbreak;\n\t\t\t\t\t\t\tcase 'error':\n\t\t\t\t\t\t\t\tif (i < phaseData.current) {\n\t\t\t\t\t\t\t\t\tdot.classList.add('dot-complete');\n\t\t\t\t\t\t\t\t\tdot.textContent = '●';\n\t\t\t\t\t\t\t\t} else {\n\t\t\t\t\t\t\t\t\tdot.classList.add('dot-error');\n\t\t\t\t\t\t\t\t\tdot.textContent = '✗';\n\t\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\t\tbreak;\n\t\t\t\t\t\t\tcase 'in_progress':\n\t\t\t\t\t\t\t\tif (i < phaseData.current) {\n\t\t\t\t\t\t\t\t\tdot.classList.add('dot-complete');\n\t\t\t\t\t\t\t\t\tdot.textContent = '●';\n\t\t\t\t\t\t\t\t} else if (i === phaseData.current) {\n\t\t\t\t\t\t\t\t\tdot.classList.add('dot-in-progress');\n\t\t\t\t\t\t\t\t\tdot.textContent = '◐';\n\t\t\t\t\t\t\t\t} else {\n\t\t\t\t\t\t\t\t\tdot.classList.add('dot-pending');\n\t\t\t\t\t\t\t\t\tdot.textContent = '○';\n\t\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\t\tbreak;\n\t\t\t\t\t\t\tdefault: // pending\n\t\t\t\t\t\t\t\tdot.classList.add('dot-pending');\n\t\t\t\t\t\t\t\tdot.textContent = '○';\n\t\t\t\t\t\t}\n\t\t\t\t\t});\n\t\t\t\t});\n\t\t\t}\n\n\t\t\t// P7240: Render timeout indicator in Status column\n\t\t\tfunction renderTimeoutIndicator(el, host) {\n\t\t\t\tconst statusCell = el.querySelector('[data-cell=\"status\"]');\n\t\t\t\tif (!statusCell) return;\n\n\t\t\t\tconst timeoutStates = ['running_warning', 'timeout_pending', 'killing', 'kill_failed'];\n\t\t\t\tconst hostId = el.dataset.hostId;\n\t\t\t\t\n\t\t\t\t// Check if this host has a timeout state\n\t\t\t\tconst timeout = globalState.timeouts.get(hostId);\n\t\t\t\tlet existingIndicator = statusCell.querySelector('.timeout-status-indicator');\n\t\t\t\t\n\t\t\t\tif (timeout && timeoutStates.includes(host.commandState || timeout.state)) {\n\t\t\t\t\t// Calculate elapsed time\n\t\t\t\t\tconst elapsed = Date.now() - timeout.startedAt;\n\t\t\t\t\tconst minutes = Math.floor(elapsed / 60000);\n\t\t\t\t\tconst seconds = Math.floor((elapsed % 60000) / 1000);\n\t\t\t\t\tconst elapsedStr = `${minutes}:${seconds.toString().padStart(2, '0')}`;\n\t\t\t\t\t\n\t\t\t\t\tif (!existingIndicator) {\n\t\t\t\t\t\t// Create indicator\n\t\t\t\t\t\texistingIndicator = document.createElement('span');\n\t\t\t\t\t\texistingIndicator.className = 'timeout-status-indicator';\n\t\t\t\t\t\texistingIndicator.onclick = () => showLogPanel(hostId);\n\t\t\t\t\t\tstatusCell.appendChild(existingIndicator);\n\t\t\t\t\t}\n\t\t\t\t\t\n\t\t\t\t\t// Update indicator content\n\t\t\t\t\texistingIndicator.innerHTML = `<svg class=\"icon\"><use href=\"#icon-alert-triangle\"></use></svg> ${elapsedStr}`;\n\t\t\t\t\texistingIndicator.title = `${timeout.command} timed out - click to see log`;\n\t\t\t\t\t\n\t\t\t\t\t// Hide progress dots when showing timeout\n\t\t\t\t\tconst progressDots = statusCell.querySelector('.status-progress');\n\t\t\t\t\tif (progressDots) progressDots.style.display = 'none';\n\t\t\t\t} else {\n\t\t\t\t\t// Remove indicator if present\n\t\t\t\t\tif (existingIndicator) {\n\t\t\t\t\t\texistingIndicator.remove();\n\t\t\t\t\t}\n\t\t\t\t\t// Show progress dots again\n\t\t\t\t\tconst progressDots = statusCell.querySelector('.status-progress');\n\t\t\t\t\tif (progressDots) progressDots.style.display = '';\n\t\t\t\t}\n\t\t\t}\n\n\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\t// REFRESH HOST (On-demand API call) - P7000\n\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\tasync function refreshHost(hostId) {\n\t\t\t\tconst host = hostStore.get(hostId);\n\t\t\t\tlet btn = host?._elements?.row?.querySelector('.btn-refresh');\n\t\t\t\tif (!btn) {\n\t\t\t\t\tbtn = document.querySelector(`button.btn-refresh[data-host-id=\"${hostId}\"]`);\n\t\t\t\t}\n\t\t\t\tif (btn) btn.classList.add('loading');\n\n\t\t\t\ttry {\n\t\t\t\t\tconst resp = await fetch(`/api/hosts/${hostId}/refresh`, {\n\t\t\t\t\t\tmethod: 'POST',\n\t\t\t\t\t\theaders: {\n\t\t\t\t\t\t\t'Content-Type': 'application/json',\n\t\t\t\t\t\t\t'X-CSRF-Token': CSRF_TOKEN\n\t\t\t\t\t\t}\n\t\t\t\t\t});\n\n\t\t\t\t\tif (resp.status === 404) {\n\t\t\t\t\t\tconsole.warn(`Host ${hostId} not found`);\n\t\t\t\t\t\treturn;\n\t\t\t\t\t}\n\n\t\t\t\t\tif (!resp.ok) {\n\t\t\t\t\t\tconsole.error(`Refresh failed: ${resp.status} ${resp.statusText}`);\n\t\t\t\t\t\treturn;\n\t\t\t\t\t}\n\n\t\t\t\t\tconst data = await resp.json();\n\n\t\t\t\t\t// Update store with fresh data\n\t\t\t\t\thostStore.update(hostId, {\n\t\t\t\t\t\tonline: data.online,\n\t\t\t\t\t\tgeneration: data.generation,\n\t\t\t\t\t\tagentVersion: data.agent_version,\n\t\t\t\t\t\tagentOutdated: data.agent_outdated,\n\t\t\t\t\t\tupdateStatus: data.update_status\n\t\t\t\t\t});\n\n\t\t\t\t\t// Update global PR state if included\n\t\t\t\t\tif (data.pending_pr !== undefined) {\n\t\t\t\t\t\tglobalState.pendingPR = data.pending_pr;\n\t\t\t\t\t}\n\n\t\t\t\t} catch (err) {\n\t\t\t\t\tconsole.error('Refresh failed:', err);\n\t\t\t\t} finally {\n\t\t\t\t\tif (btn) btn.classList.remove('loading');\n\t\t\t\t}\n\t\t\t}\n\n\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\t// WEBSOCKET - P7000 Simplified Messages\n\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\tlet ws = null;\n\t\t\tlet reconnectAttempts = 0;\n\t\t\tconst maxReconnectDelay = 30000;\n\n\t\t\tfunction connectWebSocket() {\n\t\t\t\tconst protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';\n\t\t\t\tws = new WebSocket(`${protocol}//${window.location.host}/ws`);\n\n\t\t\t\tws.onopen = () => {\n\t\t\t\t\tconsole.log('WebSocket connected');\n\t\t\t\t\treconnectAttempts = 0;\n\t\t\t\t\tupdateConnectionStatus(true);\n\t\t\t\t};\n\n\t\t\t\tws.onclose = () => {\n\t\t\t\t\tconsole.log('WebSocket disconnected');\n\t\t\t\t\tupdateConnectionStatus(false);\n\t\t\t\t\tscheduleReconnect();\n\t\t\t\t};\n\n\t\t\t\tws.onerror = (err) => {\n\t\t\t\t\tconsole.error('WebSocket error:', err);\n\t\t\t\t};\n\n\t\t\t\tws.onmessage = (event) => {\n\t\t\t\t\ttry {\n\t\t\t\t\t\tconst msg = JSON.parse(event.data);\n\t\t\t\t\t\thandleMessage(msg);\n\t\t\t\t\t} catch (e) {\n\t\t\t\t\t\tconsole.error('Failed to parse message:', e);\n\t\t\t\t\t}\n\t\t\t\t};\n\t\t\t}\n\n\t\t\tfunction updateConnectionStatus(connected) {\n\t\t\t\tglobalState.wsConnected = connected;\n\t\t\t\tconst el = document.getElementById('ws-status');\n\t\t\t\tif (connected) {\n\t\t\t\t\tel.className = 'connection-indicator connected';\n\t\t\t\t\tel.innerHTML = '<span class=\"status-dot status-online\"></span> Connected';\n\t\t\t\t} else {\n\t\t\t\t\tel.className = 'connection-indicator disconnected';\n\t\t\t\t\tel.innerHTML = '<span class=\"status-dot status-offline\"></span> Disconnected';\n\t\t\t\t}\n\t\t\t}\n\n\t\t\tfunction scheduleReconnect() {\n\t\t\t\treconnectAttempts++;\n\t\t\t\tconst delay = Math.min(1000 * Math.pow(2, reconnectAttempts), maxReconnectDelay);\n\t\t\t\tconsole.log(`Reconnecting in ${delay}ms...`);\n\t\t\t\tsetTimeout(connectWebSocket, delay);\n\t\t\t}\n\n\t\t\t// P7000: Simplified message handler\n\t\t\tfunction handleMessage(msg) {\n\t\t\t\tif (!msg || !msg.type) {\n\t\t\t\t\tconsole.warn('Invalid message:', msg);\n\t\t\t\t\treturn;\n\t\t\t\t}\n\n\t\t\t\tconst payload = msg.payload || {};\n\t\t\t\tconst hostId = payload.host_id;\n\n\t\t\t\tswitch (msg.type) {\n\t\t\t\t\tcase 'host_heartbeat':\n\t\t\t\t\t\tif (!hostId) return;\n\t\t\t\t\t\tconst heartbeatUpdate = {\n\t\t\t\t\t\t\tonline: true,\n\t\t\t\t\t\t\tlastSeen: payload.last_seen,\n\t\t\t\t\t\t\tmetrics: payload.metrics\n\t\t\t\t\t\t};\n\t\t\t\t\t\t// Include update_status if present (compartment data)\n\t\t\t\t\t\tif (payload.update_status) {\n\t\t\t\t\t\t\theartbeatUpdate.updateStatus = payload.update_status;\n\t\t\t\t\t\t}\n\t\t\t\t\t\tif (payload.generation) {\n\t\t\t\t\t\t\theartbeatUpdate.generation = payload.generation;\n\t\t\t\t\t\t}\n\t\t\t\t\t\thostStore.update(hostId, heartbeatUpdate);\n\t\t\t\t\t\tbreak;\n\n\t\t\t\t\tcase 'host_status_update':\n\t\t\t\t\t\t// Full status update (after command completes or compartment refresh)\n\t\t\t\t\t\tif (!hostId) return;\n\t\t\t\t\t\tconst statusUpdate = {};\n\t\t\t\t\t\tif (payload.update_status) {\n\t\t\t\t\t\t\tstatusUpdate.updateStatus = payload.update_status;\n\t\t\t\t\t\t}\n\t\t\t\t\t\tif (payload.generation) {\n\t\t\t\t\t\t\tstatusUpdate.generation = payload.generation;\n\t\t\t\t\t\t}\n\t\t\t\t\t\thostStore.update(hostId, statusUpdate);\n\t\t\t\t\t\tbreak;\n\n\t\t\t\t\tcase 'host_offline':\n\t\t\t\t\t\tif (!hostId) return;\n\t\t\t\t\t\thostStore.setOffline(hostId);\n\t\t\t\t\t\tbreak;\n\n\t\t\t\t\tcase 'command_queued':\n\t\t\t\t\t\tif (!hostId) return;\n\t\t\t\t\t\thostStore.update(hostId, {\n\t\t\t\t\t\t\tpendingCommand: payload.command\n\t\t\t\t\t\t});\n\t\t\t\t\t\t// Show panel and trigger command start (not just show existing output)\n\t\t\t\t\t\tconst panel = document.getElementById('output-panel');\n\t\t\t\t\t\tpanel.classList.remove('hidden');\n\t\t\t\t\t\twindow.dispatchEvent(new CustomEvent('output-start', { \n\t\t\t\t\t\t\tdetail: { hostId, command: payload.command } \n\t\t\t\t\t\t}));\n\t\t\t\t\t\tbreak;\n\n\t\t\t\t\tcase 'command_output':\n\t\t\t\t\t\tconsole.log('command_output received:', payload);\n\t\t\t\t\t\t// DEBUG: Write directly to debug textarea\n\t\t\t\t\t\tconst debugTA = document.getElementById('debug-output');\n\t\t\t\t\t\tif (debugTA) {\n\t\t\t\t\t\t\tdebugTA.value += `[${payload.host_id}] ${payload.line}\\n`;\n\t\t\t\t\t\t\tdebugTA.scrollTop = debugTA.scrollHeight;\n\t\t\t\t\t\t}\n\t\t\t\t\t\tappendLog(payload);\n\t\t\t\t\t\tbreak;\n\n\t\t\t\t\tcase 'command_complete':\n\t\t\t\t\t\tif (!hostId) return;\n\t\t\t\t\t\tconst host = hostStore.get(hostId);\n\t\t\t\t\t\thostStore.update(hostId, {\n\t\t\t\t\t\t\tpendingCommand: null\n\t\t\t\t\t\t});\n\t\t\t\t\t\twindow.dispatchEvent(new CustomEvent('log-complete', { detail: payload }));\n\t\t\t\t\t\t// P1010: Notify Action Bar of command completion\n\t\t\t\t\t\twindow.dispatchEvent(new CustomEvent('command-complete', {\n\t\t\t\t\t\t\tdetail: {\n\t\t\t\t\t\t\t\thostId,\n\t\t\t\t\t\t\t\thostname: host?.hostname || hostId,\n\t\t\t\t\t\t\t\tcommand: payload.command,\n\t\t\t\t\t\t\t\texit_code: payload.exit_code || 0\n\t\t\t\t\t\t\t}\n\t\t\t\t\t\t}));\n\t\t\t\t\t\tbreak;\n\n\t\t\t\t\tcase 'flake_update_job':\n\t\t\t\t\t\t// Keep for deployment progress display\n\t\t\t\t\t\thandleFlakeUpdateJob(payload);\n\t\t\t\t\t\tbreak;\n\n\t\t\t\t\t// P2800: State machine log messages\n\t\t\t\t\tcase 'state_machine_log':\n\t\t\t\t\t\thandleStateMachineLog(payload);\n\t\t\t\t\t\tbreak;\n\n\t\t\t\t// P2700: Operation progress updates\n\t\t\t\tcase 'operation_progress':\n\t\t\t\t\tif (!hostId) return;\n\t\t\t\t\thostStore.update(hostId, {\n\t\t\t\t\t\toperationProgress: payload.progress\n\t\t\t\t\t});\n\t\t\t\t\tbreak;\n\n\t\t\t\t// P7240: Command state changes (timeout handling)\n\t\t\t\tcase 'command_state_change':\n\t\t\t\t\tif (!hostId) return;\n\t\t\t\t\thandleCommandStateChange(hostId, payload);\n\t\t\t\t\tbreak;\n\n\t\t\t\tdefault:\n\t\t\t\t\tconsole.debug('Unknown WS message type:', msg.type);\n\t\t\t}\n\t\t\t}\n\n\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\t// ACTIONS (User-initiated)\n\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\t// v3: sendCommand using Op Engine /api/dispatch endpoint\n\t\t\tfunction sendCommand(hostId, command, force = false) {\n\t\t\t\tconst host = hostStore.get(hostId);\n\t\t\t\tconst hostname = host?.hostname || hostId;\n\n\t\t\t\t// Immediate UI feedback\n\t\t\t\thostStore.update(hostId, { pendingCommand: command });\n\n\t\t\t\t// P1010: Notify Action Bar of command start\n\t\t\t\twindow.dispatchEvent(new CustomEvent('command-start', {\n\t\t\t\t\tdetail: { hostId, hostname, command }\n\t\t\t\t}));\n\n\t\t\t\t// v3: Use new Op Engine dispatch endpoint\n\t\t\t\tfetch('/api/dispatch', {\n\t\t\t\t\tmethod: 'POST',\n\t\t\t\t\theaders: {\n\t\t\t\t\t\t'Content-Type': 'application/json',\n\t\t\t\t\t\t'X-CSRF-Token': CSRF_TOKEN\n\t\t\t\t\t},\n\t\t\t\t\tbody: JSON.stringify({ \n\t\t\t\t\t\top: command,\n\t\t\t\t\t\thosts: [hostId],\n\t\t\t\t\t\tforce: force\n\t\t\t\t\t})\n\t\t\t\t}).then(resp => {\n\t\t\t\t\tif (!resp.ok) {\n\t\t\t\t\t\treturn resp.json().then(data => {\n\t\t\t\t\t\t\t// Check for blocked status (pre-validation failed)\n\t\t\t\t\t\t\tif (data.results && data.results[0]?.status === 'blocked') {\n\t\t\t\t\t\t\t\thostStore.update(hostId, { pendingCommand: null });\n\t\t\t\t\t\t\t\tshowPreCheckDialog(hostId, hostname, command, {\n\t\t\t\t\t\t\t\t\tcode: data.results[0].code,\n\t\t\t\t\t\t\t\t\tmessage: data.results[0].message\n\t\t\t\t\t\t\t\t});\n\t\t\t\t\t\t\t\tthrow { handled: true };\n\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\tthrow new Error(data.error || 'Request failed');\n\t\t\t\t\t\t});\n\t\t\t\t\t}\n\t\t\t\t\treturn resp.json();\n\t\t\t\t}).then(data => {\n\t\t\t\t\tif (!data) return;\n\t\t\t\t\t\n\t\t\t\t\t// Check individual host result\n\t\t\t\t\tconst result = data.results?.[0];\n\t\t\t\t\tif (result?.status === 'blocked') {\n\t\t\t\t\t\thostStore.update(hostId, { pendingCommand: null });\n\t\t\t\t\t\tshowPreCheckDialog(hostId, hostname, command, {\n\t\t\t\t\t\t\tcode: result.code,\n\t\t\t\t\t\t\tmessage: result.message\n\t\t\t\t\t\t});\n\t\t\t\t\t\treturn;\n\t\t\t\t\t}\n\t\t\t\t\tif (result?.status === 'error') {\n\t\t\t\t\t\tthrow new Error(result.error || 'Command failed');\n\t\t\t\t\t}\n\t\t\t\t\tconsole.log('Op dispatched:', command, result?.command_id);\n\t\t\t\t}).catch(err => {\n\t\t\t\t\tif (err.handled) return;\n\t\t\t\t\t\n\t\t\t\t\tconsole.error('Op dispatch failed:', err);\n\t\t\t\t\tconst errorMsg = err.message || 'Unknown error';\n\t\t\t\t\tshowToast(`Command failed: ${errorMsg}`, 'error');\n\t\t\t\t\thostStore.update(hostId, { pendingCommand: null });\n\t\t\t\t\twindow.dispatchEvent(new CustomEvent('command-complete', {\n\t\t\t\t\t\tdetail: { hostId, hostname, command, exit_code: 1, error: errorMsg }\n\t\t\t\t\t}));\n\t\t\t\t});\n\t\t\t}\n\n\t\t\t// P2800: Show pre-check dialog when validation fails\n\t\t\tfunction showPreCheckDialog(hostId, hostname, command, validation) {\n\t\t\t\tconst dialog = document.getElementById('preCheckDialog');\n\t\t\t\tif (!dialog) {\n\t\t\t\t\t// Fallback to toast if dialog doesn't exist\n\t\t\t\t\tshowToast(`Cannot ${command}: ${validation.message}`, 'info');\n\t\t\t\t\treturn;\n\t\t\t\t}\n\t\t\t\t\n\t\t\t\t// Populate dialog\n\t\t\t\tdocument.getElementById('preCheckHostname').textContent = hostname;\n\t\t\t\tdocument.getElementById('preCheckCommand').textContent = command;\n\t\t\t\tdocument.getElementById('preCheckMessage').textContent = validation.message;\n\t\t\t\tdocument.getElementById('preCheckCode').textContent = validation.code;\n\t\t\t\t\n\t\t\t\t// Store context for button actions\n\t\t\t\tdialog.dataset.hostId = hostId;\n\t\t\t\tdialog.dataset.command = command;\n\t\t\t\t\n\t\t\t\t// Show appropriate alternative actions based on code\n\t\t\t\tconst altBtn = document.getElementById('preCheckAltAction');\n\t\t\t\tif (validation.code === 'git_outdated' && command === 'switch') {\n\t\t\t\t\taltBtn.textContent = 'Pull First';\n\t\t\t\t\taltBtn.onclick = () => { closeModal('preCheckDialog'); sendCommand(hostId, 'pull'); };\n\t\t\t\t\taltBtn.style.display = '';\n\t\t\t\t} else if (validation.code === 'already_current') {\n\t\t\t\t\taltBtn.style.display = 'none';\n\t\t\t\t} else {\n\t\t\t\t\taltBtn.textContent = 'Refresh Status';\n\t\t\t\t\taltBtn.onclick = () => { closeModal('preCheckDialog'); sendCommand(hostId, 'refresh-all'); };\n\t\t\t\t\taltBtn.style.display = '';\n\t\t\t\t}\n\t\t\t\t\n\t\t\t\t// Open the dialog\n\t\t\t\tdialog.classList.remove('hidden');\n\t\t\t\tdialog.classList.add('open');\n\t\t\t}\n\t\t\t\n\t\t\t// P2800: Force execute despite pre-check failure\n\t\t\tfunction forceCommand() {\n\t\t\t\tconst dialog = document.getElementById('preCheckDialog');\n\t\t\t\tconst hostId = dialog.dataset.hostId;\n\t\t\t\tconst command = dialog.dataset.command;\n\t\t\t\tcloseModal('preCheckDialog');\n\t\t\t\tsendCommand(hostId, command, true);\n\t\t\t}\n\n\t\t\t// System refresh confirmation dialog\n\t\t\tfunction showSystemRefreshDialog(hostId, hostname, description, status) {\n\t\t\t\tconst dialog = document.getElementById('systemRefreshDialog');\n\t\t\t\tif (!dialog) return;\n\n\t\t\t\t// Store host info for confirm action\n\t\t\t\tdialog.dataset.hostId = hostId;\n\n\t\t\t\t// Populate hostname\n\t\t\t\tdocument.getElementById('systemRefreshHostname').textContent = hostname;\n\n\t\t\t\t// Show the exact command that will run\n\t\t\t\t// NixOS: nix build --dry-run .#nixosConfigurations.<host>.config.system.build.toplevel\n\t\t\t\t// macOS: nix build --dry-run .#homeConfigurations.<user>.activationPackage\n\t\t\t\tconst hostRow = document.querySelector(`[data-host-id=\"${hostId}\"]`);\n\t\t\t\tconst hostType = hostRow?.dataset.hostType || 'nixos';\n\t\t\t\tlet command;\n\t\t\t\tif (hostType === 'macos') {\n\t\t\t\t\tcommand = `nix build --dry-run .#homeConfigurations.${hostname}.activationPackage`;\n\t\t\t\t} else {\n\t\t\t\t\tcommand = `nix build --dry-run .#nixosConfigurations.${hostname}.config.system.build.toplevel`;\n\t\t\t\t}\n\t\t\t\tdocument.getElementById('systemRefreshCommand').textContent = command;\n\n\t\t\t\t// Show current status in log panel\n\t\t\t\tshowLogPanel(hostId);\n\t\t\t\tappendLogLine(hostId, `ℹ️ Current system status: ${description || status}`);\n\n\t\t\t\t// Open dialog\n\t\t\t\tdialog.classList.remove('hidden');\n\t\t\t\tdialog.classList.add('open');\n\t\t\t}\n\n\t\t\tfunction confirmSystemRefresh() {\n\t\t\t\tconst dialog = document.getElementById('systemRefreshDialog');\n\t\t\t\tconst hostId = dialog.dataset.hostId;\n\t\t\t\tcloseModal('systemRefreshDialog');\n\n\t\t\t\t// Send refresh-system command\n\t\t\t\tappendLogLine(hostId, `🔄 Starting system status check (this may take 30-60s)...`);\n\t\t\t\tshowToast('System check started...', 'info');\n\t\t\t\tsendCommand(hostId, 'refresh-system');\n\t\t\t}\n\n\t\t\tfunction mergeAndDeploy(prNumber) {\n\t\t\t\tif (!confirm('Merge PR #' + prNumber + ' and deploy to all online hosts?')) return;\n\n\t\t\t\tfetch('/api/flake-updates/merge-and-deploy', {\n\t\t\t\t\tmethod: 'POST',\n\t\t\t\t\theaders: {\n\t\t\t\t\t\t'Content-Type': 'application/json',\n\t\t\t\t\t\t'X-CSRF-Token': CSRF_TOKEN\n\t\t\t\t\t},\n\t\t\t\t\tbody: JSON.stringify({ pr_number: prNumber })\n\t\t\t\t})\n\t\t\t\t.then(resp => {\n\t\t\t\t\tif (!resp.ok) throw new Error('Failed to start deployment');\n\t\t\t\t\treturn resp.json();\n\t\t\t\t})\n\t\t\t\t.then(data => {\n\t\t\t\t\tconsole.log('Deployment started:', data.job_id);\n\t\t\t\t})\n\t\t\t\t.catch(err => {\n\t\t\t\t\talert('Failed to start deployment: ' + err.message);\n\t\t\t\t});\n\t\t\t}\n\n\t\t\tfunction bulkCommand(command) {\n\t\t\t\tconst onlineHosts = hostStore.all().filter(h => h.online);\n\t\t\t\tif (onlineHosts.length === 0) {\n\t\t\t\t\talert('No online hosts to send command to');\n\t\t\t\t\treturn;\n\t\t\t\t}\n\n\t\t\t\tconst confirmMsg = `Send \"${command}\" to ${onlineHosts.length} online host(s)?`;\n\t\t\t\tif (!confirm(confirmMsg)) return;\n\n\t\t\t\tonlineHosts.forEach(host => {\n\t\t\t\t\tsendCommand(host.id, command);\n\t\t\t\t});\n\t\t\t}\n\n\t\t\t// P2500: Do All - Pull → Switch → Test on ALL online hosts\n\t\t\tasync function bulkDoAll() {\n\t\t\t\tconst onlineHosts = hostStore.all().filter(h => h.online);\n\t\t\t\tif (onlineHosts.length === 0) {\n\t\t\t\t\talert('No online hosts to send command to');\n\t\t\t\t\treturn;\n\t\t\t\t}\n\n\t\t\t\tconst confirmMsg = `Run Pull → Switch → Test on ${onlineHosts.length} online host(s)?`;\n\t\t\t\tif (!confirm(confirmMsg)) return;\n\n\t\t\t\tlet remainingHostIds = onlineHosts.map(h => h.id);\n\n\t\t\t\t// Helper: wait for all hosts to complete a command\n\t\t\t\tconst waitForCompletion = (hostIds, command, timeoutMs = 300000) => {\n\t\t\t\t\treturn new Promise((resolve) => {\n\t\t\t\t\t\tconst pending = new Set(hostIds);\n\t\t\t\t\t\tconst results = new Map();\n\t\t\t\t\t\t\n\t\t\t\t\t\tconst handler = (e) => {\n\t\t\t\t\t\t\tconst { hostId, command: cmd, exit_code } = e.detail;\n\t\t\t\t\t\t\tif (cmd === command && pending.has(hostId)) {\n\t\t\t\t\t\t\t\tpending.delete(hostId);\n\t\t\t\t\t\t\t\tresults.set(hostId, { success: exit_code === 0, exit_code });\n\t\t\t\t\t\t\t\tif (pending.size === 0) {\n\t\t\t\t\t\t\t\t\twindow.removeEventListener('command-complete', handler);\n\t\t\t\t\t\t\t\t\tclearTimeout(timer);\n\t\t\t\t\t\t\t\t\tresolve(results);\n\t\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\t}\n\t\t\t\t\t\t};\n\t\t\t\t\t\t\n\t\t\t\t\t\twindow.addEventListener('command-complete', handler);\n\t\t\t\t\t\t\n\t\t\t\t\t\tconst timer = setTimeout(() => {\n\t\t\t\t\t\t\twindow.removeEventListener('command-complete', handler);\n\t\t\t\t\t\t\tpending.forEach(id => results.set(id, { success: false, exit_code: -1, timeout: true }));\n\t\t\t\t\t\t\tresolve(results);\n\t\t\t\t\t\t}, timeoutMs);\n\t\t\t\t\t});\n\t\t\t\t};\n\n\t\t\t\t// Execute Pull → Switch → Test sequentially\n\t\t\t\tfor (const command of ['pull', 'switch', 'test']) {\n\t\t\t\t\tif (remainingHostIds.length === 0) break;\n\t\t\t\t\t\n\t\t\t\t\tremainingHostIds.forEach(hostId => sendCommand(hostId, command));\n\t\t\t\t\tconst results = await waitForCompletion(remainingHostIds, command);\n\t\t\t\t\t\n\t\t\t\t\t// Filter out failed hosts\n\t\t\t\t\tremainingHostIds = remainingHostIds.filter(id => {\n\t\t\t\t\t\tconst result = results.get(id);\n\t\t\t\t\t\treturn result && result.success;\n\t\t\t\t\t});\n\t\t\t\t}\n\t\t\t}\n\n\t\t\tfunction deleteHost(hostId) {\n\t\t\t\tif (!confirm(`Delete host \"${hostId}\"? This cannot be undone.`)) {\n\t\t\t\t\treturn;\n\t\t\t\t}\n\t\t\t\tfetch(`/api/hosts/${hostId}`, {\n\t\t\t\t\tmethod: 'DELETE',\n\t\t\t\t\theaders: { 'X-CSRF-Token': CSRF_TOKEN }\n\t\t\t\t}).then(resp => {\n\t\t\t\t\tif (!resp.ok) {\n\t\t\t\t\t\treturn resp.text().then(text => { throw new Error(text); });\n\t\t\t\t\t}\n\t\t\t\t\treturn resp.json();\n\t\t\t\t}).then(data => {\n\t\t\t\t\tconsole.log('Host deleted:', data);\n\t\t\t\t\tdocument.querySelectorAll(`[data-host-id=\"${hostId}\"]`).forEach(el => el.remove());\n\t\t\t\t}).catch(err => {\n\t\t\t\t\tconsole.error('Delete failed:', err);\n\t\t\t\t\talert('Delete failed: ' + err.message);\n\t\t\t\t});\n\t\t\t}\n\n\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\t// P4020: TABBED OUTPUT PANEL\n\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\tconst MAX_LINES_PER_TAB = 1000;\n\t\t\tconst MAX_SYSTEM_LOG_ENTRIES = 1000;\n\n\t\t\t// Locale: browser preference with de-AT fallback, always 24h\n\t\t\tconst USER_LOCALE = navigator.language || 'de-AT';\n\t\t\tfunction formatTime(date, withSeconds = true) {\n\t\t\t\tconst opts = { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' };\n\t\t\t\treturn date.toLocaleTimeString(USER_LOCALE, opts);\n\t\t\t}\n\n\t\t\tfunction formatDuration(ms) {\n\t\t\t\tconst seconds = Math.floor(ms / 1000);\n\t\t\t\tif (seconds < 60) return `${seconds}s`;\n\t\t\t\tconst minutes = Math.floor(seconds / 60);\n\t\t\t\tconst remainingSeconds = seconds % 60;\n\t\t\t\tif (remainingSeconds === 0) return `${minutes}m`;\n\t\t\t\treturn `${minutes}m ${remainingSeconds}s`;\n\t\t\t}\n\n\t\t\tfunction appendLog(payload) {\n\t\t\t\twindow.dispatchEvent(new CustomEvent('output-line', { detail: payload }));\n\t\t\t}\n\n\t\t\t// P2800: Helper to append a simple text line to the log\n\t\t\tfunction appendLogLine(hostId, text, type = 'info') {\n\t\t\t\tappendLog({\n\t\t\t\t\thost_id: hostId,\n\t\t\t\t\toutput: text,\n\t\t\t\t\tis_stderr: type === 'error',\n\t\t\t\t});\n\t\t\t}\n\n\t\t\tfunction showLogPanel(hostId) {\n\t\t\t\tconst panel = document.getElementById('output-panel');\n\t\t\t\tpanel.classList.remove('hidden');\n\t\t\t\t// P4021: Switch to host tab without triggering command start\n\t\t\t\twindow.dispatchEvent(new CustomEvent('show-output-tab', { detail: { hostId } }));\n\t\t\t}\n\n\t\t\t// P4020: Add system log entry\n\t\t\tfunction addSystemLogEntry(category, message, icon) {\n\t\t\t\twindow.dispatchEvent(new CustomEvent('system-log-entry', {\n\t\t\t\t\tdetail: { category, message, icon }\n\t\t\t\t}));\n\t\t\t}\n\n\t\t\tdocument.addEventListener('alpine:init', () => {\n\t\t\t\tAlpine.data('outputPanel', () => ({\n\t\t\t\t\ttabs: [],           // Array of { hostId, hostname, lines, indicator, phase, ... }\n\t\t\t\t\tactiveTab: 'system', // 'system' or hostId - default to system log\n\t\t\t\t\tsystemLog: [],      // System log entries\n\t\t\t\t\tcollapsed: false,\n\t\t\t\t\tlineCounter: 0,\n\t\t\t\t\tlogCounter: 0,\n\t\t\t\t\t// P4021: New state\n\t\t\t\t\tpanelHeight: 300,   // Default height in pixels\n\t\t\t\t\tfontSize: 13,       // Font size in pixels\n\t\t\t\t\tisResizing: false,\n\t\t\t\t\toverflowOpen: false,\n\t\t\t\t\trelativeTimeInterval: null,\n\n\t\t\t\t\tinit() {\n\t\t\t\t\t\tconsole.log('outputPanel init() called');\n\t\t\t\t\t\t// Restore panel state from localStorage\n\t\t\t\t\t\tconst savedCollapsed = localStorage.getItem('outputPanel.collapsed');\n\t\t\t\t\t\tif (savedCollapsed !== null) {\n\t\t\t\t\t\t\tthis.collapsed = savedCollapsed === 'true';\n\t\t\t\t\t\t}\n\n\t\t\t\t\t\t// P4021: Restore panel height\n\t\t\t\t\t\tconst savedHeight = localStorage.getItem('outputPanel.height');\n\t\t\t\t\t\tif (savedHeight !== null) {\n\t\t\t\t\t\t\tthis.panelHeight = parseInt(savedHeight, 10) || 300;\n\t\t\t\t\t\t}\n\n\t\t\t\t\t\t// Restore font size\n\t\t\t\t\t\tconst savedFontSize = localStorage.getItem('outputPanel.fontSize');\n\t\t\t\t\t\tif (savedFontSize !== null) {\n\t\t\t\t\t\t\tthis.fontSize = parseInt(savedFontSize, 10) || 13;\n\t\t\t\t\t\t}\n\t\t\t\t\t\tthis.applyFontSize();\n\n\t\t\t\t\t\t// Listen for output lines\n\t\t\t\t\t\twindow.addEventListener('output-line', (e) => this.handleOutputLine(e.detail));\n\n\t\t\t\t\t\t// Listen for command start\n\t\t\t\t\t\twindow.addEventListener('output-start', (e) => this.handleCommandStart(e.detail));\n\n\t\t\t\t\t\t// Listen for command complete\n\t\t\t\t\t\twindow.addEventListener('log-complete', (e) => this.handleCommandComplete(e.detail));\n\n\t\t\t\t\t\t// Listen for system log entries\n\t\t\t\t\t\twindow.addEventListener('system-log-entry', (e) => this.addSystemLog(e.detail));\n\n\t\t\t\t\t\t// P2800: Listen for state machine log messages\n\t\t\t\t\t\twindow.addEventListener('state-machine-log', (e) => this.handleStateMachineLog(e.detail));\n\n\t\t\t\t\t\t// P4021: Resize event handlers\n\t\t\t\t\t\twindow.addEventListener('mousemove', (e) => this.handleResize(e));\n\t\t\t\t\t\twindow.addEventListener('mouseup', () => this.stopResize());\n\n\t\t\t\t\t\t// P4021: Show output tab (from \"View Output\" menu)\n\t\t\t\t\t\twindow.addEventListener('show-output-tab', (e) => this.showOutputTab(e.detail));\n\n\t\t\t\t\t\t// P4021: Update relative times every 30 seconds\n\t\t\t\t\t\tthis.relativeTimeInterval = setInterval(() => this.updateRelativeTimes(), 30000);\n\t\t\t\t\t},\n\n\t\t\t\t\t// P4021: Show or switch to a host's output tab\n\t\t\t\t\tshowOutputTab(detail) {\n\t\t\t\t\t\tconst { hostId } = detail;\n\t\t\t\t\t\tif (!hostId) return;\n\n\t\t\t\t\t\t// Get or create tab (but don't reset it)\n\t\t\t\t\t\tlet tab = this.tabs.find(t => t.hostId === hostId);\n\t\t\t\t\t\tif (!tab) {\n\t\t\t\t\t\t\tconst host = hostStore.get(hostId);\n\t\t\t\t\t\t\ttab = {\n\t\t\t\t\t\t\t\thostId: hostId,\n\t\t\t\t\t\t\t\thostname: host?.hostname || hostId,\n\t\t\t\t\t\t\t\tthemeColor: host?.themeColor || '#7aa2f7',\n\t\t\t\t\t\t\t\tlines: [],\n\t\t\t\t\t\t\t\tindicator: 'success',\n\t\t\t\t\t\t\t\thasUnread: false,\n\t\t\t\t\t\t\t\tphase: '',\n\t\t\t\t\t\t\t\tphaseIcon: '',\n\t\t\t\t\t\t\t\tbuildCount: 0,\n\t\t\t\t\t\t\t\tbuildCurrent: 0,\n\t\t\t\t\t\t\t\tlastCommand: null,\n\t\t\t\t\t\t\t};\n\t\t\t\t\t\t\tthis.tabs.push(tab);\n\t\t\t\t\t\t}\n\n\t\t\t\t\t\t// Switch to this tab\n\t\t\t\t\t\tthis.activeTab = hostId;\n\t\t\t\t\t\ttab.hasUnread = false;\n\n\t\t\t\t\t\t// Uncollapse if collapsed\n\t\t\t\t\t\tif (this.collapsed) {\n\t\t\t\t\t\t\tthis.collapsed = false;\n\t\t\t\t\t\t\tlocalStorage.setItem('outputPanel.collapsed', 'false');\n\t\t\t\t\t\t}\n\t\t\t\t\t},\n\n\t\t\t\t\t// Get or create tab for a host\n\t\t\t\t\tgetOrCreateTab(hostId) {\n\t\t\t\t\t\tlet tab = this.tabs.find(t => t.hostId === hostId);\n\t\t\t\t\t\tif (!tab) {\n\t\t\t\t\t\t\tconst host = hostStore.get(hostId);\n\t\t\t\t\t\t\ttab = {\n\t\t\t\t\t\t\t\thostId: hostId,\n\t\t\t\t\t\t\t\thostname: host?.hostname || hostId,\n\t\t\t\t\t\t\t\tthemeColor: host?.themeColor || '#7aa2f7',\n\t\t\t\t\t\t\t\tdeviceType: host?.deviceType || 'desktop',\n\t\t\t\t\t\t\t\tlines: [],\n\t\t\t\t\t\t\t\tindicator: 'running',\n\t\t\t\t\t\t\t\thasUnread: false,\n\t\t\t\t\t\t\t\tphase: '',\n\t\t\t\t\t\t\t\tphaseIcon: '',\n\t\t\t\t\t\t\t\tbuildCount: 0,\n\t\t\t\t\t\t\t\tbuildCurrent: 0,\n\t\t\t\t\t\t\t\tlastCommand: null,\n\t\t\t\t\t\t\t\tstartTime: null,\n\t\t\t\t\t\t\t};\n\t\t\t\t\t\t\tthis.tabs.push(tab);\n\t\t\t\t\t\t}\n\t\t\t\t\t\treturn tab;\n\t\t\t\t\t},\n\n\t\t\t\t\t// P4021: Resize handlers\n\t\t\t\t\tstartResize(e) {\n\t\t\t\t\t\tthis.isResizing = true;\n\t\t\t\t\t\tthis.resizeStartY = e.clientY;\n\t\t\t\t\t\tthis.resizeStartHeight = this.panelHeight;\n\t\t\t\t\t\te.preventDefault();\n\t\t\t\t\t},\n\n\t\t\t\t\thandleResize(e) {\n\t\t\t\t\t\tif (!this.isResizing) return;\n\t\t\t\t\t\t// Handle at bottom: drag down = expand (positive delta)\n\t\t\t\t\t\tconst delta = e.clientY - this.resizeStartY;\n\t\t\t\t\t\tconst newHeight = Math.max(100, Math.min(600, this.resizeStartHeight + delta));\n\t\t\t\t\t\tthis.panelHeight = newHeight;\n\t\t\t\t\t},\n\n\t\t\t\t\tstopResize() {\n\t\t\t\t\t\tif (this.isResizing) {\n\t\t\t\t\t\t\tthis.isResizing = false;\n\t\t\t\t\t\t\tlocalStorage.setItem('outputPanel.height', this.panelHeight);\n\t\t\t\t\t\t}\n\t\t\t\t\t},\n\n\t\t\t\t\t// P4021: Keyboard shortcuts\n\t\t\t\t\thandleKeyboard(e) {\n\t\t\t\t\t\t// Only handle if panel is visible\n\t\t\t\t\t\tconst panel = document.getElementById('output-panel');\n\t\t\t\t\t\tif (panel.classList.contains('hidden')) return;\n\n\t\t\t\t\t\t// Ctrl+1-9 for tabs\n\t\t\t\t\t\tif (e.ctrlKey && e.key >= '1' && e.key <= '9') {\n\t\t\t\t\t\t\tconst index = parseInt(e.key, 10) - 1;\n\t\t\t\t\t\t\tif (index === 0 && this.systemLog.length > 0) {\n\t\t\t\t\t\t\t\tthis.switchTab('system');\n\t\t\t\t\t\t\t\te.preventDefault();\n\t\t\t\t\t\t\t} else {\n\t\t\t\t\t\t\t\tconst tabIndex = this.systemLog.length > 0 ? index - 1 : index;\n\t\t\t\t\t\t\t\tif (tabIndex >= 0 && tabIndex < this.tabs.length) {\n\t\t\t\t\t\t\t\t\tthis.switchTab(this.tabs[tabIndex].hostId);\n\t\t\t\t\t\t\t\t\te.preventDefault();\n\t\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\t}\n\t\t\t\t\t\t}\n\n\t\t\t\t\t\t// Ctrl+W to close active tab\n\t\t\t\t\t\tif (e.ctrlKey && e.key === 'w' && this.activeTab) {\n\t\t\t\t\t\t\tthis.closeTab(this.activeTab);\n\t\t\t\t\t\t\te.preventDefault();\n\t\t\t\t\t\t}\n\n\t\t\t\t\t\t// Escape to collapse\n\t\t\t\t\t\tif (e.key === 'Escape' && !this.collapsed) {\n\t\t\t\t\t\t\tthis.toggleCollapse();\n\t\t\t\t\t\t\te.preventDefault();\n\t\t\t\t\t\t}\n\t\t\t\t\t},\n\n\t\t\t\t\t// P4021: Update relative times for system log\n\t\t\t\t\tupdateRelativeTimes() {\n\t\t\t\t\t\tconst now = new Date();\n\t\t\t\t\t\tthis.systemLog.forEach(entry => {\n\t\t\t\t\t\t\tentry.relativeTime = this.formatRelativeTime(entry.timestamp, now);\n\t\t\t\t\t\t});\n\t\t\t\t\t},\n\n\t\t\t\t\t// P4021: Format relative time\n\t\t\t\t\tformatRelativeTime(timestamp, now = new Date()) {\n\t\t\t\t\t\tconst diffMs = now - new Date(timestamp);\n\t\t\t\t\t\tconst diffSec = Math.floor(diffMs / 1000);\n\t\t\t\t\t\tconst diffMin = Math.floor(diffSec / 60);\n\t\t\t\t\t\tconst diffHour = Math.floor(diffMin / 60);\n\n\t\t\t\t\t\tif (diffSec < 5) return 'just now';\n\t\t\t\t\t\tif (diffSec < 60) return diffSec + 's ago';\n\t\t\t\t\t\tif (diffMin < 60) return diffMin + ' min ago';\n\t\t\t\t\t\tif (diffHour < 24) return diffHour + 'h ago';\n\t\t\t\t\t\treturn Math.floor(diffHour / 24) + 'd ago';\n\t\t\t\t\t},\n\n\t\t\t\t\t// Add status entry as a log line (flat log per host)\n\t\t\t\t\taddStatusHistory(hostId, category, icon, message) {\n\t\t\t\t\t\tconst tab = this.tabs.find(t => t.hostId === hostId);\n\t\t\t\t\t\tif (!tab) return;\n\n\t\t\t\t\t\tconst now = new Date();\n\t\t\t\t\t\tconst timeStr = formatTime(now);\n\n\t\t\t\t\t\ttab.lines.push({\n\t\t\t\t\t\t\tid: ++this.lineCounter,\n\t\t\t\t\t\t\ttext: `${timeStr} ${icon} ${message}`,\n\t\t\t\t\t\t\tisStatus: true,\n\t\t\t\t\t\t\tisSuccess: category === 'success',\n\t\t\t\t\t\t\tisError: category === 'error',\n\t\t\t\t\t\t});\n\n\t\t\t\t\t\t// Trim if too many lines\n\t\t\t\t\t\tif (tab.lines.length > MAX_LINES_PER_TAB) {\n\t\t\t\t\t\t\ttab.lines = tab.lines.slice(-MAX_LINES_PER_TAB);\n\t\t\t\t\t\t}\n\t\t\t\t\t},\n\n\t\t\t\t\thandleCommandStart(detail) {\n\t\t\t\t\t\tconst { hostId, command } = detail;\n\t\t\t\t\t\tconst tab = this.getOrCreateTab(hostId);\n\n\t\t\t\t\t\t// // Add START separator\n\t\t\t\t\t\t// const now = new Date();\n\t\t\t\t\t\t// const timeStr = formatTime(now, true);\n\t\t\t\t\t\t// tab.lines.push({\n\t\t\t\t\t\t// \tid: ++this.lineCounter,\n\t\t\t\t\t\t// \ttext: `────────────────── ${command || 'command'} START (${timeStr}) ──────────────────`,\n\t\t\t\t\t\t// \tisSeparator: true,\n\t\t\t\t\t\t// });\n\n\t\t\t\t\t\t// Reset progress\n\t\t\t\t\t\ttab.phase = '';\n\t\t\t\t\t\ttab.phaseIcon = '';\n\t\t\t\t\t\ttab.buildCount = 0;\n\t\t\t\t\t\ttab.buildCurrent = 0;\n\t\t\t\t\t\ttab.indicator = 'running';\n\t\t\t\t\t\ttab.lastCommand = command;\n\t\t\t\t\t\ttab.startTime = Date.now();\n\n\t\t\t\t\t\t// Switch to this tab\n\t\t\t\t\t\tthis.activeTab = hostId;\n\n\t\t\t\t\t\t// P4021: Add to status history\n\t\t\t\t\t\tthis.addStatusHistory(hostId, 'pending', '⧖', `${command || 'Command'} started`);\n\n\t\t\t\t\t\t// Add to system log\n\t\t\t\t\t\tconst host = hostStore.get(hostId);\n\t\t\t\t\t\tthis.addSystemLog({\n\t\t\t\t\t\t\tcategory: 'info',\n\t\t\t\t\t\t\tmessage: `${host?.hostname || hostId}: ${command || 'Command'} started`,\n\t\t\t\t\t\t\ticon: 'ℹ'\n\t\t\t\t\t\t});\n\t\t\t\t\t},\n\n\t\t\t\t\thandleOutputLine(payload) {\n\t\t\t\t\t\tconsole.log('handleOutputLine called:', payload);\n\t\t\t\t\t\tconst hostId = payload.host_id;\n\t\t\t\t\t\tif (!hostId) return;\n\n\t\t\t\t\t\tconst tab = this.getOrCreateTab(hostId);\n\t\t\t\t\t\tconst text = payload.line || payload.output || '';\n\t\t\t\t\t\tconsole.log('Adding line to tab:', hostId, text, 'current lines:', tab.lines.length);\n\n\t\t\t\t\t\t// Parse progress\n\t\t\t\t\t\tthis.parseProgress(tab, text);\n\n\t\t\t\t\t\t// Add line - MUST explicitly set isSeparator/isStatus to false\n\t\t\t\t\t\t// Alpine.js has issues with undefined in x-show expressions\n\t\t\t\t\t\tconst newLine = {\n\t\t\t\t\t\t\tid: ++this.lineCounter,\n\t\t\t\t\t\t\ttext: text,\n\t\t\t\t\t\t\tisError: payload.is_error || payload.stream === 'stderr' || payload.is_stderr,\n\t\t\t\t\t\t\tisSuccess: payload.isSuccess || false,\n\t\t\t\t\t\t\tisSeparator: false,  // Explicit false, not undefined\n\t\t\t\t\t\t\tisStatus: false,     // Explicit false, not undefined\n\t\t\t\t\t\t};\n\t\t\t\t\t\ttab.lines.push(newLine);\n\n\t\t\t\t\t\t// Trim old lines\n\t\t\t\t\t\tif (tab.lines.length > MAX_LINES_PER_TAB) {\n\t\t\t\t\t\t\ttab.lines = tab.lines.slice(-MAX_LINES_PER_TAB);\n\t\t\t\t\t\t}\n\n\t\t\t\t\t\t// Mark unread if not active tab\n\t\t\t\t\t\tif (this.activeTab !== hostId) {\n\t\t\t\t\t\t\ttab.hasUnread = true;\n\t\t\t\t\t\t\tif (tab.indicator !== 'running' && tab.indicator !== 'error') {\n\t\t\t\t\t\t\t\ttab.indicator = 'unread';\n\t\t\t\t\t\t\t}\n\t\t\t\t\t\t}\n\n\t\t\t\t\t\t// Auto-scroll\n\t\t\t\t\t\tthis.$nextTick(() => {\n\t\t\t\t\t\t\tconst el = this.$refs.outputContent;\n\t\t\t\t\t\t\tif (el && this.activeTab === hostId) {\n\t\t\t\t\t\t\t\tel.scrollTop = el.scrollHeight;\n\t\t\t\t\t\t\t}\n\t\t\t\t\t\t});\n\t\t\t\t\t},\n\n\t\t\t\t\thandleCommandComplete(detail) {\n\t\t\t\t\t\tconst hostId = detail.host_id;\n\t\t\t\t\t\tif (!hostId) return;\n\n\t\t\t\t\t\tconst tab = this.tabs.find(t => t.hostId === hostId);\n\t\t\t\t\t\tif (!tab) return;\n\n\t\t\t\t\t\tconst exitCode = detail.exit_code || 0;\n\t\t\t\t\t\tconst success = exitCode === 0;\n\n\t\t\t\t\t\ttab.phase = success ? 'Complete' : 'Failed';\n\t\t\t\t\t\ttab.phaseIcon = success ? '✓' : '✗';\n\t\t\t\t\t\ttab.indicator = success ? 'success' : 'error';\n\n\t\t\t\t\t\t// Calculate duration\n\t\t\t\t\t\tlet durationStr = '';\n\t\t\t\t\t\tif (tab.startTime) {\n\t\t\t\t\t\t\tconst durationMs = Date.now() - tab.startTime;\n\t\t\t\t\t\t\tdurationStr = ` (execution time ${formatDuration(durationMs)})`;\n\t\t\t\t\t\t\ttab.startTime = null; // Reset for next command\n\t\t\t\t\t\t}\n\n\t\t\t\t\t\t// P4021: Add to status history\n\t\t\t\t\t\tconst statusMsg = `${tab.lastCommand || 'Command'} ${success ? 'completed' : 'failed'} (exit ${exitCode})${durationStr}`;\n\t\t\t\t\t\tthis.addStatusHistory(hostId, success ? 'success' : 'error', success ? '✓' : '✗', statusMsg);\n\n\t\t\t\t\t\t// Add to system log\n\t\t\t\t\t\tconst host = hostStore.get(hostId);\n\t\t\t\t\t\tthis.addSystemLog({\n\t\t\t\t\t\t\tcategory: success ? 'success' : 'error',\n\t\t\t\t\t\t\tmessage: `${host?.hostname || hostId}: ${statusMsg}`,\n\t\t\t\t\t\t\ticon: success ? '✓' : '✗'\n\t\t\t\t\t\t});\n\t\t\t\t\t},\n\n\t\t\t\t\tparseProgress(tab, line) {\n\t\t\t\t\t\tif (line.includes('evaluating derivation')) {\n\t\t\t\t\t\t\ttab.phase = 'Evaluation';\n\t\t\t\t\t\t\ttab.phaseIcon = '→';\n\t\t\t\t\t\t} else if (line.includes('these derivations will be built')) {\n\t\t\t\t\t\t\tconst match = line.match(/these (\\d+) derivations/);\n\t\t\t\t\t\t\tif (match) tab.buildCount = parseInt(match[1], 10);\n\t\t\t\t\t\t\ttab.phase = 'Building';\n\t\t\t\t\t\t\ttab.phaseIcon = '●';\n\t\t\t\t\t\t} else if (line.includes(\"building '/nix/store/\")) {\n\t\t\t\t\t\t\ttab.buildCurrent++;\n\t\t\t\t\t\t\ttab.phase = 'Building';\n\t\t\t\t\t\t\ttab.phaseIcon = '●';\n\t\t\t\t\t\t} else if (line.includes('activating the configuration')) {\n\t\t\t\t\t\t\ttab.phase = 'Activation';\n\t\t\t\t\t\t\ttab.phaseIcon = '▶';\n\t\t\t\t\t\t} else if (line.includes('switching to configuration')) {\n\t\t\t\t\t\t\ttab.phase = 'Switch';\n\t\t\t\t\t\t\ttab.phaseIcon = '→';\n\t\t\t\t\t\t} else if (line.includes('setting up /etc')) {\n\t\t\t\t\t\t\ttab.phase = 'Setup';\n\t\t\t\t\t\t\ttab.phaseIcon = '○';\n\t\t\t\t\t\t} else if (line.includes('will be fetched')) {\n\t\t\t\t\t\t\ttab.phase = 'Fetching';\n\t\t\t\t\t\t\ttab.phaseIcon = '↓';\n\t\t\t\t\t\t}\n\t\t\t\t\t},\n\n\t\t\t\t\taddSystemLog(detail) {\n\t\t\t\t\t\tconst now = new Date();\n\t\t\t\t\t\tconst timeStr = formatTime(now, true);\n\n\t\t\t\t\t\tthis.systemLog.unshift({\n\t\t\t\t\t\t\tid: ++this.logCounter,\n\t\t\t\t\t\t\tcategory: detail.category || 'info',\n\t\t\t\t\t\t\tmessage: detail.message,\n\t\t\t\t\t\t\ticon: detail.icon || 'ℹ',\n\t\t\t\t\t\t\ttimestamp: now,\n\t\t\t\t\t\t\ttimeDisplay: timeStr,\n\t\t\t\t\t\t\trelativeTime: 'just now',  // P4021: Dual timestamp format\n\t\t\t\t\t\t});\n\n\t\t\t\t\t\t// Trim old entries\n\t\t\t\t\t\tif (this.systemLog.length > MAX_SYSTEM_LOG_ENTRIES) {\n\t\t\t\t\t\t\tthis.systemLog = this.systemLog.slice(0, MAX_SYSTEM_LOG_ENTRIES);\n\t\t\t\t\t\t}\n\n\t\t\t\t\t\t// Show panel if hidden\n\t\t\t\t\t\tconst panel = document.getElementById('output-panel');\n\t\t\t\t\t\tpanel.classList.remove('hidden');\n\t\t\t\t\t},\n\n\t\t\t\t\thandleStateMachineLog(detail) {\n\t\t\t\t\t\t// Map P2800 log levels to system log categories\n\t\t\t\t\t\tconst levelMap = {\n\t\t\t\t\t\t\t'success': { category: 'success', icon: '✓' },\n\t\t\t\t\t\t\t'warning': { category: 'warning', icon: '⚠' },\n\t\t\t\t\t\t\t'error': { category: 'error', icon: '✗' },\n\t\t\t\t\t\t\t'info': { category: 'info', icon: 'ℹ' },\n\t\t\t\t\t\t};\n\t\t\t\t\t\tconst mapping = levelMap[detail.level?.toLowerCase()] || levelMap.info;\n\n\t\t\t\t\t\t// Add to system log\n\t\t\t\t\t\tthis.addSystemLog({\n\t\t\t\t\t\t\tcategory: mapping.category,\n\t\t\t\t\t\t\tmessage: `${detail.host_id}: ${detail.message}`,\n\t\t\t\t\t\t\ticon: mapping.icon,\n\t\t\t\t\t\t});\n\n\t\t\t\t\t\t// P4021: Also add to host's status history\n\t\t\t\t\t\tif (detail.host_id) {\n\t\t\t\t\t\t\tthis.addStatusHistory(detail.host_id, mapping.category, mapping.icon, detail.message);\n\t\t\t\t\t\t}\n\t\t\t\t\t},\n\n\t\t\t\tswitchTab(tabId) {\n\t\t\t\t\tthis.activeTab = tabId;\n\n\t\t\t\t\t// Clear unread for host tabs\n\t\t\t\t\tif (tabId !== 'system') {\n\t\t\t\t\t\tconst tab = this.tabs.find(t => t.hostId === tabId);\n\t\t\t\t\t\tif (tab) {\n\t\t\t\t\t\t\ttab.hasUnread = false;\n\t\t\t\t\t\t\t// Reset indicator if was 'unread'\n\t\t\t\t\t\t\tif (tab.indicator === 'unread') {\n\t\t\t\t\t\t\t\ttab.indicator = 'success';\n\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\t\n\t\t\t\t\t\t\t// P3300: Restore output if tab is empty (first open after page load)\n\t\t\t\t\t\t\tif (tab.lines.length === 0 && !tab.outputRestored) {\n\t\t\t\t\t\t\t\ttab.outputRestored = true;\n\t\t\t\t\t\t\t\tthis.restoreHostOutput(tabId);\n\t\t\t\t\t\t\t}\n\t\t\t\t\t\t}\n\t\t\t\t\t}\n\n\t\t\t\t\t// Scroll to bottom\n\t\t\t\t\tthis.$nextTick(() => {\n\t\t\t\t\t\tconst el = this.$refs.outputContent;\n\t\t\t\t\t\tif (el) el.scrollTop = el.scrollHeight;\n\t\t\t\t\t});\n\t\t\t\t},\n\t\t\t\t\n\t\t\t\t// P3300: Restore output from server when tab is opened\n\t\t\t\tasync restoreHostOutput(hostId) {\n\t\t\t\t\ttry {\n\t\t\t\t\t\tconst resp = await fetch(`/api/hosts/${hostId}/output?lines=500`);\n\t\t\t\t\t\tif (!resp.ok) return;\n\t\t\t\t\t\t\n\t\t\t\t\t\tconst content = await resp.text();\n\t\t\t\t\t\tif (!content) return;\n\t\t\t\t\t\t\n\t\t\t\t\t\t// Parse the output and add lines to the tab\n\t\t\t\t\t\tconst lines = content.split('\\n');\n\t\t\t\t\t\tlines.forEach(line => {\n\t\t\t\t\t\t\tif (line.trim()) {\n\t\t\t\t\t\t\t\tthis.addLine(hostId, line, false);\n\t\t\t\t\t\t\t}\n\t\t\t\t\t\t});\n\t\t\t\t\t\t\n\t\t\t\t\t\tconsole.log(`[P3300] Restored ${lines.length} lines for ${hostId}`);\n\t\t\t\t\t} catch (err) {\n\t\t\t\t\t\tconsole.error(`[P3300] Failed to restore output for ${hostId}:`, err);\n\t\t\t\t\t}\n\t\t\t\t},\n\n\t\t\t\t\tcloseTab(tabId) {\n\t\t\t\t\t\tif (tabId === 'system') {\n\t\t\t\t\t\t\tthis.systemLog = [];\n\t\t\t\t\t\t\tif (this.activeTab === 'system') {\n\t\t\t\t\t\t\t\tthis.activeTab = this.tabs.length > 0 ? this.tabs[0].hostId : null;\n\t\t\t\t\t\t\t}\n\t\t\t\t\t\t} else {\n\t\t\t\t\t\t\tconst index = this.tabs.findIndex(t => t.hostId === tabId);\n\t\t\t\t\t\t\tif (index !== -1) {\n\t\t\t\t\t\t\t\tthis.tabs.splice(index, 1);\n\t\t\t\t\t\t\t\tif (this.activeTab === tabId) {\n\t\t\t\t\t\t\t\t\t// Switch to another tab\n\t\t\t\t\t\t\t\t\tif (this.tabs.length > 0) {\n\t\t\t\t\t\t\t\t\t\tthis.activeTab = this.tabs[Math.max(0, index - 1)].hostId;\n\t\t\t\t\t\t\t\t\t} else if (this.systemLog.length > 0) {\n\t\t\t\t\t\t\t\t\t\tthis.activeTab = 'system';\n\t\t\t\t\t\t\t\t\t} else {\n\t\t\t\t\t\t\t\t\t\tthis.activeTab = null;\n\t\t\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\t}\n\t\t\t\t\t\t}\n\n\t\t\t\t\t\t// Hide panel if no tabs\n\t\t\t\t\t\tif (this.tabs.length === 0 && this.systemLog.length === 0) {\n\t\t\t\t\t\t\tconst panel = document.getElementById('output-panel');\n\t\t\t\t\t\t\tpanel.classList.add('hidden');\n\t\t\t\t\t\t}\n\t\t\t\t\t},\n\n\t\t\t\t\tcloseAllTabs() {\n\t\t\t\t\t\tthis.tabs = [];\n\t\t\t\t\t\tthis.activeTab = this.systemLog.length > 0 ? 'system' : null;\n\n\t\t\t\t\t\tif (this.systemLog.length === 0) {\n\t\t\t\t\t\t\tconst panel = document.getElementById('output-panel');\n\t\t\t\t\t\t\tpanel.classList.add('hidden');\n\t\t\t\t\t\t}\n\t\t\t\t\t},\n\n\t\t\t\t\ttoggleCollapse() {\n\t\t\t\t\t\tthis.collapsed = !this.collapsed;\n\t\t\t\t\t\tlocalStorage.setItem('outputPanel.collapsed', this.collapsed);\n\t\t\t\t\t},\n\n\t\t\t\t\tapplyFontSize() {\n\t\t\t\t\t\tconst content = this.$refs.outputContent;\n\t\t\t\t\t\tif (content) {\n\t\t\t\t\t\t\tcontent.style.fontSize = this.fontSize + 'px';\n\t\t\t\t\t\t}\n\t\t\t\t\t},\n\n\t\t\t\t\tincreaseFontSize() {\n\t\t\t\t\t\tif (this.fontSize < 20) {\n\t\t\t\t\t\t\tthis.fontSize += 1;\n\t\t\t\t\t\t\tlocalStorage.setItem('outputPanel.fontSize', this.fontSize);\n\t\t\t\t\t\t\tthis.applyFontSize();\n\t\t\t\t\t\t}\n\t\t\t\t\t},\n\n\t\t\t\t\tdecreaseFontSize() {\n\t\t\t\t\t\tif (this.fontSize > 9) {\n\t\t\t\t\t\t\tthis.fontSize -= 1;\n\t\t\t\t\t\t\tlocalStorage.setItem('outputPanel.fontSize', this.fontSize);\n\t\t\t\t\t\t\tthis.applyFontSize();\n\t\t\t\t\t\t}\n\t\t\t\t\t},\n\n\t\t\t\t\tgetActiveTabData() {\n\t\t\t\t\t\tif (this.activeTab === 'system') return null;\n\t\t\t\t\t\treturn this.tabs.find(t => t.hostId === this.activeTab);\n\t\t\t\t\t},\n\n\t\t\t\t\t// Alpine getters for reactivity\n\t\t\t\t\tget activeTabLines() {\n\t\t\t\t\t\tconst tab = this.tabs.find(t => t.hostId === this.activeTab);\n\t\t\t\t\t\treturn tab ? tab.lines : [];\n\t\t\t\t\t},\n\t\t\t\t\tget activeTabColor() {\n\t\t\t\t\t\tconst tab = this.tabs.find(t => t.hostId === this.activeTab);\n\t\t\t\t\t\treturn tab ? tab.themeColor : '#7aa2f7';\n\t\t\t\t\t},\n\n\t\t\t\t\t// Get all hosts from hostStore for dropdown\n\t\t\t\t\tgetAllHosts() {\n\t\t\t\t\t\treturn hostStore.all().map(h => ({\n\t\t\t\t\t\t\tid: h.id,\n\t\t\t\t\t\t\thostname: h.hostname,\n\t\t\t\t\t\t\tthemeColor: h.themeColor || '#7aa2f7'\n\t\t\t\t\t\t}));\n\t\t\t\t\t},\n\n\t\t\t\t\t// Check if a host tab exists\n\t\t\t\t\thasTab(hostId) {\n\t\t\t\t\t\treturn this.tabs.some(t => t.hostId === hostId);\n\t\t\t\t\t},\n\n\t\t\t\t\t// Get indicator class for a host (from tab or default)\n\t\t\t\t\tgetHostTabIndicator(hostId) {\n\t\t\t\t\t\tconst tab = this.tabs.find(t => t.hostId === hostId);\n\t\t\t\t\t\treturn tab?.indicator || '';\n\t\t\t\t\t},\n\n\t\t\t\t\t// Toggle a host tab on/off\n\t\t\t\t\ttoggleHostTab(hostId, hostname, themeColor) {\n\t\t\t\t\t\tconst existing = this.tabs.find(t => t.hostId === hostId);\n\t\t\t\t\t\tif (existing) {\n\t\t\t\t\t\t\t// Close this tab\n\t\t\t\t\t\t\tthis.closeTab(hostId);\n\t\t\t\t\t\t} else {\n\t\t\t\t\t\t\t// Create tab and switch to it\n\t\t\t\t\t\t\tconst tab = {\n\t\t\t\t\t\t\t\thostId: hostId,\n\t\t\t\t\t\t\t\thostname: hostname,\n\t\t\t\t\t\t\t\tthemeColor: themeColor || '#7aa2f7',\n\t\t\t\t\t\t\t\tlines: [],\n\t\t\t\t\t\t\t\tindicator: '',\n\t\t\t\t\t\t\t\thasUnread: false,\n\t\t\t\t\t\t\t\tphase: '',\n\t\t\t\t\t\t\t\tphaseIcon: '',\n\t\t\t\t\t\t\t\tbuildCount: 0,\n\t\t\t\t\t\t\t\tbuildCurrent: 0,\n\t\t\t\t\t\t\t\tlastCommand: null,\n\t\t\t\t\t\t\t};\n\t\t\t\t\t\t\tthis.tabs.push(tab);\n\t\t\t\t\t\t\tthis.activeTab = hostId;\n\t\t\t\t\t\t}\n\t\t\t\t\t},\n\n\t\t\t\t\tclearActiveTab() {\n\t\t\t\t\t\tlet count = 0;\n\t\t\t\t\t\tlet name = 'System';\n\t\t\t\t\t\tif (this.activeTab === 'system') {\n\t\t\t\t\t\t\tcount = this.systemLog.length;\n\t\t\t\t\t\t\tthis.systemLog = [];\n\t\t\t\t\t\t} else {\n\t\t\t\t\t\t\tconst tab = this.getActiveTabData();\n\t\t\t\t\t\t\tif (tab) {\n\t\t\t\t\t\t\t\tcount = tab.lines.length;\n\t\t\t\t\t\t\t\tname = tab.hostname;\n\t\t\t\t\t\t\t\ttab.lines = [];\n\t\t\t\t\t\t\t}\n\t\t\t\t\t\t}\n\t\t\t\t\t\tshowToast(`Cleared ${count} lines from ${name}`, 'success');\n\t\t\t\t\t},\n\n\t\t\t\t\tcopyActiveTab() {\n\t\t\t\t\t\tlet text = '';\n\t\t\t\t\t\tlet name = 'System';\n\t\t\t\t\t\tif (this.activeTab === 'system') {\n\t\t\t\t\t\t\ttext = this.systemLog.map(e => `${e.timeDisplay} ${e.icon} ${e.message}`).join('\\n');\n\t\t\t\t\t\t} else {\n\t\t\t\t\t\t\tconst tab = this.getActiveTabData();\n\t\t\t\t\t\t\tif (tab) {\n\t\t\t\t\t\t\t\ttext = tab.lines.map(l => l.text).join('\\n');\n\t\t\t\t\t\t\t\tname = tab.hostname;\n\t\t\t\t\t\t\t}\n\t\t\t\t\t\t}\n\t\t\t\t\t\tconst lineCount = text ? text.split('\\n').length : 0;\n\t\t\t\t\t\tnavigator.clipboard.writeText(text).then(() => {\n\t\t\t\t\t\t\tshowToast(`Copied ${lineCount} lines from ${name}`, 'success');\n\t\t\t\t\t\t}).catch(() => {\n\t\t\t\t\t\t\tshowToast('Failed to copy to clipboard', 'error');\n\t\t\t\t\t\t});\n\t\t\t\t\t},\n\n\t\t\t\t\tget systemLogIndicator() {\n\t\t\t\t\t\t// Return indicator class based on latest entry\n\t\t\t\t\t\tif (this.systemLog.length === 0) return '';\n\t\t\t\t\t\tconst latest = this.systemLog[0];\n\t\t\t\t\t\treturn latest.category;\n\t\t\t\t\t},\n\t\t\t\t}));\n\t\t\t});\n\n\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\t// UTILITIES\n\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\tfunction formatLastSeen(isoString) {\n\t\t\t\tif (!isoString) return { text: '—', className: '' };\n\n\t\t\t\tconst date = new Date(isoString);\n\t\t\t\tconst now = new Date();\n\t\t\t\tconst diffMs = now - date;\n\t\t\t\tconst diffSec = Math.max(0, Math.floor(diffMs / 1000));\n\n\t\t\t\tlet text;\n\t\t\t\tif (diffSec < 60) {\n\t\t\t\t\ttext = diffSec + 's';\n\t\t\t\t} else if (diffSec < 3600) {\n\t\t\t\t\ttext = Math.floor(diffSec / 60) + 'm';\n\t\t\t\t} else if (diffSec < 86400) {\n\t\t\t\t\ttext = Math.floor(diffSec / 3600) + 'h';\n\t\t\t\t} else {\n\t\t\t\t\ttext = Math.floor(diffSec / 86400) + 'd';\n\t\t\t\t}\n\n\t\t\t\tlet className;\n\t\t\t\tif (diffSec <= HEARTBEAT_INTERVAL * 2) {\n\t\t\t\t\tclassName = 'last-seen-ok';\n\t\t\t\t} else if (diffSec <= HEARTBEAT_INTERVAL * 10) {\n\t\t\t\t\tclassName = 'last-seen-warn';\n\t\t\t\t} else {\n\t\t\t\t\tclassName = 'last-seen-stale';\n\t\t\t\t}\n\n\t\t\t\treturn { text, className };\n\t\t\t}\n\n\t\t\tfunction triggerHeartbeat(rippleEl) {\n\t\t\t\tif (!rippleEl) return;\n\t\t\t\trippleEl.classList.add('heartbeat');\n\t\t\t\tsetTimeout(() => rippleEl.classList.remove('heartbeat'), 1500);\n\t\t\t}\n\n\t\t\tfunction handleFlakeUpdateJob(job) {\n\t\t\t\t// P2600: Show deploy progress via toast\n\t\t\t\tconst state = job.state || 'unknown';\n\t\t\t\tconst message = job.message || '';\n\t\t\t\t\n\t\t\t\tswitch (state) {\n\t\t\t\t\tcase 'merging':\n\t\t\t\t\t\tshowToast(`Merging PR #${job.pr_number || '?'}...`, 'info');\n\t\t\t\t\t\tbreak;\n\t\t\t\t\tcase 'deploying':\n\t\t\t\t\t\tconst hostCount = job.host_count || 'all';\n\t\t\t\t\t\tshowToast(`Deploying to ${hostCount} hosts...`, 'info');\n\t\t\t\t\t\tbreak;\n\t\t\t\t\tcase 'complete':\n\t\t\t\t\t\tshowToast(message || 'Deploy complete!', 'success');\n\t\t\t\t\t\tbreak;\n\t\t\t\t\tcase 'error':\n\t\t\t\t\t\tshowToast(message || 'Deploy failed', 'error');\n\t\t\t\t\t\tbreak;\n\t\t\t\t\tdefault:\n\t\t\t\t\t\t// Log unknown states for debugging\n\t\t\t\t\t\tconsole.log('Flake update job:', state, message);\n\t\t\t\t}\n\t\t\t}\n\n\t\t\t// P2800: Handle state machine log messages\n\t\t\tfunction handleStateMachineLog(log) {\n\t\t\t\t// Dispatch to System Log component\n\t\t\t\twindow.dispatchEvent(new CustomEvent('state-machine-log', { detail: log }));\n\t\t\t\t\n\t\t\t\t// Show important messages as toasts\n\t\t\t\tif (log.level === 'error') {\n\t\t\t\t\tshowToast(`${log.host_id || 'System'}: ${log.message}`, 'error');\n\t\t\t\t} else if (log.level === 'warning' && log.state === 'VALIDATING→BLOCKED') {\n\t\t\t\t\t// Show blocked action warnings\n\t\t\t\t\tshowToast(`${log.host_id}: ${log.message}`, 'info');\n\t\t\t\t}\n\t\t\t}\n\n\t\t\t// P7240: Handle command state changes for timeout UI\n\t\t\tfunction handleCommandStateChange(hostId, payload) {\n\t\t\t\tconst state = payload.state;\n\t\t\t\tconst host = hostStore.get(hostId);\n\t\t\t\tconst hostname = host?.hostname || hostId;\n\n\t\t\t\t// States that indicate timeout\n\t\t\t\tconst timeoutStates = ['running_warning', 'timeout_pending', 'killing', 'kill_failed'];\n\t\t\t\t\n\t\t\t\tif (timeoutStates.includes(state)) {\n\t\t\t\t\t// Add/update timeout tracking\n\t\t\t\t\tif (!globalState.timeouts.has(hostId)) {\n\t\t\t\t\t\tglobalState.timeouts.set(hostId, {\n\t\t\t\t\t\t\thostname,\n\t\t\t\t\t\t\tcommand: host?.pendingCommand || 'unknown',\n\t\t\t\t\t\t\tstartedAt: Date.now() - (payload.elapsed_ms || 0),\n\t\t\t\t\t\t\tstate\n\t\t\t\t\t\t});\n\t\t\t\t\t} else {\n\t\t\t\t\t\tconst existing = globalState.timeouts.get(hostId);\n\t\t\t\t\t\texisting.state = state;\n\t\t\t\t\t}\n\t\t\t\t\t\n\t\t\t\t\t// Dispatch event for context bar update\n\t\t\t\t\twindow.dispatchEvent(new CustomEvent('timeout-update', { detail: { hostId, state, hostname } }));\n\t\t\t\t\t\n\t\t\t\t\t// Show toast for timeout_pending (needs user action)\n\t\t\t\t\tif (state === 'timeout_pending') {\n\t\t\t\t\t\tshowToast(`⚠️ ${hostname}: command timed out - action required`, 'warning');\n\t\t\t\t\t}\n\t\t\t\t} else {\n\t\t\t\t\t// Command completed or state cleared - remove timeout\n\t\t\t\t\tif (globalState.timeouts.has(hostId)) {\n\t\t\t\t\t\tglobalState.timeouts.delete(hostId);\n\t\t\t\t\t\twindow.dispatchEvent(new CustomEvent('timeout-cleared', { detail: { hostId } }));\n\t\t\t\t\t}\n\t\t\t\t}\n\n\t\t\t\t// Update host store with command state\n\t\t\t\thostStore.update(hostId, { commandState: state });\n\t\t\t}\n\n\t\t\t// P7240: Timeout action API calls\n\t\t\tasync function handleTimeoutAction(hostId, action, minutes = 5) {\n\t\t\t\ttry {\n\t\t\t\t\tconst resp = await fetch(`/api/hosts/${hostId}/timeout-action`, {\n\t\t\t\t\t\tmethod: 'POST',\n\t\t\t\t\t\theaders: {\n\t\t\t\t\t\t\t'Content-Type': 'application/json',\n\t\t\t\t\t\t\t'X-CSRF-Token': CSRF_TOKEN\n\t\t\t\t\t\t},\n\t\t\t\t\t\tbody: JSON.stringify({ action, minutes })\n\t\t\t\t\t});\n\t\t\t\t\t\n\t\t\t\t\tif (!resp.ok) {\n\t\t\t\t\t\tconst text = await resp.text();\n\t\t\t\t\t\tthrow new Error(text);\n\t\t\t\t\t}\n\t\t\t\t\t\n\t\t\t\t\tconst host = hostStore.get(hostId);\n\t\t\t\t\tconst hostname = host?.hostname || hostId;\n\t\t\t\t\t\n\t\t\t\t\tswitch (action) {\n\t\t\t\t\t\tcase 'wait':\n\t\t\t\t\t\t\tshowToast(`${hostname}: extended timeout by ${minutes} minutes`, 'info');\n\t\t\t\t\t\t\tbreak;\n\t\t\t\t\t\tcase 'kill':\n\t\t\t\t\t\t\tshowToast(`${hostname}: kill signal sent`, 'warning');\n\t\t\t\t\t\t\tbreak;\n\t\t\t\t\t\tcase 'ignore':\n\t\t\t\t\t\t\tshowToast(`${hostname}: timeout ignored`, 'info');\n\t\t\t\t\t\t\tbreak;\n\t\t\t\t\t}\n\t\t\t\t\t\n\t\t\t\t\t// Remove from local timeout tracking\n\t\t\t\t\tglobalState.timeouts.delete(hostId);\n\t\t\t\t\twindow.dispatchEvent(new CustomEvent('timeout-cleared', { detail: { hostId } }));\n\t\t\t\t\t\n\t\t\t\t} catch (err) {\n\t\t\t\t\tshowToast(`Failed to ${action}: ${err.message}`, 'error');\n\t\t\t\t}\n\t\t\t}\n\n\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\t// MODALS & DROPDOWNS (Keep existing, no changes)\n\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\tfunction toggleDropdown(btn) {\n\t\t\t\tconst dropdown = btn.closest('.dropdown');\n\t\t\t\tconst wasOpen = dropdown.classList.contains('open');\n\t\t\t\tdocument.querySelectorAll('.dropdown.open').forEach(d => d.classList.remove('open'));\n\t\t\t\tif (!wasOpen) dropdown.classList.add('open');\n\t\t\t}\n\n\t\t\tdocument.addEventListener('click', (e) => {\n\t\t\t\tif (!e.target.closest('.dropdown')) {\n\t\t\t\t\tdocument.querySelectorAll('.dropdown.open').forEach(d => d.classList.remove('open'));\n\t\t\t\t}\n\t\t\t});\n\n\t\t\tdocument.addEventListener('keydown', (e) => {\n\t\t\t\tif (e.key === 'Escape') {\n\t\t\t\t\tdocument.querySelectorAll('.dropdown.open').forEach(d => d.classList.remove('open'));\n\t\t\t\t\tdocument.querySelectorAll('.modal-overlay.open').forEach(m => m.classList.remove('open'));\n\t\t\t\t\tcloseBulkMenu();\n\t\t\t\t}\n\t\t\t});\n\n\t\t\t// P2100: Bulk menu with keyboard navigation\n\t\t\tlet bulkMenuFocusedIndex = -1;\n\n\t\t\tfunction toggleBulkMenu(e) {\n\t\t\t\te.stopPropagation();\n\t\t\t\tconst menu = document.getElementById('bulk-actions-menu');\n\t\t\t\tconst wasOpen = menu.classList.contains('open');\n\t\t\t\tmenu.classList.toggle('open');\n\t\t\t\tif (!wasOpen) {\n\t\t\t\t\tbulkMenuFocusedIndex = 0;\n\t\t\t\t\tfocusBulkMenuItem(0);\n\t\t\t\t} else {\n\t\t\t\t\tbulkMenuFocusedIndex = -1;\n\t\t\t\t}\n\t\t\t}\n\n\t\t\tfunction closeBulkMenu() {\n\t\t\t\tconst menu = document.getElementById('bulk-actions-menu');\n\t\t\t\tif (menu) menu.classList.remove('open');\n\t\t\t\tbulkMenuFocusedIndex = -1;\n\t\t\t}\n\n\t\t\t// P4021: Force clear all caches and reload\n\t\t\tasync function forceRefresh() {\n\t\t\t\tcloseBulkMenu();\n\t\t\t\ttry {\n\t\t\t\t\t// Clear browser caches if available (Service Worker caches)\n\t\t\t\t\tif ('caches' in window) {\n\t\t\t\t\t\tconst names = await caches.keys();\n\t\t\t\t\t\tawait Promise.all(names.map(n => caches.delete(n)));\n\t\t\t\t\t}\n\t\t\t\t} catch (e) {\n\t\t\t\t\tconsole.log('Cache clear failed:', e);\n\t\t\t\t}\n\t\t\t\t// Force reload bypassing cache\n\t\t\t\tlocation.reload(true);\n\t\t\t}\n\n\t\t\tfunction toggleDebugPanel() {\n\t\t\t\tcloseBulkMenu();\n\t\t\t\tconst panel = document.getElementById('debug-panel');\n\t\t\t\tif (panel) {\n\t\t\t\t\tpanel.style.display = panel.style.display === 'none' ? 'block' : 'none';\n\t\t\t\t}\n\t\t\t}\n\n\t\t\tfunction focusBulkMenuItem(idx) {\n\t\t\t\tconst menu = document.getElementById('bulk-actions-menu');\n\t\t\t\tif (!menu) return;\n\t\t\t\tconst items = [...menu.querySelectorAll('.dropdown-item')];\n\t\t\t\tif (items.length === 0) return;\n\t\t\t\tbulkMenuFocusedIndex = ((idx % items.length) + items.length) % items.length;\n\t\t\t\titems[bulkMenuFocusedIndex].focus();\n\t\t\t}\n\n\t\t\tfunction handleBulkMenuKeydown(e) {\n\t\t\t\tconst menu = document.getElementById('bulk-actions-menu');\n\t\t\t\tif (!menu || !menu.classList.contains('open')) return;\n\n\t\t\t\tif (e.key === 'ArrowDown') {\n\t\t\t\t\te.preventDefault();\n\t\t\t\t\tfocusBulkMenuItem(bulkMenuFocusedIndex + 1);\n\t\t\t\t} else if (e.key === 'ArrowUp') {\n\t\t\t\t\te.preventDefault();\n\t\t\t\t\tfocusBulkMenuItem(bulkMenuFocusedIndex - 1);\n\t\t\t\t} else if (e.key === 'Escape') {\n\t\t\t\t\te.preventDefault();\n\t\t\t\t\tcloseBulkMenu();\n\t\t\t\t\t// Return focus to the button\n\t\t\t\t\tconst btn = document.querySelector('.bulk-actions-dropdown .btn');\n\t\t\t\t\tif (btn) btn.focus();\n\t\t\t\t}\n\t\t\t}\n\n\t\t\tdocument.addEventListener('click', (e) => {\n\t\t\t\tif (!e.target.closest('.bulk-actions-dropdown')) {\n\t\t\t\t\tcloseBulkMenu();\n\t\t\t\t}\n\t\t\t});\n\n\t\t\tfunction unlockActions(btn) {\n\t\t\t\tconst hostId = btn.dataset.hostId;\n\t\t\t\thostStore.update(hostId, { pendingCommand: null });\n\t\t\t\tbtn.closest('.dropdown').classList.remove('open');\n\t\t\t}\n\n\t\t\tfunction downloadLogs(hostId) {\n\t\t\t\twindow.open(`/api/hosts/${hostId}/logs?download=true`, '_blank');\n\t\t\t}\n\n\t\t\tlet pendingRemoveHostId = null;\n\n\t\t\tfunction confirmRemoveHost(hostId, hostname) {\n\t\t\t\tpendingRemoveHostId = hostId;\n\t\t\t\tdocument.getElementById('removeHostName').textContent = hostname;\n\t\t\t\tdocument.getElementById('removeHostModal').classList.add('open');\n\t\t\t\tdocument.querySelectorAll('.dropdown.open').forEach(d => d.classList.remove('open'));\n\t\t\t}\n\n\t\t\tfunction doRemoveHost() {\n\t\t\t\tif (!pendingRemoveHostId) return;\n\t\t\t\tfetch(`/api/hosts/${pendingRemoveHostId}`, {\n\t\t\t\t\tmethod: 'DELETE',\n\t\t\t\t\theaders: { 'X-CSRF-Token': CSRF_TOKEN }\n\t\t\t\t}).then(resp => {\n\t\t\t\t\tif (!resp.ok) throw new Error('Failed to remove host');\n\t\t\t\t\treturn resp.json();\n\t\t\t\t}).then(() => {\n\t\t\t\t\tdocument.querySelectorAll(`[data-host-id=\"${pendingRemoveHostId}\"]`).forEach(el => el.remove());\n\t\t\t\t\tcloseModal('removeHostModal');\n\t\t\t\t}).catch(err => {\n\t\t\t\t\talert('Failed to remove host: ' + err.message);\n\t\t\t\t});\n\t\t\t}\n\n\t\t\tfunction closeModal(modalId) {\n\t\t\t\tdocument.getElementById(modalId).classList.remove('open');\n\t\t\t\tpendingRemoveHostId = null;\n\t\t\t}\n\n\t\t\t// P6900: Reboot modal functions\n\t\t\tlet pendingRebootHostId = null;\n\t\t\tlet pendingRebootHostname = null;\n\n\t\tfunction showRebootModal(hostId, hostname) {\n\t\t\t// P5100: Server decides if reboot is available (via availableOps)\n\t\t\t// If button was enabled, host is ready for reboot\n\t\t\tpendingRebootHostId = hostId;\n\t\t\tpendingRebootHostname = hostname;\n\t\t\t\tdocument.getElementById('rebootHostName').textContent = hostname;\n\t\t\t\tdocument.getElementById('rebootTotp').value = '';\n\t\t\t\tdocument.getElementById('rebootConfirmBtn').disabled = true;\n\t\t\t\tdocument.getElementById('rebootModal').classList.add('open');\n\t\t\t\tdocument.querySelectorAll('.dropdown.open').forEach(d => d.classList.remove('open'));\n\t\t\t\t// Auto-focus TOTP input\n\t\t\t\tsetTimeout(() => document.getElementById('rebootTotp').focus(), 100);\n\t\t\t}\n\n\t\t\tfunction closeRebootModal() {\n\t\t\t\tdocument.getElementById('rebootModal').classList.remove('open');\n\t\t\t\tpendingRebootHostId = null;\n\t\t\t\tpendingRebootHostname = null;\n\t\t\t}\n\n\t\t\tfunction validateRebootTotp(input) {\n\t\t\t\tconst value = input.value.replace(/\\D/g, ''); // Remove non-digits\n\t\t\t\tinput.value = value;\n\t\t\t\tdocument.getElementById('rebootConfirmBtn').disabled = value.length !== 6;\n\t\t\t}\n\n\t\t\tasync function doReboot() {\n\t\t\t\tif (!pendingRebootHostId) return;\n\n\t\t\t\tconst totpInput = document.getElementById('rebootTotp');\n\t\t\t\tconst confirmBtn = document.getElementById('rebootConfirmBtn');\n\t\t\t\tconst btnText = document.getElementById('rebootBtnText');\n\t\t\t\tconst btnSpinner = document.getElementById('rebootBtnSpinner');\n\t\t\t\tconst totp = totpInput.value;\n\n\t\t\t\t// Disable button and show loading state\n\t\t\t\tconfirmBtn.disabled = true;\n\t\t\t\tbtnText.style.display = 'none';\n\t\t\t\tbtnSpinner.style.display = 'inline';\n\n\t\t\t\ttry {\n\t\t\t\t\tconst resp = await fetch(`/api/hosts/${pendingRebootHostId}/reboot`, {\n\t\t\t\t\t\tmethod: 'POST',\n\t\t\t\t\t\theaders: {\n\t\t\t\t\t\t\t'Content-Type': 'application/json',\n\t\t\t\t\t\t\t'X-CSRF-Token': CSRF_TOKEN\n\t\t\t\t\t\t},\n\t\t\t\t\t\tbody: JSON.stringify({ totp })\n\t\t\t\t\t});\n\n\t\t\t\t\tconst data = await resp.json();\n\n\t\t\t\t\tif (resp.status === 401) {\n\t\t\t\t\t\tshowToast('Invalid TOTP code', 'error');\n\t\t\t\t\t\ttotpInput.focus();\n\t\t\t\t\t\ttotpInput.select();\n\t\t\t\t\t\tconfirmBtn.disabled = false;\n\t\t\t\t\t\tbtnText.style.display = 'inline';\n\t\t\t\t\t\tbtnSpinner.style.display = 'none';\n\t\t\t\t\t\treturn;\n\t\t\t\t\t}\n\n\t\t\t\t\tif (resp.status === 429) {\n\t\t\t\t\t\tshowToast(data.error || 'Too many reboot attempts. Please wait.', 'error');\n\t\t\t\t\t\tcloseRebootModal();\n\t\t\t\t\t\treturn;\n\t\t\t\t\t}\n\n\t\t\t\t\tif (!resp.ok) {\n\t\t\t\t\t\tshowToast(data.error || `Reboot failed: ${resp.statusText}`, 'error');\n\t\t\t\t\t\tconfirmBtn.disabled = false;\n\t\t\t\t\t\tbtnText.style.display = 'inline';\n\t\t\t\t\t\tbtnSpinner.style.display = 'none';\n\t\t\t\t\t\treturn;\n\t\t\t\t\t}\n\n\t\t\t\t\t// Success\n\t\t\t\t\tcloseRebootModal();\n\t\t\t\t\tshowToast(`Reboot command sent to ${pendingRebootHostname}`, 'info');\n\t\t\t\t} catch (err) {\n\t\t\t\t\tshowToast(`Network error: ${err.message}`, 'error');\n\t\t\t\t\tconfirmBtn.disabled = false;\n\t\t\t\t\tbtnText.style.display = 'inline';\n\t\t\t\t\tbtnSpinner.style.display = 'none';\n\t\t\t\t}\n\t\t\t}\n\n\t\t\tfunction openAddHostModal() {\n\t\t\t\tdocument.getElementById('addHostModal').classList.add('open');\n\t\t\t}\n\n\t\t\tfunction doAddHost() {\n\t\t\t\tconst form = document.getElementById('addHostForm');\n\t\t\t\tconst formData = new FormData(form);\n\t\t\t\tconst data = Object.fromEntries(formData.entries());\n\t\t\t\tfetch('/api/hosts', {\n\t\t\t\t\tmethod: 'POST',\n\t\t\t\t\theaders: {\n\t\t\t\t\t\t'Content-Type': 'application/json',\n\t\t\t\t\t\t'X-CSRF-Token': CSRF_TOKEN\n\t\t\t\t\t},\n\t\t\t\t\tbody: JSON.stringify(data)\n\t\t\t\t}).then(resp => {\n\t\t\t\t\tif (!resp.ok) throw new Error('Failed to add host');\n\t\t\t\t\treturn resp.json();\n\t\t\t\t}).then(() => {\n\t\t\t\t\tcloseModal('addHostModal');\n\t\t\t\t\twindow.location.reload();\n\t\t\t\t}).catch(err => {\n\t\t\t\t\talert('Failed to add host: ' + err.message);\n\t\t\t\t});\n\t\t\t}\n\n\t\t\tdocument.querySelectorAll('.modal-overlay').forEach(overlay => {\n\t\t\t\toverlay.addEventListener('click', (e) => {\n\t\t\t\t\tif (e.target === overlay) overlay.classList.remove('open');\n\t\t\t\t});\n\t\t\t});\n\n\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\t// P2950: COLOR PICKER\n\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\tfunction openColorPicker(hostId, hostname, currentColor) {\n\t\t\t\tdocument.getElementById('colorPickerHostId').value = hostId;\n\t\t\t\tdocument.getElementById('colorPickerHostname').textContent = hostname;\n\t\t\t\tdocument.getElementById('colorPickerInput').value = currentColor;\n\t\t\t\tdocument.getElementById('colorPickerHex').value = currentColor;\n\t\t\t\tdocument.getElementById('colorPickerPalette').value = '';\n\t\t\t\t\n\t\t\t\t// Clear previous selection\n\t\t\t\tdocument.querySelectorAll('.color-preset.selected').forEach(btn => btn.classList.remove('selected'));\n\t\t\t\t\n\t\t\t\t// Check if current color matches a preset\n\t\t\t\tdocument.querySelectorAll('.color-preset').forEach(btn => {\n\t\t\t\t\tif (btn.dataset.color.toLowerCase() === currentColor.toLowerCase()) {\n\t\t\t\t\t\tbtn.classList.add('selected');\n\t\t\t\t\t\tdocument.getElementById('colorPickerPalette').value = btn.dataset.palette;\n\t\t\t\t\t}\n\t\t\t\t});\n\t\t\t\t\n\t\t\t\tupdateColorPreview(currentColor);\n\t\t\t\tdocument.getElementById('colorPickerModal').classList.add('open');\n\t\t\t}\n\n\t\t\tfunction selectPreset(btn) {\n\t\t\t\tdocument.querySelectorAll('.color-preset.selected').forEach(b => b.classList.remove('selected'));\n\t\t\t\tbtn.classList.add('selected');\n\t\t\t\tconst color = btn.dataset.color;\n\t\t\t\tdocument.getElementById('colorPickerInput').value = color;\n\t\t\t\tdocument.getElementById('colorPickerHex').value = color;\n\t\t\t\tdocument.getElementById('colorPickerPalette').value = btn.dataset.palette;\n\t\t\t\tupdateColorPreview(color);\n\t\t\t}\n\n\t\t\tfunction syncHexInput(value) {\n\t\t\t\tif (/^#[0-9a-fA-F]{6}$/.test(value)) {\n\t\t\t\t\tdocument.getElementById('colorPickerInput').value = value;\n\t\t\t\t\tdocument.getElementById('colorPickerPalette').value = ''; // Custom color\n\t\t\t\t\tdocument.querySelectorAll('.color-preset.selected').forEach(b => b.classList.remove('selected'));\n\t\t\t\t\tupdateColorPreview(value);\n\t\t\t\t}\n\t\t\t}\n\n\t\t\tfunction updateColorPreview(hex) {\n\t\t\t\t// Generate gradient preview using HSL manipulation\n\t\t\t\tconst hsl = hexToHSL(hex);\n\t\t\t\tconst row = document.getElementById('colorPreviewRow');\n\t\t\t\t\n\t\t\t\t// Generate gradient stops\n\t\t\t\tconst stops = [\n\t\t\t\t\thslToHex(hsl.h, hsl.s, 0.75),      // lightest\n\t\t\t\t\thex,                                 // primary\n\t\t\t\t\thslToHex(hsl.h, hsl.s, hsl.l * 0.75), // secondary\n\t\t\t\t\thslToHex(hsl.h, hsl.s, 0.20),      // midDark\n\t\t\t\t\thslToHex(hsl.h, hsl.s, 0.12),      // dark\n\t\t\t\t\thslToHex(hsl.h, hsl.s, 0.08),      // darker\n\t\t\t\t\thslToHex(hsl.h, hsl.s, 0.05),      // darkest\n\t\t\t\t];\n\t\t\t\t\n\t\t\t\tconst segments = row.querySelectorAll('.preview-segment');\n\t\t\t\tsegments.forEach((seg, i) => {\n\t\t\t\t\tseg.style.background = stops[i];\n\t\t\t\t});\n\t\t\t}\n\n\t\t\tfunction hexToHSL(hex) {\n\t\t\t\thex = hex.replace('#', '');\n\t\t\t\tconst r = parseInt(hex.substr(0, 2), 16) / 255;\n\t\t\t\tconst g = parseInt(hex.substr(2, 2), 16) / 255;\n\t\t\t\tconst b = parseInt(hex.substr(4, 2), 16) / 255;\n\t\t\t\t\n\t\t\t\tconst max = Math.max(r, g, b), min = Math.min(r, g, b);\n\t\t\t\tconst l = (max + min) / 2;\n\t\t\t\tlet h, s;\n\t\t\t\t\n\t\t\t\tif (max === min) {\n\t\t\t\t\th = s = 0;\n\t\t\t\t} else {\n\t\t\t\t\tconst d = max - min;\n\t\t\t\t\ts = d / (1 - Math.abs(2 * l - 1));\n\t\t\t\t\tswitch (max) {\n\t\t\t\t\t\tcase r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;\n\t\t\t\t\t\tcase g: h = ((b - r) / d + 2) / 6; break;\n\t\t\t\t\t\tcase b: h = ((r - g) / d + 4) / 6; break;\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t\treturn { h: h * 360, s, l };\n\t\t\t}\n\n\t\t\tfunction hslToHex(h, s, l) {\n\t\t\t\th = ((h % 360) + 360) % 360;\n\t\t\t\ts = Math.max(0, Math.min(1, s));\n\t\t\t\tl = Math.max(0, Math.min(1, l));\n\t\t\t\t\n\t\t\t\tconst c = (1 - Math.abs(2 * l - 1)) * s;\n\t\t\t\tconst x = c * (1 - Math.abs((h / 60) % 2 - 1));\n\t\t\t\tconst m = l - c / 2;\n\t\t\t\tlet r, g, b;\n\t\t\t\t\n\t\t\t\tif (h < 60) { r = c; g = x; b = 0; }\n\t\t\t\telse if (h < 120) { r = x; g = c; b = 0; }\n\t\t\t\telse if (h < 180) { r = 0; g = c; b = x; }\n\t\t\t\telse if (h < 240) { r = 0; g = x; b = c; }\n\t\t\t\telse if (h < 300) { r = x; g = 0; b = c; }\n\t\t\t\telse { r = c; g = 0; b = x; }\n\t\t\t\t\n\t\t\t\tconst toHex = v => Math.round((v + m) * 255).toString(16).padStart(2, '0');\n\t\t\t\treturn '#' + toHex(r) + toHex(g) + toHex(b);\n\t\t\t}\n\n\t\t\tfunction applyColor() {\n\t\t\t\tconst hostId = document.getElementById('colorPickerHostId').value;\n\t\t\t\tconst color = document.getElementById('colorPickerHex').value;\n\t\t\t\tconst palette = document.getElementById('colorPickerPalette').value;\n\t\t\t\t\n\t\t\t\t// Open log panel to show progress\n\t\t\t\tshowLogPanel(hostId);\n\t\t\t\t\n\t\t\t\tfetch(`/api/hosts/${hostId}/theme-color`, {\n\t\t\t\t\tmethod: 'POST',\n\t\t\t\t\theaders: {\n\t\t\t\t\t\t'Content-Type': 'application/json',\n\t\t\t\t\t\t'X-CSRF-Token': CSRF_TOKEN\n\t\t\t\t\t},\n\t\t\t\t\tbody: JSON.stringify({ \n\t\t\t\t\t\tcolor: color,\n\t\t\t\t\t\tpalette: palette || null  // null means custom color\n\t\t\t\t\t})\n\t\t\t\t}).then(resp => {\n\t\t\t\t\tif (!resp.ok) return resp.text().then(t => { throw new Error(t); });\n\t\t\t\t\treturn resp.json();\n\t\t\t\t}).then(data => {\n\t\t\t\t\tcloseModal('colorPickerModal');\n\t\t\t\t\tshowToast(`Color updated for ${hostId}. Changes will apply after rebuild.`, 'success');\n\t\t\t\t\t\n\t\t\t\t\t// Update the row's gradient immediately for visual feedback\n\t\t\t\t\tconst row = document.querySelector(`tr[data-host-id=\"${hostId}\"]`);\n\t\t\t\t\tif (row) {\n\t\t\t\t\t\trow.dataset.themeColor = color;\n\t\t\t\t\t\tconst rgb = hexToRGB(color);\n\t\t\t\t\t\trow.style.background = `linear-gradient(to right, rgba(${rgb}, 0.02) 0%, rgba(${rgb}, 0.10) 25%, rgba(${rgb}, 0.02) 50%, transparent 100%)`;\n\t\t\t\t\t}\n\t\t\t\t}).catch(err => {\n\t\t\t\t\talert('Failed to apply color: ' + err.message);\n\t\t\t\t});\n\t\t\t}\n\n\t\t\tfunction hexToRGB(hex) {\n\t\t\t\thex = hex.replace('#', '');\n\t\t\t\tconst r = parseInt(hex.substr(0, 2), 16);\n\t\t\t\tconst g = parseInt(hex.substr(2, 2), 16);\n\t\t\t\tconst b = parseInt(hex.substr(4, 2), 16);\n\t\t\t\treturn `${r}, ${g}, ${b}`;\n\t\t\t}\n\n\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\t// ROW SELECTION HANDLERS (P1030)\n\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\tfunction handleHeaderCheckboxClick() {\n\t\t\t\tconst store = Alpine.store('selection');\n\t\t\t\tif (store.headerState === 'none') {\n\t\t\t\t\tstore.selectAll();\n\t\t\t\t} else {\n\t\t\t\t\tstore.selectNone();\n\t\t\t\t}\n\t\t\t}\n\n\t\t\tfunction handleCheckboxClick(event, hostId) {\n\t\t\t\tevent.stopPropagation();\n\t\t\t\tconst store = Alpine.store('selection');\n\t\t\t\tif (event.shiftKey && store.lastSelected) {\n\t\t\t\t\tstore.selectRange(hostId);\n\t\t\t\t} else {\n\t\t\t\t\tstore.toggle(hostId);\n\t\t\t\t}\n\t\t\t}\n\n\t\t\t// Keyboard shortcuts for selection\n\t\t\tdocument.addEventListener('keydown', (e) => {\n\t\t\t\tif (e.target.matches('input, textarea, [contenteditable]')) return;\n\n\t\t\t\t// Ctrl/Cmd + A: Select all\n\t\t\t\tif ((e.ctrlKey || e.metaKey) && e.key === 'a') {\n\t\t\t\t\te.preventDefault();\n\t\t\t\t\tAlpine.store('selection').selectAll();\n\t\t\t\t}\n\n\t\t\t\t// Escape: Clear selection (if any)\n\t\t\t\tif (e.key === 'Escape') {\n\t\t\t\t\tconst store = Alpine.store('selection');\n\t\t\t\t\tif (store.count > 0) {\n\t\t\t\t\t\te.preventDefault();\n\t\t\t\t\t\tstore.selectNone();\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t});\n\n\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\t// CLICKABLE COMPARTMENTS (P1020)\n\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\tconst compartmentCooldowns = new Map();\n\t\t\tconst COOLDOWN_MS = 500;\n\n\t\t\t// P7300: Hover shows info description (no action preview)\n\t\t\tfunction handleCompartmentHover(btn) {\n\t\t\t\tconst hostId = btn.dataset.hostId;\n\t\t\t\tconst hostname = btn.dataset.hostname;\n\t\t\t\tconst compartment = btn.dataset.compartment;\n\t\t\t\tconst description = btn.dataset.description || '';\n\n\t\t\t\t// P7300: Compartments are info-only, show description in context bar\n\t\t\t\t// Map compartment to an info display (no action)\n\t\t\t\twindow.dispatchEvent(new CustomEvent('action-preview', {\n\t\t\t\t\tdetail: { hostId, hostname, command: 'info', compartment, description }\n\t\t\t\t}));\n\t\t\t}\n\n\t\t\tfunction handleCompartmentLeave() {\n\t\t\t\twindow.dispatchEvent(new CustomEvent('action-clear'));\n\t\t\t}\n\n\t\t\t// P7300: Compartment click = INFO ONLY\n\t\t\t// - Safe lightweight checks allowed (git status refresh)\n\t\t\t// - NO host modification (no pull, switch)\n\t\t\t// - NO heavy ops (no nix build --dry-run)\n\t\t\t// For actions, use the ellipsis menu\n\t\t\tfunction handleCompartmentClick(btn) {\n\t\t\t\tconst hostId = btn.dataset.hostId;\n\t\t\t\tconst hostname = btn.dataset.hostname;\n\t\t\t\tconst compartment = btn.dataset.compartment;\n\t\t\t\tconst description = btn.dataset.description || '';\n\n\t\t\t\t// Rate limiting (prevent spam clicks)\n\t\t\t\tconst cooldownKey = `${hostId}-${compartment}`;\n\t\t\t\tif (compartmentCooldowns.has(cooldownKey)) return;\n\n\t\t\t\tcompartmentCooldowns.set(cooldownKey, true);\n\t\t\t\tbtn.classList.add('rate-limited');\n\t\t\t\tsetTimeout(() => {\n\t\t\t\t\tcompartmentCooldowns.delete(cooldownKey);\n\t\t\t\t\tbtn.classList.remove('rate-limited');\n\t\t\t\t}, COOLDOWN_MS);\n\n\t\t\t\t// P7230: All compartment clicks show toast + log\n\t\t\t\t// Toast = short TL;DR, Log = detailed info\n\t\t\t\tconst status = btn.dataset.status || 'unknown';\n\t\t\t\tconst toastType = status === 'ok' ? 'success' : \n\t\t\t\t\t\t\t\t  status === 'error' ? 'error' : \n\t\t\t\t\t\t\t\t  status === 'outdated' ? 'warning' : 'info';\n\n\t\t\t\tswitch (compartment) {\n\t\t\t\t\tcase 'agent':\n\t\t\t\t\t\t// P7230: Agent: run check-version command to compare running vs installed\n\t\t\t\t\t\tshowLogPanel(hostId);\n\t\t\t\t\t\tappendLogLine(hostId, `🔍 Checking agent version...`);\n\t\t\t\t\t\tshowToast(`Agent: checking version...`, 'info');\n\t\t\t\t\t\tsendCommand(hostId, 'check-version');\n\t\t\t\t\t\tbreak;\n\n\t\t\t\t\tcase 'git':\n\t\t\t\t\t\t// Git: lightweight refresh (dashboard-side GitHub API call)\n\t\t\t\t\t\tshowLogPanel(hostId);\n\t\t\t\t\t\tappendLogLine(hostId, `🔄 Refreshing git status...`);\n\t\t\t\t\t\tshowToast(`Git: refreshing...`, 'info');\n\t\t\t\t\t\twindow.dispatchEvent(new CustomEvent('output-start', {\n\t\t\t\t\t\t\tdetail: { hostId, command: 'refresh-git' }\n\t\t\t\t\t\t}));\n\n\t\t\t\t\t\tfetch(`/api/hosts/${hostId}/refresh-git`, {\n\t\t\t\t\t\t\tmethod: 'POST',\n\t\t\t\t\t\t\theaders: { 'X-CSRF-Token': CSRF_TOKEN }\n\t\t\t\t\t\t}).then(resp => {\n\t\t\t\t\t\t\tif (!resp.ok) throw new Error('Failed to refresh git status');\n\t\t\t\t\t\t\treturn resp.json();\n\t\t\t\t\t\t}).then(data => {\n\t\t\t\t\t\t\tconst msg = `Git: ${data.status} - ${data.message}`;\n\t\t\t\t\t\t\tappendLogLine(hostId, `✓ ${msg}`);\n\t\t\t\t\t\t\tshowToast(msg, data.status === 'ok' ? 'success' : 'warning');\n\t\t\t\t\t\t\trefreshHost(hostId);\n\t\t\t\t\t\t\twindow.dispatchEvent(new CustomEvent('log-complete', {\n\t\t\t\t\t\t\t\tdetail: { host_id: hostId, command: 'refresh-git', exit_code: 0 }\n\t\t\t\t\t\t\t}));\n\t\t\t\t\t\t}).catch(err => {\n\t\t\t\t\t\t\tappendLogLine(hostId, `✗ ${err.message}`, 'error');\n\t\t\t\t\t\t\tshowToast(`Git: ${err.message}`, 'error');\n\t\t\t\t\t\t\twindow.dispatchEvent(new CustomEvent('log-complete', {\n\t\t\t\t\t\t\t\tdetail: { host_id: hostId, command: 'refresh-git', exit_code: 1, error: err.message }\n\t\t\t\t\t\t\t}));\n\t\t\t\t\t\t});\n\t\t\t\t\t\tbreak;\n\n\t\t\t\t\tcase 'lock':\n\t\t\t\t\t\t// Lock: lightweight refresh (agent reads flake.lock - fast)\n\t\t\t\t\t\tshowLogPanel(hostId);\n\t\t\t\t\t\tappendLogLine(hostId, `🔄 Refreshing lock status...`);\n\t\t\t\t\t\tshowToast(`Lock: ${description || 'checking...'}`, toastType);\n\t\t\t\t\t\tsendCommand(hostId, 'refresh-lock');\n\t\t\t\t\t\tbreak;\n\n\t\t\t\t\tcase 'system':\n\t\t\t\t\t\t// System: show confirmation dialog (refresh is expensive)\n\t\t\t\t\t\tshowSystemRefreshDialog(hostId, hostname, description, status);\n\t\t\t\t\t\tbreak;\n\n\t\t\t\t\tdefault:\n\t\t\t\t\t\tshowToast(`Unknown compartment: ${compartment}`, 'error');\n\t\t\t\t}\n\t\t\t}\n\n\t\t\tfunction showToast(message, type = 'info') {\n\t\t\t\tconst existing = document.querySelector('.toast');\n\t\t\t\tif (existing) existing.remove();\n\n\t\t\t\tconst toast = document.createElement('div');\n\t\t\t\ttoast.className = `toast toast-${type}`;\n\t\t\t\ttoast.textContent = message;\n\t\t\t\tdocument.body.appendChild(toast);\n\n\t\t\t\trequestAnimationFrame(() => toast.classList.add('show'));\n\n\t\t\t\tsetTimeout(() => {\n\t\t\t\t\ttoast.classList.remove('show');\n\t\t\t\t\tsetTimeout(() => toast.remove(), 300);\n\t\t\t\t}, 3000);\n\t\t\t}\n\n\t\t\t// P1060: Clipboard utility\n\t\t\tasync function copyToClipboard(text, message) {\n\t\t\t\ttry {\n\t\t\t\t\tawait navigator.clipboard.writeText(text);\n\t\t\t\t\tshowToast(message, 'success');\n\t\t\t\t} catch (err) {\n\t\t\t\t\tconsole.error('Failed to copy:', err);\n\t\t\t\t\tshowToast('Failed to copy to clipboard', 'error');\n\t\t\t\t}\n\t\t\t}\n\n\t\t\t// Copy hostname to clipboard (used by clickable hostnames)\n\t\t\tasync function copyHostname(hostname) {\n\t\t\t\tawait copyToClipboard(hostname, 'Copied hostname to clipboard');\n\t\t\t}\n\n\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\t// CONTEXT BAR COMPONENT - Unified hover preview + selection actions\n\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\t// P2500: Enhanced Context Bar with full descriptions and PR support\n\t\t\tdocument.addEventListener('alpine:init', () => {\n\t\t\t\tAlpine.data('contextBar', () => ({\n\t\t\t\t\t// Hover state\n\t\t\t\t\thoverAction: null,\n\t\t\t\t\thostnameHover: null, // For hostname copy hint\n\t\t\t\t\t_clearTimer: null,\n\t\t\t\t\t_hostnameClearTimer: null,\n\t\t\t\t\t// P7240: Timeout tracking\n\t\t\t\t\ttimeouts: [],\n\t\t\t\t\t_elapsedInterval: null,\n\n\t\t\t\t\tinit() {\n\t\t\t\t\t\t// Listen for hover events from compartments\n\t\t\t\t\t\twindow.addEventListener('action-preview', (e) => this.handlePreview(e.detail));\n\t\t\t\t\t\twindow.addEventListener('action-clear', () => this.handleClear());\n\t\t\t\t\t\t// Listen for hostname hover events\n\t\t\t\t\t\twindow.addEventListener('hostname-hover', (e) => this.handleHostnameHover(e.detail));\n\t\t\t\t\t\twindow.addEventListener('hostname-clear', () => this.handleHostnameClear());\n\t\t\t\t\t\t// P7240: Listen for timeout events\n\t\t\t\t\t\twindow.addEventListener('timeout-update', (e) => this.handleTimeoutUpdate(e.detail));\n\t\t\t\t\t\twindow.addEventListener('timeout-cleared', (e) => this.handleTimeoutCleared(e.detail));\n\t\t\t\t\t\t\n\t\t\t\t\t\t// Update elapsed times every second\n\t\t\t\t\t\tthis._elapsedInterval = setInterval(() => this.updateElapsedTimes(), 1000);\n\t\t\t\t\t},\n\n\t\t\t\t\t// Computed properties\n\t\t\t\t\tget selectedCount() {\n\t\t\t\t\t\treturn Alpine.store('selection').selected.length;\n\t\t\t\t\t},\n\n\t\t\t\t\tget onlineCount() {\n\t\t\t\t\t\tconst selected = Alpine.store('selection').selected;\n\t\t\t\t\t\treturn selected.filter(id => {\n\t\t\t\t\t\t\tconst host = hostStore.get(id);\n\t\t\t\t\t\t\treturn host && host.online;\n\t\t\t\t\t\t}).length;\n\t\t\t\t\t},\n\n\t\t\t\t\tget pendingPR() {\n\t\t\t\t\t\treturn globalState.pendingPR;\n\t\t\t\t\t},\n\n\t\t\t\t\tget hasContent() {\n\t\t\t\t\t\treturn this.hoverAction !== null || this.hostnameHover !== null || \n\t\t\t\t\t\t       this.selectedCount > 0 || this.pendingPR !== null || this.timeouts.length > 0;\n\t\t\t\t\t},\n\n\t\t\t\t\tget selectionText() {\n\t\t\t\t\t\tconst total = this.selectedCount;\n\t\t\t\t\t\tconst online = this.onlineCount;\n\t\t\t\t\t\tif (total === 0) return '';\n\t\t\t\t\t\tconst hostWord = total === 1 ? 'host' : 'hosts';\n\t\t\t\t\t\tif (online === total) return `${total} ${hostWord}`;\n\t\t\t\t\t\treturn `${total} ${hostWord} (${online} online)`;\n\t\t\t\t\t},\n\n\t\t\t\t\t// Hover handlers - P2500: now includes description\n\t\t\t\t\thandlePreview(detail) {\n\t\t\t\t\t\tif (this._clearTimer) {\n\t\t\t\t\t\t\tclearTimeout(this._clearTimer);\n\t\t\t\t\t\t\tthis._clearTimer = null;\n\t\t\t\t\t\t}\n\t\t\t\t\t\tthis.hoverAction = {\n\t\t\t\t\t\t\tcommand: detail.command,\n\t\t\t\t\t\t\thostname: detail.hostname,\n\t\t\t\t\t\t\thostId: detail.hostId,\n\t\t\t\t\t\t\tdescription: detail.description || ''\n\t\t\t\t\t\t};\n\t\t\t\t\t},\n\n\t\t\t\t\thandleClear() {\n\t\t\t\t\t\t// Debounce clearing to prevent flicker\n\t\t\t\t\t\tthis._clearTimer = setTimeout(() => {\n\t\t\t\t\t\t\tthis.hoverAction = null;\n\t\t\t\t\t\t\tthis._clearTimer = null;\n\t\t\t\t\t\t}, 200);\n\t\t\t\t\t},\n\n\t\t\t\t\t// Hostname hover handlers for copy hint\n\t\t\t\t\thandleHostnameHover(detail) {\n\t\t\t\t\t\tif (this._hostnameClearTimer) {\n\t\t\t\t\t\t\tclearTimeout(this._hostnameClearTimer);\n\t\t\t\t\t\t\tthis._hostnameClearTimer = null;\n\t\t\t\t\t\t}\n\t\t\t\t\t\tthis.hostnameHover = detail.hostname;\n\t\t\t\t\t},\n\n\t\t\t\t\thandleHostnameClear() {\n\t\t\t\t\t\tthis._hostnameClearTimer = setTimeout(() => {\n\t\t\t\t\t\t\tthis.hostnameHover = null;\n\t\t\t\t\t\t\tthis._hostnameClearTimer = null;\n\t\t\t\t\t\t}, 200);\n\t\t\t\t\t},\n\n\t\t\t\t\t// P7240: Timeout handlers\n\t\t\t\t\thandleTimeoutUpdate(detail) {\n\t\t\t\t\t\tconst existing = this.timeouts.find(t => t.hostId === detail.hostId);\n\t\t\t\t\t\tif (existing) {\n\t\t\t\t\t\t\texisting.state = detail.state;\n\t\t\t\t\t\t} else {\n\t\t\t\t\t\t\tconst timeout = globalState.timeouts.get(detail.hostId);\n\t\t\t\t\t\t\tif (timeout) {\n\t\t\t\t\t\t\t\tthis.timeouts.push({\n\t\t\t\t\t\t\t\t\thostId: detail.hostId,\n\t\t\t\t\t\t\t\t\thostname: timeout.hostname,\n\t\t\t\t\t\t\t\t\tcommand: timeout.command,\n\t\t\t\t\t\t\t\t\tstartedAt: timeout.startedAt,\n\t\t\t\t\t\t\t\t\tstate: timeout.state,\n\t\t\t\t\t\t\t\t\telapsed: this.formatElapsed(Date.now() - timeout.startedAt)\n\t\t\t\t\t\t\t\t});\n\t\t\t\t\t\t\t}\n\t\t\t\t\t\t}\n\t\t\t\t\t},\n\n\t\t\t\t\thandleTimeoutCleared(detail) {\n\t\t\t\t\t\tthis.timeouts = this.timeouts.filter(t => t.hostId !== detail.hostId);\n\t\t\t\t\t},\n\n\t\t\t\t\tupdateElapsedTimes() {\n\t\t\t\t\t\tconst now = Date.now();\n\t\t\t\t\t\tthis.timeouts.forEach(t => {\n\t\t\t\t\t\t\tt.elapsed = this.formatElapsed(now - t.startedAt);\n\t\t\t\t\t\t});\n\t\t\t\t\t},\n\n\t\t\t\t\tformatElapsed(ms) {\n\t\t\t\t\t\tconst seconds = Math.floor(ms / 1000);\n\t\t\t\t\t\tconst minutes = Math.floor(seconds / 60);\n\t\t\t\t\t\tconst secs = seconds % 60;\n\t\t\t\t\t\treturn `${minutes}:${secs.toString().padStart(2, '0')}`;\n\t\t\t\t\t},\n\n\t\t\t\t\ttimeoutWait(hostId) {\n\t\t\t\t\t\thandleTimeoutAction(hostId, 'wait', 5);\n\t\t\t\t\t},\n\n\t\t\t\t\ttimeoutKill(hostId) {\n\t\t\t\t\t\thandleTimeoutAction(hostId, 'kill');\n\t\t\t\t\t},\n\n\t\t\t\t\ttimeoutIgnore(hostId) {\n\t\t\t\t\t\thandleTimeoutAction(hostId, 'ignore');\n\t\t\t\t\t},\n\n\t\t\t\t\t// Bulk actions\n\t\t\t\t\tbulkCommand(command) {\n\t\t\t\t\t\tconst selected = Alpine.store('selection').selected;\n\t\t\t\t\t\tconst onlineHostIds = selected.filter(id => {\n\t\t\t\t\t\t\tconst host = hostStore.get(id);\n\t\t\t\t\t\t\treturn host && host.online;\n\t\t\t\t\t\t});\n\t\t\t\t\t\tif (onlineHostIds.length === 0) return;\n\t\t\t\t\t\tonlineHostIds.forEach(hostId => sendCommand(hostId, command));\n\t\t\t\t\t},\n\n\t\t\t\t\t// Do All: Pull → Switch → Test in sequence, waiting for completion\n\t\t\t\t\tasync doAll() {\n\t\t\t\t\t\tconst selected = Alpine.store('selection').selected;\n\t\t\t\t\t\tlet remainingHosts = selected.filter(id => {\n\t\t\t\t\t\t\tconst host = hostStore.get(id);\n\t\t\t\t\t\t\treturn host && host.online;\n\t\t\t\t\t\t});\n\t\t\t\t\t\tif (remainingHosts.length === 0) return;\n\n\t\t\t\t\t\t// Helper: wait for all hosts to complete a command\n\t\t\t\t\t\tconst waitForCompletion = (hostIds, command, timeoutMs = 300000) => {\n\t\t\t\t\t\t\treturn new Promise((resolve) => {\n\t\t\t\t\t\t\t\tconst pending = new Set(hostIds);\n\t\t\t\t\t\t\t\tconst results = new Map(); // hostId -> { success, exit_code }\n\t\t\t\t\t\t\t\t\n\t\t\t\t\t\t\t\tconst handler = (e) => {\n\t\t\t\t\t\t\t\t\tconst { hostId, command: cmd, exit_code } = e.detail;\n\t\t\t\t\t\t\t\t\tif (cmd === command && pending.has(hostId)) {\n\t\t\t\t\t\t\t\t\t\tpending.delete(hostId);\n\t\t\t\t\t\t\t\t\t\tresults.set(hostId, { success: exit_code === 0, exit_code });\n\t\t\t\t\t\t\t\t\t\tif (pending.size === 0) {\n\t\t\t\t\t\t\t\t\t\t\twindow.removeEventListener('command-complete', handler);\n\t\t\t\t\t\t\t\t\t\t\tclearTimeout(timer);\n\t\t\t\t\t\t\t\t\t\t\tresolve(results);\n\t\t\t\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\t\t};\n\t\t\t\t\t\t\t\t\n\t\t\t\t\t\t\t\twindow.addEventListener('command-complete', handler);\n\t\t\t\t\t\t\t\t\n\t\t\t\t\t\t\t\t// Timeout fallback\n\t\t\t\t\t\t\t\tconst timer = setTimeout(() => {\n\t\t\t\t\t\t\t\t\twindow.removeEventListener('command-complete', handler);\n\t\t\t\t\t\t\t\t\t// Mark remaining as failed\n\t\t\t\t\t\t\t\t\tpending.forEach(id => results.set(id, { success: false, exit_code: -1, timeout: true }));\n\t\t\t\t\t\t\t\t\tresolve(results);\n\t\t\t\t\t\t\t\t}, timeoutMs);\n\t\t\t\t\t\t\t});\n\t\t\t\t\t\t};\n\n\t\t\t\t\t\t// Execute Pull → Switch → Test sequentially\n\t\t\t\t\t\tconst commands = ['pull', 'switch', 'test'];\n\t\t\t\t\t\tfor (const command of commands) {\n\t\t\t\t\t\t\tif (remainingHosts.length === 0) break;\n\t\t\t\t\t\t\t\n\t\t\t\t\t\t\t// Send command to all remaining hosts\n\t\t\t\t\t\t\tremainingHosts.forEach(hostId => sendCommand(hostId, command));\n\t\t\t\t\t\t\t\n\t\t\t\t\t\t\t// Wait for all to complete\n\t\t\t\t\t\t\tconst results = await waitForCompletion(remainingHosts, command);\n\t\t\t\t\t\t\t\n\t\t\t\t\t\t\t// Filter out hosts that failed (don't continue with them)\n\t\t\t\t\t\t\tremainingHosts = remainingHosts.filter(id => {\n\t\t\t\t\t\t\t\tconst result = results.get(id);\n\t\t\t\t\t\t\t\treturn result && result.success;\n\t\t\t\t\t\t\t});\n\t\t\t\t\t\t}\n\t\t\t\t\t},\n\n\t\t\t\t\t// P2500: Merge and deploy PR\n\t\t\t\t\tmergeAndDeployPR() {\n\t\t\t\t\t\tif (!this.pendingPR) return;\n\t\t\t\t\t\tmergeAndDeploy(this.pendingPR.number);\n\t\t\t\t\t},\n\n\t\t\t\t\t// P2500: Get human-readable PR description for sysop context\n\t\t\t\t\tgetPRDescription() {\n\t\t\t\t\t\tconst pr = this.pendingPR;\n\t\t\t\t\t\tif (!pr) return '';\n\t\t\t\t\t\t\n\t\t\t\t\t\t// Build context-rich description\n\t\t\t\t\t\tconst parts = [];\n\t\t\t\t\t\tif (pr.title) {\n\t\t\t\t\t\t\tparts.push(pr.title);\n\t\t\t\t\t\t} else {\n\t\t\t\t\t\t\tparts.push('Ready to merge');\n\t\t\t\t\t\t}\n\t\t\t\t\t\t\n\t\t\t\t\t\t// Add info about how many hosts would be affected\n\t\t\t\t\t\tconst totalHosts = hostStore.all().length;\n\t\t\t\t\t\tconst onlineHosts = hostStore.all().filter(h => h.online).length;\n\t\t\t\t\t\tif (totalHosts > 0) {\n\t\t\t\t\t\t\tparts.push(`• will deploy to ${onlineHosts}/${totalHosts} hosts`);\n\t\t\t\t\t\t}\n\t\t\t\t\t\t\n\t\t\t\t\t\treturn parts.join(' ');\n\t\t\t\t\t},\n\n\t\t\t\t\tclearSelection() {\n\t\t\t\t\t\tAlpine.store('selection').selectNone();\n\t\t\t\t\t}\n\t\t\t\t}));\n\n\t\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\t\t// DEPENDENCY DIALOG COMPONENT (P1040)\n\t\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\t\tAlpine.data('dependencyDialog', () => ({\n\t\t\t\t\tshow: false,\n\t\t\t\t\ttitle: '',\n\t\t\t\t\tmessage: '',\n\t\t\t\t\thosts: [],\n\t\t\t\t\texecuting: false,\n\t\t\t\t\tprogressText: '',\n\t\t\t\t\tcancelled: false,\n\t\t\t\t\t_completionHandlers: [],\n\n\t\t\t\t\tinit() {\n\t\t\t\t\t\twindow.addEventListener('show-dependency-dialog', (e) => this.open(e.detail));\n\t\t\t\t\t},\n\n\t\t\t\t\topen(detail) {\n\t\t\t\t\t\tthis.title = detail.title;\n\t\t\t\t\t\tthis.message = detail.message;\n\t\t\t\t\t\tthis.hosts = detail.hosts;\n\t\t\t\t\t\tthis.executing = false;\n\t\t\t\t\t\tthis.progressText = '';\n\t\t\t\t\t\tthis.cancelled = false;\n\t\t\t\t\t\tthis.show = true;\n\t\t\t\t\t},\n\n\t\t\t\t\tclose() {\n\t\t\t\t\t\tif (this.executing) return;\n\t\t\t\t\t\tthis.show = false;\n\t\t\t\t\t\tthis._cleanup();\n\t\t\t\t\t},\n\n\t\t\t\t\thandleEscape() {\n\t\t\t\t\t\tif (this.executing) {\n\t\t\t\t\t\t\tthis.cancelExecution();\n\t\t\t\t\t\t} else {\n\t\t\t\t\t\t\tthis.close();\n\t\t\t\t\t\t}\n\t\t\t\t\t},\n\n\t\t\t\t\tasync choose(action) {\n\t\t\t\t\t\tswitch (action) {\n\t\t\t\t\t\t\tcase 'pull':\n\t\t\t\t\t\t\t\tsendCommand(this.hosts[0].id, 'pull');\n\t\t\t\t\t\t\t\tthis.show = false;\n\t\t\t\t\t\t\t\tbreak;\n\t\t\t\t\t\t\tcase 'switch':\n\t\t\t\t\t\t\t\tsendCommand(this.hosts[0].id, 'switch');\n\t\t\t\t\t\t\t\tthis.show = false;\n\t\t\t\t\t\t\t\tbreak;\n\t\t\t\t\t\t\tcase 'pull-switch':\n\t\t\t\t\t\t\t\tawait this.executePullThenSwitch([this.hosts[0]]);\n\t\t\t\t\t\t\t\tbreak;\n\t\t\t\t\t\t\tcase 'switch-all':\n\t\t\t\t\t\t\t\tthis.hosts.forEach(h => sendCommand(h.id, 'switch'));\n\t\t\t\t\t\t\t\tthis.show = false;\n\t\t\t\t\t\t\t\tbreak;\n\t\t\t\t\t\t\tcase 'pull-switch-all':\n\t\t\t\t\t\t\t\tawait this.executePullThenSwitch(this.hosts);\n\t\t\t\t\t\t\t\tbreak;\n\t\t\t\t\t\t}\n\t\t\t\t\t},\n\n\t\t\t\t\tasync executePullThenSwitch(hosts) {\n\t\t\t\t\t\tthis.executing = true;\n\t\t\t\t\t\tthis.cancelled = false;\n\n\t\t\t\t\t\tconst hostsToPull = hosts.filter(h => h.needsPull);\n\t\t\t\t\t\tconst hostsToSwitchOnly = hosts.filter(h => !h.needsPull);\n\n\t\t\t\t\t\ttry {\n\t\t\t\t\t\t\tif (hostsToPull.length > 0) {\n\t\t\t\t\t\t\t\tthis.progressText = `Pulling ${hostsToPull.length} host${hostsToPull.length > 1 ? 's' : ''}...`;\n\t\t\t\t\t\t\t\tawait Promise.all(hostsToPull.map(h => {\n\t\t\t\t\t\t\t\t\tif (this.cancelled) throw new Error('Cancelled');\n\t\t\t\t\t\t\t\t\treturn this._sendCommandAndWait(h.id, 'pull');\n\t\t\t\t\t\t\t\t}));\n\t\t\t\t\t\t\t}\n\n\t\t\t\t\t\t\tif (this.cancelled) {\n\t\t\t\t\t\t\t\tthis._showCancelled();\n\t\t\t\t\t\t\t\treturn;\n\t\t\t\t\t\t\t}\n\n\t\t\t\t\t\t\tconst allToSwitch = [...hostsToPull, ...hostsToSwitchOnly];\n\t\t\t\t\t\t\tthis.progressText = `Switching ${allToSwitch.length} host${allToSwitch.length > 1 ? 's' : ''}...`;\n\t\t\t\t\t\t\tallToSwitch.forEach(h => {\n\t\t\t\t\t\t\t\tif (!this.cancelled) sendCommand(h.id, 'switch');\n\t\t\t\t\t\t\t});\n\n\t\t\t\t\t\t\tthis.show = false;\n\t\t\t\t\t\t\tthis._cleanup();\n\t\t\t\t\t\t} catch (err) {\n\t\t\t\t\t\t\tif (err.message === 'Cancelled') {\n\t\t\t\t\t\t\t\tthis._showCancelled();\n\t\t\t\t\t\t\t} else {\n\t\t\t\t\t\t\t\tconsole.error('Pull+Switch failed:', err);\n\t\t\t\t\t\t\t\tthis.progressText = `Error: ${err.message}`;\n\t\t\t\t\t\t\t\tsetTimeout(() => { this.executing = false; }, 2000);\n\t\t\t\t\t\t\t}\n\t\t\t\t\t\t}\n\t\t\t\t\t},\n\n\t\t\t\t\tcancelExecution() {\n\t\t\t\t\t\tthis.cancelled = true;\n\t\t\t\t\t\tthis.progressText = 'Cancelling...';\n\t\t\t\t\t},\n\n\t\t\t\t\t_showCancelled() {\n\t\t\t\t\t\tthis.progressText = 'Cancelled';\n\t\t\t\t\t\tsetTimeout(() => {\n\t\t\t\t\t\t\tthis.show = false;\n\t\t\t\t\t\t\tthis.executing = false;\n\t\t\t\t\t\t\tthis._cleanup();\n\t\t\t\t\t\t}, 1000);\n\t\t\t\t\t},\n\n\t\t\t\t\t_sendCommandAndWait(hostId, command) {\n\t\t\t\t\t\treturn new Promise((resolve, reject) => {\n\t\t\t\t\t\t\tconst handler = (e) => {\n\t\t\t\t\t\t\t\tconst detail = e.detail;\n\t\t\t\t\t\t\t\tif (detail.hostId === hostId) {\n\t\t\t\t\t\t\t\t\twindow.removeEventListener('command-complete', handler);\n\t\t\t\t\t\t\t\t\tconst idx = this._completionHandlers.indexOf(handler);\n\t\t\t\t\t\t\t\t\tif (idx !== -1) this._completionHandlers.splice(idx, 1);\n\t\t\t\t\t\t\t\t\tif (detail.exit_code === 0) {\n\t\t\t\t\t\t\t\t\t\tresolve();\n\t\t\t\t\t\t\t\t\t} else {\n\t\t\t\t\t\t\t\t\t\treject(new Error(`${command} failed on ${hostId} (exit ${detail.exit_code})`));\n\t\t\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\t};\n\t\t\t\t\t\t\twindow.addEventListener('command-complete', handler);\n\t\t\t\t\t\t\tthis._completionHandlers.push(handler);\n\t\t\t\t\t\t\tsendCommand(hostId, command);\n\t\t\t\t\t\t});\n\t\t\t\t\t},\n\n\t\t\t\t\t_cleanup() {\n\t\t\t\t\t\tthis._completionHandlers.forEach(handler => {\n\t\t\t\t\t\t\twindow.removeEventListener('command-complete', handler);\n\t\t\t\t\t\t});\n\t\t\t\t\t\tthis._completionHandlers = [];\n\t\t\t\t\t}\n\t\t\t\t}));\n\t\t\t});\n\n\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\t// DEPENDENCY CHECK HELPER (P1040)\n\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\tfunction checkDependenciesAndExecute(hostIds, command) {\n\t\t\t\tif (command !== 'switch') {\n\t\t\t\t\thostIds.forEach(id => sendCommand(id, command));\n\t\t\t\t\treturn;\n\t\t\t\t}\n\n\t\t\t\tconst hostsNeedingPull = [];\n\t\t\t\tconst hostsReady = [];\n\n\t\t\t\thostIds.forEach(id => {\n\t\t\t\t\tconst host = hostStore.get(id);\n\t\t\t\t\tif (!host) return;\n\n\t\t\t\t\tconst gitStatus = host.updateStatus?.git?.status;\n\t\t\t\t\tif (gitStatus === 'outdated') {\n\t\t\t\t\t\thostsNeedingPull.push({ id: host.id, hostname: host.hostname, needsPull: true });\n\t\t\t\t\t} else {\n\t\t\t\t\t\thostsReady.push({ id: host.id, hostname: host.hostname, needsPull: false });\n\t\t\t\t\t}\n\t\t\t\t});\n\n\t\t\t\tif (hostsNeedingPull.length === 0) {\n\t\t\t\t\thostIds.forEach(id => sendCommand(id, 'switch'));\n\t\t\t\t\treturn;\n\t\t\t\t}\n\n\t\t\t\tconst allHosts = [...hostsNeedingPull, ...hostsReady];\n\t\t\t\tconst isSingle = allHosts.length === 1;\n\n\t\t\t\twindow.dispatchEvent(new CustomEvent('show-dependency-dialog', {\n\t\t\t\t\tdetail: {\n\t\t\t\t\t\ttitle: isSingle\n\t\t\t\t\t\t\t? `Git is behind on ${allHosts[0].hostname}`\n\t\t\t\t\t\t\t: `${hostsNeedingPull.length} of ${allHosts.length} hosts need Pull first`,\n\t\t\t\t\t\tmessage: 'Running Switch without Pull may deploy old code.',\n\t\t\t\t\t\thosts: allHosts\n\t\t\t\t\t}\n\t\t\t\t}));\n\t\t\t}\n\n\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t// P3300: RESTORE LOGS ON PAGE LOAD\n\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\n\t\t// Restore event log from server\n\t\tasync function restoreEventLog() {\n\t\t\ttry {\n\t\t\t\tconst resp = await fetch('/api/events?limit=50');\n\t\t\t\tif (!resp.ok) return;\n\t\t\t\t\n\t\t\t\tconst data = await resp.json();\n\t\t\t\tconst events = data.events || [];\n\t\t\t\t\n\t\t\t\t// Add events to system log (in reverse order so newest are on top)\n\t\t\t\tevents.reverse().forEach(event => {\n\t\t\t\t\tconst icon = getCategoryIcon(event.category, event.level);\n\t\t\t\t\taddSystemLogEntry(event.category, event.message, icon);\n\t\t\t\t});\n\t\t\t\t\n\t\t\t\tconsole.log(`[P3300] Restored ${events.length} events`);\n\t\t\t} catch (err) {\n\t\t\t\tconsole.error('[P3300] Failed to restore event log:', err);\n\t\t\t}\n\t\t}\n\t\t\n\t\t// Helper to get icon for event category/level\n\t\tfunction getCategoryIcon(category, level) {\n\t\t\tif (level === 'error') return '❌';\n\t\t\tif (level === 'warning') return '⚠️';\n\t\t\tswitch (category) {\n\t\t\t\tcase 'command': return '⚙️';\n\t\t\t\tcase 'system': return '🖥️';\n\t\t\t\tcase 'auth': return '🔐';\n\t\t\t\tcase 'git': return '📦';\n\t\t\t\tdefault: return 'ℹ';\n\t\t\t}\n\t\t}\n\n\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t// INIT - P7000\n\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\thostStore.hydrate();\n\t\tconnectWebSocket();\n\t\t\n\t\t// P3300: Restore event log on page load\n\t\trestoreEventLog();\n\n\t\t\t// Update last-seen every second\n\t\t\tsetInterval(() => {\n\t\t\t\thostStore.all().forEach(host => {\n\t\t\t\t\tif (host.lastSeen) {\n\t\t\t\t\t\tconst { row, card } = host._elements || {};\n\t\t\t\t\t\t[row, card].filter(Boolean).forEach(el => {\n\t\t\t\t\t\t\tconst cell = el.querySelector('[data-cell=\"last-seen\"]');\n\t\t\t\t\t\t\tif (cell) {\n\t\t\t\t\t\t\t\tconst result = formatLastSeen(host.lastSeen);\n\t\t\t\t\t\t\t\tcell.textContent = result.text;\n\t\t\t\t\t\t\t\tcell.className = result.className;\n\t\t\t\t\t\t\t}\n\t\t\t\t\t\t});\n\t\t\t\t\t}\n\t\t\t\t});\n\t\t\t}, 1000);\n\n\t\t\t// P7100: Safety net - refresh all online hosts every 5 minutes\n\t\t\t// Ensures stale data is eventually corrected even if WebSocket messages are missed\n\t\t\tsetInterval(() => {\n\t\t\t\thostStore.all().filter(h => h.online).forEach(host => {\n\t\t\t\t\trefreshHost(host.id);\n\t\t\t\t});\n\t\t\t}, 5 * 60 * 1000);\n\t\t</script>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "</span> <a href=\"https://github.com/markus-barta/nixfleet\" class=\"footer-link\" target=\"_blank\" rel=\"noopener\"><svg class=\"icon\"><use href=\"#icon-github\"></use></svg> Source</a> <a href=\"https://www.gnu.org/licenses/agpl-3.0.html\" class=\"footer-link\" target=\"_blank\" rel=\"noopener\"><svg class=\"icon\"><use href=\"#icon-license\"></use></svg> AGPL-3.0</a></div><div class=\"footer-right\"><span class=\"made-with\">Made with <svg class=\"icon heart\"><use href=\"#icon-heart\"></use></svg> by <a href=\"https://x.com/markusbarta\" target=\"_blank\" rel=\"noopener\">&#64;markusbarta</a> using Claude &amp; Cursor</span></div></footer><!-- DEBUG: Raw streaming output (hidden by default, toggle via More menu) --> <div id=\"debug-panel\" style=\"display: none; position: fixed; bottom: 0; left: 0; right: 0; background: #1a1a2e; border-top: 2px solid #f00; z-index: 9999; max-height: 200px;\"><div style=\"padding: 4px 8px; background: #f00; color: #fff; font-weight: bold;\">DEBUG: Raw WebSocket Output (toggle via More → Toggle Debug Panel)</div><textarea id=\"debug-output\" style=\"width: 100%; height: 150px; background: #0a0a1a; color: #0f0; font-family: monospace; font-size: 12px; border: none; resize: none;\" readonly></textarea></div><!-- WebSocket and Alpine.js logic - P7000 Unified Host State Management --> <script>\n\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\t// CONSTANTS\n\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\tconst HEARTBEAT_INTERVAL = parseInt(document.getElementById('config').dataset.heartbeatInterval) || 5;\n\t\t\tconst CSRF_TOKEN = document.body.dataset.csrfToken;\n\n\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\t// SELECTION STORE (P1030) - Single Source of Truth for host selection\n\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\tdocument.addEventListener('alpine:init', () => {\n\t\t\t\tAlpine.store('selection', {\n\t\t\t\t\tselected: [],\n\t\t\t\t\tlastSelected: null,\n\n\t\t\t\t\ttoggle(id) {\n\t\t\t\t\t\tconst idx = this.selected.indexOf(id);\n\t\t\t\t\t\tif (idx === -1) {\n\t\t\t\t\t\t\tthis.selected.push(id);\n\t\t\t\t\t\t} else {\n\t\t\t\t\t\t\tthis.selected.splice(idx, 1);\n\t\t\t\t\t\t}\n\t\t\t\t\t\tthis.lastSelected = id;\n\t\t\t\t\t},\n\n\t\t\t\t\tselect(id) {\n\t\t\t\t\t\tif (!this.selected.includes(id)) {\n\t\t\t\t\t\t\tthis.selected.push(id);\n\t\t\t\t\t\t}\n\t\t\t\t\t\tthis.lastSelected = id;\n\t\t\t\t\t},\n\n\t\t\t\t\tdeselect(id) {\n\t\t\t\t\t\tconst idx = this.selected.indexOf(id);\n\t\t\t\t\t\tif (idx !== -1) {\n\t\t\t\t\t\t\tthis.selected.splice(idx, 1);\n\t\t\t\t\t\t}\n\t\t\t\t\t},\n\n\t\t\t\t\tisSelected(id) {\n\t\t\t\t\t\treturn this.selected.includes(id);\n\t\t\t\t\t},\n\n\t\t\t\t\tselectAll() {\n\t\t\t\t\t\tconst allIds = this._getAllHostIds();\n\t\t\t\t\t\tthis.selected = [...allIds];\n\t\t\t\t\t\tthis.lastSelected = allIds[allIds.length - 1] || null;\n\t\t\t\t\t},\n\n\t\t\t\t\tselectNone() {\n\t\t\t\t\t\tthis.selected = [];\n\t\t\t\t\t\tthis.lastSelected = null;\n\t\t\t\t\t},\n\n\t\t\t\t\tselectRange(targetId) {\n\t\t\t\t\t\tif (!this.lastSelected) {\n\t\t\t\t\t\t\tthis.toggle(targetId);\n\t\t\t\t\t\t\treturn;\n\t\t\t\t\t\t}\n\t\t\t\t\t\tconst allIds = this._getAllHostIds();\n\t\t\t\t\t\tconst startIdx = allIds.indexOf(this.lastSelected);\n\t\t\t\t\t\tconst endIdx = allIds.indexOf(targetId);\n\t\t\t\t\t\tif (startIdx === -1 || endIdx === -1) {\n\t\t\t\t\t\t\tthis.toggle(targetId);\n\t\t\t\t\t\t\treturn;\n\t\t\t\t\t\t}\n\t\t\t\t\t\tconst minIdx = Math.min(startIdx, endIdx);\n\t\t\t\t\t\tconst maxIdx = Math.max(startIdx, endIdx);\n\t\t\t\t\t\tfor (let i = minIdx; i <= maxIdx; i++) {\n\t\t\t\t\t\t\tif (!this.selected.includes(allIds[i])) {\n\t\t\t\t\t\t\t\tthis.selected.push(allIds[i]);\n\t\t\t\t\t\t\t}\n\t\t\t\t\t\t}\n\t\t\t\t\t},\n\n\t\t\t\t\tget count() {\n\t\t\t\t\t\treturn this.selected.length;\n\t\t\t\t\t},\n\n\t\t\t\t\tget onlineCount() {\n\t\t\t\t\t\treturn this.selected.filter(id => {\n\t\t\t\t\t\t\tconst host = hostStore.get(id);\n\t\t\t\t\t\t\treturn host && host.online;\n\t\t\t\t\t\t}).length;\n\t\t\t\t\t},\n\n\t\t\t\t\tget headerState() {\n\t\t\t\t\t\tconst allIds = this._getAllHostIds();\n\t\t\t\t\t\tif (allIds.length === 0) return 'none';\n\t\t\t\t\t\tif (this.selected.length === 0) return 'none';\n\t\t\t\t\t\tif (this.selected.length === allIds.length) return 'all';\n\t\t\t\t\t\treturn 'some';\n\t\t\t\t\t},\n\n\t\t\t\t\t_getAllHostIds() {\n\t\t\t\t\t\tconst ids = [];\n\t\t\t\t\t\tdocument.querySelectorAll('tr[data-host-id]').forEach(row => {\n\t\t\t\t\t\t\tids.push(row.dataset.hostId);\n\t\t\t\t\t\t});\n\t\t\t\t\t\treturn ids;\n\t\t\t\t\t}\n\t\t\t\t});\n\t\t\t});\n\n\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\t// GLOBAL STATE (non-host-specific)\n\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\tconst globalState = {\n\t\t\t\tpendingPR: null, // { number, title, url, mergeable } or null\n\t\t\t\twsConnected: false,\n\t\t\t\t// P7240: Track timeouts for context bar\n\t\t\t\ttimeouts: new Map() // hostId -> { command, startedAt, state }\n\t\t\t};\n\n\t\t\t// Hydrate globalState from config\n\t\t\t(function hydrateGlobalState() {\n\t\t\t\tconst prData = document.getElementById('config').dataset.pendingPr;\n\t\t\t\tif (prData && prData !== 'null') {\n\t\t\t\t\ttry {\n\t\t\t\t\t\tglobalState.pendingPR = JSON.parse(prData);\n\t\t\t\t\t} catch (e) {\n\t\t\t\t\t\tconsole.warn('Failed to parse pendingPR:', e);\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t})();\n\n\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\t// HOST STORE (Single Source of Truth) - P7000\n\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\tconst hostStore = {\n\t\t\t\t_hosts: new Map(),\n\n\t\t\t\t// Initialize store from server-rendered DOM\n\t\t\t\thydrate() {\n\t\t\t\t\tdocument.querySelectorAll('tr[data-host-id]').forEach((row) => {\n\t\t\t\t\t\tconst id = row.dataset.hostId;\n\t\t\t\t\t\tif (this._hosts.has(id)) return;\n\n\t\t\t\t\t\t// Cache element references for O(1) access\n\t\t\t\t\t\tconst card = document.querySelector(`.host-card[data-host-id=\"${id}\"]`);\n\n\t\t\t\tthis._hosts.set(id, {\n\t\t\t\t\t// Identity\n\t\t\t\t\tid: id,\n\t\t\t\t\thostname: row.dataset.hostname || id,\n\t\t\t\t\thostType: row.dataset.hostType || 'nixos',\n\t\t\t\t\tthemeColor: row.dataset.themeColor || '#7aa2f7',\n\n\t\t\t\t\t// State\n\t\t\t\t\tonline: !row.classList.contains('host-offline'),\n\t\t\t\t\tlastSeen: row.querySelector('[data-cell=\"last-seen\"]')?.dataset.timestamp || null,\n\t\t\t\t\tpendingCommand: row.dataset.pendingCommand || null,\n\n\t\t\t\t\t// Data\n\t\t\t\t\tmetrics: this._parseMetrics(row),\n\t\t\t\t\tupdateStatus: this._parseUpdateStatus(row),\n\t\t\t\t\tgeneration: row.dataset.generation || null,\n\t\t\t\t\tagentVersion: row.dataset.agentVersion || null,\n\t\t\t\t\tagentOutdated: row.dataset.agentOutdated === 'true',\n\t\t\t\t\tavailableOps: this._parseAvailableOps(row), // P5100: Server-driven available operations\n\n\t\t\t\t\t// Cached DOM references\n\t\t\t\t\t_elements: { row, card }\n\t\t\t\t});\n\t\t\t\t\t});\n\t\t\t\t\tconsole.log(`hostStore: hydrated ${this._hosts.size} hosts`);\n\t\t\t\t},\n\n\t\t\t\t_parseMetrics(row) {\n\t\t\t\t\tconst cell = row.querySelector('[data-cell=\"metrics\"]');\n\t\t\t\t\tif (!cell) return null;\n\t\t\t\t\tconst cpu = cell.querySelector('[data-metric=\"cpu\"]');\n\t\t\t\t\tconst ram = cell.querySelector('[data-metric=\"ram\"]');\n\t\t\t\t\tif (!cpu && !ram) return null;\n\t\t\t\t\treturn {\n\t\t\t\t\t\tcpu: parseFloat(cpu?.dataset.value) || 0,\n\t\t\t\t\t\tram: parseFloat(ram?.dataset.value) || 0,\n\t\t\t\t\t\tswap: parseFloat(ram?.dataset.swap) || 0,\n\t\t\t\t\t\tload: parseFloat(ram?.dataset.load) || 0\n\t\t\t\t\t};\n\t\t\t\t},\n\n\t\t\t_parseUpdateStatus(row) {\n\t\t\t\tconst container = row.querySelector('.update-status');\n\t\t\t\tif (!container) return null;\n\t\t\t\ttry {\n\t\t\t\t\treturn {\n\t\t\t\t\t\tgit: JSON.parse(container.dataset.git || 'null'),\n\t\t\t\t\t\tlock: JSON.parse(container.dataset.lock || 'null'),\n\t\t\t\t\t\tsystem: JSON.parse(container.dataset.system || 'null'),\n\t\t\t\t\t\trepoUrl: container.dataset.repoUrl || '',\n\t\t\t\t\t\trepoDir: container.dataset.repoDir || ''\n\t\t\t\t\t};\n\t\t\t\t} catch (e) {\n\t\t\t\t\tconsole.warn('Failed to parse updateStatus:', e);\n\t\t\t\t\treturn null;\n\t\t\t\t}\n\t\t\t},\n\n\t\t\t// P5100: Parse available operations from data attribute\n\t\t\t_parseAvailableOps(row) {\n\t\t\t\tconst opsStr = row.dataset.availableOps;\n\t\t\t\tif (!opsStr) return [];\n\t\t\t\ttry {\n\t\t\t\t\treturn JSON.parse(opsStr);\n\t\t\t\t} catch (e) {\n\t\t\t\t\tconsole.error('Failed to parse availableOps:', e);\n\t\t\t\t\treturn [];\n\t\t\t\t}\n\t\t\t},\n\n\t\t\t// P5100: Calculate available ops locally (mirrors server logic)\n\t\t\t// Used when state changes locally before server confirms\n\t\t\t_calculateAvailableOps(host) {\n\t\t\t\t// If offline or has pending command, no ops available\n\t\t\t\tif (!host.online || host.pendingCommand) {\n\t\t\t\t\treturn [];\n\t\t\t\t}\n\t\t\t\t// Standard ops for online, idle hosts\n\t\t\t\treturn ['pull', 'switch', 'test', 'reboot'];\n\t\t\t},\n\n\t\t\t\tget(id) {\n\t\t\t\t\treturn this._hosts.get(id);\n\t\t\t\t},\n\n\t\t\t\tall() {\n\t\t\t\t\treturn Array.from(this._hosts.values());\n\t\t\t\t},\n\n\t\t\t\t// Update host state and trigger render\n\t\t\tupdate(id, patch) {\n\t\t\t\tconst current = this._hosts.get(id);\n\t\t\t\tif (!current) {\n\t\t\t\t\tconsole.warn(`hostStore: unknown host ${id}`);\n\t\t\t\t\treturn;\n\t\t\t\t}\n\n\t\t\t\t// Start with shallow merge\n\t\t\t\tconst next = { ...current, ...patch };\n\n\t\t\t\t// Deep merge for known nested objects\n\t\t\t\tif (patch.metrics && current.metrics) {\n\t\t\t\t\tnext.metrics = { ...current.metrics, ...patch.metrics };\n\t\t\t\t}\n\t\t\t\tif (patch.updateStatus && current.updateStatus) {\n\t\t\t\t\tnext.updateStatus = { ...current.updateStatus, ...patch.updateStatus };\n\t\t\t\t}\n\n\t\t\t\t// P5100: Recalculate availableOps when online/pendingCommand changes\n\t\t\t\tif ('online' in patch || 'pendingCommand' in patch) {\n\t\t\t\t\tnext.availableOps = this._calculateAvailableOps(next);\n\t\t\t\t}\n\n\t\t\t\t// Preserve cached elements\n\t\t\t\tnext._elements = current._elements;\n\n\t\t\t\tthis._hosts.set(id, next);\n\t\t\t\trenderHost(id);\n\t\t\t},\n\n\t\t\t\tsetOffline(id) {\n\t\t\t\t\tthis.update(id, { online: false, pendingCommand: null });\n\t\t\t\t}\n\t\t\t};\n\n\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\t// RENDER (Single Render Function) - P7000\n\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\tfunction renderHost(hostId) {\n\t\t\t\tconst host = hostStore.get(hostId);\n\t\t\t\tif (!host) return;\n\n\t\t\t\t// Derived state\n\t\t\t\tconst isOnline = host.online;\n\t\t\t\tconst isBusy = !!host.pendingCommand;\n\t\t\t\tconst buttonsEnabled = isOnline && !isBusy;\n\n\t\t\t\t// Use cached element references\n\t\t\t\tconst { row, card } = host._elements || {};\n\n\t\t\t\t[row, card].filter(Boolean).forEach((el) => {\n\t\t\t\t\t// 1. Offline class\n\t\t\t\t\tel.classList.toggle('host-offline', !isOnline);\n\n\t\t\t\t\t// 2. Status indicator (ripple/dot)\n\t\t\t\t\trenderStatusIndicator(el, isOnline, isBusy);\n\n\t\t\t\t\t// 3. Progress badge\n\t\t\t\t\trenderProgressBadge(el, host.pendingCommand);\n\n\t\t\t\t\t// 4. Metrics\n\t\t\t\t\tif (host.metrics) {\n\t\t\t\t\t\trenderMetrics(el, host.metrics);\n\t\t\t\t\t}\n\n\t\t\t\t\t// 5. Agent version cell\n\t\t\t\t\trenderAgentVersion(el, host);\n\n\t\t\t\t\t// 6. Status compartments (Git/Lock/System)\n\t\t\t\t\tif (host.updateStatus) {\n\t\t\t\t\t\trenderUpdateStatus(el, host);\n\t\t\t\t\t}\n\n\t\t\t\t\t// 6b. P2800: Operation progress dots\n\t\t\t\t\tif (host.operationProgress) {\n\t\t\t\t\t\trenderOperationProgress(el, host.operationProgress);\n\t\t\t\t\t}\n\n\t\t\t\t\t// 6c. P7240: Timeout indicator in Status column\n\t\t\t\t\trenderTimeoutIndicator(el, host);\n\n\t\t\t\t// 6. Button states: swap between cmd-buttons and stop button\n\t\t\t\tconst cmdButtons = el.querySelector('.cmd-buttons');\n\t\t\t\tconst stopBtn = el.querySelector('.btn-stop');\n\t\t\t\tif (cmdButtons) {\n\t\t\t\t\tcmdButtons.style.display = isBusy ? 'none' : '';\n\t\t\t\t\tcmdButtons.querySelectorAll('button').forEach(btn => {\n\t\t\t\t\t\tbtn.disabled = !buttonsEnabled;\n\t\t\t\t\t});\n\t\t\t\t}\n\t\t\t\tif (stopBtn) {\n\t\t\t\t\tstopBtn.style.display = isBusy ? '' : 'none';\n\t\t\t\t}\n\n\t\t\t\t// P5100: Update dropdown menu button states based on availableOps\n\t\t\t\tconst dropdown = el.querySelector('.dropdown-menu');\n\t\t\t\tif (dropdown) {\n\t\t\t\t\tconst availableOps = host.availableOps || [];\n\t\t\t\t\tdropdown.querySelectorAll('.dropdown-item').forEach(btn => {\n\t\t\t\t\t\tconst onclick = btn.getAttribute('onclick') || '';\n\t\t\t\t\t\t// Match sendCommand('hostId', 'command') pattern\n\t\t\t\t\t\tconst cmdMatch = onclick.match(/sendCommand\\([^,]+,\\s*'([^']+)'\\)/);\n\t\t\t\t\t\t// Match showRebootModal pattern (reboot button)\n\t\t\t\t\t\tconst rebootMatch = onclick.match(/showRebootModal\\(/);\n\t\t\t\t\t\t\n\t\t\t\t\t\tif (cmdMatch) {\n\t\t\t\t\t\t\tconst command = cmdMatch[1];\n\t\t\t\t\t\t\tbtn.disabled = !availableOps.includes(command);\n\t\t\t\t\t\t} else if (rebootMatch) {\n\t\t\t\t\t\t\tbtn.disabled = !availableOps.includes('reboot');\n\t\t\t\t\t\t}\n\t\t\t\t\t});\n\t\t\t\t}\n\n\t\t\t\t\t// 7. Last seen\n\t\t\t\t\tconst lastSeenCell = el.querySelector('[data-cell=\"last-seen\"]');\n\t\t\t\t\tif (lastSeenCell && host.lastSeen) {\n\t\t\t\t\t\tlastSeenCell.dataset.timestamp = host.lastSeen;\n\t\t\t\t\t\tconst result = formatLastSeen(host.lastSeen);\n\t\t\t\t\t\tlastSeenCell.textContent = result.text;\n\t\t\t\t\t\tlastSeenCell.className = result.className;\n\t\t\t\t\t}\n\t\t\t\t});\n\t\t\t}\n\n\t\t\t// Helper: Render status indicator\n\t\t\tfunction renderStatusIndicator(el, isOnline, isBusy) {\n\t\t\t\tconst wrapper = el.querySelector('.status-wrapper') || el.querySelector('.status-with-badge');\n\t\t\t\tif (!wrapper) return;\n\n\t\t\t\tconst existing = wrapper.querySelector('.status-ripple, .status-dot');\n\n\t\t\t\tlet html;\n\t\t\t\tif (isOnline && !isBusy) {\n\t\t\t\t\tif (existing?.classList.contains('status-ripple')) {\n\t\t\t\t\t\ttriggerHeartbeat(existing);\n\t\t\t\t\t\treturn;\n\t\t\t\t\t}\n\t\t\t\t\thtml = '<span class=\"status-ripple\"><span class=\"hb-wave\"></span><span class=\"hb-wave\"></span><span class=\"hb-wave\"></span><span class=\"hb-core\"></span></span>';\n\t\t\t\t} else if (isBusy) {\n\t\t\t\t\thtml = '<span class=\"status-dot status-running\"></span>';\n\t\t\t\t} else {\n\t\t\t\t\thtml = '<span class=\"status-dot status-offline\"></span>';\n\t\t\t\t}\n\n\t\t\t\tif (existing) {\n\t\t\t\t\tconst temp = document.createElement('div');\n\t\t\t\t\ttemp.innerHTML = html;\n\t\t\t\t\texisting.replaceWith(temp.firstChild);\n\t\t\t\t\tif (isOnline && !isBusy) {\n\t\t\t\t\t\ttriggerHeartbeat(wrapper.querySelector('.status-ripple'));\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t}\n\n\t\t\t// Helper: Render progress badge\n\t\t\tfunction renderProgressBadge(el, pendingCommand) {\n\t\t\t\tconst wrapper = el.querySelector('.status-wrapper') || el.querySelector('.status-with-badge');\n\t\t\t\tif (!wrapper) return;\n\n\t\t\t\tlet badge = wrapper.querySelector('.progress-badge-mini');\n\t\t\t\tif (pendingCommand) {\n\t\t\t\t\tif (!badge) {\n\t\t\t\t\t\tbadge = document.createElement('span');\n\t\t\t\t\t\tbadge.className = 'progress-badge-mini';\n\t\t\t\t\t\twrapper.appendChild(badge);\n\t\t\t\t\t}\n\t\t\t\t\tbadge.textContent = pendingCommand;\n\t\t\t\t} else if (badge) {\n\t\t\t\t\tbadge.remove();\n\t\t\t\t}\n\t\t\t}\n\n\t\t\t// Helper: Render metrics\n\t\t\tfunction renderMetrics(el, metrics) {\n\t\t\t\tconst cell = el.querySelector('[data-cell=\"metrics\"]');\n\t\t\t\tif (!cell) return;\n\n\t\t\t\tconst cpuEl = cell.querySelector('[data-metric=\"cpu\"]');\n\t\t\t\tconst ramEl = cell.querySelector('[data-metric=\"ram\"]');\n\n\t\t\t\tif (cpuEl) {\n\t\t\t\t\tconst val = cpuEl.querySelector('.metric-val');\n\t\t\t\t\tif (val) val.textContent = Math.round(metrics.cpu) + '%';\n\t\t\t\t\tcpuEl.classList.toggle('metric-high', metrics.cpu >= 80);\n\t\t\t\t\tcpuEl.dataset.value = metrics.cpu;\n\t\t\t\t}\n\n\t\t\t\tif (ramEl) {\n\t\t\t\t\tconst val = ramEl.querySelector('.metric-val');\n\t\t\t\t\tif (val) val.textContent = Math.round(metrics.ram) + '%';\n\t\t\t\t\tramEl.classList.toggle('metric-high', metrics.ram >= 80);\n\t\t\t\t\tramEl.dataset.value = metrics.ram;\n\t\t\t\t\tramEl.dataset.swap = metrics.swap;\n\t\t\t\t\tramEl.dataset.load = metrics.load;\n\t\t\t\t\tramEl.title = `RAM: ${Math.round(metrics.ram)}%, Swap: ${Math.round(metrics.swap)}%, Load: ${metrics.load.toFixed(2)}`;\n\t\t\t\t}\n\n\t\t\t\t// Replace \"—\" placeholder if needed\n\t\t\t\tconst naSpan = cell.querySelector('.metrics-na');\n\t\t\t\tif (naSpan) {\n\t\t\t\t\tcell.innerHTML = `\n\t\t\t\t\t\t<span class=\"metric\" data-metric=\"cpu\" data-value=\"${metrics.cpu}\">\n\t\t\t\t\t\t\t<svg class=\"metric-icon\"><use href=\"#icon-cpu\"></use></svg>\n\t\t\t\t\t\t\t<span class=\"metric-val\">${Math.round(metrics.cpu)}%</span>\n\t\t\t\t\t\t</span>\n\t\t\t\t\t\t<span class=\"metric\" data-metric=\"ram\" data-value=\"${metrics.ram}\">\n\t\t\t\t\t\t\t<svg class=\"metric-icon\"><use href=\"#icon-ram\"></use></svg>\n\t\t\t\t\t\t\t<span class=\"metric-val\">${Math.round(metrics.ram)}%</span>\n\t\t\t\t\t\t</span>\n\t\t\t\t\t`;\n\t\t\t\t}\n\t\t\t}\n\n\t\t\t// Helper: Render agent version cell\n\t\t\tfunction renderAgentVersion(el, host) {\n\t\t\t\tconst cell = el.querySelector('[data-cell=\"agent-version\"] .agent-version');\n\t\t\t\tif (!cell) return;\n\n\t\t\t\tcell.textContent = host.agentVersion || '—';\n\t\t\t\tcell.className = 'agent-version';\n\t\t\t\tif (!host.agentVersion) {\n\t\t\t\t\tcell.classList.add('agent-version--unknown');\n\t\t\t\t} else if (host.agentOutdated) {\n\t\t\t\t\tcell.classList.add('agent-version--outdated');\n\t\t\t\t} else {\n\t\t\t\t\tcell.classList.add('agent-version--ok');\n\t\t\t\t}\n\t\t\t}\n\n\t\t\t// Helper: Render status compartments (Agent/Git/Lock/System)\n\t\t\t// P7300: Single dot per compartment with 5 color states\n\t\t\t// Colors: gray (unchecked), blue-pulse (working), green (ok), yellow (warning), red (error)\n\t\t\tfunction renderUpdateStatus(el, host) {\n\t\t\t\tconst container = el.querySelector('.update-status');\n\t\t\t\tif (!container) return;\n\n\t\t\t\tconst status = host.updateStatus;\n\n\t\t\t\t// Update Agent compartment (not from updateStatus)\n\t\t\t\tconst agentBtn = container.querySelector('[data-compartment=\"agent\"]');\n\t\t\t\tif (agentBtn) {\n\t\t\t\t\tconst indicator = agentBtn.querySelector('.compartment-indicator');\n\t\t\t\t\tif (indicator) {\n\t\t\t\t\t\tindicator.className = 'compartment-indicator';\n\t\t\t\t\t\tif (!host.agentVersion) {\n\t\t\t\t\t\t\tindicator.classList.add('compartment-indicator--gray');\n\t\t\t\t\t\t} else if (host.agentOutdated) {\n\t\t\t\t\t\t\tindicator.classList.add('compartment-indicator--error');\n\t\t\t\t\t\t} else {\n\t\t\t\t\t\t\tindicator.classList.add('compartment-indicator--ok');\n\t\t\t\t\t\t}\n\t\t\t\t\t}\n\t\t\t\t}\n\n\t\t\t\tif (!status) return;\n\n\t\t\t\t// Update Git/Lock/System compartments\n\t\t\t\t['git', 'lock', 'system'].forEach((type) => {\n\t\t\t\t\tconst btn = container.querySelector(`[data-compartment=\"${type}\"]`);\n\t\t\t\t\tif (!btn) return;\n\n\t\t\t\t\tconst check = status[type];\n\t\t\t\t\t\n\t\t\t\t\t// Update data-status attribute for CSS/hover\n\t\t\t\t\tbtn.dataset.status = check?.status || 'unknown';\n\t\t\t\t\t\n\t\t\t\t\t// Toggle unknown class for dimming\n\t\t\t\t\tbtn.classList.toggle('unknown', !check || !check.status || check.status === 'unknown');\n\n\t\t\t\t\t// Update single indicator dot\n\t\t\t\t\tconst indicator = btn.querySelector('.compartment-indicator');\n\t\t\t\t\tif (indicator) {\n\t\t\t\t\t\tindicator.className = 'compartment-indicator';\n\t\t\t\t\t\t\n\t\t\t\t\t\tif (check && check.status) {\n\t\t\t\t\t\t\t// Map status to CSS class\n\t\t\t\t\t\t\tswitch (check.status) {\n\t\t\t\t\t\t\t\tcase 'ok':\n\t\t\t\t\t\t\t\t\tindicator.classList.add('compartment-indicator--ok');\n\t\t\t\t\t\t\t\t\tbreak;\n\t\t\t\t\t\t\t\tcase 'outdated':\n\t\t\t\t\t\t\t\t\tindicator.classList.add('compartment-indicator--warning');\n\t\t\t\t\t\t\t\t\tbreak;\n\t\t\t\t\t\t\t\tcase 'error':\n\t\t\t\t\t\t\t\t\tindicator.classList.add('compartment-indicator--error');\n\t\t\t\t\t\t\t\t\tbreak;\n\t\t\t\t\t\t\t\tdefault:\n\t\t\t\t\t\t\t\t\tindicator.classList.add('compartment-indicator--gray');\n\t\t\t\t\t\t\t}\n\t\t\t\t\t\t} else {\n\t\t\t\t\t\t\tindicator.classList.add('compartment-indicator--gray');\n\t\t\t\t\t\t}\n\t\t\t\t\t}\n\n\t\t\t\t\t// Lock-specific: agent outdated overrides indicator to error (red)\n\t\t\t\t\tif (type === 'lock' && indicator && host.agentOutdated) {\n\t\t\t\t\t\tindicator.className = 'compartment-indicator compartment-indicator--error';\n\t\t\t\t\t}\n\t\t\t\t});\n\t\t\t}\n\n\t\t\t// P2800: Render operation progress dots in Status column\n\t\t\tfunction renderOperationProgress(el, progress) {\n\t\t\t\tconst container = el.querySelector('.status-progress');\n\t\t\t\tif (!container) return;\n\n\t\t\t\t// Phase mapping: name → segment class\n\t\t\t\tconst phases = {\n\t\t\t\t\tpull: { selector: '.segment-pull', total: 4 },\n\t\t\t\t\tlock: { selector: '.segment-lock', total: 2 },\n\t\t\t\t\tsystem: { selector: '.segment-system', total: 3 },\n\t\t\t\t\ttests: { selector: '.segment-tests', total: 8 }\n\t\t\t\t};\n\n\t\t\t\tObject.entries(phases).forEach(([name, config]) => {\n\t\t\t\t\tconst segment = container.querySelector(config.selector);\n\t\t\t\t\tif (!segment) return;\n\n\t\t\t\t\tconst phaseData = progress[name];\n\t\t\t\t\tconst dots = segment.querySelectorAll('.progress-dot');\n\n\t\t\t\t\tdots.forEach((dot, i) => {\n\t\t\t\t\t\t// Reset classes\n\t\t\t\t\t\tdot.className = 'progress-dot';\n\n\t\t\t\t\t\tif (!phaseData) {\n\t\t\t\t\t\t\t// No data = idle state\n\t\t\t\t\t\t\tdot.classList.add('dot-idle');\n\t\t\t\t\t\t\tdot.textContent = '●';\n\t\t\t\t\t\t\treturn;\n\t\t\t\t\t\t}\n\n\t\t\t\t\t\tswitch (phaseData.status) {\n\t\t\t\t\t\t\tcase 'complete':\n\t\t\t\t\t\t\t\tdot.classList.add('dot-complete');\n\t\t\t\t\t\t\t\tdot.textContent = '●';\n\t\t\t\t\t\t\t\tbreak;\n\t\t\t\t\t\t\tcase 'error':\n\t\t\t\t\t\t\t\tif (i < phaseData.current) {\n\t\t\t\t\t\t\t\t\tdot.classList.add('dot-complete');\n\t\t\t\t\t\t\t\t\tdot.textContent = '●';\n\t\t\t\t\t\t\t\t} else {\n\t\t\t\t\t\t\t\t\tdot.classList.add('dot-error');\n\t\t\t\t\t\t\t\t\tdot.textContent = '✗';\n\t\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\t\tbreak;\n\t\t\t\t\t\t\tcase 'in_progress':\n\t\t\t\t\t\t\t\tif (i < phaseData.current) {\n\t\t\t\t\t\t\t\t\tdot.classList.add('dot-complete');\n\t\t\t\t\t\t\t\t\tdot.textContent = '●';\n\t\t\t\t\t\t\t\t} else if (i === phaseData.current) {\n\t\t\t\t\t\t\t\t\tdot.classList.add('dot-in-progress');\n\t\t\t\t\t\t\t\t\tdot.textContent = '◐';\n\t\t\t\t\t\t\t\t} else {\n\t\t\t\t\t\t\t\t\tdot.classList.add('dot-pending');\n\t\t\t\t\t\t\t\t\tdot.textContent = '○';\n\t\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\t\tbreak;\n\t\t\t\t\t\t\tdefault: // pending\n\t\t\t\t\t\t\t\tdot.classList.add('dot-pending');\n\t\t\t\t\t\t\t\tdot.textContent = '○';\n\t\t\t\t\t\t}\n\t\t\t\t\t});\n\t\t\t\t});\n\t\t\t}\n\n\t\t\t// P7240: Render timeout indicator in Status column\n\t\t\tfunction renderTimeoutIndicator(el, host) {\n\t\t\t\tconst statusCell = el.querySelector('[data-cell=\"status\"]');\n\t\t\t\tif (!statusCell) return;\n\n\t\t\t\tconst timeoutStates = ['running_warning', 'timeout_pending', 'killing', 'kill_failed'];\n\t\t\t\tconst hostId = el.dataset.hostId;\n\t\t\t\t\n\t\t\t\t// Check if this host has a timeout state\n\t\t\t\tconst timeout = globalState.timeouts.get(hostId);\n\t\t\t\tlet existingIndicator = statusCell.querySelector('.timeout-status-indicator');\n\t\t\t\t\n\t\t\t\tif (timeout && timeoutStates.includes(host.commandState || timeout.state)) {\n\t\t\t\t\t// Calculate elapsed time\n\t\t\t\t\tconst elapsed = Date.now() - timeout.startedAt;\n\t\t\t\t\tconst minutes = Math.floor(elapsed / 60000);\n\t\t\t\t\tconst seconds = Math.floor((elapsed % 60000) / 1000);\n\t\t\t\t\tconst elapsedStr = `${minutes}:${seconds.toString().padStart(2, '0')}`;\n\t\t\t\t\t\n\t\t\t\t\tif (!existingIndicator) {\n\t\t\t\t\t\t// Create indicator\n\t\t\t\t\t\texistingIndicator = document.createElement('span');\n\t\t\t\t\t\texistingIndicator.className = 'timeout-status-indicator';\n\t\t\t\t\t\texistingIndicator.onclick = () => showLogPanel(hostId);\n\t\t\t\t\t\tstatusCell.appendChild(existingIndicator);\n\t\t\t\t\t}\n\t\t\t\t\t\n\t\t\t\t\t// Update indicator content\n\t\t\t\t\texistingIndicator.innerHTML = `<svg class=\"icon\"><use href=\"#icon-alert-triangle\"></use></svg> ${elapsedStr}`;\n\t\t\t\t\texistingIndicator.title = `${timeout.command} timed out - click to see log`;\n\t\t\t\t\t\n\t\t\t\t\t// Hide progress dots when showing timeout\n\t\t\t\t\tconst progressDots = statusCell.querySelector('.status-progress');\n\t\t\t\t\tif (progressDots) progressDots.style.display = 'none';\n\t\t\t\t} else {\n\t\t\t\t\t// Remove indicator if present\n\t\t\t\t\tif (existingIndicator) {\n\t\t\t\t\t\texistingIndicator.remove();\n\t\t\t\t\t}\n\t\t\t\t\t// Show progress dots again\n\t\t\t\t\tconst progressDots = statusCell.querySelector('.status-progress');\n\t\t\t\t\tif (progressDots) progressDots.style.display = '';\n\t\t\t\t}\n\t\t\t}\n\n\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\t// REFRESH HOST (On-demand API call) - P7000\n\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\tasync function refreshHost(hostId) {\n\t\t\t\tconst host = hostStore.get(hostId);\n\t\t\t\tlet btn = host?._elements?.row?.querySelector('.btn-refresh');\n\t\t\t\tif (!btn) {\n\t\t\t\t\tbtn = document.querySelector(`button.btn-refresh[data-host-id=\"${hostId}\"]`);\n\t\t\t\t}\n\t\t\t\tif (btn) btn.classList.add('loading');\n\n\t\t\t\ttry {\n\t\t\t\t\tconst resp = await fetch(`/api/hosts/${hostId}/refresh`, {\n\t\t\t\t\t\tmethod: 'POST',\n\t\t\t\t\t\theaders: {\n\t\t\t\t\t\t\t'Content-Type': 'application/json',\n\t\t\t\t\t\t\t'X-CSRF-Token': CSRF_TOKEN\n\t\t\t\t\t\t}\n\t\t\t\t\t});\n\n\t\t\t\t\tif (resp.status === 404) {\n\t\t\t\t\t\tconsole.warn(`Host ${hostId} not found`);\n\t\t\t\t\t\treturn;\n\t\t\t\t\t}\n\n\t\t\t\t\tif (!resp.ok) {\n\t\t\t\t\t\tconsole.error(`Refresh failed: ${resp.status} ${resp.statusText}`);\n\t\t\t\t\t\treturn;\n\t\t\t\t\t}\n\n\t\t\t\t\tconst data = await resp.json();\n\n\t\t\t\t\t// Update store with fresh data\n\t\t\t\t\thostStore.update(hostId, {\n\t\t\t\t\t\tonline: data.online,\n\t\t\t\t\t\tgeneration: data.generation,\n\t\t\t\t\t\tagentVersion: data.agent_version,\n\t\t\t\t\t\tagentOutdated: data.agent_outdated,\n\t\t\t\t\t\tupdateStatus: data.update_status\n\t\t\t\t\t});\n\n\t\t\t\t\t// Update global PR state if included\n\t\t\t\t\tif (data.pending_pr !== undefined) {\n\t\t\t\t\t\tglobalState.pendingPR = data.pending_pr;\n\t\t\t\t\t}\n\n\t\t\t\t} catch (err) {\n\t\t\t\t\tconsole.error('Refresh failed:', err);\n\t\t\t\t} finally {\n\t\t\t\t\tif (btn) btn.classList.remove('loading');\n\t\t\t\t}\n\t\t\t}\n\n\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\t// WEBSOCKET - P7000 Simplified Messages\n\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\tlet ws = null;\n\t\t\tlet reconnectAttempts = 0;\n\t\t\tconst maxReconnectDelay = 30000;\n\n\t\t\tfunction connectWebSocket() {\n\t\t\t\tconst protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';\n\t\t\t\tws = new WebSocket(`${protocol}//${window.location.host}/ws`);\n\n\t\t\t\tws.onopen = () => {\n\t\t\t\t\tconsole.log('WebSocket connected');\n\t\t\t\t\treconnectAttempts = 0;\n\t\t\t\t\tupdateConnectionStatus(true);\n\t\t\t\t};\n\n\t\t\t\tws.onclose = () => {\n\t\t\t\t\tconsole.log('WebSocket disconnected');\n\t\t\t\t\tupdateConnectionStatus(false);\n\t\t\t\t\tscheduleReconnect();\n\t\t\t\t};\n\n\t\t\t\tws.onerror = (err) => {\n\t\t\t\t\tconsole.error('WebSocket error:', err);\n\t\t\t\t};\n\n\t\t\t\tws.onmessage = (event) => {\n\t\t\t\t\ttry {\n\t\t\t\t\t\tconst msg = JSON.parse(event.data);\n\t\t\t\t\t\thandleMessage(msg);\n\t\t\t\t\t} catch (e) {\n\t\t\t\t\t\tconsole.error('Failed to parse message:', e);\n\t\t\t\t\t}\n\t\t\t\t};\n\t\t\t}\n\n\t\t\tfunction updateConnectionStatus(connected) {\n\t\t\t\tglobalState.wsConnected = connected;\n\t\t\t\tconst el = document.getElementById('ws-status');\n\t\t\t\tif (connected) {\n\t\t\t\t\tel.className = 'connection-indicator connected';\n\t\t\t\t\tel.innerHTML = '<span class=\"status-dot status-online\"></span> Connected';\n\t\t\t\t} else {\n\t\t\t\t\tel.className = 'connection-indicator disconnected';\n\t\t\t\t\tel.innerHTML = '<span class=\"status-dot status-offline\"></span> Disconnected';\n\t\t\t\t}\n\t\t\t}\n\n\t\t\tfunction scheduleReconnect() {\n\t\t\t\treconnectAttempts++;\n\t\t\t\tconst delay = Math.min(1000 * Math.pow(2, reconnectAttempts), maxReconnectDelay);\n\t\t\t\tconsole.log(`Reconnecting in ${delay}ms...`);\n\t\t\t\tsetTimeout(connectWebSocket, delay);\n\t\t\t}\n\n\t\t\t// P7000: Simplified message handler\n\t\t\tfunction handleMessage(msg) {\n\t\t\t\tif (!msg || !msg.type) {\n\t\t\t\t\tconsole.warn('Invalid message:', msg);\n\t\t\t\t\treturn;\n\t\t\t\t}\n\n\t\t\t\tconst payload = msg.payload || {};\n\t\t\t\tconst hostId = payload.host_id;\n\n\t\t\t\tswitch (msg.type) {\n\t\t\t\t\tcase 'host_heartbeat':\n\t\t\t\t\t\tif (!hostId) return;\n\t\t\t\t\t\tconst heartbeatUpdate = {\n\t\t\t\t\t\t\tonline: true,\n\t\t\t\t\t\t\tlastSeen: payload.last_seen,\n\t\t\t\t\t\t\tmetrics: payload.metrics\n\t\t\t\t\t\t};\n\t\t\t\t\t\t// Include update_status if present (compartment data)\n\t\t\t\t\t\tif (payload.update_status) {\n\t\t\t\t\t\t\theartbeatUpdate.updateStatus = payload.update_status;\n\t\t\t\t\t\t}\n\t\t\t\t\t\tif (payload.generation) {\n\t\t\t\t\t\t\theartbeatUpdate.generation = payload.generation;\n\t\t\t\t\t\t}\n\t\t\t\t\t\thostStore.update(hostId, heartbeatUpdate);\n\t\t\t\t\t\tbreak;\n\n\t\t\t\t\tcase 'host_status_update':\n\t\t\t\t\t\t// Full status update (after command completes or compartment refresh)\n\t\t\t\t\t\tif (!hostId) return;\n\t\t\t\t\t\tconst statusUpdate = {};\n\t\t\t\t\t\tif (payload.update_status) {\n\t\t\t\t\t\t\tstatusUpdate.updateStatus = payload.update_status;\n\t\t\t\t\t\t}\n\t\t\t\t\t\tif (payload.generation) {\n\t\t\t\t\t\t\tstatusUpdate.generation = payload.generation;\n\t\t\t\t\t\t}\n\t\t\t\t\t\thostStore.update(hostId, statusUpdate);\n\t\t\t\t\t\tbreak;\n\n\t\t\t\t\tcase 'host_offline':\n\t\t\t\t\t\tif (!hostId) return;\n\t\t\t\t\t\thostStore.setOffline(hostId);\n\t\t\t\t\t\tbreak;\n\n\t\t\t\t\tcase 'command_queued':\n\t\t\t\t\t\tif (!hostId) return;\n\t\t\t\t\t\thostStore.update(hostId, {\n\t\t\t\t\t\t\tpendingCommand: payload.command\n\t\t\t\t\t\t});\n\t\t\t\t\t\t// Show panel and trigger command start (not just show existing output)\n\t\t\t\t\t\tconst panel = document.getElementById('output-panel');\n\t\t\t\t\t\tpanel.classList.remove('hidden');\n\t\t\t\t\t\twindow.dispatchEvent(new CustomEvent('output-start', { \n\t\t\t\t\t\t\tdetail: { hostId, command: payload.command } \n\t\t\t\t\t\t}));\n\t\t\t\t\t\tbreak;\n\n\t\t\t\t\tcase 'command_output':\n\t\t\t\t\t\tconsole.log('command_output received:', payload);\n\t\t\t\t\t\t// DEBUG: Write directly to debug textarea\n\t\t\t\t\t\tconst debugTA = document.getElementById('debug-output');\n\t\t\t\t\t\tif (debugTA) {\n\t\t\t\t\t\t\tdebugTA.value += `[${payload.host_id}] ${payload.line}\\n`;\n\t\t\t\t\t\t\tdebugTA.scrollTop = debugTA.scrollHeight;\n\t\t\t\t\t\t}\n\t\t\t\t\t\tappendLog(payload);\n\t\t\t\t\t\tbreak;\n\n\t\t\t\t\tcase 'command_complete':\n\t\t\t\t\t\tif (!hostId) return;\n\t\t\t\t\t\tconst host = hostStore.get(hostId);\n\t\t\t\t\t\thostStore.update(hostId, {\n\t\t\t\t\t\t\tpendingCommand: null\n\t\t\t\t\t\t});\n\t\t\t\t\t\twindow.dispatchEvent(new CustomEvent('log-complete', { detail: payload }));\n\t\t\t\t\t\t// P1010: Notify Action Bar of command completion\n\t\t\t\t\t\twindow.dispatchEvent(new CustomEvent('command-complete', {\n\t\t\t\t\t\t\tdetail: {\n\t\t\t\t\t\t\t\thostId,\n\t\t\t\t\t\t\t\thostname: host?.hostname || hostId,\n\t\t\t\t\t\t\t\tcommand: payload.command,\n\t\t\t\t\t\t\t\texit_code: payload.exit_code || 0\n\t\t\t\t\t\t\t}\n\t\t\t\t\t\t}));\n\t\t\t\t\t\tbreak;\n\n\t\t\t\t\tcase 'flake_update_job':\n\t\t\t\t\t\t// Keep for deployment progress display\n\t\t\t\t\t\thandleFlakeUpdateJob(payload);\n\t\t\t\t\t\tbreak;\n\n\t\t\t\t\t// P2800: State machine log messages\n\t\t\t\t\tcase 'state_machine_log':\n\t\t\t\t\t\thandleStateMachineLog(payload);\n\t\t\t\t\t\tbreak;\n\n\t\t\t\t// P2700: Operation progress updates\n\t\t\t\tcase 'operation_progress':\n\t\t\t\t\tif (!hostId) return;\n\t\t\t\t\thostStore.update(hostId, {\n\t\t\t\t\t\toperationProgress: payload.progress\n\t\t\t\t\t});\n\t\t\t\t\tbreak;\n\n\t\t\t\t// P7240: Command state changes (timeout handling)\n\t\t\t\tcase 'command_state_change':\n\t\t\t\t\tif (!hostId) return;\n\t\t\t\t\thandleCommandStateChange(hostId, payload);\n\t\t\t\t\tbreak;\n\n\t\t\t\tdefault:\n\t\t\t\t\tconsole.debug('Unknown WS message type:', msg.type);\n\t\t\t}\n\t\t\t}\n\n\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\t// ACTIONS (User-initiated)\n\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\t// v3: sendCommand using Op Engine /api/dispatch endpoint\n\t\t\tfunction sendCommand(hostId, command, force = false) {\n\t\t\t\tconst host = hostStore.get(hostId);\n\t\t\t\tconst hostname = host?.hostname || hostId;\n\n\t\t\t\t// Immediate UI feedback\n\t\t\t\thostStore.update(hostId, { pendingCommand: command });\n\n\t\t\t\t// P1010: Notify Action Bar of command start\n\t\t\t\twindow.dispatchEvent(new CustomEvent('command-start', {\n\t\t\t\t\tdetail: { hostId, hostname, command }\n\t\t\t\t}));\n\n\t\t\t\t// v3: Use new Op Engine dispatch endpoint\n\t\t\t\tfetch('/api/dispatch', {\n\t\t\t\t\tmethod: 'POST',\n\t\t\t\t\theaders: {\n\t\t\t\t\t\t'Content-Type': 'application/json',\n\t\t\t\t\t\t'X-CSRF-Token': CSRF_TOKEN\n\t\t\t\t\t},\n\t\t\t\t\tbody: JSON.stringify({ \n\t\t\t\t\t\top: command,\n\t\t\t\t\t\thosts: [hostId],\n\t\t\t\t\t\tforce: force\n\t\t\t\t\t})\n\t\t\t\t}).then(resp => {\n\t\t\t\t\tif (!resp.ok) {\n\t\t\t\t\t\treturn resp.json().then(data => {\n\t\t\t\t\t\t\t// Check for blocked status (pre-validation failed)\n\t\t\t\t\t\t\tif (data.results && data.results[0]?.status === 'blocked') {\n\t\t\t\t\t\t\t\thostStore.update(hostId, { pendingCommand: null });\n\t\t\t\t\t\t\t\tshowPreCheckDialog(hostId, hostname, command, {\n\t\t\t\t\t\t\t\t\tcode: data.results[0].code,\n\t\t\t\t\t\t\t\t\tmessage: data.results[0].message\n\t\t\t\t\t\t\t\t});\n\t\t\t\t\t\t\t\tthrow { handled: true };\n\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\tthrow new Error(data.error || 'Request failed');\n\t\t\t\t\t\t});\n\t\t\t\t\t}\n\t\t\t\t\treturn resp.json();\n\t\t\t\t}).then(data => {\n\t\t\t\t\tif (!data) return;\n\t\t\t\t\t\n\t\t\t\t\t// Check individual host result\n\t\t\t\t\tconst result = data.results?.[0];\n\t\t\t\t\tif (result?.status === 'blocked') {\n\t\t\t\t\t\thostStore.update(hostId, { pendingCommand: null });\n\t\t\t\t\t\tshowPreCheckDialog(hostId, hostname, command, {\n\t\t\t\t\t\t\tcode: result.code,\n\t\t\t\t\t\t\tmessage: result.message\n\t\t\t\t\t\t});\n\t\t\t\t\t\treturn;\n\t\t\t\t\t}\n\t\t\t\t\tif (result?.status === 'error') {\n\t\t\t\t\t\tthrow new Error(result.error || 'Command failed');\n\t\t\t\t\t}\n\t\t\t\t\tconsole.log('Op dispatched:', command, result?.command_id);\n\t\t\t\t}).catch(err => {\n\t\t\t\t\tif (err.handled) return;\n\t\t\t\t\t\n\t\t\t\t\tconsole.error('Op dispatch failed:', err);\n\t\t\t\t\tconst errorMsg = err.message || 'Unknown error';\n\t\t\t\t\tshowToast(`Command failed: ${errorMsg}`, 'error');\n\t\t\t\t\thostStore.update(hostId, { pendingCommand: null });\n\t\t\t\t\twindow.dispatchEvent(new CustomEvent('command-complete', {\n\t\t\t\t\t\tdetail: { hostId, hostname, command, exit_code: 1, error: errorMsg }\n\t\t\t\t\t}));\n\t\t\t\t});\n\t\t\t}\n\n\t\t\t// P2800: Show pre-check dialog when validation fails\n\t\t\tfunction showPreCheckDialog(hostId, hostname, command, validation) {\n\t\t\t\tconst dialog = document.getElementById('preCheckDialog');\n\t\t\t\tif (!dialog) {\n\t\t\t\t\t// Fallback to toast if dialog doesn't exist\n\t\t\t\t\tshowToast(`Cannot ${command}: ${validation.message}`, 'info');\n\t\t\t\t\treturn;\n\t\t\t\t}\n\t\t\t\t\n\t\t\t\t// Populate dialog\n\t\t\t\tdocument.getElementById('preCheckHostname').textContent = hostname;\n\t\t\t\tdocument.getElementById('preCheckCommand').textContent = command;\n\t\t\t\tdocument.getElementById('preCheckMessage').textContent = validation.message;\n\t\t\t\tdocument.getElementById('preCheckCode').textContent = validation.code;\n\t\t\t\t\n\t\t\t\t// Store context for button actions\n\t\t\t\tdialog.dataset.hostId = hostId;\n\t\t\t\tdialog.dataset.command = command;\n\t\t\t\t\n\t\t\t\t// Show appropriate alternative actions based on code\n\t\t\t\tconst altBtn = document.getElementById('preCheckAltAction');\n\t\t\t\tif (validation.code === 'git_outdated' && command === 'switch') {\n\t\t\t\t\taltBtn.textContent = 'Pull First';\n\t\t\t\t\taltBtn.onclick = () => { closeModal('preCheckDialog'); sendCommand(hostId, 'pull'); };\n\t\t\t\t\taltBtn.style.display = '';\n\t\t\t\t} else if (validation.code === 'already_current') {\n\t\t\t\t\taltBtn.style.display = 'none';\n\t\t\t\t} else {\n\t\t\t\t\taltBtn.textContent = 'Refresh Status';\n\t\t\t\t\taltBtn.onclick = () => { closeModal('preCheckDialog'); sendCommand(hostId, 'refresh-all'); };\n\t\t\t\t\taltBtn.style.display = '';\n\t\t\t\t}\n\t\t\t\t\n\t\t\t\t// Open the dialog\n\t\t\t\tdialog.classList.remove('hidden');\n\t\t\t\tdialog.classList.add('open');\n\t\t\t}\n\t\t\t\n\t\t\t// P2800: Force execute despite pre-check failure\n\t\t\tfunction forceCommand() {\n\t\t\t\tconst dialog = document.getElementById('preCheckDialog');\n\t\t\t\tconst hostId = dialog.dataset.hostId;\n\t\t\t\tconst command = dialog.dataset.command;\n\t\t\t\tcloseModal('preCheckDialog');\n\t\t\t\tsendCommand(hostId, command, true);\n\t\t\t}\n\n\t\t\t// System refresh confirmation dialog\n\t\t\tfunction showSystemRefreshDialog(hostId, hostname, description, status) {\n\t\t\t\tconst dialog = document.getElementById('systemRefreshDialog');\n\t\t\t\tif (!dialog) return;\n\n\t\t\t\t// Store host info for confirm action\n\t\t\t\tdialog.dataset.hostId = hostId;\n\n\t\t\t\t// Populate hostname\n\t\t\t\tdocument.getElementById('systemRefreshHostname').textContent = hostname;\n\n\t\t\t\t// Show the exact command that will run\n\t\t\t\t// NixOS: nix build --dry-run .#nixosConfigurations.<host>.config.system.build.toplevel\n\t\t\t\t// macOS: nix build --dry-run .#homeConfigurations.<user>.activationPackage\n\t\t\t\tconst hostRow = document.querySelector(`[data-host-id=\"${hostId}\"]`);\n\t\t\t\tconst hostType = hostRow?.dataset.hostType || 'nixos';\n\t\t\t\tlet command;\n\t\t\t\tif (hostType === 'macos') {\n\t\t\t\t\tcommand = `nix build --dry-run .#homeConfigurations.${hostname}.activationPackage`;\n\t\t\t\t} else {\n\t\t\t\t\tcommand = `nix build --dry-run .#nixosConfigurations.${hostname}.config.system.build.toplevel`;\n\t\t\t\t}\n\t\t\t\tdocument.getElementById('systemRefreshCommand').textContent = command;\n\n\t\t\t\t// Show current status in log panel\n\t\t\t\tshowLogPanel(hostId);\n\t\t\t\tappendLogLine(hostId, `ℹ️ Current system status: ${description || status}`);\n\n\t\t\t\t// Open dialog\n\t\t\t\tdialog.classList.remove('hidden');\n\t\t\t\tdialog.classList.add('open');\n\t\t\t}\n\n\t\t\tfunction confirmSystemRefresh() {\n\t\t\t\tconst dialog = document.getElementById('systemRefreshDialog');\n\t\t\t\tconst hostId = dialog.dataset.hostId;\n\t\t\t\tcloseModal('systemRefreshDialog');\n\n\t\t\t\t// Send refresh-system command\n\t\t\t\tappendLogLine(hostId, `🔄 Starting system status check (this may take 30-60s)...`);\n\t\t\t\tshowToast('System check started...', 'info');\n\t\t\t\tsendCommand(hostId, 'refresh-system');\n\t\t\t}\n\n\t\t\t// P4700: Merge PR only (no auto-deploy - deployment is manual)\n\t\t\tfunction mergePROnly(prNumber) {\n\t\t\t\tif (!confirm('Merge PR #' + prNumber + '?\\n\\nThis will update flake.lock on GitHub.\\nYou\\'ll then need to Pull + Switch hosts manually.')) return;\n\n\t\t\t\tfetch('/api/flake-updates/merge-pr', {\n\t\t\t\t\tmethod: 'POST',\n\t\t\t\t\theaders: {\n\t\t\t\t\t\t'Content-Type': 'application/json',\n\t\t\t\t\t\t'X-CSRF-Token': CSRF_TOKEN\n\t\t\t\t\t},\n\t\t\t\t\tbody: JSON.stringify({ pr_number: prNumber })\n\t\t\t\t})\n\t\t\t\t.then(resp => {\n\t\t\t\t\tif (!resp.ok) throw new Error('Failed to merge PR');\n\t\t\t\t\treturn resp.json();\n\t\t\t\t})\n\t\t\t\t.then(data => {\n\t\t\t\t\tshowToast('PR #' + prNumber + ' merged successfully. Pull + Switch hosts to deploy.', 'success');\n\t\t\t\t})\n\t\t\t\t.catch(err => {\n\t\t\t\t\talert('Failed to merge PR: ' + err.message);\n\t\t\t\t});\n\t\t\t}\n\n\t\t\t// Legacy: keep for backwards compatibility\n\t\t\tfunction mergeAndDeploy(prNumber) {\n\t\t\t\tmergePROnly(prNumber);\n\t\t\t}\n\n\t\t\tfunction bulkCommand(command) {\n\t\t\t\tconst onlineHosts = hostStore.all().filter(h => h.online);\n\t\t\t\tif (onlineHosts.length === 0) {\n\t\t\t\t\talert('No online hosts to send command to');\n\t\t\t\t\treturn;\n\t\t\t\t}\n\n\t\t\t\tconst confirmMsg = `Send \"${command}\" to ${onlineHosts.length} online host(s)?`;\n\t\t\t\tif (!confirm(confirmMsg)) return;\n\n\t\t\t\tonlineHosts.forEach(host => {\n\t\t\t\t\tsendCommand(host.id, command);\n\t\t\t\t});\n\t\t\t}\n\n\t\t\t// P2500: Do All - Pull → Switch → Test on ALL online hosts\n\t\t\tasync function bulkDoAll() {\n\t\t\t\tconst onlineHosts = hostStore.all().filter(h => h.online);\n\t\t\t\tif (onlineHosts.length === 0) {\n\t\t\t\t\talert('No online hosts to send command to');\n\t\t\t\t\treturn;\n\t\t\t\t}\n\n\t\t\t\tconst confirmMsg = `Run Pull → Switch → Test on ${onlineHosts.length} online host(s)?`;\n\t\t\t\tif (!confirm(confirmMsg)) return;\n\n\t\t\t\tlet remainingHostIds = onlineHosts.map(h => h.id);\n\n\t\t\t\t// Helper: wait for all hosts to complete a command\n\t\t\t\tconst waitForCompletion = (hostIds, command, timeoutMs = 300000) => {\n\t\t\t\t\treturn new Promise((resolve) => {\n\t\t\t\t\t\tconst pending = new Set(hostIds);\n\t\t\t\t\t\tconst results = new Map();\n\t\t\t\t\t\t\n\t\t\t\t\t\tconst handler = (e) => {\n\t\t\t\t\t\t\tconst { hostId, command: cmd, exit_code } = e.detail;\n\t\t\t\t\t\t\tif (cmd === command && pending.has(hostId)) {\n\t\t\t\t\t\t\t\tpending.delete(hostId);\n\t\t\t\t\t\t\t\tresults.set(hostId, { success: exit_code === 0, exit_code });\n\t\t\t\t\t\t\t\tif (pending.size === 0) {\n\t\t\t\t\t\t\t\t\twindow.removeEventListener('command-complete', handler);\n\t\t\t\t\t\t\t\t\tclearTimeout(timer);\n\t\t\t\t\t\t\t\t\tresolve(results);\n\t\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\t}\n\t\t\t\t\t\t};\n\t\t\t\t\t\t\n\t\t\t\t\t\twindow.addEventListener('command-complete', handler);\n\t\t\t\t\t\t\n\t\t\t\t\t\tconst timer = setTimeout(() => {\n\t\t\t\t\t\t\twindow.removeEventListener('command-complete', handler);\n\t\t\t\t\t\t\tpending.forEach(id => results.set(id, { success: false, exit_code: -1, timeout: true }));\n\t\t\t\t\t\t\tresolve(results);\n\t\t\t\t\t\t}, timeoutMs);\n\t\t\t\t\t});\n\t\t\t\t};\n\n\t\t\t\t// Execute Pull → Switch → Test sequentially\n\t\t\t\tfor (const command of ['pull', 'switch', 'test']) {\n\t\t\t\t\tif (remainingHostIds.length === 0) break;\n\t\t\t\t\t\n\t\t\t\t\tremainingHostIds.forEach(hostId => sendCommand(hostId, command));\n\t\t\t\t\tconst results = await waitForCompletion(remainingHostIds, command);\n\t\t\t\t\t\n\t\t\t\t\t// Filter out failed hosts\n\t\t\t\t\tremainingHostIds = remainingHostIds.filter(id => {\n\t\t\t\t\t\tconst result = results.get(id);\n\t\t\t\t\t\treturn result && result.success;\n\t\t\t\t\t});\n\t\t\t\t}\n\t\t\t}\n\n\t\t\tfunction deleteHost(hostId) {\n\t\t\t\tif (!confirm(`Delete host \"${hostId}\"? This cannot be undone.`)) {\n\t\t\t\t\treturn;\n\t\t\t\t}\n\t\t\t\tfetch(`/api/hosts/${hostId}`, {\n\t\t\t\t\tmethod: 'DELETE',\n\t\t\t\t\theaders: { 'X-CSRF-Token': CSRF_TOKEN }\n\t\t\t\t}).then(resp => {\n\t\t\t\t\tif (!resp.ok) {\n\t\t\t\t\t\treturn resp.text().then(text => { throw new Error(text); });\n\t\t\t\t\t}\n\t\t\t\t\treturn resp.json();\n\t\t\t\t}).then(data => {\n\t\t\t\t\tconsole.log('Host deleted:', data);\n\t\t\t\t\tdocument.querySelectorAll(`[data-host-id=\"${hostId}\"]`).forEach(el => el.remove());\n\t\t\t\t}).catch(err => {\n\t\t\t\t\tconsole.error('Delete failed:', err);\n\t\t\t\t\talert('Delete failed: ' + err.message);\n\t\t\t\t});\n\t\t\t}\n\n\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\t// P4020: TABBED OUTPUT PANEL\n\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\tconst MAX_LINES_PER_TAB = 1000;\n\t\t\tconst MAX_SYSTEM_LOG_ENTRIES = 1000;\n\n\t\t\t// Locale: browser preference with de-AT fallback, always 24h\n\t\t\tconst USER_LOCALE = navigator.language || 'de-AT';\n\t\t\tfunction formatTime(date, withSeconds = true) {\n\t\t\t\tconst opts = { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' };\n\t\t\t\treturn date.toLocaleTimeString(USER_LOCALE, opts);\n\t\t\t}\n\n\t\t\tfunction formatDuration(ms) {\n\t\t\t\tconst seconds = Math.floor(ms / 1000);\n\t\t\t\tif (seconds < 60) return `${seconds}s`;\n\t\t\t\tconst minutes = Math.floor(seconds / 60);\n\t\t\t\tconst remainingSeconds = seconds % 60;\n\t\t\t\tif (remainingSeconds === 0) return `${minutes}m`;\n\t\t\t\treturn `${minutes}m ${remainingSeconds}s`;\n\t\t\t}\n\n\t\t\tfunction appendLog(payload) {\n\t\t\t\twindow.dispatchEvent(new CustomEvent('output-line', { detail: payload }));\n\t\t\t}\n\n\t\t\t// P2800: Helper to append a simple text line to the log\n\t\t\tfunction appendLogLine(hostId, text, type = 'info') {\n\t\t\t\tappendLog({\n\t\t\t\t\thost_id: hostId,\n\t\t\t\t\toutput: text,\n\t\t\t\t\tis_stderr: type === 'error',\n\t\t\t\t});\n\t\t\t}\n\n\t\t\tfunction showLogPanel(hostId) {\n\t\t\t\tconst panel = document.getElementById('output-panel');\n\t\t\t\tpanel.classList.remove('hidden');\n\t\t\t\t// P4021: Switch to host tab without triggering command start\n\t\t\t\twindow.dispatchEvent(new CustomEvent('show-output-tab', { detail: { hostId } }));\n\t\t\t}\n\n\t\t\t// P4020: Add system log entry\n\t\t\tfunction addSystemLogEntry(category, message, icon) {\n\t\t\t\twindow.dispatchEvent(new CustomEvent('system-log-entry', {\n\t\t\t\t\tdetail: { category, message, icon }\n\t\t\t\t}));\n\t\t\t}\n\n\t\t\tdocument.addEventListener('alpine:init', () => {\n\t\t\t\tAlpine.data('outputPanel', () => ({\n\t\t\t\t\ttabs: [],           // Array of { hostId, hostname, lines, indicator, phase, ... }\n\t\t\t\t\tactiveTab: 'system', // 'system' or hostId - default to system log\n\t\t\t\t\tsystemLog: [],      // System log entries\n\t\t\t\t\tcollapsed: false,\n\t\t\t\t\tlineCounter: 0,\n\t\t\t\t\tlogCounter: 0,\n\t\t\t\t\t// P4021: New state\n\t\t\t\t\tpanelHeight: 300,   // Default height in pixels\n\t\t\t\t\tfontSize: 13,       // Font size in pixels\n\t\t\t\t\tisResizing: false,\n\t\t\t\t\toverflowOpen: false,\n\t\t\t\t\trelativeTimeInterval: null,\n\n\t\t\t\t\tinit() {\n\t\t\t\t\t\tconsole.log('outputPanel init() called');\n\t\t\t\t\t\t// Restore panel state from localStorage\n\t\t\t\t\t\tconst savedCollapsed = localStorage.getItem('outputPanel.collapsed');\n\t\t\t\t\t\tif (savedCollapsed !== null) {\n\t\t\t\t\t\t\tthis.collapsed = savedCollapsed === 'true';\n\t\t\t\t\t\t}\n\n\t\t\t\t\t\t// P4021: Restore panel height\n\t\t\t\t\t\tconst savedHeight = localStorage.getItem('outputPanel.height');\n\t\t\t\t\t\tif (savedHeight !== null) {\n\t\t\t\t\t\t\tthis.panelHeight = parseInt(savedHeight, 10) || 300;\n\t\t\t\t\t\t}\n\n\t\t\t\t\t\t// Restore font size\n\t\t\t\t\t\tconst savedFontSize = localStorage.getItem('outputPanel.fontSize');\n\t\t\t\t\t\tif (savedFontSize !== null) {\n\t\t\t\t\t\t\tthis.fontSize = parseInt(savedFontSize, 10) || 13;\n\t\t\t\t\t\t}\n\t\t\t\t\t\tthis.applyFontSize();\n\n\t\t\t\t\t\t// Listen for output lines\n\t\t\t\t\t\twindow.addEventListener('output-line', (e) => this.handleOutputLine(e.detail));\n\n\t\t\t\t\t\t// Listen for command start\n\t\t\t\t\t\twindow.addEventListener('output-start', (e) => this.handleCommandStart(e.detail));\n\n\t\t\t\t\t\t// Listen for command complete\n\t\t\t\t\t\twindow.addEventListener('log-complete', (e) => this.handleCommandComplete(e.detail));\n\n\t\t\t\t\t\t// Listen for system log entries\n\t\t\t\t\t\twindow.addEventListener('system-log-entry', (e) => this.addSystemLog(e.detail));\n\n\t\t\t\t\t\t// P2800: Listen for state machine log messages\n\t\t\t\t\t\twindow.addEventListener('state-machine-log', (e) => this.handleStateMachineLog(e.detail));\n\n\t\t\t\t\t\t// P4021: Resize event handlers\n\t\t\t\t\t\twindow.addEventListener('mousemove', (e) => this.handleResize(e));\n\t\t\t\t\t\twindow.addEventListener('mouseup', () => this.stopResize());\n\n\t\t\t\t\t\t// P4021: Show output tab (from \"View Output\" menu)\n\t\t\t\t\t\twindow.addEventListener('show-output-tab', (e) => this.showOutputTab(e.detail));\n\n\t\t\t\t\t\t// P4021: Update relative times every 30 seconds\n\t\t\t\t\t\tthis.relativeTimeInterval = setInterval(() => this.updateRelativeTimes(), 30000);\n\t\t\t\t\t},\n\n\t\t\t\t\t// P4021: Show or switch to a host's output tab\n\t\t\t\t\tshowOutputTab(detail) {\n\t\t\t\t\t\tconst { hostId } = detail;\n\t\t\t\t\t\tif (!hostId) return;\n\n\t\t\t\t\t\t// Get or create tab (but don't reset it)\n\t\t\t\t\t\tlet tab = this.tabs.find(t => t.hostId === hostId);\n\t\t\t\t\t\tif (!tab) {\n\t\t\t\t\t\t\tconst host = hostStore.get(hostId);\n\t\t\t\t\t\t\ttab = {\n\t\t\t\t\t\t\t\thostId: hostId,\n\t\t\t\t\t\t\t\thostname: host?.hostname || hostId,\n\t\t\t\t\t\t\t\tthemeColor: host?.themeColor || '#7aa2f7',\n\t\t\t\t\t\t\t\tlines: [],\n\t\t\t\t\t\t\t\tindicator: 'success',\n\t\t\t\t\t\t\t\thasUnread: false,\n\t\t\t\t\t\t\t\tphase: '',\n\t\t\t\t\t\t\t\tphaseIcon: '',\n\t\t\t\t\t\t\t\tbuildCount: 0,\n\t\t\t\t\t\t\t\tbuildCurrent: 0,\n\t\t\t\t\t\t\t\tlastCommand: null,\n\t\t\t\t\t\t\t};\n\t\t\t\t\t\t\tthis.tabs.push(tab);\n\t\t\t\t\t\t}\n\n\t\t\t\t\t\t// Switch to this tab\n\t\t\t\t\t\tthis.activeTab = hostId;\n\t\t\t\t\t\ttab.hasUnread = false;\n\n\t\t\t\t\t\t// Uncollapse if collapsed\n\t\t\t\t\t\tif (this.collapsed) {\n\t\t\t\t\t\t\tthis.collapsed = false;\n\t\t\t\t\t\t\tlocalStorage.setItem('outputPanel.collapsed', 'false');\n\t\t\t\t\t\t}\n\t\t\t\t\t},\n\n\t\t\t\t\t// Get or create tab for a host\n\t\t\t\t\tgetOrCreateTab(hostId) {\n\t\t\t\t\t\tlet tab = this.tabs.find(t => t.hostId === hostId);\n\t\t\t\t\t\tif (!tab) {\n\t\t\t\t\t\t\tconst host = hostStore.get(hostId);\n\t\t\t\t\t\t\ttab = {\n\t\t\t\t\t\t\t\thostId: hostId,\n\t\t\t\t\t\t\t\thostname: host?.hostname || hostId,\n\t\t\t\t\t\t\t\tthemeColor: host?.themeColor || '#7aa2f7',\n\t\t\t\t\t\t\t\tdeviceType: host?.deviceType || 'desktop',\n\t\t\t\t\t\t\t\tlines: [],\n\t\t\t\t\t\t\t\tindicator: 'running',\n\t\t\t\t\t\t\t\thasUnread: false,\n\t\t\t\t\t\t\t\tphase: '',\n\t\t\t\t\t\t\t\tphaseIcon: '',\n\t\t\t\t\t\t\t\tbuildCount: 0,\n\t\t\t\t\t\t\t\tbuildCurrent: 0,\n\t\t\t\t\t\t\t\tlastCommand: null,\n\t\t\t\t\t\t\t\tstartTime: null,\n\t\t\t\t\t\t\t};\n\t\t\t\t\t\t\tthis.tabs.push(tab);\n\t\t\t\t\t\t}\n\t\t\t\t\t\treturn tab;\n\t\t\t\t\t},\n\n\t\t\t\t\t// P4021: Resize handlers\n\t\t\t\t\tstartResize(e) {\n\t\t\t\t\t\tthis.isResizing = true;\n\t\t\t\t\t\tthis.resizeStartY = e.clientY;\n\t\t\t\t\t\tthis.resizeStartHeight = this.panelHeight;\n\t\t\t\t\t\te.preventDefault();\n\t\t\t\t\t},\n\n\t\t\t\t\thandleResize(e) {\n\t\t\t\t\t\tif (!this.isResizing) return;\n\t\t\t\t\t\t// Handle at bottom: drag down = expand (positive delta)\n\t\t\t\t\t\tconst delta = e.clientY - this.resizeStartY;\n\t\t\t\t\t\tconst newHeight = Math.max(100, Math.min(600, this.resizeStartHeight + delta));\n\t\t\t\t\t\tthis.panelHeight = newHeight;\n\t\t\t\t\t},\n\n\t\t\t\t\tstopResize() {\n\t\t\t\t\t\tif (this.isResizing) {\n\t\t\t\t\t\t\tthis.isResizing = false;\n\t\t\t\t\t\t\tlocalStorage.setItem('outputPanel.height', this.panelHeight);\n\t\t\t\t\t\t}\n\t\t\t\t\t},\n\n\t\t\t\t\t// P4021: Keyboard shortcuts\n\t\t\t\t\thandleKeyboard(e) {\n\t\t\t\t\t\t// Only handle if panel is visible\n\t\t\t\t\t\tconst panel = document.getElementById('output-panel');\n\t\t\t\t\t\tif (panel.classList.contains('hidden')) return;\n\n\t\t\t\t\t\t// Ctrl+1-9 for tabs\n\t\t\t\t\t\tif (e.ctrlKey && e.key >= '1' && e.key <= '9') {\n\t\t\t\t\t\t\tconst index = parseInt(e.key, 10) - 1;\n\t\t\t\t\t\t\tif (index === 0 && this.systemLog.length > 0) {\n\t\t\t\t\t\t\t\tthis.switchTab('system');\n\t\t\t\t\t\t\t\te.preventDefault();\n\t\t\t\t\t\t\t} else {\n\t\t\t\t\t\t\t\tconst tabIndex = this.systemLog.length > 0 ? index - 1 : index;\n\t\t\t\t\t\t\t\tif (tabIndex >= 0 && tabIndex < this.tabs.length) {\n\t\t\t\t\t\t\t\t\tthis.switchTab(this.tabs[tabIndex].hostId);\n\t\t\t\t\t\t\t\t\te.preventDefault();\n\t\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\t}\n\t\t\t\t\t\t}\n\n\t\t\t\t\t\t// Ctrl+W to close active tab\n\t\t\t\t\t\tif (e.ctrlKey && e.key === 'w' && this.activeTab) {\n\t\t\t\t\t\t\tthis.closeTab(this.activeTab);\n\t\t\t\t\t\t\te.preventDefault();\n\t\t\t\t\t\t}\n\n\t\t\t\t\t\t// Escape to collapse\n\t\t\t\t\t\tif (e.key === 'Escape' && !this.collapsed) {\n\t\t\t\t\t\t\tthis.toggleCollapse();\n\t\t\t\t\t\t\te.preventDefault();\n\t\t\t\t\t\t}\n\t\t\t\t\t},\n\n\t\t\t\t\t// P4021: Update relative times for system log\n\t\t\t\t\tupdateRelativeTimes() {\n\t\t\t\t\t\tconst now = new Date();\n\t\t\t\t\t\tthis.systemLog.forEach(entry => {\n\t\t\t\t\t\t\tentry.relativeTime = this.formatRelativeTime(entry.timestamp, now);\n\t\t\t\t\t\t});\n\t\t\t\t\t},\n\n\t\t\t\t\t// P4021: Format relative time\n\t\t\t\t\tformatRelativeTime(timestamp, now = new Date()) {\n\t\t\t\t\t\tconst diffMs = now - new Date(timestamp);\n\t\t\t\t\t\tconst diffSec = Math.floor(diffMs / 1000);\n\t\t\t\t\t\tconst diffMin = Math.floor(diffSec / 60);\n\t\t\t\t\t\tconst diffHour = Math.floor(diffMin / 60);\n\n\t\t\t\t\t\tif (diffSec < 5) return 'just now';\n\t\t\t\t\t\tif (diffSec < 60) return diffSec + 's ago';\n\t\t\t\t\t\tif (diffMin < 60) return diffMin + ' min ago';\n\t\t\t\t\t\tif (diffHour < 24) return diffHour + 'h ago';\n\t\t\t\t\t\treturn Math.floor(diffHour / 24) + 'd ago';\n\t\t\t\t\t},\n\n\t\t\t\t\t// Add status entry as a log line (flat log per host)\n\t\t\t\t\taddStatusHistory(hostId, category, icon, message) {\n\t\t\t\t\t\tconst tab = this.tabs.find(t => t.hostId === hostId);\n\t\t\t\t\t\tif (!tab) return;\n\n\t\t\t\t\t\tconst now = new Date();\n\t\t\t\t\t\tconst timeStr = formatTime(now);\n\n\t\t\t\t\t\ttab.lines.push({\n\t\t\t\t\t\t\tid: ++this.lineCounter,\n\t\t\t\t\t\t\ttext: `${timeStr} ${icon} ${message}`,\n\t\t\t\t\t\t\tisStatus: true,\n\t\t\t\t\t\t\tisSuccess: category === 'success',\n\t\t\t\t\t\t\tisError: category === 'error',\n\t\t\t\t\t\t});\n\n\t\t\t\t\t\t// Trim if too many lines\n\t\t\t\t\t\tif (tab.lines.length > MAX_LINES_PER_TAB) {\n\t\t\t\t\t\t\ttab.lines = tab.lines.slice(-MAX_LINES_PER_TAB);\n\t\t\t\t\t\t}\n\t\t\t\t\t},\n\n\t\t\t\t\thandleCommandStart(detail) {\n\t\t\t\t\t\tconst { hostId, command } = detail;\n\t\t\t\t\t\tconst tab = this.getOrCreateTab(hostId);\n\n\t\t\t\t\t\t// // Add START separator\n\t\t\t\t\t\t// const now = new Date();\n\t\t\t\t\t\t// const timeStr = formatTime(now, true);\n\t\t\t\t\t\t// tab.lines.push({\n\t\t\t\t\t\t// \tid: ++this.lineCounter,\n\t\t\t\t\t\t// \ttext: `────────────────── ${command || 'command'} START (${timeStr}) ──────────────────`,\n\t\t\t\t\t\t// \tisSeparator: true,\n\t\t\t\t\t\t// });\n\n\t\t\t\t\t\t// Reset progress\n\t\t\t\t\t\ttab.phase = '';\n\t\t\t\t\t\ttab.phaseIcon = '';\n\t\t\t\t\t\ttab.buildCount = 0;\n\t\t\t\t\t\ttab.buildCurrent = 0;\n\t\t\t\t\t\ttab.indicator = 'running';\n\t\t\t\t\t\ttab.lastCommand = command;\n\t\t\t\t\t\ttab.startTime = Date.now();\n\n\t\t\t\t\t\t// Switch to this tab\n\t\t\t\t\t\tthis.activeTab = hostId;\n\n\t\t\t\t\t\t// P4021: Add to status history\n\t\t\t\t\t\tthis.addStatusHistory(hostId, 'pending', '⧖', `${command || 'Command'} started`);\n\n\t\t\t\t\t\t// Add to system log\n\t\t\t\t\t\tconst host = hostStore.get(hostId);\n\t\t\t\t\t\tthis.addSystemLog({\n\t\t\t\t\t\t\tcategory: 'info',\n\t\t\t\t\t\t\tmessage: `${host?.hostname || hostId}: ${command || 'Command'} started`,\n\t\t\t\t\t\t\ticon: 'ℹ'\n\t\t\t\t\t\t});\n\t\t\t\t\t},\n\n\t\t\t\t\thandleOutputLine(payload) {\n\t\t\t\t\t\tconsole.log('handleOutputLine called:', payload);\n\t\t\t\t\t\tconst hostId = payload.host_id;\n\t\t\t\t\t\tif (!hostId) return;\n\n\t\t\t\t\t\tconst tab = this.getOrCreateTab(hostId);\n\t\t\t\t\t\tconst text = payload.line || payload.output || '';\n\t\t\t\t\t\tconsole.log('Adding line to tab:', hostId, text, 'current lines:', tab.lines.length);\n\n\t\t\t\t\t\t// Parse progress\n\t\t\t\t\t\tthis.parseProgress(tab, text);\n\n\t\t\t\t\t\t// Add line - MUST explicitly set isSeparator/isStatus to false\n\t\t\t\t\t\t// Alpine.js has issues with undefined in x-show expressions\n\t\t\t\t\t\tconst newLine = {\n\t\t\t\t\t\t\tid: ++this.lineCounter,\n\t\t\t\t\t\t\ttext: text,\n\t\t\t\t\t\t\tisError: payload.is_error || payload.stream === 'stderr' || payload.is_stderr,\n\t\t\t\t\t\t\tisSuccess: payload.isSuccess || false,\n\t\t\t\t\t\t\tisSeparator: false,  // Explicit false, not undefined\n\t\t\t\t\t\t\tisStatus: false,     // Explicit false, not undefined\n\t\t\t\t\t\t};\n\t\t\t\t\t\ttab.lines.push(newLine);\n\n\t\t\t\t\t\t// Trim old lines\n\t\t\t\t\t\tif (tab.lines.length > MAX_LINES_PER_TAB) {\n\t\t\t\t\t\t\ttab.lines = tab.lines.slice(-MAX_LINES_PER_TAB);\n\t\t\t\t\t\t}\n\n\t\t\t\t\t\t// Mark unread if not active tab\n\t\t\t\t\t\tif (this.activeTab !== hostId) {\n\t\t\t\t\t\t\ttab.hasUnread = true;\n\t\t\t\t\t\t\tif (tab.indicator !== 'running' && tab.indicator !== 'error') {\n\t\t\t\t\t\t\t\ttab.indicator = 'unread';\n\t\t\t\t\t\t\t}\n\t\t\t\t\t\t}\n\n\t\t\t\t\t\t// Auto-scroll\n\t\t\t\t\t\tthis.$nextTick(() => {\n\t\t\t\t\t\t\tconst el = this.$refs.outputContent;\n\t\t\t\t\t\t\tif (el && this.activeTab === hostId) {\n\t\t\t\t\t\t\t\tel.scrollTop = el.scrollHeight;\n\t\t\t\t\t\t\t}\n\t\t\t\t\t\t});\n\t\t\t\t\t},\n\n\t\t\t\t\thandleCommandComplete(detail) {\n\t\t\t\t\t\tconst hostId = detail.host_id;\n\t\t\t\t\t\tif (!hostId) return;\n\n\t\t\t\t\t\tconst tab = this.tabs.find(t => t.hostId === hostId);\n\t\t\t\t\t\tif (!tab) return;\n\n\t\t\t\t\t\tconst exitCode = detail.exit_code || 0;\n\t\t\t\t\t\tconst success = exitCode === 0;\n\n\t\t\t\t\t\ttab.phase = success ? 'Complete' : 'Failed';\n\t\t\t\t\t\ttab.phaseIcon = success ? '✓' : '✗';\n\t\t\t\t\t\ttab.indicator = success ? 'success' : 'error';\n\n\t\t\t\t\t\t// Calculate duration\n\t\t\t\t\t\tlet durationStr = '';\n\t\t\t\t\t\tif (tab.startTime) {\n\t\t\t\t\t\t\tconst durationMs = Date.now() - tab.startTime;\n\t\t\t\t\t\t\tdurationStr = ` (execution time ${formatDuration(durationMs)})`;\n\t\t\t\t\t\t\ttab.startTime = null; // Reset for next command\n\t\t\t\t\t\t}\n\n\t\t\t\t\t\t// P4021: Add to status history\n\t\t\t\t\t\tconst statusMsg = `${tab.lastCommand || 'Command'} ${success ? 'completed' : 'failed'} (exit ${exitCode})${durationStr}`;\n\t\t\t\t\t\tthis.addStatusHistory(hostId, success ? 'success' : 'error', success ? '✓' : '✗', statusMsg);\n\n\t\t\t\t\t\t// Add to system log\n\t\t\t\t\t\tconst host = hostStore.get(hostId);\n\t\t\t\t\t\tthis.addSystemLog({\n\t\t\t\t\t\t\tcategory: success ? 'success' : 'error',\n\t\t\t\t\t\t\tmessage: `${host?.hostname || hostId}: ${statusMsg}`,\n\t\t\t\t\t\t\ticon: success ? '✓' : '✗'\n\t\t\t\t\t\t});\n\t\t\t\t\t},\n\n\t\t\t\t\tparseProgress(tab, line) {\n\t\t\t\t\t\tif (line.includes('evaluating derivation')) {\n\t\t\t\t\t\t\ttab.phase = 'Evaluation';\n\t\t\t\t\t\t\ttab.phaseIcon = '→';\n\t\t\t\t\t\t} else if (line.includes('these derivations will be built')) {\n\t\t\t\t\t\t\tconst match = line.match(/these (\\d+) derivations/);\n\t\t\t\t\t\t\tif (match) tab.buildCount = parseInt(match[1], 10);\n\t\t\t\t\t\t\ttab.phase = 'Building';\n\t\t\t\t\t\t\ttab.phaseIcon = '●';\n\t\t\t\t\t\t} else if (line.includes(\"building '/nix/store/\")) {\n\t\t\t\t\t\t\ttab.buildCurrent++;\n\t\t\t\t\t\t\ttab.phase = 'Building';\n\t\t\t\t\t\t\ttab.phaseIcon = '●';\n\t\t\t\t\t\t} else if (line.includes('activating the configuration')) {\n\t\t\t\t\t\t\ttab.phase = 'Activation';\n\t\t\t\t\t\t\ttab.phaseIcon = '▶';\n\t\t\t\t\t\t} else if (line.includes('switching to configuration')) {\n\t\t\t\t\t\t\ttab.phase = 'Switch';\n\t\t\t\t\t\t\ttab.phaseIcon = '→';\n\t\t\t\t\t\t} else if (line.includes('setting up /etc')) {\n\t\t\t\t\t\t\ttab.phase = 'Setup';\n\t\t\t\t\t\t\ttab.phaseIcon = '○';\n\t\t\t\t\t\t} else if (line.includes('will be fetched')) {\n\t\t\t\t\t\t\ttab.phase = 'Fetching';\n\t\t\t\t\t\t\ttab.phaseIcon = '↓';\n\t\t\t\t\t\t}\n\t\t\t\t\t},\n\n\t\t\t\t\taddSystemLog(detail) {\n\t\t\t\t\t\tconst now = new Date();\n\t\t\t\t\t\tconst timeStr = formatTime(now, true);\n\n\t\t\t\t\t\tthis.systemLog.unshift({\n\t\t\t\t\t\t\tid: ++this.logCounter,\n\t\t\t\t\t\t\tcategory: detail.category || 'info',\n\t\t\t\t\t\t\tmessage: detail.message,\n\t\t\t\t\t\t\ticon: detail.icon || 'ℹ',\n\t\t\t\t\t\t\ttimestamp: now,\n\t\t\t\t\t\t\ttimeDisplay: timeStr,\n\t\t\t\t\t\t\trelativeTime: 'just now',  // P4021: Dual timestamp format\n\t\t\t\t\t\t});\n\n\t\t\t\t\t\t// Trim old entries\n\t\t\t\t\t\tif (this.systemLog.length > MAX_SYSTEM_LOG_ENTRIES) {\n\t\t\t\t\t\t\tthis.systemLog = this.systemLog.slice(0, MAX_SYSTEM_LOG_ENTRIES);\n\t\t\t\t\t\t}\n\n\t\t\t\t\t\t// Show panel if hidden\n\t\t\t\t\t\tconst panel = document.getElementById('output-panel');\n\t\t\t\t\t\tpanel.classList.remove('hidden');\n\t\t\t\t\t},\n\n\t\t\t\t\thandleStateMachineLog(detail) {\n\t\t\t\t\t\t// Map P2800 log levels to system log categories\n\t\t\t\t\t\tconst levelMap = {\n\t\t\t\t\t\t\t'success': { category: 'success', icon: '✓' },\n\t\t\t\t\t\t\t'warning': { category: 'warning', icon: '⚠' },\n\t\t\t\t\t\t\t'error': { category: 'error', icon: '✗' },\n\t\t\t\t\t\t\t'info': { category: 'info', icon: 'ℹ' },\n\t\t\t\t\t\t};\n\t\t\t\t\t\tconst mapping = levelMap[detail.level?.toLowerCase()] || levelMap.info;\n\n\t\t\t\t\t\t// Add to system log\n\t\t\t\t\t\tthis.addSystemLog({\n\t\t\t\t\t\t\tcategory: mapping.category,\n\t\t\t\t\t\t\tmessage: `${detail.host_id}: ${detail.message}`,\n\t\t\t\t\t\t\ticon: mapping.icon,\n\t\t\t\t\t\t});\n\n\t\t\t\t\t\t// P4021: Also add to host's status history\n\t\t\t\t\t\tif (detail.host_id) {\n\t\t\t\t\t\t\tthis.addStatusHistory(detail.host_id, mapping.category, mapping.icon, detail.message);\n\t\t\t\t\t\t}\n\t\t\t\t\t},\n\n\t\t\t\tswitchTab(tabId) {\n\t\t\t\t\tthis.activeTab = tabId;\n\n\t\t\t\t\t// Clear unread for host tabs\n\t\t\t\t\tif (tabId !== 'system') {\n\t\t\t\t\t\tconst tab = this.tabs.find(t => t.hostId === tabId);\n\t\t\t\t\t\tif (tab) {\n\t\t\t\t\t\t\ttab.hasUnread = false;\n\t\t\t\t\t\t\t// Reset indicator if was 'unread'\n\t\t\t\t\t\t\tif (tab.indicator === 'unread') {\n\t\t\t\t\t\t\t\ttab.indicator = 'success';\n\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\t\n\t\t\t\t\t\t\t// P3300: Restore output if tab is empty (first open after page load)\n\t\t\t\t\t\t\tif (tab.lines.length === 0 && !tab.outputRestored) {\n\t\t\t\t\t\t\t\ttab.outputRestored = true;\n\t\t\t\t\t\t\t\tthis.restoreHostOutput(tabId);\n\t\t\t\t\t\t\t}\n\t\t\t\t\t\t}\n\t\t\t\t\t}\n\n\t\t\t\t\t// Scroll to bottom\n\t\t\t\t\tthis.$nextTick(() => {\n\t\t\t\t\t\tconst el = this.$refs.outputContent;\n\t\t\t\t\t\tif (el) el.scrollTop = el.scrollHeight;\n\t\t\t\t\t});\n\t\t\t\t},\n\t\t\t\t\n\t\t\t\t// P3300: Restore output from server when tab is opened\n\t\t\t\tasync restoreHostOutput(hostId) {\n\t\t\t\t\ttry {\n\t\t\t\t\t\tconst resp = await fetch(`/api/hosts/${hostId}/output?lines=500`);\n\t\t\t\t\t\tif (!resp.ok) return;\n\t\t\t\t\t\t\n\t\t\t\t\t\tconst content = await resp.text();\n\t\t\t\t\t\tif (!content) return;\n\t\t\t\t\t\t\n\t\t\t\t\t\t// Parse the output and add lines to the tab\n\t\t\t\t\t\tconst lines = content.split('\\n');\n\t\t\t\t\t\tlines.forEach(line => {\n\t\t\t\t\t\t\tif (line.trim()) {\n\t\t\t\t\t\t\t\tthis.addLine(hostId, line, false);\n\t\t\t\t\t\t\t}\n\t\t\t\t\t\t});\n\t\t\t\t\t\t\n\t\t\t\t\t\tconsole.log(`[P3300] Restored ${lines.length} lines for ${hostId}`);\n\t\t\t\t\t} catch (err) {\n\t\t\t\t\t\tconsole.error(`[P3300] Failed to restore output for ${hostId}:`, err);\n\t\t\t\t\t}\n\t\t\t\t},\n\n\t\t\t\t\tcloseTab(tabId) {\n\t\t\t\t\t\tif (tabId === 'system') {\n\t\t\t\t\t\t\tthis.systemLog = [];\n\t\t\t\t\t\t\tif (this.activeTab === 'system') {\n\t\t\t\t\t\t\t\tthis.activeTab = this.tabs.length > 0 ? this.tabs[0].hostId : null;\n\t\t\t\t\t\t\t}\n\t\t\t\t\t\t} else {\n\t\t\t\t\t\t\tconst index = this.tabs.findIndex(t => t.hostId === tabId);\n\t\t\t\t\t\t\tif (index !== -1) {\n\t\t\t\t\t\t\t\tthis.tabs.splice(index, 1);\n\t\t\t\t\t\t\t\tif (this.activeTab === tabId) {\n\t\t\t\t\t\t\t\t\t// Switch to another tab\n\t\t\t\t\t\t\t\t\tif (this.tabs.length > 0) {\n\t\t\t\t\t\t\t\t\t\tthis.activeTab = this.tabs[Math.max(0, index - 1)].hostId;\n\t\t\t\t\t\t\t\t\t} else if (this.systemLog.length > 0) {\n\t\t\t\t\t\t\t\t\t\tthis.activeTab = 'system';\n\t\t\t\t\t\t\t\t\t} else {\n\t\t\t\t\t\t\t\t\t\tthis.activeTab = null;\n\t\t\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\t}\n\t\t\t\t\t\t}\n\n\t\t\t\t\t\t// Hide panel if no tabs\n\t\t\t\t\t\tif (this.tabs.length === 0 && this.systemLog.length === 0) {\n\t\t\t\t\t\t\tconst panel = document.getElementById('output-panel');\n\t\t\t\t\t\t\tpanel.classList.add('hidden');\n\t\t\t\t\t\t}\n\t\t\t\t\t},\n\n\t\t\t\t\tcloseAllTabs() {\n\t\t\t\t\t\tthis.tabs = [];\n\t\t\t\t\t\tthis.activeTab = this.systemLog.length > 0 ? 'system' : null;\n\n\t\t\t\t\t\tif (this.systemLog.length === 0) {\n\t\t\t\t\t\t\tconst panel = document.getElementById('output-panel');\n\t\t\t\t\t\t\tpanel.classList.add('hidden');\n\t\t\t\t\t\t}\n\t\t\t\t\t},\n\n\t\t\t\t\ttoggleCollapse() {\n\t\t\t\t\t\tthis.collapsed = !this.collapsed;\n\t\t\t\t\t\tlocalStorage.setItem('outputPanel.collapsed', this.collapsed);\n\t\t\t\t\t},\n\n\t\t\t\t\tapplyFontSize() {\n\t\t\t\t\t\tconst content = this.$refs.outputContent;\n\t\t\t\t\t\tif (content) {\n\t\t\t\t\t\t\tcontent.style.fontSize = this.fontSize + 'px';\n\t\t\t\t\t\t}\n\t\t\t\t\t},\n\n\t\t\t\t\tincreaseFontSize() {\n\t\t\t\t\t\tif (this.fontSize < 20) {\n\t\t\t\t\t\t\tthis.fontSize += 1;\n\t\t\t\t\t\t\tlocalStorage.setItem('outputPanel.fontSize', this.fontSize);\n\t\t\t\t\t\t\tthis.applyFontSize();\n\t\t\t\t\t\t}\n\t\t\t\t\t},\n\n\t\t\t\t\tdecreaseFontSize() {\n\t\t\t\t\t\tif (this.fontSize > 9) {\n\t\t\t\t\t\t\tthis.fontSize -= 1;\n\t\t\t\t\t\t\tlocalStorage.setItem('outputPanel.fontSize', this.fontSize);\n\t\t\t\t\t\t\tthis.applyFontSize();\n\t\t\t\t\t\t}\n\t\t\t\t\t},\n\n\t\t\t\t\tgetActiveTabData() {\n\t\t\t\t\t\tif (this.activeTab === 'system') return null;\n\t\t\t\t\t\treturn this.tabs.find(t => t.hostId === this.activeTab);\n\t\t\t\t\t},\n\n\t\t\t\t\t// Alpine getters for reactivity\n\t\t\t\t\tget activeTabLines() {\n\t\t\t\t\t\tconst tab = this.tabs.find(t => t.hostId === this.activeTab);\n\t\t\t\t\t\treturn tab ? tab.lines : [];\n\t\t\t\t\t},\n\t\t\t\t\tget activeTabColor() {\n\t\t\t\t\t\tconst tab = this.tabs.find(t => t.hostId === this.activeTab);\n\t\t\t\t\t\treturn tab ? tab.themeColor : '#7aa2f7';\n\t\t\t\t\t},\n\n\t\t\t\t\t// Get all hosts from hostStore for dropdown\n\t\t\t\t\tgetAllHosts() {\n\t\t\t\t\t\treturn hostStore.all().map(h => ({\n\t\t\t\t\t\t\tid: h.id,\n\t\t\t\t\t\t\thostname: h.hostname,\n\t\t\t\t\t\t\tthemeColor: h.themeColor || '#7aa2f7'\n\t\t\t\t\t\t}));\n\t\t\t\t\t},\n\n\t\t\t\t\t// Check if a host tab exists\n\t\t\t\t\thasTab(hostId) {\n\t\t\t\t\t\treturn this.tabs.some(t => t.hostId === hostId);\n\t\t\t\t\t},\n\n\t\t\t\t\t// Get indicator class for a host (from tab or default)\n\t\t\t\t\tgetHostTabIndicator(hostId) {\n\t\t\t\t\t\tconst tab = this.tabs.find(t => t.hostId === hostId);\n\t\t\t\t\t\treturn tab?.indicator || '';\n\t\t\t\t\t},\n\n\t\t\t\t\t// Toggle a host tab on/off\n\t\t\t\t\ttoggleHostTab(hostId, hostname, themeColor) {\n\t\t\t\t\t\tconst existing = this.tabs.find(t => t.hostId === hostId);\n\t\t\t\t\t\tif (existing) {\n\t\t\t\t\t\t\t// Close this tab\n\t\t\t\t\t\t\tthis.closeTab(hostId);\n\t\t\t\t\t\t} else {\n\t\t\t\t\t\t\t// Create tab and switch to it\n\t\t\t\t\t\t\tconst tab = {\n\t\t\t\t\t\t\t\thostId: hostId,\n\t\t\t\t\t\t\t\thostname: hostname,\n\t\t\t\t\t\t\t\tthemeColor: themeColor || '#7aa2f7',\n\t\t\t\t\t\t\t\tlines: [],\n\t\t\t\t\t\t\t\tindicator: '',\n\t\t\t\t\t\t\t\thasUnread: false,\n\t\t\t\t\t\t\t\tphase: '',\n\t\t\t\t\t\t\t\tphaseIcon: '',\n\t\t\t\t\t\t\t\tbuildCount: 0,\n\t\t\t\t\t\t\t\tbuildCurrent: 0,\n\t\t\t\t\t\t\t\tlastCommand: null,\n\t\t\t\t\t\t\t};\n\t\t\t\t\t\t\tthis.tabs.push(tab);\n\t\t\t\t\t\t\tthis.activeTab = hostId;\n\t\t\t\t\t\t}\n\t\t\t\t\t},\n\n\t\t\t\t\tclearActiveTab() {\n\t\t\t\t\t\tlet count = 0;\n\t\t\t\t\t\tlet name = 'System';\n\t\t\t\t\t\tif (this.activeTab === 'system') {\n\t\t\t\t\t\t\tcount = this.systemLog.length;\n\t\t\t\t\t\t\tthis.systemLog = [];\n\t\t\t\t\t\t} else {\n\t\t\t\t\t\t\tconst tab = this.getActiveTabData();\n\t\t\t\t\t\t\tif (tab) {\n\t\t\t\t\t\t\t\tcount = tab.lines.length;\n\t\t\t\t\t\t\t\tname = tab.hostname;\n\t\t\t\t\t\t\t\ttab.lines = [];\n\t\t\t\t\t\t\t}\n\t\t\t\t\t\t}\n\t\t\t\t\t\tshowToast(`Cleared ${count} lines from ${name}`, 'success');\n\t\t\t\t\t},\n\n\t\t\t\t\tcopyActiveTab() {\n\t\t\t\t\t\tlet text = '';\n\t\t\t\t\t\tlet name = 'System';\n\t\t\t\t\t\tif (this.activeTab === 'system') {\n\t\t\t\t\t\t\ttext = this.systemLog.map(e => `${e.timeDisplay} ${e.icon} ${e.message}`).join('\\n');\n\t\t\t\t\t\t} else {\n\t\t\t\t\t\t\tconst tab = this.getActiveTabData();\n\t\t\t\t\t\t\tif (tab) {\n\t\t\t\t\t\t\t\ttext = tab.lines.map(l => l.text).join('\\n');\n\t\t\t\t\t\t\t\tname = tab.hostname;\n\t\t\t\t\t\t\t}\n\t\t\t\t\t\t}\n\t\t\t\t\t\tconst lineCount = text ? text.split('\\n').length : 0;\n\t\t\t\t\t\tnavigator.clipboard.writeText(text).then(() => {\n\t\t\t\t\t\t\tshowToast(`Copied ${lineCount} lines from ${name}`, 'success');\n\t\t\t\t\t\t}).catch(() => {\n\t\t\t\t\t\t\tshowToast('Failed to copy to clipboard', 'error');\n\t\t\t\t\t\t});\n\t\t\t\t\t},\n\n\t\t\t\t\tget systemLogIndicator() {\n\t\t\t\t\t\t// Return indicator class based on latest entry\n\t\t\t\t\t\tif (this.systemLog.length === 0) return '';\n\t\t\t\t\t\tconst latest = this.systemLog[0];\n\t\t\t\t\t\treturn latest.category;\n\t\t\t\t\t},\n\t\t\t\t}));\n\t\t\t});\n\n\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\t// UTILITIES\n\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\tfunction formatLastSeen(isoString) {\n\t\t\t\tif (!isoString) return { text: '—', className: '' };\n\n\t\t\t\tconst date = new Date(isoString);\n\t\t\t\tconst now = new Date();\n\t\t\t\tconst diffMs = now - date;\n\t\t\t\tconst diffSec = Math.max(0, Math.floor(diffMs / 1000));\n\n\t\t\t\tlet text;\n\t\t\t\tif (diffSec < 60) {\n\t\t\t\t\ttext = diffSec + 's';\n\t\t\t\t} else if (diffSec < 3600) {\n\t\t\t\t\ttext = Math.floor(diffSec / 60) + 'm';\n\t\t\t\t} else if (diffSec < 86400) {\n\t\t\t\t\ttext = Math.floor(diffSec / 3600) + 'h';\n\t\t\t\t} else {\n\t\t\t\t\ttext = Math.floor(diffSec / 86400) + 'd';\n\t\t\t\t}\n\n\t\t\t\tlet className;\n\t\t\t\tif (diffSec <= HEARTBEAT_INTERVAL * 2) {\n\t\t\t\t\tclassName = 'last-seen-ok';\n\t\t\t\t} else if (diffSec <= HEARTBEAT_INTERVAL * 10) {\n\t\t\t\t\tclassName = 'last-seen-warn';\n\t\t\t\t} else {\n\t\t\t\t\tclassName = 'last-seen-stale';\n\t\t\t\t}\n\n\t\t\t\treturn { text, className };\n\t\t\t}\n\n\t\t\tfunction triggerHeartbeat(rippleEl) {\n\t\t\t\tif (!rippleEl) return;\n\t\t\t\trippleEl.classList.add('heartbeat');\n\t\t\t\tsetTimeout(() => rippleEl.classList.remove('heartbeat'), 1500);\n\t\t\t}\n\n\t\t\tfunction handleFlakeUpdateJob(job) {\n\t\t\t\t// P2600: Show deploy progress via toast\n\t\t\t\tconst state = job.state || 'unknown';\n\t\t\t\tconst message = job.message || '';\n\t\t\t\t\n\t\t\t\tswitch (state) {\n\t\t\t\t\tcase 'merging':\n\t\t\t\t\t\tshowToast(`Merging PR #${job.pr_number || '?'}...`, 'info');\n\t\t\t\t\t\tbreak;\n\t\t\t\t\tcase 'deploying':\n\t\t\t\t\t\tconst hostCount = job.host_count || 'all';\n\t\t\t\t\t\tshowToast(`Deploying to ${hostCount} hosts...`, 'info');\n\t\t\t\t\t\tbreak;\n\t\t\t\t\tcase 'complete':\n\t\t\t\t\t\tshowToast(message || 'Deploy complete!', 'success');\n\t\t\t\t\t\tbreak;\n\t\t\t\t\tcase 'error':\n\t\t\t\t\t\tshowToast(message || 'Deploy failed', 'error');\n\t\t\t\t\t\tbreak;\n\t\t\t\t\tdefault:\n\t\t\t\t\t\t// Log unknown states for debugging\n\t\t\t\t\t\tconsole.log('Flake update job:', state, message);\n\t\t\t\t}\n\t\t\t}\n\n\t\t\t// P2800: Handle state machine log messages\n\t\t\tfunction handleStateMachineLog(log) {\n\t\t\t\t// Dispatch to System Log component\n\t\t\t\twindow.dispatchEvent(new CustomEvent('state-machine-log', { detail: log }));\n\t\t\t\t\n\t\t\t\t// Show important messages as toasts\n\t\t\t\tif (log.level === 'error') {\n\t\t\t\t\tshowToast(`${log.host_id || 'System'}: ${log.message}`, 'error');\n\t\t\t\t} else if (log.level === 'warning' && log.state === 'VALIDATING→BLOCKED') {\n\t\t\t\t\t// Show blocked action warnings\n\t\t\t\t\tshowToast(`${log.host_id}: ${log.message}`, 'info');\n\t\t\t\t}\n\t\t\t}\n\n\t\t\t// P7240: Handle command state changes for timeout UI\n\t\t\tfunction handleCommandStateChange(hostId, payload) {\n\t\t\t\tconst state = payload.state;\n\t\t\t\tconst host = hostStore.get(hostId);\n\t\t\t\tconst hostname = host?.hostname || hostId;\n\n\t\t\t\t// States that indicate timeout\n\t\t\t\tconst timeoutStates = ['running_warning', 'timeout_pending', 'killing', 'kill_failed'];\n\t\t\t\t\n\t\t\t\tif (timeoutStates.includes(state)) {\n\t\t\t\t\t// Add/update timeout tracking\n\t\t\t\t\tif (!globalState.timeouts.has(hostId)) {\n\t\t\t\t\t\tglobalState.timeouts.set(hostId, {\n\t\t\t\t\t\t\thostname,\n\t\t\t\t\t\t\tcommand: host?.pendingCommand || 'unknown',\n\t\t\t\t\t\t\tstartedAt: Date.now() - (payload.elapsed_ms || 0),\n\t\t\t\t\t\t\tstate\n\t\t\t\t\t\t});\n\t\t\t\t\t} else {\n\t\t\t\t\t\tconst existing = globalState.timeouts.get(hostId);\n\t\t\t\t\t\texisting.state = state;\n\t\t\t\t\t}\n\t\t\t\t\t\n\t\t\t\t\t// Dispatch event for context bar update\n\t\t\t\t\twindow.dispatchEvent(new CustomEvent('timeout-update', { detail: { hostId, state, hostname } }));\n\t\t\t\t\t\n\t\t\t\t\t// Show toast for timeout_pending (needs user action)\n\t\t\t\t\tif (state === 'timeout_pending') {\n\t\t\t\t\t\tshowToast(`⚠️ ${hostname}: command timed out - action required`, 'warning');\n\t\t\t\t\t}\n\t\t\t\t} else {\n\t\t\t\t\t// Command completed or state cleared - remove timeout\n\t\t\t\t\tif (globalState.timeouts.has(hostId)) {\n\t\t\t\t\t\tglobalState.timeouts.delete(hostId);\n\t\t\t\t\t\twindow.dispatchEvent(new CustomEvent('timeout-cleared', { detail: { hostId } }));\n\t\t\t\t\t}\n\t\t\t\t}\n\n\t\t\t\t// Update host store with command state\n\t\t\t\thostStore.update(hostId, { commandState: state });\n\t\t\t}\n\n\t\t\t// P7240: Timeout action API calls\n\t\t\tasync function handleTimeoutAction(hostId, action, minutes = 5) {\n\t\t\t\ttry {\n\t\t\t\t\tconst resp = await fetch(`/api/hosts/${hostId}/timeout-action`, {\n\t\t\t\t\t\tmethod: 'POST',\n\t\t\t\t\t\theaders: {\n\t\t\t\t\t\t\t'Content-Type': 'application/json',\n\t\t\t\t\t\t\t'X-CSRF-Token': CSRF_TOKEN\n\t\t\t\t\t\t},\n\t\t\t\t\t\tbody: JSON.stringify({ action, minutes })\n\t\t\t\t\t});\n\t\t\t\t\t\n\t\t\t\t\tif (!resp.ok) {\n\t\t\t\t\t\tconst text = await resp.text();\n\t\t\t\t\t\tthrow new Error(text);\n\t\t\t\t\t}\n\t\t\t\t\t\n\t\t\t\t\tconst host = hostStore.get(hostId);\n\t\t\t\t\tconst hostname = host?.hostname || hostId;\n\t\t\t\t\t\n\t\t\t\t\tswitch (action) {\n\t\t\t\t\t\tcase 'wait':\n\t\t\t\t\t\t\tshowToast(`${hostname}: extended timeout by ${minutes} minutes`, 'info');\n\t\t\t\t\t\t\tbreak;\n\t\t\t\t\t\tcase 'kill':\n\t\t\t\t\t\t\tshowToast(`${hostname}: kill signal sent`, 'warning');\n\t\t\t\t\t\t\tbreak;\n\t\t\t\t\t\tcase 'ignore':\n\t\t\t\t\t\t\tshowToast(`${hostname}: timeout ignored`, 'info');\n\t\t\t\t\t\t\tbreak;\n\t\t\t\t\t}\n\t\t\t\t\t\n\t\t\t\t\t// Remove from local timeout tracking\n\t\t\t\t\tglobalState.timeouts.delete(hostId);\n\t\t\t\t\twindow.dispatchEvent(new CustomEvent('timeout-cleared', { detail: { hostId } }));\n\t\t\t\t\t\n\t\t\t\t} catch (err) {\n\t\t\t\t\tshowToast(`Failed to ${action}: ${err.message}`, 'error');\n\t\t\t\t}\n\t\t\t}\n\n\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\t// MODALS & DROPDOWNS (Keep existing, no changes)\n\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\tfunction toggleDropdown(btn) {\n\t\t\t\tconst dropdown = btn.closest('.dropdown');\n\t\t\t\tconst wasOpen = dropdown.classList.contains('open');\n\t\t\t\tdocument.querySelectorAll('.dropdown.open').forEach(d => d.classList.remove('open'));\n\t\t\t\tif (!wasOpen) dropdown.classList.add('open');\n\t\t\t}\n\n\t\t\tdocument.addEventListener('click', (e) => {\n\t\t\t\tif (!e.target.closest('.dropdown')) {\n\t\t\t\t\tdocument.querySelectorAll('.dropdown.open').forEach(d => d.classList.remove('open'));\n\t\t\t\t}\n\t\t\t});\n\n\t\t\tdocument.addEventListener('keydown', (e) => {\n\t\t\t\tif (e.key === 'Escape') {\n\t\t\t\t\tdocument.querySelectorAll('.dropdown.open').forEach(d => d.classList.remove('open'));\n\t\t\t\t\tdocument.querySelectorAll('.modal-overlay.open').forEach(m => m.classList.remove('open'));\n\t\t\t\t\tcloseBulkMenu();\n\t\t\t\t}\n\t\t\t});\n\n\t\t\t// P2100: Bulk menu with keyboard navigation\n\t\t\tlet bulkMenuFocusedIndex = -1;\n\n\t\t\tfunction toggleBulkMenu(e) {\n\t\t\t\te.stopPropagation();\n\t\t\t\tconst menu = document.getElementById('bulk-actions-menu');\n\t\t\t\tconst wasOpen = menu.classList.contains('open');\n\t\t\t\tmenu.classList.toggle('open');\n\t\t\t\tif (!wasOpen) {\n\t\t\t\t\tbulkMenuFocusedIndex = 0;\n\t\t\t\t\tfocusBulkMenuItem(0);\n\t\t\t\t} else {\n\t\t\t\t\tbulkMenuFocusedIndex = -1;\n\t\t\t\t}\n\t\t\t}\n\n\t\t\tfunction closeBulkMenu() {\n\t\t\t\tconst menu = document.getElementById('bulk-actions-menu');\n\t\t\t\tif (menu) menu.classList.remove('open');\n\t\t\t\tbulkMenuFocusedIndex = -1;\n\t\t\t}\n\n\t\t\t// P4021: Force clear all caches and reload\n\t\t\tasync function forceRefresh() {\n\t\t\t\tcloseBulkMenu();\n\t\t\t\ttry {\n\t\t\t\t\t// Clear browser caches if available (Service Worker caches)\n\t\t\t\t\tif ('caches' in window) {\n\t\t\t\t\t\tconst names = await caches.keys();\n\t\t\t\t\t\tawait Promise.all(names.map(n => caches.delete(n)));\n\t\t\t\t\t}\n\t\t\t\t} catch (e) {\n\t\t\t\t\tconsole.log('Cache clear failed:', e);\n\t\t\t\t}\n\t\t\t\t// Force reload bypassing cache\n\t\t\t\tlocation.reload(true);\n\t\t\t}\n\n\t\t\tfunction toggleDebugPanel() {\n\t\t\t\tcloseBulkMenu();\n\t\t\t\tconst panel = document.getElementById('debug-panel');\n\t\t\t\tif (panel) {\n\t\t\t\t\tpanel.style.display = panel.style.display === 'none' ? 'block' : 'none';\n\t\t\t\t}\n\t\t\t}\n\n\t\t\tfunction focusBulkMenuItem(idx) {\n\t\t\t\tconst menu = document.getElementById('bulk-actions-menu');\n\t\t\t\tif (!menu) return;\n\t\t\t\tconst items = [...menu.querySelectorAll('.dropdown-item')];\n\t\t\t\tif (items.length === 0) return;\n\t\t\t\tbulkMenuFocusedIndex = ((idx % items.length) + items.length) % items.length;\n\t\t\t\titems[bulkMenuFocusedIndex].focus();\n\t\t\t}\n\n\t\t\tfunction handleBulkMenuKeydown(e) {\n\t\t\t\tconst menu = document.getElementById('bulk-actions-menu');\n\t\t\t\tif (!menu || !menu.classList.contains('open')) return;\n\n\t\t\t\tif (e.key === 'ArrowDown') {\n\t\t\t\t\te.preventDefault();\n\t\t\t\t\tfocusBulkMenuItem(bulkMenuFocusedIndex + 1);\n\t\t\t\t} else if (e.key === 'ArrowUp') {\n\t\t\t\t\te.preventDefault();\n\t\t\t\t\tfocusBulkMenuItem(bulkMenuFocusedIndex - 1);\n\t\t\t\t} else if (e.key === 'Escape') {\n\t\t\t\t\te.preventDefault();\n\t\t\t\t\tcloseBulkMenu();\n\t\t\t\t\t// Return focus to the button\n\t\t\t\t\tconst btn = document.querySelector('.bulk-actions-dropdown .btn');\n\t\t\t\t\tif (btn) btn.focus();\n\t\t\t\t}\n\t\t\t}\n\n\t\t\tdocument.addEventListener('click', (e) => {\n\t\t\t\tif (!e.target.closest('.bulk-actions-dropdown')) {\n\t\t\t\t\tcloseBulkMenu();\n\t\t\t\t}\n\t\t\t});\n\n\t\t\tfunction unlockActions(btn) {\n\t\t\t\tconst hostId = btn.dataset.hostId;\n\t\t\t\thostStore.update(hostId, { pendingCommand: null });\n\t\t\t\tbtn.closest('.dropdown').classList.remove('open');\n\t\t\t}\n\n\t\t\tfunction downloadLogs(hostId) {\n\t\t\t\twindow.open(`/api/hosts/${hostId}/logs?download=true`, '_blank');\n\t\t\t}\n\n\t\t\tlet pendingRemoveHostId = null;\n\n\t\t\tfunction confirmRemoveHost(hostId, hostname) {\n\t\t\t\tpendingRemoveHostId = hostId;\n\t\t\t\tdocument.getElementById('removeHostName').textContent = hostname;\n\t\t\t\tdocument.getElementById('removeHostModal').classList.add('open');\n\t\t\t\tdocument.querySelectorAll('.dropdown.open').forEach(d => d.classList.remove('open'));\n\t\t\t}\n\n\t\t\tfunction doRemoveHost() {\n\t\t\t\tif (!pendingRemoveHostId) return;\n\t\t\t\tfetch(`/api/hosts/${pendingRemoveHostId}`, {\n\t\t\t\t\tmethod: 'DELETE',\n\t\t\t\t\theaders: { 'X-CSRF-Token': CSRF_TOKEN }\n\t\t\t\t}).then(resp => {\n\t\t\t\t\tif (!resp.ok) throw new Error('Failed to remove host');\n\t\t\t\t\treturn resp.json();\n\t\t\t\t}).then(() => {\n\t\t\t\t\tdocument.querySelectorAll(`[data-host-id=\"${pendingRemoveHostId}\"]`).forEach(el => el.remove());\n\t\t\t\t\tcloseModal('removeHostModal');\n\t\t\t\t}).catch(err => {\n\t\t\t\t\talert('Failed to remove host: ' + err.message);\n\t\t\t\t});\n\t\t\t}\n\n\t\t\tfunction closeModal(modalId) {\n\t\t\t\tdocument.getElementById(modalId).classList.remove('open');\n\t\t\t\tpendingRemoveHostId = null;\n\t\t\t}\n\n\t\t\t// P6900: Reboot modal functions\n\t\t\tlet pendingRebootHostId = null;\n\t\t\tlet pendingRebootHostname = null;\n\n\t\tfunction showRebootModal(hostId, hostname) {\n\t\t\t// P5100: Server decides if reboot is available (via availableOps)\n\t\t\t// If button was enabled, host is ready for reboot\n\t\t\tpendingRebootHostId = hostId;\n\t\t\tpendingRebootHostname = hostname;\n\t\t\t\tdocument.getElementById('rebootHostName').textContent = hostname;\n\t\t\t\tdocument.getElementById('rebootTotp').value = '';\n\t\t\t\tdocument.getElementById('rebootConfirmBtn').disabled = true;\n\t\t\t\tdocument.getElementById('rebootModal').classList.add('open');\n\t\t\t\tdocument.querySelectorAll('.dropdown.open').forEach(d => d.classList.remove('open'));\n\t\t\t\t// Auto-focus TOTP input\n\t\t\t\tsetTimeout(() => document.getElementById('rebootTotp').focus(), 100);\n\t\t\t}\n\n\t\t\tfunction closeRebootModal() {\n\t\t\t\tdocument.getElementById('rebootModal').classList.remove('open');\n\t\t\t\tpendingRebootHostId = null;\n\t\t\t\tpendingRebootHostname = null;\n\t\t\t}\n\n\t\t\tfunction validateRebootTotp(input) {\n\t\t\t\tconst value = input.value.replace(/\\D/g, ''); // Remove non-digits\n\t\t\t\tinput.value = value;\n\t\t\t\tdocument.getElementById('rebootConfirmBtn').disabled = value.length !== 6;\n\t\t\t}\n\n\t\t\tasync function doReboot() {\n\t\t\t\tif (!pendingRebootHostId) return;\n\n\t\t\t\tconst totpInput = document.getElementById('rebootTotp');\n\t\t\t\tconst confirmBtn = document.getElementById('rebootConfirmBtn');\n\t\t\t\tconst btnText = document.getElementById('rebootBtnText');\n\t\t\t\tconst btnSpinner = document.getElementById('rebootBtnSpinner');\n\t\t\t\tconst totp = totpInput.value;\n\n\t\t\t\t// Disable button and show loading state\n\t\t\t\tconfirmBtn.disabled = true;\n\t\t\t\tbtnText.style.display = 'none';\n\t\t\t\tbtnSpinner.style.display = 'inline';\n\n\t\t\t\ttry {\n\t\t\t\t\tconst resp = await fetch(`/api/hosts/${pendingRebootHostId}/reboot`, {\n\t\t\t\t\t\tmethod: 'POST',\n\t\t\t\t\t\theaders: {\n\t\t\t\t\t\t\t'Content-Type': 'application/json',\n\t\t\t\t\t\t\t'X-CSRF-Token': CSRF_TOKEN\n\t\t\t\t\t\t},\n\t\t\t\t\t\tbody: JSON.stringify({ totp })\n\t\t\t\t\t});\n\n\t\t\t\t\tconst data = await resp.json();\n\n\t\t\t\t\tif (resp.status === 401) {\n\t\t\t\t\t\tshowToast('Invalid TOTP code', 'error');\n\t\t\t\t\t\ttotpInput.focus();\n\t\t\t\t\t\ttotpInput.select();\n\t\t\t\t\t\tconfirmBtn.disabled = false;\n\t\t\t\t\t\tbtnText.style.display = 'inline';\n\t\t\t\t\t\tbtnSpinner.style.display = 'none';\n\t\t\t\t\t\treturn;\n\t\t\t\t\t}\n\n\t\t\t\t\tif (resp.status === 429) {\n\t\t\t\t\t\tshowToast(data.error || 'Too many reboot attempts. Please wait.', 'error');\n\t\t\t\t\t\tcloseRebootModal();\n\t\t\t\t\t\treturn;\n\t\t\t\t\t}\n\n\t\t\t\t\tif (!resp.ok) {\n\t\t\t\t\t\tshowToast(data.error || `Reboot failed: ${resp.statusText}`, 'error');\n\t\t\t\t\t\tconfirmBtn.disabled = false;\n\t\t\t\t\t\tbtnText.style.display = 'inline';\n\t\t\t\t\t\tbtnSpinner.style.display = 'none';\n\t\t\t\t\t\treturn;\n\t\t\t\t\t}\n\n\t\t\t\t\t// Success\n\t\t\t\t\tcloseRebootModal();\n\t\t\t\t\tshowToast(`Reboot command sent to ${pendingRebootHostname}`, 'info');\n\t\t\t\t} catch (err) {\n\t\t\t\t\tshowToast(`Network error: ${err.message}`, 'error');\n\t\t\t\t\tconfirmBtn.disabled = false;\n\t\t\t\t\tbtnText.style.display = 'inline';\n\t\t\t\t\tbtnSpinner.style.display = 'none';\n\t\t\t\t}\n\t\t\t}\n\n\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\t// P4600: Rollback System Functions\n\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\tlet pendingRollbackHostId = null;\n\t\t\tlet pendingRollbackHostname = null;\n\n\t\t\tfunction showRollbackModal(hostId, hostname) {\n\t\t\t\tpendingRollbackHostId = hostId;\n\t\t\t\tpendingRollbackHostname = hostname;\n\t\t\t\tdocument.getElementById('rollbackHostName').textContent = hostname;\n\t\t\t\tdocument.getElementById('rollbackModal').classList.add('open');\n\t\t\t\tdocument.querySelectorAll('.dropdown.open').forEach(d => d.classList.remove('open'));\n\t\t\t}\n\n\t\t\tfunction closeRollbackModal() {\n\t\t\t\tdocument.getElementById('rollbackModal').classList.remove('open');\n\t\t\t\tpendingRollbackHostId = null;\n\t\t\t\tpendingRollbackHostname = null;\n\t\t\t}\n\n\t\t\tasync function doRollback() {\n\t\t\t\tif (!pendingRollbackHostId) return;\n\n\t\t\t\tconst confirmBtn = document.getElementById('rollbackConfirmBtn');\n\t\t\t\tconst btnText = document.getElementById('rollbackBtnText');\n\t\t\t\tconst btnSpinner = document.getElementById('rollbackBtnSpinner');\n\n\t\t\t\t// Disable button and show loading state\n\t\t\t\tconfirmBtn.disabled = true;\n\t\t\t\tbtnText.style.display = 'none';\n\t\t\t\tbtnSpinner.style.display = 'inline';\n\n\t\t\t\ttry {\n\t\t\t\t\t// Send rollback command via Op Engine\n\t\t\t\t\tstateSync.dispatchOp(pendingRollbackHostId, 'rollback');\n\t\t\t\t\tcloseRollbackModal();\n\t\t\t\t\tshowToast(`Rollback command sent to ${pendingRollbackHostname}`, 'info');\n\t\t\t\t} catch (err) {\n\t\t\t\t\tshowToast(`Failed to send rollback: ${err.message}`, 'error');\n\t\t\t\t\tconfirmBtn.disabled = false;\n\t\t\t\t\tbtnText.style.display = 'inline';\n\t\t\t\t\tbtnSpinner.style.display = 'none';\n\t\t\t\t}\n\t\t\t}\n\n\t\t\tfunction openAddHostModal() {\n\t\t\t\tdocument.getElementById('addHostModal').classList.add('open');\n\t\t\t}\n\n\t\t\tfunction doAddHost() {\n\t\t\t\tconst form = document.getElementById('addHostForm');\n\t\t\t\tconst formData = new FormData(form);\n\t\t\t\tconst data = Object.fromEntries(formData.entries());\n\t\t\t\tfetch('/api/hosts', {\n\t\t\t\t\tmethod: 'POST',\n\t\t\t\t\theaders: {\n\t\t\t\t\t\t'Content-Type': 'application/json',\n\t\t\t\t\t\t'X-CSRF-Token': CSRF_TOKEN\n\t\t\t\t\t},\n\t\t\t\t\tbody: JSON.stringify(data)\n\t\t\t\t}).then(resp => {\n\t\t\t\t\tif (!resp.ok) throw new Error('Failed to add host');\n\t\t\t\t\treturn resp.json();\n\t\t\t\t}).then(() => {\n\t\t\t\t\tcloseModal('addHostModal');\n\t\t\t\t\twindow.location.reload();\n\t\t\t\t}).catch(err => {\n\t\t\t\t\talert('Failed to add host: ' + err.message);\n\t\t\t\t});\n\t\t\t}\n\n\t\t\tdocument.querySelectorAll('.modal-overlay').forEach(overlay => {\n\t\t\t\toverlay.addEventListener('click', (e) => {\n\t\t\t\t\tif (e.target === overlay) overlay.classList.remove('open');\n\t\t\t\t});\n\t\t\t});\n\n\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\t// P2950: COLOR PICKER\n\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\tfunction openColorPicker(hostId, hostname, currentColor) {\n\t\t\t\tdocument.getElementById('colorPickerHostId').value = hostId;\n\t\t\t\tdocument.getElementById('colorPickerHostname').textContent = hostname;\n\t\t\t\tdocument.getElementById('colorPickerInput').value = currentColor;\n\t\t\t\tdocument.getElementById('colorPickerHex').value = currentColor;\n\t\t\t\tdocument.getElementById('colorPickerPalette').value = '';\n\t\t\t\t\n\t\t\t\t// Clear previous selection\n\t\t\t\tdocument.querySelectorAll('.color-preset.selected').forEach(btn => btn.classList.remove('selected'));\n\t\t\t\t\n\t\t\t\t// Check if current color matches a preset\n\t\t\t\tdocument.querySelectorAll('.color-preset').forEach(btn => {\n\t\t\t\t\tif (btn.dataset.color.toLowerCase() === currentColor.toLowerCase()) {\n\t\t\t\t\t\tbtn.classList.add('selected');\n\t\t\t\t\t\tdocument.getElementById('colorPickerPalette').value = btn.dataset.palette;\n\t\t\t\t\t}\n\t\t\t\t});\n\t\t\t\t\n\t\t\t\tupdateColorPreview(currentColor);\n\t\t\t\tdocument.getElementById('colorPickerModal').classList.add('open');\n\t\t\t}\n\n\t\t\tfunction selectPreset(btn) {\n\t\t\t\tdocument.querySelectorAll('.color-preset.selected').forEach(b => b.classList.remove('selected'));\n\t\t\t\tbtn.classList.add('selected');\n\t\t\t\tconst color = btn.dataset.color;\n\t\t\t\tdocument.getElementById('colorPickerInput').value = color;\n\t\t\t\tdocument.getElementById('colorPickerHex').value = color;\n\t\t\t\tdocument.getElementById('colorPickerPalette').value = btn.dataset.palette;\n\t\t\t\tupdateColorPreview(color);\n\t\t\t}\n\n\t\t\tfunction syncHexInput(value) {\n\t\t\t\tif (/^#[0-9a-fA-F]{6}$/.test(value)) {\n\t\t\t\t\tdocument.getElementById('colorPickerInput').value = value;\n\t\t\t\t\tdocument.getElementById('colorPickerPalette').value = ''; // Custom color\n\t\t\t\t\tdocument.querySelectorAll('.color-preset.selected').forEach(b => b.classList.remove('selected'));\n\t\t\t\t\tupdateColorPreview(value);\n\t\t\t\t}\n\t\t\t}\n\n\t\t\tfunction updateColorPreview(hex) {\n\t\t\t\t// Generate gradient preview using HSL manipulation\n\t\t\t\tconst hsl = hexToHSL(hex);\n\t\t\t\tconst row = document.getElementById('colorPreviewRow');\n\t\t\t\t\n\t\t\t\t// Generate gradient stops\n\t\t\t\tconst stops = [\n\t\t\t\t\thslToHex(hsl.h, hsl.s, 0.75),      // lightest\n\t\t\t\t\thex,                                 // primary\n\t\t\t\t\thslToHex(hsl.h, hsl.s, hsl.l * 0.75), // secondary\n\t\t\t\t\thslToHex(hsl.h, hsl.s, 0.20),      // midDark\n\t\t\t\t\thslToHex(hsl.h, hsl.s, 0.12),      // dark\n\t\t\t\t\thslToHex(hsl.h, hsl.s, 0.08),      // darker\n\t\t\t\t\thslToHex(hsl.h, hsl.s, 0.05),      // darkest\n\t\t\t\t];\n\t\t\t\t\n\t\t\t\tconst segments = row.querySelectorAll('.preview-segment');\n\t\t\t\tsegments.forEach((seg, i) => {\n\t\t\t\t\tseg.style.background = stops[i];\n\t\t\t\t});\n\t\t\t}\n\n\t\t\tfunction hexToHSL(hex) {\n\t\t\t\thex = hex.replace('#', '');\n\t\t\t\tconst r = parseInt(hex.substr(0, 2), 16) / 255;\n\t\t\t\tconst g = parseInt(hex.substr(2, 2), 16) / 255;\n\t\t\t\tconst b = parseInt(hex.substr(4, 2), 16) / 255;\n\t\t\t\t\n\t\t\t\tconst max = Math.max(r, g, b), min = Math.min(r, g, b);\n\t\t\t\tconst l = (max + min) / 2;\n\t\t\t\tlet h, s;\n\t\t\t\t\n\t\t\t\tif (max === min) {\n\t\t\t\t\th = s = 0;\n\t\t\t\t} else {\n\t\t\t\t\tconst d = max - min;\n\t\t\t\t\ts = d / (1 - Math.abs(2 * l - 1));\n\t\t\t\t\tswitch (max) {\n\t\t\t\t\t\tcase r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;\n\t\t\t\t\t\tcase g: h = ((b - r) / d + 2) / 6; break;\n\t\t\t\t\t\tcase b: h = ((r - g) / d + 4) / 6; break;\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t\treturn { h: h * 360, s, l };\n\t\t\t}\n\n\t\t\tfunction hslToHex(h, s, l) {\n\t\t\t\th = ((h % 360) + 360) % 360;\n\t\t\t\ts = Math.max(0, Math.min(1, s));\n\t\t\t\tl = Math.max(0, Math.min(1, l));\n\t\t\t\t\n\t\t\t\tconst c = (1 - Math.abs(2 * l - 1)) * s;\n\t\t\t\tconst x = c * (1 - Math.abs((h / 60) % 2 - 1));\n\t\t\t\tconst m = l - c / 2;\n\t\t\t\tlet r, g, b;\n\t\t\t\t\n\t\t\t\tif (h < 60) { r = c; g = x; b = 0; }\n\t\t\t\telse if (h < 120) { r = x; g = c; b = 0; }\n\t\t\t\telse if (h < 180) { r = 0; g = c; b = x; }\n\t\t\t\telse if (h < 240) { r = 0; g = x; b = c; }\n\t\t\t\telse if (h < 300) { r = x; g = 0; b = c; }\n\t\t\t\telse { r = c; g = 0; b = x; }\n\t\t\t\t\n\t\t\t\tconst toHex = v => Math.round((v + m) * 255).toString(16).padStart(2, '0');\n\t\t\t\treturn '#' + toHex(r) + toHex(g) + toHex(b);\n\t\t\t}\n\n\t\t\tfunction applyColor() {\n\t\t\t\tconst hostId = document.getElementById('colorPickerHostId').value;\n\t\t\t\tconst color = document.getElementById('colorPickerHex').value;\n\t\t\t\tconst palette = document.getElementById('colorPickerPalette').value;\n\t\t\t\t\n\t\t\t\t// Open log panel to show progress\n\t\t\t\tshowLogPanel(hostId);\n\t\t\t\t\n\t\t\t\tfetch(`/api/hosts/${hostId}/theme-color`, {\n\t\t\t\t\tmethod: 'POST',\n\t\t\t\t\theaders: {\n\t\t\t\t\t\t'Content-Type': 'application/json',\n\t\t\t\t\t\t'X-CSRF-Token': CSRF_TOKEN\n\t\t\t\t\t},\n\t\t\t\t\tbody: JSON.stringify({ \n\t\t\t\t\t\tcolor: color,\n\t\t\t\t\t\tpalette: palette || null  // null means custom color\n\t\t\t\t\t})\n\t\t\t\t}).then(resp => {\n\t\t\t\t\tif (!resp.ok) return resp.text().then(t => { throw new Error(t); });\n\t\t\t\t\treturn resp.json();\n\t\t\t\t}).then(data => {\n\t\t\t\t\tcloseModal('colorPickerModal');\n\t\t\t\t\tshowToast(`Color updated for ${hostId}. Changes will apply after rebuild.`, 'success');\n\t\t\t\t\t\n\t\t\t\t\t// Update the row's gradient immediately for visual feedback\n\t\t\t\t\tconst row = document.querySelector(`tr[data-host-id=\"${hostId}\"]`);\n\t\t\t\t\tif (row) {\n\t\t\t\t\t\trow.dataset.themeColor = color;\n\t\t\t\t\t\tconst rgb = hexToRGB(color);\n\t\t\t\t\t\trow.style.background = `linear-gradient(to right, rgba(${rgb}, 0.02) 0%, rgba(${rgb}, 0.10) 25%, rgba(${rgb}, 0.02) 50%, transparent 100%)`;\n\t\t\t\t\t}\n\t\t\t\t}).catch(err => {\n\t\t\t\t\talert('Failed to apply color: ' + err.message);\n\t\t\t\t});\n\t\t\t}\n\n\t\t\tfunction hexToRGB(hex) {\n\t\t\t\thex = hex.replace('#', '');\n\t\t\t\tconst r = parseInt(hex.substr(0, 2), 16);\n\t\t\t\tconst g = parseInt(hex.substr(2, 2), 16);\n\t\t\t\tconst b = parseInt(hex.substr(4, 2), 16);\n\t\t\t\treturn `${r}, ${g}, ${b}`;\n\t\t\t}\n\n\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\t// ROW SELECTION HANDLERS (P1030)\n\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\tfunction handleHeaderCheckboxClick() {\n\t\t\t\tconst store = Alpine.store('selection');\n\t\t\t\tif (store.headerState === 'none') {\n\t\t\t\t\tstore.selectAll();\n\t\t\t\t} else {\n\t\t\t\t\tstore.selectNone();\n\t\t\t\t}\n\t\t\t}\n\n\t\t\tfunction handleCheckboxClick(event, hostId) {\n\t\t\t\tevent.stopPropagation();\n\t\t\t\tconst store = Alpine.store('selection');\n\t\t\t\tif (event.shiftKey && store.lastSelected) {\n\t\t\t\t\tstore.selectRange(hostId);\n\t\t\t\t} else {\n\t\t\t\t\tstore.toggle(hostId);\n\t\t\t\t}\n\t\t\t}\n\n\t\t\t// Keyboard shortcuts for selection\n\t\t\tdocument.addEventListener('keydown', (e) => {\n\t\t\t\tif (e.target.matches('input, textarea, [contenteditable]')) return;\n\n\t\t\t\t// Ctrl/Cmd + A: Select all\n\t\t\t\tif ((e.ctrlKey || e.metaKey) && e.key === 'a') {\n\t\t\t\t\te.preventDefault();\n\t\t\t\t\tAlpine.store('selection').selectAll();\n\t\t\t\t}\n\n\t\t\t\t// Escape: Clear selection (if any)\n\t\t\t\tif (e.key === 'Escape') {\n\t\t\t\t\tconst store = Alpine.store('selection');\n\t\t\t\t\tif (store.count > 0) {\n\t\t\t\t\t\te.preventDefault();\n\t\t\t\t\t\tstore.selectNone();\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t});\n\n\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\t// CLICKABLE COMPARTMENTS (P1020)\n\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\tconst compartmentCooldowns = new Map();\n\t\t\tconst COOLDOWN_MS = 500;\n\n\t\t\t// P7300: Hover shows info description (no action preview)\n\t\t\tfunction handleCompartmentHover(btn) {\n\t\t\t\tconst hostId = btn.dataset.hostId;\n\t\t\t\tconst hostname = btn.dataset.hostname;\n\t\t\t\tconst compartment = btn.dataset.compartment;\n\t\t\t\tconst description = btn.dataset.description || '';\n\n\t\t\t\t// P7300: Compartments are info-only, show description in context bar\n\t\t\t\t// Map compartment to an info display (no action)\n\t\t\t\twindow.dispatchEvent(new CustomEvent('action-preview', {\n\t\t\t\t\tdetail: { hostId, hostname, command: 'info', compartment, description }\n\t\t\t\t}));\n\t\t\t}\n\n\t\t\tfunction handleCompartmentLeave() {\n\t\t\t\twindow.dispatchEvent(new CustomEvent('action-clear'));\n\t\t\t}\n\n\t\t\t// P7300: Compartment click = INFO ONLY\n\t\t\t// - Safe lightweight checks allowed (git status refresh)\n\t\t\t// - NO host modification (no pull, switch)\n\t\t\t// - NO heavy ops (no nix build --dry-run)\n\t\t\t// For actions, use the ellipsis menu\n\t\t\tfunction handleCompartmentClick(btn) {\n\t\t\t\tconst hostId = btn.dataset.hostId;\n\t\t\t\tconst hostname = btn.dataset.hostname;\n\t\t\t\tconst compartment = btn.dataset.compartment;\n\t\t\t\tconst description = btn.dataset.description || '';\n\n\t\t\t\t// Rate limiting (prevent spam clicks)\n\t\t\t\tconst cooldownKey = `${hostId}-${compartment}`;\n\t\t\t\tif (compartmentCooldowns.has(cooldownKey)) return;\n\n\t\t\t\tcompartmentCooldowns.set(cooldownKey, true);\n\t\t\t\tbtn.classList.add('rate-limited');\n\t\t\t\tsetTimeout(() => {\n\t\t\t\t\tcompartmentCooldowns.delete(cooldownKey);\n\t\t\t\t\tbtn.classList.remove('rate-limited');\n\t\t\t\t}, COOLDOWN_MS);\n\n\t\t\t\t// P7230: All compartment clicks show toast + log\n\t\t\t\t// Toast = short TL;DR, Log = detailed info\n\t\t\t\tconst status = btn.dataset.status || 'unknown';\n\t\t\t\tconst toastType = status === 'ok' ? 'success' : \n\t\t\t\t\t\t\t\t  status === 'error' ? 'error' : \n\t\t\t\t\t\t\t\t  status === 'outdated' ? 'warning' : 'info';\n\n\t\t\t\tswitch (compartment) {\n\t\t\t\t\tcase 'agent':\n\t\t\t\t\t\t// P7230: Agent: run check-version command to compare running vs installed\n\t\t\t\t\t\tshowLogPanel(hostId);\n\t\t\t\t\t\tappendLogLine(hostId, `🔍 Checking agent version...`);\n\t\t\t\t\t\tshowToast(`Agent: checking version...`, 'info');\n\t\t\t\t\t\tsendCommand(hostId, 'check-version');\n\t\t\t\t\t\tbreak;\n\n\t\t\t\t\tcase 'git':\n\t\t\t\t\t\t// Git: lightweight refresh (dashboard-side GitHub API call)\n\t\t\t\t\t\tshowLogPanel(hostId);\n\t\t\t\t\t\tappendLogLine(hostId, `🔄 Refreshing git status...`);\n\t\t\t\t\t\tshowToast(`Git: refreshing...`, 'info');\n\t\t\t\t\t\twindow.dispatchEvent(new CustomEvent('output-start', {\n\t\t\t\t\t\t\tdetail: { hostId, command: 'refresh-git' }\n\t\t\t\t\t\t}));\n\n\t\t\t\t\t\tfetch(`/api/hosts/${hostId}/refresh-git`, {\n\t\t\t\t\t\t\tmethod: 'POST',\n\t\t\t\t\t\t\theaders: { 'X-CSRF-Token': CSRF_TOKEN }\n\t\t\t\t\t\t}).then(resp => {\n\t\t\t\t\t\t\tif (!resp.ok) throw new Error('Failed to refresh git status');\n\t\t\t\t\t\t\treturn resp.json();\n\t\t\t\t\t\t}).then(data => {\n\t\t\t\t\t\t\tconst msg = `Git: ${data.status} - ${data.message}`;\n\t\t\t\t\t\t\tappendLogLine(hostId, `✓ ${msg}`);\n\t\t\t\t\t\t\tshowToast(msg, data.status === 'ok' ? 'success' : 'warning');\n\t\t\t\t\t\t\trefreshHost(hostId);\n\t\t\t\t\t\t\twindow.dispatchEvent(new CustomEvent('log-complete', {\n\t\t\t\t\t\t\t\tdetail: { host_id: hostId, command: 'refresh-git', exit_code: 0 }\n\t\t\t\t\t\t\t}));\n\t\t\t\t\t\t}).catch(err => {\n\t\t\t\t\t\t\tappendLogLine(hostId, `✗ ${err.message}`, 'error');\n\t\t\t\t\t\t\tshowToast(`Git: ${err.message}`, 'error');\n\t\t\t\t\t\t\twindow.dispatchEvent(new CustomEvent('log-complete', {\n\t\t\t\t\t\t\t\tdetail: { host_id: hostId, command: 'refresh-git', exit_code: 1, error: err.message }\n\t\t\t\t\t\t\t}));\n\t\t\t\t\t\t});\n\t\t\t\t\t\tbreak;\n\n\t\t\t\t\tcase 'lock':\n\t\t\t\t\t\t// Lock: lightweight refresh (agent reads flake.lock - fast)\n\t\t\t\t\t\tshowLogPanel(hostId);\n\t\t\t\t\t\tappendLogLine(hostId, `🔄 Refreshing lock status...`);\n\t\t\t\t\t\tshowToast(`Lock: ${description || 'checking...'}`, toastType);\n\t\t\t\t\t\tsendCommand(hostId, 'refresh-lock');\n\t\t\t\t\t\tbreak;\n\n\t\t\t\t\tcase 'system':\n\t\t\t\t\t\t// System: show confirmation dialog (refresh is expensive)\n\t\t\t\t\t\tshowSystemRefreshDialog(hostId, hostname, description, status);\n\t\t\t\t\t\tbreak;\n\n\t\t\t\t\tdefault:\n\t\t\t\t\t\tshowToast(`Unknown compartment: ${compartment}`, 'error');\n\t\t\t\t}\n\t\t\t}\n\n\t\t\tfunction showToast(message, type = 'info') {\n\t\t\t\tconst existing = document.querySelector('.toast');\n\t\t\t\tif (existing) existing.remove();\n\n\t\t\t\tconst toast = document.createElement('div');\n\t\t\t\ttoast.className = `toast toast-${type}`;\n\t\t\t\ttoast.textContent = message;\n\t\t\t\tdocument.body.appendChild(toast);\n\n\t\t\t\trequestAnimationFrame(() => toast.classList.add('show'));\n\n\t\t\t\tsetTimeout(() => {\n\t\t\t\t\ttoast.classList.remove('show');\n\t\t\t\t\tsetTimeout(() => toast.remove(), 300);\n\t\t\t\t}, 3000);\n\t\t\t}\n\n\t\t\t// P1060: Clipboard utility\n\t\t\tasync function copyToClipboard(text, message) {\n\t\t\t\ttry {\n\t\t\t\t\tawait navigator.clipboard.writeText(text);\n\t\t\t\t\tshowToast(message, 'success');\n\t\t\t\t} catch (err) {\n\t\t\t\t\tconsole.error('Failed to copy:', err);\n\t\t\t\t\tshowToast('Failed to copy to clipboard', 'error');\n\t\t\t\t}\n\t\t\t}\n\n\t\t\t// Copy hostname to clipboard (used by clickable hostnames)\n\t\t\tasync function copyHostname(hostname) {\n\t\t\t\tawait copyToClipboard(hostname, 'Copied hostname to clipboard');\n\t\t\t}\n\n\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\t// CONTEXT BAR COMPONENT - Unified hover preview + selection actions\n\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\t// P2500: Enhanced Context Bar with full descriptions and PR support\n\t\t\tdocument.addEventListener('alpine:init', () => {\n\t\t\t\tAlpine.data('contextBar', () => ({\n\t\t\t\t\t// Hover state\n\t\t\t\t\thoverAction: null,\n\t\t\t\t\thostnameHover: null, // For hostname copy hint\n\t\t\t\t\t_clearTimer: null,\n\t\t\t\t\t_hostnameClearTimer: null,\n\t\t\t\t\t// P7240: Timeout tracking\n\t\t\t\t\ttimeouts: [],\n\t\t\t\t\t_elapsedInterval: null,\n\n\t\t\t\t\tinit() {\n\t\t\t\t\t\t// Listen for hover events from compartments\n\t\t\t\t\t\twindow.addEventListener('action-preview', (e) => this.handlePreview(e.detail));\n\t\t\t\t\t\twindow.addEventListener('action-clear', () => this.handleClear());\n\t\t\t\t\t\t// Listen for hostname hover events\n\t\t\t\t\t\twindow.addEventListener('hostname-hover', (e) => this.handleHostnameHover(e.detail));\n\t\t\t\t\t\twindow.addEventListener('hostname-clear', () => this.handleHostnameClear());\n\t\t\t\t\t\t// P7240: Listen for timeout events\n\t\t\t\t\t\twindow.addEventListener('timeout-update', (e) => this.handleTimeoutUpdate(e.detail));\n\t\t\t\t\t\twindow.addEventListener('timeout-cleared', (e) => this.handleTimeoutCleared(e.detail));\n\t\t\t\t\t\t\n\t\t\t\t\t\t// Update elapsed times every second\n\t\t\t\t\t\tthis._elapsedInterval = setInterval(() => this.updateElapsedTimes(), 1000);\n\t\t\t\t\t},\n\n\t\t\t\t\t// Computed properties\n\t\t\t\t\tget selectedCount() {\n\t\t\t\t\t\treturn Alpine.store('selection').selected.length;\n\t\t\t\t\t},\n\n\t\t\t\t\tget onlineCount() {\n\t\t\t\t\t\tconst selected = Alpine.store('selection').selected;\n\t\t\t\t\t\treturn selected.filter(id => {\n\t\t\t\t\t\t\tconst host = hostStore.get(id);\n\t\t\t\t\t\t\treturn host && host.online;\n\t\t\t\t\t\t}).length;\n\t\t\t\t\t},\n\n\t\t\t\t\tget pendingPR() {\n\t\t\t\t\t\treturn globalState.pendingPR;\n\t\t\t\t\t},\n\n\t\t\t\t\tget hasContent() {\n\t\t\t\t\t\treturn this.hoverAction !== null || this.hostnameHover !== null || \n\t\t\t\t\t\t       this.selectedCount > 0 || this.pendingPR !== null || this.timeouts.length > 0;\n\t\t\t\t\t},\n\n\t\t\t\t\tget selectionText() {\n\t\t\t\t\t\tconst total = this.selectedCount;\n\t\t\t\t\t\tconst online = this.onlineCount;\n\t\t\t\t\t\tif (total === 0) return '';\n\t\t\t\t\t\tconst hostWord = total === 1 ? 'host' : 'hosts';\n\t\t\t\t\t\tif (online === total) return `${total} ${hostWord}`;\n\t\t\t\t\t\treturn `${total} ${hostWord} (${online} online)`;\n\t\t\t\t\t},\n\n\t\t\t\t\t// Hover handlers - P2500: now includes description\n\t\t\t\t\thandlePreview(detail) {\n\t\t\t\t\t\tif (this._clearTimer) {\n\t\t\t\t\t\t\tclearTimeout(this._clearTimer);\n\t\t\t\t\t\t\tthis._clearTimer = null;\n\t\t\t\t\t\t}\n\t\t\t\t\t\tthis.hoverAction = {\n\t\t\t\t\t\t\tcommand: detail.command,\n\t\t\t\t\t\t\thostname: detail.hostname,\n\t\t\t\t\t\t\thostId: detail.hostId,\n\t\t\t\t\t\t\tdescription: detail.description || ''\n\t\t\t\t\t\t};\n\t\t\t\t\t},\n\n\t\t\t\t\thandleClear() {\n\t\t\t\t\t\t// Debounce clearing to prevent flicker\n\t\t\t\t\t\tthis._clearTimer = setTimeout(() => {\n\t\t\t\t\t\t\tthis.hoverAction = null;\n\t\t\t\t\t\t\tthis._clearTimer = null;\n\t\t\t\t\t\t}, 200);\n\t\t\t\t\t},\n\n\t\t\t\t\t// Hostname hover handlers for copy hint\n\t\t\t\t\thandleHostnameHover(detail) {\n\t\t\t\t\t\tif (this._hostnameClearTimer) {\n\t\t\t\t\t\t\tclearTimeout(this._hostnameClearTimer);\n\t\t\t\t\t\t\tthis._hostnameClearTimer = null;\n\t\t\t\t\t\t}\n\t\t\t\t\t\tthis.hostnameHover = detail.hostname;\n\t\t\t\t\t},\n\n\t\t\t\t\thandleHostnameClear() {\n\t\t\t\t\t\tthis._hostnameClearTimer = setTimeout(() => {\n\t\t\t\t\t\t\tthis.hostnameHover = null;\n\t\t\t\t\t\t\tthis._hostnameClearTimer = null;\n\t\t\t\t\t\t}, 200);\n\t\t\t\t\t},\n\n\t\t\t\t\t// P7240: Timeout handlers\n\t\t\t\t\thandleTimeoutUpdate(detail) {\n\t\t\t\t\t\tconst existing = this.timeouts.find(t => t.hostId === detail.hostId);\n\t\t\t\t\t\tif (existing) {\n\t\t\t\t\t\t\texisting.state = detail.state;\n\t\t\t\t\t\t} else {\n\t\t\t\t\t\t\tconst timeout = globalState.timeouts.get(detail.hostId);\n\t\t\t\t\t\t\tif (timeout) {\n\t\t\t\t\t\t\t\tthis.timeouts.push({\n\t\t\t\t\t\t\t\t\thostId: detail.hostId,\n\t\t\t\t\t\t\t\t\thostname: timeout.hostname,\n\t\t\t\t\t\t\t\t\tcommand: timeout.command,\n\t\t\t\t\t\t\t\t\tstartedAt: timeout.startedAt,\n\t\t\t\t\t\t\t\t\tstate: timeout.state,\n\t\t\t\t\t\t\t\t\telapsed: this.formatElapsed(Date.now() - timeout.startedAt)\n\t\t\t\t\t\t\t\t});\n\t\t\t\t\t\t\t}\n\t\t\t\t\t\t}\n\t\t\t\t\t},\n\n\t\t\t\t\thandleTimeoutCleared(detail) {\n\t\t\t\t\t\tthis.timeouts = this.timeouts.filter(t => t.hostId !== detail.hostId);\n\t\t\t\t\t},\n\n\t\t\t\t\tupdateElapsedTimes() {\n\t\t\t\t\t\tconst now = Date.now();\n\t\t\t\t\t\tthis.timeouts.forEach(t => {\n\t\t\t\t\t\t\tt.elapsed = this.formatElapsed(now - t.startedAt);\n\t\t\t\t\t\t});\n\t\t\t\t\t},\n\n\t\t\t\t\tformatElapsed(ms) {\n\t\t\t\t\t\tconst seconds = Math.floor(ms / 1000);\n\t\t\t\t\t\tconst minutes = Math.floor(seconds / 60);\n\t\t\t\t\t\tconst secs = seconds % 60;\n\t\t\t\t\t\treturn `${minutes}:${secs.toString().padStart(2, '0')}`;\n\t\t\t\t\t},\n\n\t\t\t\t\ttimeoutWait(hostId) {\n\t\t\t\t\t\thandleTimeoutAction(hostId, 'wait', 5);\n\t\t\t\t\t},\n\n\t\t\t\t\ttimeoutKill(hostId) {\n\t\t\t\t\t\thandleTimeoutAction(hostId, 'kill');\n\t\t\t\t\t},\n\n\t\t\t\t\ttimeoutIgnore(hostId) {\n\t\t\t\t\t\thandleTimeoutAction(hostId, 'ignore');\n\t\t\t\t\t},\n\n\t\t\t\t\t// Bulk actions\n\t\t\t\t\tbulkCommand(command) {\n\t\t\t\t\t\tconst selected = Alpine.store('selection').selected;\n\t\t\t\t\t\tconst onlineHostIds = selected.filter(id => {\n\t\t\t\t\t\t\tconst host = hostStore.get(id);\n\t\t\t\t\t\t\treturn host && host.online;\n\t\t\t\t\t\t});\n\t\t\t\t\t\tif (onlineHostIds.length === 0) return;\n\t\t\t\t\t\tonlineHostIds.forEach(hostId => sendCommand(hostId, command));\n\t\t\t\t\t},\n\n\t\t\t\t\t// Do All: Pull → Switch → Test in sequence, waiting for completion\n\t\t\t\t\tasync doAll() {\n\t\t\t\t\t\tconst selected = Alpine.store('selection').selected;\n\t\t\t\t\t\tlet remainingHosts = selected.filter(id => {\n\t\t\t\t\t\t\tconst host = hostStore.get(id);\n\t\t\t\t\t\t\treturn host && host.online;\n\t\t\t\t\t\t});\n\t\t\t\t\t\tif (remainingHosts.length === 0) return;\n\n\t\t\t\t\t\t// Helper: wait for all hosts to complete a command\n\t\t\t\t\t\tconst waitForCompletion = (hostIds, command, timeoutMs = 300000) => {\n\t\t\t\t\t\t\treturn new Promise((resolve) => {\n\t\t\t\t\t\t\t\tconst pending = new Set(hostIds);\n\t\t\t\t\t\t\t\tconst results = new Map(); // hostId -> { success, exit_code }\n\t\t\t\t\t\t\t\t\n\t\t\t\t\t\t\t\tconst handler = (e) => {\n\t\t\t\t\t\t\t\t\tconst { hostId, command: cmd, exit_code } = e.detail;\n\t\t\t\t\t\t\t\t\tif (cmd === command && pending.has(hostId)) {\n\t\t\t\t\t\t\t\t\t\tpending.delete(hostId);\n\t\t\t\t\t\t\t\t\t\tresults.set(hostId, { success: exit_code === 0, exit_code });\n\t\t\t\t\t\t\t\t\t\tif (pending.size === 0) {\n\t\t\t\t\t\t\t\t\t\t\twindow.removeEventListener('command-complete', handler);\n\t\t\t\t\t\t\t\t\t\t\tclearTimeout(timer);\n\t\t\t\t\t\t\t\t\t\t\tresolve(results);\n\t\t\t\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\t\t};\n\t\t\t\t\t\t\t\t\n\t\t\t\t\t\t\t\twindow.addEventListener('command-complete', handler);\n\t\t\t\t\t\t\t\t\n\t\t\t\t\t\t\t\t// Timeout fallback\n\t\t\t\t\t\t\t\tconst timer = setTimeout(() => {\n\t\t\t\t\t\t\t\t\twindow.removeEventListener('command-complete', handler);\n\t\t\t\t\t\t\t\t\t// Mark remaining as failed\n\t\t\t\t\t\t\t\t\tpending.forEach(id => results.set(id, { success: false, exit_code: -1, timeout: true }));\n\t\t\t\t\t\t\t\t\tresolve(results);\n\t\t\t\t\t\t\t\t}, timeoutMs);\n\t\t\t\t\t\t\t});\n\t\t\t\t\t\t};\n\n\t\t\t\t\t\t// Execute Pull → Switch → Test sequentially\n\t\t\t\t\t\tconst commands = ['pull', 'switch', 'test'];\n\t\t\t\t\t\tfor (const command of commands) {\n\t\t\t\t\t\t\tif (remainingHosts.length === 0) break;\n\t\t\t\t\t\t\t\n\t\t\t\t\t\t\t// Send command to all remaining hosts\n\t\t\t\t\t\t\tremainingHosts.forEach(hostId => sendCommand(hostId, command));\n\t\t\t\t\t\t\t\n\t\t\t\t\t\t\t// Wait for all to complete\n\t\t\t\t\t\t\tconst results = await waitForCompletion(remainingHosts, command);\n\t\t\t\t\t\t\t\n\t\t\t\t\t\t\t// Filter out hosts that failed (don't continue with them)\n\t\t\t\t\t\t\tremainingHosts = remainingHosts.filter(id => {\n\t\t\t\t\t\t\t\tconst result = results.get(id);\n\t\t\t\t\t\t\t\treturn result && result.success;\n\t\t\t\t\t\t\t});\n\t\t\t\t\t\t}\n\t\t\t\t\t},\n\n\t\t\t\t\t// P2500: Merge and deploy PR\n\t\t\t\t\t// P4700: Renamed from mergeAndDeployPR to mergePR\n\t\t\t\t\tmergePR() {\n\t\t\t\t\t\tif (!this.pendingPR) return;\n\t\t\t\t\t\tmergePROnly(this.pendingPR.number);\n\t\t\t\t\t},\n\n\t\t\t\t\t// P2500: Get human-readable PR description for sysop context\n\t\t\t\t\tgetPRDescription() {\n\t\t\t\t\t\tconst pr = this.pendingPR;\n\t\t\t\t\t\tif (!pr) return '';\n\t\t\t\t\t\t\n\t\t\t\t\t\t// Build context-rich description\n\t\t\t\t\t\tconst parts = [];\n\t\t\t\t\t\tif (pr.title) {\n\t\t\t\t\t\t\tparts.push(pr.title);\n\t\t\t\t\t\t} else {\n\t\t\t\t\t\t\tparts.push('Ready to merge');\n\t\t\t\t\t\t}\n\t\t\t\t\t\t\n\t\t\t\t\t\t// Add info about how many hosts would be affected\n\t\t\t\t\t\tconst totalHosts = hostStore.all().length;\n\t\t\t\t\t\tconst onlineHosts = hostStore.all().filter(h => h.online).length;\n\t\t\t\t\t\tif (totalHosts > 0) {\n\t\t\t\t\t\t\tparts.push(`• will deploy to ${onlineHosts}/${totalHosts} hosts`);\n\t\t\t\t\t\t}\n\t\t\t\t\t\t\n\t\t\t\t\t\treturn parts.join(' ');\n\t\t\t\t\t},\n\n\t\t\t\t\tclearSelection() {\n\t\t\t\t\t\tAlpine.store('selection').selectNone();\n\t\t\t\t\t}\n\t\t\t\t}));\n\n\t\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\t\t// DEPENDENCY DIALOG COMPONENT (P1040)\n\t\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\t\tAlpine.data('dependencyDialog', () => ({\n\t\t\t\t\tshow: false,\n\t\t\t\t\ttitle: '',\n\t\t\t\t\tmessage: '',\n\t\t\t\t\thosts: [],\n\t\t\t\t\texecuting: false,\n\t\t\t\t\tprogressText: '',\n\t\t\t\t\tcancelled: false,\n\t\t\t\t\t_completionHandlers: [],\n\n\t\t\t\t\tinit() {\n\t\t\t\t\t\twindow.addEventListener('show-dependency-dialog', (e) => this.open(e.detail));\n\t\t\t\t\t},\n\n\t\t\t\t\topen(detail) {\n\t\t\t\t\t\tthis.title = detail.title;\n\t\t\t\t\t\tthis.message = detail.message;\n\t\t\t\t\t\tthis.hosts = detail.hosts;\n\t\t\t\t\t\tthis.executing = false;\n\t\t\t\t\t\tthis.progressText = '';\n\t\t\t\t\t\tthis.cancelled = false;\n\t\t\t\t\t\tthis.show = true;\n\t\t\t\t\t},\n\n\t\t\t\t\tclose() {\n\t\t\t\t\t\tif (this.executing) return;\n\t\t\t\t\t\tthis.show = false;\n\t\t\t\t\t\tthis._cleanup();\n\t\t\t\t\t},\n\n\t\t\t\t\thandleEscape() {\n\t\t\t\t\t\tif (this.executing) {\n\t\t\t\t\t\t\tthis.cancelExecution();\n\t\t\t\t\t\t} else {\n\t\t\t\t\t\t\tthis.close();\n\t\t\t\t\t\t}\n\t\t\t\t\t},\n\n\t\t\t\t\tasync choose(action) {\n\t\t\t\t\t\tswitch (action) {\n\t\t\t\t\t\t\tcase 'pull':\n\t\t\t\t\t\t\t\tsendCommand(this.hosts[0].id, 'pull');\n\t\t\t\t\t\t\t\tthis.show = false;\n\t\t\t\t\t\t\t\tbreak;\n\t\t\t\t\t\t\tcase 'switch':\n\t\t\t\t\t\t\t\tsendCommand(this.hosts[0].id, 'switch');\n\t\t\t\t\t\t\t\tthis.show = false;\n\t\t\t\t\t\t\t\tbreak;\n\t\t\t\t\t\t\tcase 'pull-switch':\n\t\t\t\t\t\t\t\tawait this.executePullThenSwitch([this.hosts[0]]);\n\t\t\t\t\t\t\t\tbreak;\n\t\t\t\t\t\t\tcase 'switch-all':\n\t\t\t\t\t\t\t\tthis.hosts.forEach(h => sendCommand(h.id, 'switch'));\n\t\t\t\t\t\t\t\tthis.show = false;\n\t\t\t\t\t\t\t\tbreak;\n\t\t\t\t\t\t\tcase 'pull-switch-all':\n\t\t\t\t\t\t\t\tawait this.executePullThenSwitch(this.hosts);\n\t\t\t\t\t\t\t\tbreak;\n\t\t\t\t\t\t}\n\t\t\t\t\t},\n\n\t\t\t\t\tasync executePullThenSwitch(hosts) {\n\t\t\t\t\t\tthis.executing = true;\n\t\t\t\t\t\tthis.cancelled = false;\n\n\t\t\t\t\t\tconst hostsToPull = hosts.filter(h => h.needsPull);\n\t\t\t\t\t\tconst hostsToSwitchOnly = hosts.filter(h => !h.needsPull);\n\n\t\t\t\t\t\ttry {\n\t\t\t\t\t\t\tif (hostsToPull.length > 0) {\n\t\t\t\t\t\t\t\tthis.progressText = `Pulling ${hostsToPull.length} host${hostsToPull.length > 1 ? 's' : ''}...`;\n\t\t\t\t\t\t\t\tawait Promise.all(hostsToPull.map(h => {\n\t\t\t\t\t\t\t\t\tif (this.cancelled) throw new Error('Cancelled');\n\t\t\t\t\t\t\t\t\treturn this._sendCommandAndWait(h.id, 'pull');\n\t\t\t\t\t\t\t\t}));\n\t\t\t\t\t\t\t}\n\n\t\t\t\t\t\t\tif (this.cancelled) {\n\t\t\t\t\t\t\t\tthis._showCancelled();\n\t\t\t\t\t\t\t\treturn;\n\t\t\t\t\t\t\t}\n\n\t\t\t\t\t\t\tconst allToSwitch = [...hostsToPull, ...hostsToSwitchOnly];\n\t\t\t\t\t\t\tthis.progressText = `Switching ${allToSwitch.length} host${allToSwitch.length > 1 ? 's' : ''}...`;\n\t\t\t\t\t\t\tallToSwitch.forEach(h => {\n\t\t\t\t\t\t\t\tif (!this.cancelled) sendCommand(h.id, 'switch');\n\t\t\t\t\t\t\t});\n\n\t\t\t\t\t\t\tthis.show = false;\n\t\t\t\t\t\t\tthis._cleanup();\n\t\t\t\t\t\t} catch (err) {\n\t\t\t\t\t\t\tif (err.message === 'Cancelled') {\n\t\t\t\t\t\t\t\tthis._showCancelled();\n\t\t\t\t\t\t\t} else {\n\t\t\t\t\t\t\t\tconsole.error('Pull+Switch failed:', err);\n\t\t\t\t\t\t\t\tthis.progressText = `Error: ${err.message}`;\n\t\t\t\t\t\t\t\tsetTimeout(() => { this.executing = false; }, 2000);\n\t\t\t\t\t\t\t}\n\t\t\t\t\t\t}\n\t\t\t\t\t},\n\n\t\t\t\t\tcancelExecution() {\n\t\t\t\t\t\tthis.cancelled = true;\n\t\t\t\t\t\tthis.progressText = 'Cancelling...';\n\t\t\t\t\t},\n\n\t\t\t\t\t_showCancelled() {\n\t\t\t\t\t\tthis.progressText = 'Cancelled';\n\t\t\t\t\t\tsetTimeout(() => {\n\t\t\t\t\t\t\tthis.show = false;\n\t\t\t\t\t\t\tthis.executing = false;\n\t\t\t\t\t\t\tthis._cleanup();\n\t\t\t\t\t\t}, 1000);\n\t\t\t\t\t},\n\n\t\t\t\t\t_sendCommandAndWait(hostId, command) {\n\t\t\t\t\t\treturn new Promise((resolve, reject) => {\n\t\t\t\t\t\t\tconst handler = (e) => {\n\t\t\t\t\t\t\t\tconst detail = e.detail;\n\t\t\t\t\t\t\t\tif (detail.hostId === hostId) {\n\t\t\t\t\t\t\t\t\twindow.removeEventListener('command-complete', handler);\n\t\t\t\t\t\t\t\t\tconst idx = this._completionHandlers.indexOf(handler);\n\t\t\t\t\t\t\t\t\tif (idx !== -1) this._completionHandlers.splice(idx, 1);\n\t\t\t\t\t\t\t\t\tif (detail.exit_code === 0) {\n\t\t\t\t\t\t\t\t\t\tresolve();\n\t\t\t\t\t\t\t\t\t} else {\n\t\t\t\t\t\t\t\t\t\treject(new Error(`${command} failed on ${hostId} (exit ${detail.exit_code})`));\n\t\t\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\t};\n\t\t\t\t\t\t\twindow.addEventListener('command-complete', handler);\n\t\t\t\t\t\t\tthis._completionHandlers.push(handler);\n\t\t\t\t\t\t\tsendCommand(hostId, command);\n\t\t\t\t\t\t});\n\t\t\t\t\t},\n\n\t\t\t\t\t_cleanup() {\n\t\t\t\t\t\tthis._completionHandlers.forEach(handler => {\n\t\t\t\t\t\t\twindow.removeEventListener('command-complete', handler);\n\t\t\t\t\t\t});\n\t\t\t\t\t\tthis._completionHandlers = [];\n\t\t\t\t\t}\n\t\t\t\t}));\n\t\t\t});\n\n\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\t// DEPENDENCY CHECK HELPER (P1040)\n\t\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\tfunction checkDependenciesAndExecute(hostIds, command) {\n\t\t\t\tif (command !== 'switch') {\n\t\t\t\t\thostIds.forEach(id => sendCommand(id, command));\n\t\t\t\t\treturn;\n\t\t\t\t}\n\n\t\t\t\tconst hostsNeedingPull = [];\n\t\t\t\tconst hostsReady = [];\n\n\t\t\t\thostIds.forEach(id => {\n\t\t\t\t\tconst host = hostStore.get(id);\n\t\t\t\t\tif (!host) return;\n\n\t\t\t\t\tconst gitStatus = host.updateStatus?.git?.status;\n\t\t\t\t\tif (gitStatus === 'outdated') {\n\t\t\t\t\t\thostsNeedingPull.push({ id: host.id, hostname: host.hostname, needsPull: true });\n\t\t\t\t\t} else {\n\t\t\t\t\t\thostsReady.push({ id: host.id, hostname: host.hostname, needsPull: false });\n\t\t\t\t\t}\n\t\t\t\t});\n\n\t\t\t\tif (hostsNeedingPull.length === 0) {\n\t\t\t\t\thostIds.forEach(id => sendCommand(id, 'switch'));\n\t\t\t\t\treturn;\n\t\t\t\t}\n\n\t\t\t\tconst allHosts = [...hostsNeedingPull, ...hostsReady];\n\t\t\t\tconst isSingle = allHosts.length === 1;\n\n\t\t\t\twindow.dispatchEvent(new CustomEvent('show-dependency-dialog', {\n\t\t\t\t\tdetail: {\n\t\t\t\t\t\ttitle: isSingle\n\t\t\t\t\t\t\t? `Git is behind on ${allHosts[0].hostname}`\n\t\t\t\t\t\t\t: `${hostsNeedingPull.length} of ${allHosts.length} hosts need Pull first`,\n\t\t\t\t\t\tmessage: 'Running Switch without Pull may deploy old code.',\n\t\t\t\t\t\thosts: allHosts\n\t\t\t\t\t}\n\t\t\t\t}));\n\t\t\t}\n\n\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t// P3300: RESTORE LOGS ON PAGE LOAD\n\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t\n\t\t// Restore event log from server\n\t\tasync function restoreEventLog() {\n\t\t\ttry {\n\t\t\t\tconst resp = await fetch('/api/events?limit=50');\n\t\t\t\tif (!resp.ok) return;\n\t\t\t\t\n\t\t\t\tconst data = await resp.json();\n\t\t\t\tconst events = data.events || [];\n\t\t\t\t\n\t\t\t\t// Add events to system log (in reverse order so newest are on top)\n\t\t\t\tevents.reverse().forEach(event => {\n\t\t\t\t\tconst icon = getCategoryIcon(event.category, event.level);\n\t\t\t\t\taddSystemLogEntry(event.category, event.message, icon);\n\t\t\t\t});\n\t\t\t\t\n\t\t\t\tconsole.log(`[P3300] Restored ${events.length} events`);\n\t\t\t} catch (err) {\n\t\t\t\tconsole.error('[P3300] Failed to restore event log:', err);\n\t\t\t}\n\t\t}\n\t\t\n\t\t// Helper to get icon for event category/level\n\t\tfunction getCategoryIcon(category, level) {\n\t\t\tif (level === 'error') return '❌';\n\t\t\tif (level === 'warning') return '⚠️';\n\t\t\tswitch (category) {\n\t\t\t\tcase 'command': return '⚙️';\n\t\t\t\tcase 'system': return '🖥️';\n\t\t\t\tcase 'auth': return '🔐';\n\t\t\t\tcase 'git': return '📦';\n\t\t\t\tdefault: return 'ℹ';\n\t\t\t}\n\t\t}\n\n\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\t// INIT - P7000\n\t\t// ═══════════════════════════════════════════════════════════════════════════\n\t\thostStore.hydrate();\n\t\tconnectWebSocket();\n\t\t\n\t\t// P3300: Restore event log on page load\n\t\trestoreEventLog();\n\n\t\t\t// Update last-seen every second\n\t\t\tsetInterval(() => {\n\t\t\t\thostStore.all().forEach(host => {\n\t\t\t\t\tif (host.lastSeen) {\n\t\t\t\t\t\tconst { row, card } = host._elements || {};\n\t\t\t\t\t\t[row, card].filter(Boolean).forEach(el => {\n\t\t\t\t\t\t\tconst cell = el.querySelector('[data-cell=\"last-seen\"]');\n\t\t\t\t\t\t\tif (cell) {\n\t\t\t\t\t\t\t\tconst result = formatLastSeen(host.lastSeen);\n\t\t\t\t\t\t\t\tcell.textContent = result.text;\n\t\t\t\t\t\t\t\tcell.className = result.className;\n\t\t\t\t\t\t\t}\n\t\t\t\t\t\t});\n\t\t\t\t\t}\n\t\t\t\t});\n\t\t\t}, 1000);\n\n\t\t\t// P7100: Safety net - refresh all online hosts every 5 minutes\n\t\t\t// Ensures stale data is eventually corrected even if WebSocket messages are missed\n\t\t\tsetInterval(() => {\n\t\t\t\thostStore.all().filter(h => h.online).forEach(host => {\n\t\t\t\t\trefreshHost(host.id);\n\t\t\t\t});\n\t\t\t}, 5 * 60 * 1000);\n\t\t</script>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -386,7 +387,7 @@ func ContextBar() templ.Component {
 			templ_7745c5c3_Var13 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "<div id=\"context-bar\" class=\"context-bar\" x-data=\"contextBar\" :class=\"{ 'context-bar-empty': !hasContent }\"><!-- Row 1: PR info (when pending PR) --><template x-if=\"pendingPR && pendingPR.mergeable\"><div class=\"context-row context-row-pr\"><div class=\"context-row-info\"><svg class=\"icon icon-pr\"><use href=\"#icon-git-pull-request\"></use></svg> <span class=\"pr-label\">PR #<span x-text=\"pendingPR.number\"></span></span> <span class=\"pr-detail\" x-text=\"getPRDescription()\"></span></div><button class=\"btn btn-merge\" @click=\"mergeAndDeployPR()\"><svg class=\"icon\"><use href=\"#icon-git-merge\"></use></svg> <span>Merge & Deploy</span></button></div></template><!-- Row 2: Hover context (when hovering a compartment) --><template x-if=\"hoverAction\"><div class=\"context-row context-row-hover\"><span class=\"context-host\" x-text=\"hoverAction.hostname\"></span> <span class=\"context-description\" x-text=\"hoverAction.description\"></span></div></template><!-- Row 2b: Hostname copy hint (when hovering hostname) --><template x-if=\"hostnameHover && !hoverAction\"><div class=\"context-row context-row-hover\"><span class=\"context-host\" x-text=\"hostnameHover\"></span> <span class=\"context-description\">Click to copy hostname</span></div></template><!-- Row 3: Selection + Actions (when hosts selected) --><template x-if=\"$store.selection.selected.length > 0\"><div class=\"context-row context-row-selection\"><div class=\"context-row-info\"><svg class=\"icon icon-check\"><use href=\"#icon-check-square\"></use></svg> <span x-text=\"selectionText\"></span></div><div class=\"context-actions\"><button class=\"btn btn-context\" :disabled=\"onlineCount === 0\" @click=\"bulkCommand('pull')\"><svg class=\"icon\"><use href=\"#icon-download\"></use></svg> <span class=\"btn-label\">Pull</span></button> <button class=\"btn btn-context\" :disabled=\"onlineCount === 0\" @click=\"bulkCommand('switch')\"><svg class=\"icon\"><use href=\"#icon-refresh\"></use></svg> <span class=\"btn-label\">Switch</span></button> <button class=\"btn btn-context\" :disabled=\"onlineCount === 0\" @click=\"bulkCommand('test')\"><svg class=\"icon\"><use href=\"#icon-flask\"></use></svg> <span class=\"btn-label\">Test</span></button> <button class=\"btn btn-primary btn-do-all\" :disabled=\"onlineCount === 0\" @click=\"doAll()\"><svg class=\"icon\"><use href=\"#icon-play\"></use></svg> <span class=\"btn-label\">Do All</span></button> <button class=\"btn btn-clear\" @click=\"clearSelection()\"><svg class=\"icon\"><use href=\"#icon-x\"></use></svg></button></div></div></template><!-- P7240: Timeout notifications (stacked) --><template x-for=\"timeout in timeouts\" :key=\"timeout.hostId\"><div class=\"context-row context-row-timeout\"><div class=\"context-row-info\"><svg class=\"icon timeout-icon\"><use href=\"#icon-alert-triangle\"></use></svg> <span class=\"timeout-host\" x-text=\"timeout.hostname\"></span> <span class=\"timeout-detail\"><span x-text=\"timeout.command\"></span> timed out</span> <span class=\"timeout-elapsed\" x-text=\"timeout.elapsed\"></span></div><div class=\"timeout-actions\"><button class=\"btn-timeout btn-timeout-wait\" @click=\"timeoutWait(timeout.hostId)\">Wait 5m</button> <button class=\"btn-timeout btn-timeout-kill\" @click=\"timeoutKill(timeout.hostId)\">Kill</button> <button class=\"btn-timeout btn-timeout-ignore\" @click=\"timeoutIgnore(timeout.hostId)\">×</button></div></div></template></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "<div id=\"context-bar\" class=\"context-bar\" x-data=\"contextBar\" :class=\"{ 'context-bar-empty': !hasContent }\"><!-- Row 1: PR info (when pending PR) --><template x-if=\"pendingPR && pendingPR.mergeable\"><div class=\"context-row context-row-pr\"><div class=\"context-row-info\"><svg class=\"icon icon-pr\"><use href=\"#icon-git-pull-request\"></use></svg> <span class=\"pr-label\">PR #<span x-text=\"pendingPR.number\"></span></span> <span class=\"pr-detail\" x-text=\"getPRDescription()\"></span></div><!-- P4700: Renamed from \"Merge & Deploy\" to \"Merge PR\" - deployment is manual --><button class=\"btn btn-merge\" @click=\"mergePR()\"><svg class=\"icon\"><use href=\"#icon-git-merge\"></use></svg> <span>Merge PR</span></button></div></template><!-- Row 2: Hover context (when hovering a compartment) --><template x-if=\"hoverAction\"><div class=\"context-row context-row-hover\"><span class=\"context-host\" x-text=\"hoverAction.hostname\"></span> <span class=\"context-description\" x-text=\"hoverAction.description\"></span></div></template><!-- Row 2b: Hostname copy hint (when hovering hostname) --><template x-if=\"hostnameHover && !hoverAction\"><div class=\"context-row context-row-hover\"><span class=\"context-host\" x-text=\"hostnameHover\"></span> <span class=\"context-description\">Click to copy hostname</span></div></template><!-- Row 3: Selection + Actions (when hosts selected) --><template x-if=\"$store.selection.selected.length > 0\"><div class=\"context-row context-row-selection\"><div class=\"context-row-info\"><svg class=\"icon icon-check\"><use href=\"#icon-check-square\"></use></svg> <span x-text=\"selectionText\"></span></div><div class=\"context-actions\"><button class=\"btn btn-context\" :disabled=\"onlineCount === 0\" @click=\"bulkCommand('pull')\"><svg class=\"icon\"><use href=\"#icon-download\"></use></svg> <span class=\"btn-label\">Pull</span></button> <button class=\"btn btn-context\" :disabled=\"onlineCount === 0\" @click=\"bulkCommand('switch')\"><svg class=\"icon\"><use href=\"#icon-refresh\"></use></svg> <span class=\"btn-label\">Switch</span></button> <button class=\"btn btn-context\" :disabled=\"onlineCount === 0\" @click=\"bulkCommand('test')\"><svg class=\"icon\"><use href=\"#icon-flask\"></use></svg> <span class=\"btn-label\">Test</span></button> <button class=\"btn btn-primary btn-do-all\" :disabled=\"onlineCount === 0\" @click=\"doAll()\"><svg class=\"icon\"><use href=\"#icon-play\"></use></svg> <span class=\"btn-label\">Do All</span></button> <button class=\"btn btn-clear\" @click=\"clearSelection()\"><svg class=\"icon\"><use href=\"#icon-x\"></use></svg></button></div></div></template><!-- P7240: Timeout notifications (stacked) --><template x-for=\"timeout in timeouts\" :key=\"timeout.hostId\"><div class=\"context-row context-row-timeout\"><div class=\"context-row-info\"><svg class=\"icon timeout-icon\"><use href=\"#icon-alert-triangle\"></use></svg> <span class=\"timeout-host\" x-text=\"timeout.hostname\"></span> <span class=\"timeout-detail\"><span x-text=\"timeout.command\"></span> timed out</span> <span class=\"timeout-elapsed\" x-text=\"timeout.elapsed\"></span></div><div class=\"timeout-actions\"><button class=\"btn-timeout btn-timeout-wait\" @click=\"timeoutWait(timeout.hostId)\">Wait 5m</button> <button class=\"btn-timeout btn-timeout-kill\" @click=\"timeoutKill(timeout.hostId)\">Kill</button> <button class=\"btn-timeout btn-timeout-ignore\" @click=\"timeoutIgnore(timeout.hostId)\">×</button></div></div></template></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -453,7 +454,7 @@ func FleetTargetLine(target FleetTarget) templ.Component {
 		var templ_7745c5c3_Var16 string
 		templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinStringErrs("Expected agent version: " + target.AgentVer)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4005, Col: 81}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4088, Col: 81}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
 		if templ_7745c5c3_Err != nil {
@@ -466,7 +467,7 @@ func FleetTargetLine(target FleetTarget) templ.Component {
 		var templ_7745c5c3_Var17 string
 		templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(target.AgentVer)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4005, Col: 101}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4088, Col: 101}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
 		if templ_7745c5c3_Err != nil {
@@ -484,7 +485,7 @@ func FleetTargetLine(target FleetTarget) templ.Component {
 			var templ_7745c5c3_Var18 templ.SafeURL
 			templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL("https://github.com/" + target.RepoURL + "/commit/" + target.GitFull))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4011, Col: 94}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4094, Col: 94}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
 			if templ_7745c5c3_Err != nil {
@@ -497,7 +498,7 @@ func FleetTargetLine(target FleetTarget) templ.Component {
 			var templ_7745c5c3_Var19 string
 			templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.JoinStringErrs("Latest commit: " + target.Message)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4015, Col: 46}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4098, Col: 46}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var19))
 			if templ_7745c5c3_Err != nil {
@@ -510,7 +511,7 @@ func FleetTargetLine(target FleetTarget) templ.Component {
 			var templ_7745c5c3_Var20 string
 			templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.JoinStringErrs(target.GitCommit)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4017, Col: 22}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4100, Col: 22}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var20))
 			if templ_7745c5c3_Err != nil {
@@ -523,7 +524,7 @@ func FleetTargetLine(target FleetTarget) templ.Component {
 			var templ_7745c5c3_Var21 string
 			templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.JoinStringErrs(target.Branch)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4019, Col: 47}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4102, Col: 47}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var21))
 			if templ_7745c5c3_Err != nil {
@@ -536,7 +537,7 @@ func FleetTargetLine(target FleetTarget) templ.Component {
 			var templ_7745c5c3_Var22 string
 			templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.JoinStringErrs(target.TimeAgo)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4019, Col: 67}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4102, Col: 67}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var22))
 			if templ_7745c5c3_Err != nil {
@@ -604,7 +605,7 @@ func HostCard(host Host, csrfToken string) templ.Component {
 		var templ_7745c5c3_Var26 string
 		templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.JoinStringErrs(host.ID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4028, Col: 90}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4111, Col: 90}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var26))
 		if templ_7745c5c3_Err != nil {
@@ -626,7 +627,7 @@ func HostCard(host Host, csrfToken string) templ.Component {
 			var templ_7745c5c3_Var27 string
 			templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.JoinStringErrs(host.PendingCommand)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4034, Col: 61}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4117, Col: 61}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var27))
 			if templ_7745c5c3_Err != nil {
@@ -644,7 +645,7 @@ func HostCard(host Host, csrfToken string) templ.Component {
 		var templ_7745c5c3_Var28 string
 		templ_7745c5c3_Var28, templ_7745c5c3_Err = templruntime.SanitizeStyleAttributeValues(hostnameColorStyle(host.ThemeColor))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4039, Col: 48}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4122, Col: 48}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var28))
 		if templ_7745c5c3_Err != nil {
@@ -657,7 +658,7 @@ func HostCard(host Host, csrfToken string) templ.Component {
 		var templ_7745c5c3_Var29 string
 		templ_7745c5c3_Var29, templ_7745c5c3_Err = templ.JoinStringErrs(host.Hostname)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4040, Col: 34}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4123, Col: 34}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var29))
 		if templ_7745c5c3_Err != nil {
@@ -670,7 +671,7 @@ func HostCard(host Host, csrfToken string) templ.Component {
 		var templ_7745c5c3_Var30 string
 		templ_7745c5c3_Var30, templ_7745c5c3_Err = templ.JoinStringErrs(host.Hostname)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4045, Col: 20}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4128, Col: 20}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var30))
 		if templ_7745c5c3_Err != nil {
@@ -687,7 +688,7 @@ func HostCard(host Host, csrfToken string) templ.Component {
 		var templ_7745c5c3_Var31 string
 		templ_7745c5c3_Var31, templ_7745c5c3_Err = templ.JoinStringErrs(host.HostType)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4054, Col: 20}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4137, Col: 20}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var31))
 		if templ_7745c5c3_Err != nil {
@@ -704,7 +705,7 @@ func HostCard(host Host, csrfToken string) templ.Component {
 		var templ_7745c5c3_Var32 string
 		templ_7745c5c3_Var32, templ_7745c5c3_Err = templ.JoinStringErrs(host.Location)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4061, Col: 20}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4144, Col: 20}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var32))
 		if templ_7745c5c3_Err != nil {
@@ -721,7 +722,7 @@ func HostCard(host Host, csrfToken string) templ.Component {
 		var templ_7745c5c3_Var33 string
 		templ_7745c5c3_Var33, templ_7745c5c3_Err = templ.JoinStringErrs(host.DeviceType)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4068, Col: 22}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4151, Col: 22}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var33))
 		if templ_7745c5c3_Err != nil {
@@ -761,7 +762,7 @@ func HostCard(host Host, csrfToken string) templ.Component {
 			var templ_7745c5c3_Var36 string
 			templ_7745c5c3_Var36, templ_7745c5c3_Err = templ.JoinStringErrs(formatPercent(host.Metrics.CPU))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4075, Col: 177}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4158, Col: 177}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var36))
 			if templ_7745c5c3_Err != nil {
@@ -796,7 +797,7 @@ func HostCard(host Host, csrfToken string) templ.Component {
 			var templ_7745c5c3_Var39 string
 			templ_7745c5c3_Var39, templ_7745c5c3_Err = templ.JoinStringErrs(formatPercent(host.Metrics.RAM))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4076, Col: 177}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4159, Col: 177}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var39))
 			if templ_7745c5c3_Err != nil {
@@ -809,7 +810,7 @@ func HostCard(host Host, csrfToken string) templ.Component {
 			var templ_7745c5c3_Var40 string
 			templ_7745c5c3_Var40, templ_7745c5c3_Err = templ.JoinStringErrs(formatLoad(host.Metrics.Load))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4077, Col: 83}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4160, Col: 83}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var40))
 			if templ_7745c5c3_Err != nil {
@@ -841,7 +842,7 @@ func HostCard(host Host, csrfToken string) templ.Component {
 		var templ_7745c5c3_Var41 string
 		templ_7745c5c3_Var41, templ_7745c5c3_Err = templ.JoinStringErrs(valueOrDash(host.OSVersion))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4089, Col: 39}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4172, Col: 39}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var41))
 		if templ_7745c5c3_Err != nil {
@@ -854,7 +855,7 @@ func HostCard(host Host, csrfToken string) templ.Component {
 		var templ_7745c5c3_Var42 string
 		templ_7745c5c3_Var42, templ_7745c5c3_Err = templ.JoinStringErrs(valueOrDash(host.Generation))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4093, Col: 40}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4176, Col: 40}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var42))
 		if templ_7745c5c3_Err != nil {
@@ -867,7 +868,7 @@ func HostCard(host Host, csrfToken string) templ.Component {
 		var templ_7745c5c3_Var43 string
 		templ_7745c5c3_Var43, templ_7745c5c3_Err = templ.JoinStringErrs(valueOrDash(host.AgentVersion))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4097, Col: 42}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4180, Col: 42}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var43))
 		if templ_7745c5c3_Err != nil {
@@ -880,7 +881,7 @@ func HostCard(host Host, csrfToken string) templ.Component {
 		var templ_7745c5c3_Var44 string
 		templ_7745c5c3_Var44, templ_7745c5c3_Err = templ.JoinStringErrs(host.LastSeen)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4101, Col: 62}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4184, Col: 62}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var44))
 		if templ_7745c5c3_Err != nil {
@@ -893,7 +894,7 @@ func HostCard(host Host, csrfToken string) templ.Component {
 		var templ_7745c5c3_Var45 string
 		templ_7745c5c3_Var45, templ_7745c5c3_Err = templ.JoinStringErrs(valueOrDash(host.LastSeen))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4101, Col: 93}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4184, Col: 93}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var45))
 		if templ_7745c5c3_Err != nil {
@@ -963,7 +964,7 @@ func HostRow(host Host, csrfToken string) templ.Component {
 		var templ_7745c5c3_Var48 string
 		templ_7745c5c3_Var48, templ_7745c5c3_Err = templ.JoinStringErrs(host.ID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4118, Col: 24}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4201, Col: 24}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var48))
 		if templ_7745c5c3_Err != nil {
@@ -976,7 +977,7 @@ func HostRow(host Host, csrfToken string) templ.Component {
 		var templ_7745c5c3_Var49 string
 		templ_7745c5c3_Var49, templ_7745c5c3_Err = templ.JoinStringErrs(host.Hostname)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4119, Col: 31}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4202, Col: 31}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var49))
 		if templ_7745c5c3_Err != nil {
@@ -989,7 +990,7 @@ func HostRow(host Host, csrfToken string) templ.Component {
 		var templ_7745c5c3_Var50 string
 		templ_7745c5c3_Var50, templ_7745c5c3_Err = templ.JoinStringErrs(host.HostType)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4120, Col: 32}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4203, Col: 32}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var50))
 		if templ_7745c5c3_Err != nil {
@@ -1002,7 +1003,7 @@ func HostRow(host Host, csrfToken string) templ.Component {
 		var templ_7745c5c3_Var51 string
 		templ_7745c5c3_Var51, templ_7745c5c3_Err = templ.JoinStringErrs(host.ThemeColor)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4121, Col: 36}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4204, Col: 36}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var51))
 		if templ_7745c5c3_Err != nil {
@@ -1015,7 +1016,7 @@ func HostRow(host Host, csrfToken string) templ.Component {
 		var templ_7745c5c3_Var52 string
 		templ_7745c5c3_Var52, templ_7745c5c3_Err = templ.JoinStringErrs(host.Generation)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4122, Col: 35}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4205, Col: 35}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var52))
 		if templ_7745c5c3_Err != nil {
@@ -1028,7 +1029,7 @@ func HostRow(host Host, csrfToken string) templ.Component {
 		var templ_7745c5c3_Var53 string
 		templ_7745c5c3_Var53, templ_7745c5c3_Err = templ.JoinStringErrs(host.AgentVersion)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4123, Col: 40}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4206, Col: 40}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var53))
 		if templ_7745c5c3_Err != nil {
@@ -1041,7 +1042,7 @@ func HostRow(host Host, csrfToken string) templ.Component {
 		var templ_7745c5c3_Var54 string
 		templ_7745c5c3_Var54, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.FormatBool(host.AgentOutdated))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4124, Col: 62}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4207, Col: 62}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var54))
 		if templ_7745c5c3_Err != nil {
@@ -1054,7 +1055,7 @@ func HostRow(host Host, csrfToken string) templ.Component {
 		var templ_7745c5c3_Var55 string
 		templ_7745c5c3_Var55, templ_7745c5c3_Err = templ.JoinStringErrs(host.PendingCommand)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4125, Col: 44}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4208, Col: 44}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var55))
 		if templ_7745c5c3_Err != nil {
@@ -1067,7 +1068,7 @@ func HostRow(host Host, csrfToken string) templ.Component {
 		var templ_7745c5c3_Var56 string
 		templ_7745c5c3_Var56, templ_7745c5c3_Err = templ.JoinStringErrs(marshalJSON(host.AvailableOps))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4126, Col: 53}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4209, Col: 53}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var56))
 		if templ_7745c5c3_Err != nil {
@@ -1093,7 +1094,7 @@ func HostRow(host Host, csrfToken string) templ.Component {
 		var templ_7745c5c3_Var58 string
 		templ_7745c5c3_Var58, templ_7745c5c3_Err = templruntime.SanitizeStyleAttributeValues(hostRowStyle(host))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4128, Col: 28}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4211, Col: 28}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var58))
 		if templ_7745c5c3_Err != nil {
@@ -1106,7 +1107,7 @@ func HostRow(host Host, csrfToken string) templ.Component {
 		var templ_7745c5c3_Var59 string
 		templ_7745c5c3_Var59, templ_7745c5c3_Err = templ.JoinStringErrs(selectionClassBinding(host.ID))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4130, Col: 47}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4213, Col: 47}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var59))
 		if templ_7745c5c3_Err != nil {
@@ -1119,7 +1120,7 @@ func HostRow(host Host, csrfToken string) templ.Component {
 		var templ_7745c5c3_Var60 string
 		templ_7745c5c3_Var60, templ_7745c5c3_Err = templ.JoinStringErrs(checkboxClickHandler(host.ID))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4137, Col: 42}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4220, Col: 42}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var60))
 		if templ_7745c5c3_Err != nil {
@@ -1132,7 +1133,7 @@ func HostRow(host Host, csrfToken string) templ.Component {
 		var templ_7745c5c3_Var61 string
 		templ_7745c5c3_Var61, templ_7745c5c3_Err = templ.JoinStringErrs(rowSelectedClass(host.ID))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4138, Col: 44}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4221, Col: 44}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var61))
 		if templ_7745c5c3_Err != nil {
@@ -1145,7 +1146,7 @@ func HostRow(host Host, csrfToken string) templ.Component {
 		var templ_7745c5c3_Var62 string
 		templ_7745c5c3_Var62, templ_7745c5c3_Err = templ.JoinStringErrs(iconVisibility(host.ID, false))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4141, Col: 67}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4224, Col: 67}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var62))
 		if templ_7745c5c3_Err != nil {
@@ -1158,7 +1159,7 @@ func HostRow(host Host, csrfToken string) templ.Component {
 		var templ_7745c5c3_Var63 string
 		templ_7745c5c3_Var63, templ_7745c5c3_Err = templ.JoinStringErrs(iconVisibility(host.ID, true))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4142, Col: 66}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4225, Col: 66}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var63))
 		if templ_7745c5c3_Err != nil {
@@ -1179,7 +1180,7 @@ func HostRow(host Host, csrfToken string) templ.Component {
 		var templ_7745c5c3_Var64 string
 		templ_7745c5c3_Var64, templ_7745c5c3_Err = templruntime.SanitizeStyleAttributeValues(typeIconColorStyle(host.ThemeColor))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4149, Col: 82}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4232, Col: 82}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var64))
 		if templ_7745c5c3_Err != nil {
@@ -1200,7 +1201,7 @@ func HostRow(host Host, csrfToken string) templ.Component {
 		var templ_7745c5c3_Var65 string
 		templ_7745c5c3_Var65, templ_7745c5c3_Err = templruntime.SanitizeStyleAttributeValues(hostnameColorStyle(host.ThemeColor))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4154, Col: 48}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4237, Col: 48}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var65))
 		if templ_7745c5c3_Err != nil {
@@ -1213,7 +1214,7 @@ func HostRow(host Host, csrfToken string) templ.Component {
 		var templ_7745c5c3_Var66 string
 		templ_7745c5c3_Var66, templ_7745c5c3_Err = templ.JoinStringErrs(host.Hostname)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4155, Col: 34}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4238, Col: 34}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var66))
 		if templ_7745c5c3_Err != nil {
@@ -1226,7 +1227,7 @@ func HostRow(host Host, csrfToken string) templ.Component {
 		var templ_7745c5c3_Var67 string
 		templ_7745c5c3_Var67, templ_7745c5c3_Err = templ.JoinStringErrs(host.Hostname)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4160, Col: 20}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4243, Col: 20}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var67))
 		if templ_7745c5c3_Err != nil {
@@ -1244,7 +1245,7 @@ func HostRow(host Host, csrfToken string) templ.Component {
 			var templ_7745c5c3_Var68 string
 			templ_7745c5c3_Var68, templ_7745c5c3_Err = templ.JoinStringErrs(host.PendingCommand)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4162, Col: 60}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4245, Col: 60}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var68))
 			if templ_7745c5c3_Err != nil {
@@ -1293,7 +1294,7 @@ func HostRow(host Host, csrfToken string) templ.Component {
 			var templ_7745c5c3_Var71 string
 			templ_7745c5c3_Var71, templ_7745c5c3_Err = templ.JoinStringErrs("CPU: " + formatPercent(host.Metrics.CPU))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4172, Col: 125}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4255, Col: 125}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var71))
 			if templ_7745c5c3_Err != nil {
@@ -1306,7 +1307,7 @@ func HostRow(host Host, csrfToken string) templ.Component {
 			var templ_7745c5c3_Var72 string
 			templ_7745c5c3_Var72, templ_7745c5c3_Err = templ.JoinStringErrs(formatPercent(host.Metrics.CPU))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4173, Col: 122}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4256, Col: 122}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var72))
 			if templ_7745c5c3_Err != nil {
@@ -1341,7 +1342,7 @@ func HostRow(host Host, csrfToken string) templ.Component {
 			var templ_7745c5c3_Var75 string
 			templ_7745c5c3_Var75, templ_7745c5c3_Err = templ.JoinStringErrs("RAM: " + formatPercent(host.Metrics.RAM) + ", Swap: " + formatPercent(host.Metrics.Swap) + ", Load: " + formatLoad(host.Metrics.Load))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4175, Col: 218}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4258, Col: 218}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var75))
 			if templ_7745c5c3_Err != nil {
@@ -1354,7 +1355,7 @@ func HostRow(host Host, csrfToken string) templ.Component {
 			var templ_7745c5c3_Var76 string
 			templ_7745c5c3_Var76, templ_7745c5c3_Err = templ.JoinStringErrs(formatPercent(host.Metrics.RAM))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4176, Col: 122}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4259, Col: 122}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var76))
 			if templ_7745c5c3_Err != nil {
@@ -1377,7 +1378,7 @@ func HostRow(host Host, csrfToken string) templ.Component {
 		var templ_7745c5c3_Var77 string
 		templ_7745c5c3_Var77, templ_7745c5c3_Err = templ.JoinStringErrs(host.LastSeen)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4182, Col: 90}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4265, Col: 90}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var77))
 		if templ_7745c5c3_Err != nil {
@@ -1390,7 +1391,7 @@ func HostRow(host Host, csrfToken string) templ.Component {
 		var templ_7745c5c3_Var78 string
 		templ_7745c5c3_Var78, templ_7745c5c3_Err = templ.JoinStringErrs(valueOrDash(host.LastSeen))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4182, Col: 121}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4265, Col: 121}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var78))
 		if templ_7745c5c3_Err != nil {
@@ -1404,7 +1405,15 @@ func HostRow(host Host, csrfToken string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 99, "</td><td class=\"status-cell\" data-cell=\"status\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 99, "</td><!-- P4500: Generation column --><td class=\"gen-cell\" data-cell=\"generation\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = GenerationCell(host).Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 100, "</td><td class=\"status-cell\" data-cell=\"status\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1412,7 +1421,7 @@ func HostRow(host Host, csrfToken string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 100, "</td><td class=\"col-menu\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 101, "</td><td class=\"col-menu\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1420,7 +1429,7 @@ func HostRow(host Host, csrfToken string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 101, "</td></tr>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 102, "</td></tr>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1451,17 +1460,17 @@ func StatusIndicator(host Host) templ.Component {
 		}
 		ctx = templ.ClearChildren(ctx)
 		if host.Online && host.PendingCommand == "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 102, "<span class=\"status-ripple\"><span class=\"hb-wave\"></span> <span class=\"hb-wave\"></span> <span class=\"hb-wave\"></span> <span class=\"hb-core\"></span></span>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 103, "<span class=\"status-ripple\"><span class=\"hb-wave\"></span> <span class=\"hb-wave\"></span> <span class=\"hb-wave\"></span> <span class=\"hb-core\"></span></span>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else if host.PendingCommand != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 103, "<span class=\"status-dot status-running\"></span>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 104, "<span class=\"status-dot status-running\"></span>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 104, "<span class=\"status-dot status-offline\"></span>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 105, "<span class=\"status-dot status-offline\"></span>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1498,7 +1507,7 @@ func CommandButton(hostID, command, label, classes string, enabled bool) templ.C
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 105, "<button class=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 106, "<button class=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1511,46 +1520,46 @@ func CommandButton(hostID, command, label, classes string, enabled bool) templ.C
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 106, "\" data-host-id=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 107, "\" data-host-id=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var83 string
 			templ_7745c5c3_Var83, templ_7745c5c3_Err = templ.JoinStringErrs(hostID)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4216, Col: 24}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4303, Col: 24}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var83))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 107, "\" data-command=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 108, "\" data-command=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var84 string
 			templ_7745c5c3_Var84, templ_7745c5c3_Err = templ.JoinStringErrs(command)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4217, Col: 25}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4304, Col: 25}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var84))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 108, "\" onclick=\"sendCommand(this.dataset.hostId, this.dataset.command)\" title=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 109, "\" onclick=\"sendCommand(this.dataset.hostId, this.dataset.command)\" title=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var85 string
 			templ_7745c5c3_Var85, templ_7745c5c3_Err = templ.JoinStringErrs(commandTitle(command))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4219, Col: 32}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4306, Col: 32}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var85))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 109, "\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 110, "\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1562,14 +1571,14 @@ func CommandButton(hostID, command, label, classes string, enabled bool) templ.C
 				var templ_7745c5c3_Var86 string
 				templ_7745c5c3_Var86, templ_7745c5c3_Err = templ.JoinStringErrs(label)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4223, Col: 11}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4310, Col: 11}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var86))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 110, "</button>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 111, "</button>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1579,7 +1588,7 @@ func CommandButton(hostID, command, label, classes string, enabled bool) templ.C
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 111, "<button class=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 112, "<button class=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1592,20 +1601,20 @@ func CommandButton(hostID, command, label, classes string, enabled bool) templ.C
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 112, "\" disabled title=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 113, "\" disabled title=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var89 string
 			templ_7745c5c3_Var89, templ_7745c5c3_Err = templ.JoinStringErrs(commandTitle(command))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4227, Col: 66}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4314, Col: 66}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var89))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 113, "\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 114, "\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1617,14 +1626,14 @@ func CommandButton(hostID, command, label, classes string, enabled bool) templ.C
 				var templ_7745c5c3_Var90 string
 				templ_7745c5c3_Var90, templ_7745c5c3_Err = templ.JoinStringErrs(label)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4230, Col: 11}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4317, Col: 11}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var90))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 114, "</button>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 115, "</button>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1673,22 +1682,22 @@ func commandIcon(command string) templ.Component {
 		ctx = templ.ClearChildren(ctx)
 		switch command {
 		case "pull":
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 115, "<svg class=\"icon\"><use href=\"#icon-download\"></use></svg>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 116, "<svg class=\"icon\"><use href=\"#icon-download\"></use></svg>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		case "switch":
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 116, "<svg class=\"icon\"><use href=\"#icon-refresh\"></use></svg>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 117, "<svg class=\"icon\"><use href=\"#icon-refresh\"></use></svg>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		case "test":
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 117, "<svg class=\"icon\"><use href=\"#icon-flask\"></use></svg>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 118, "<svg class=\"icon\"><use href=\"#icon-flask\"></use></svg>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		case "stop":
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 118, "<svg class=\"icon\"><use href=\"#icon-stop\"></use></svg>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 119, "<svg class=\"icon\"><use href=\"#icon-stop\"></use></svg>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1722,30 +1731,30 @@ func osTypeIcon(hostType string) templ.Component {
 		ctx = templ.ClearChildren(ctx)
 		switch hostType {
 		case "nixos":
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 119, "<svg class=\"icon type-icon\" title=\"NixOS\"><use href=\"#icon-nixos\"></use></svg>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 120, "<svg class=\"icon type-icon\" title=\"NixOS\"><use href=\"#icon-nixos\"></use></svg>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		case "macos":
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 120, "<svg class=\"icon type-icon\" title=\"macOS\"><use href=\"#icon-apple\"></use></svg>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 121, "<svg class=\"icon type-icon\" title=\"macOS\"><use href=\"#icon-apple\"></use></svg>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		default:
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 121, "<span>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 122, "<span>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var93 string
 			templ_7745c5c3_Var93, templ_7745c5c3_Err = templ.JoinStringErrs(hostType)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4276, Col: 19}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4363, Col: 19}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var93))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 122, "</span>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 123, "</span>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1778,22 +1787,22 @@ func locationIcon(location string) templ.Component {
 		ctx = templ.ClearChildren(ctx)
 		switch location {
 		case "home":
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 123, "<svg class=\"icon location-icon\" title=\"Home\"><use href=\"#icon-home\"></use></svg>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 124, "<svg class=\"icon location-icon\" title=\"Home\"><use href=\"#icon-home\"></use></svg>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		case "work":
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 124, "<svg class=\"icon location-icon\" title=\"Work\"><use href=\"#icon-office\"></use></svg>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 125, "<svg class=\"icon location-icon\" title=\"Work\"><use href=\"#icon-office\"></use></svg>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		case "cloud":
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 125, "<svg class=\"icon location-icon\" title=\"Cloud\"><use href=\"#icon-cloud\"></use></svg>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 126, "<svg class=\"icon location-icon\" title=\"Cloud\"><use href=\"#icon-cloud\"></use></svg>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		default:
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 126, "<svg class=\"icon location-icon\" title=\"Home\"><use href=\"#icon-home\"></use></svg>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 127, "<svg class=\"icon location-icon\" title=\"Home\"><use href=\"#icon-home\"></use></svg>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1826,27 +1835,27 @@ func deviceTypeIcon(deviceType string) templ.Component {
 		ctx = templ.ClearChildren(ctx)
 		switch deviceType {
 		case "server":
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 127, "<svg class=\"icon device-icon\" title=\"Server\"><use href=\"#icon-server\"></use></svg>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 128, "<svg class=\"icon device-icon\" title=\"Server\"><use href=\"#icon-server\"></use></svg>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		case "desktop":
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 128, "<svg class=\"icon device-icon\" title=\"Desktop\"><use href=\"#icon-desktop\"></use></svg>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 129, "<svg class=\"icon device-icon\" title=\"Desktop\"><use href=\"#icon-desktop\"></use></svg>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		case "laptop":
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 129, "<svg class=\"icon device-icon\" title=\"Laptop\"><use href=\"#icon-laptop\"></use></svg>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 130, "<svg class=\"icon device-icon\" title=\"Laptop\"><use href=\"#icon-laptop\"></use></svg>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		case "gaming":
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 130, "<svg class=\"icon device-icon\" title=\"Gaming\"><use href=\"#icon-game\"></use></svg>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 131, "<svg class=\"icon device-icon\" title=\"Gaming\"><use href=\"#icon-game\"></use></svg>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		default:
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 131, "<svg class=\"icon device-icon\" title=\"Desktop\"><use href=\"#icon-desktop\"></use></svg>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 132, "<svg class=\"icon device-icon\" title=\"Desktop\"><use href=\"#icon-desktop\"></use></svg>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1879,82 +1888,82 @@ func TestsCell(progress *TestProgress) templ.Component {
 		ctx = templ.ClearChildren(ctx)
 		if progress != nil {
 			if progress.Running {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 132, "<span class=\"test-progress\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 133, "<span class=\"test-progress\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var97 string
 				templ_7745c5c3_Var97, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(progress.Current))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4314, Col: 63}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4401, Col: 63}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var97))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 133, "/")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 134, "/")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var98 string
 				templ_7745c5c3_Var98, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(progress.Total))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4314, Col: 96}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4401, Col: 96}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var98))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 134, "</span>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 135, "</span>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			} else if progress.Result != "" {
 				if progress.Passed == progress.Total {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 135, "<span class=\"test-result pass\">")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 136, "<span class=\"test-result pass\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var99 string
 					templ_7745c5c3_Var99, templ_7745c5c3_Err = templ.JoinStringErrs(progress.Result)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4317, Col: 52}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4404, Col: 52}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var99))
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 136, "</span>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 137, "</span>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 				} else {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 137, "<span class=\"test-result fail\">")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 138, "<span class=\"test-result fail\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var100 string
 					templ_7745c5c3_Var100, templ_7745c5c3_Err = templ.JoinStringErrs(progress.Result)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4319, Col: 52}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4406, Col: 52}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var100))
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 138, "</span>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 139, "</span>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 				}
 			} else {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 139, "<span class=\"tests-na\">—</span>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 140, "<span class=\"tests-na\">—</span>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 140, "<span class=\"tests-na\">—</span>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 141, "<span class=\"tests-na\">—</span>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1987,85 +1996,85 @@ func CompositeTypeCell(host Host) templ.Component {
 			templ_7745c5c3_Var101 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 141, "<div class=\"type-composite type-compact\" data-host-id=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 142, "<div class=\"type-composite type-compact\" data-host-id=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var102 string
 		templ_7745c5c3_Var102, templ_7745c5c3_Err = templ.JoinStringErrs(host.ID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4335, Col: 24}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4422, Col: 24}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var102))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 142, "\" data-location=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 143, "\" data-location=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var103 string
 		templ_7745c5c3_Var103, templ_7745c5c3_Err = templ.JoinStringErrs(host.Location)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4336, Col: 31}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4423, Col: 31}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var103))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 143, "\" data-device=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 144, "\" data-device=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var104 string
 		templ_7745c5c3_Var104, templ_7745c5c3_Err = templ.JoinStringErrs(host.DeviceType)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4337, Col: 31}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4424, Col: 31}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var104))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 144, "\" data-os=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 145, "\" data-os=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var105 string
 		templ_7745c5c3_Var105, templ_7745c5c3_Err = templ.JoinStringErrs(host.HostType)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4338, Col: 25}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4425, Col: 25}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var105))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 145, "\" title=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 146, "\" title=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var106 string
 		templ_7745c5c3_Var106, templ_7745c5c3_Err = templ.JoinStringErrs(compositeTypeTitle(host))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4339, Col: 34}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4426, Col: 34}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var106))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 146, "\" style=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 147, "\" style=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var107 string
 		templ_7745c5c3_Var107, templ_7745c5c3_Err = templruntime.SanitizeStyleAttributeValues(typeIconColorStyle(host.ThemeColor))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4340, Col: 45}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4427, Col: 45}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var107))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 147, "\"><!-- LOC icon (left) --><span class=\"type-loc-icon\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 148, "\"><!-- LOC icon (left) --><span class=\"type-loc-icon\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -2073,7 +2082,7 @@ func CompositeTypeCell(host Host) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 148, "</span><!-- OS icon (right) --><span class=\"type-os-icon\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 149, "</span><!-- OS icon (right) --><span class=\"type-os-icon\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -2081,7 +2090,7 @@ func CompositeTypeCell(host Host) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 149, "</span></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 150, "</span></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -2127,33 +2136,33 @@ func StatusProgressCell(host Host) templ.Component {
 			templ_7745c5c3_Var108 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 150, "<div class=\"status-progress\" data-host-id=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 151, "<div class=\"status-progress\" data-host-id=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var109 string
 		templ_7745c5c3_Var109, templ_7745c5c3_Err = templ.JoinStringErrs(host.ID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4373, Col: 24}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4460, Col: 24}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var109))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 151, "\" data-pending=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 152, "\" data-pending=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var110 string
 		templ_7745c5c3_Var110, templ_7745c5c3_Err = templ.JoinStringErrs(host.PendingCommand)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4374, Col: 36}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4461, Col: 36}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var110))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 152, "\"><!-- PULL segment (4 dots) --><span class=\"progress-segment segment-pull\" data-phase=\"pull\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 153, "\"><!-- PULL segment (4 dots) --><span class=\"progress-segment segment-pull\" data-phase=\"pull\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -2161,7 +2170,7 @@ func StatusProgressCell(host Host) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 153, "</span><!-- LOCK segment (2 dots) --><span class=\"progress-segment segment-lock\" data-phase=\"lock\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 154, "</span><!-- LOCK segment (2 dots) --><span class=\"progress-segment segment-lock\" data-phase=\"lock\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -2169,7 +2178,7 @@ func StatusProgressCell(host Host) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 154, "</span><!-- SYSTEM segment (3 dots) --><span class=\"progress-segment segment-system\" data-phase=\"system\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 155, "</span><!-- SYSTEM segment (3 dots) --><span class=\"progress-segment segment-system\" data-phase=\"system\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -2177,7 +2186,7 @@ func StatusProgressCell(host Host) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 155, "</span><!-- TESTS segment (variable, max 8) --><span class=\"progress-segment segment-tests\" data-phase=\"tests\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 156, "</span><!-- TESTS segment (variable, max 8) --><span class=\"progress-segment segment-tests\" data-phase=\"tests\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -2185,7 +2194,7 @@ func StatusProgressCell(host Host) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 156, "</span></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 157, "</span></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -2221,7 +2230,7 @@ func progressDots(progress *PhaseProgress, total int) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 157, "<span class=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 158, "<span class=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -2234,20 +2243,20 @@ func progressDots(progress *PhaseProgress, total int) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 158, "\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 159, "\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var114 string
 			templ_7745c5c3_Var114, templ_7745c5c3_Err = templ.JoinStringErrs(progressDotChar(progress, i))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4398, Col: 78}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4485, Col: 78}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var114))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 159, "</span>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 160, "</span>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -2285,7 +2294,7 @@ func testsDots(host Host) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 160, "<span class=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 161, "<span class=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -2298,20 +2307,20 @@ func testsDots(host Host) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 161, "\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 162, "\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var118 string
 				templ_7745c5c3_Var118, templ_7745c5c3_Err = templ.JoinStringErrs(testDotChar(host.TestProgress, i))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4406, Col: 89}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4493, Col: 89}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var118))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 162, "</span>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 163, "</span>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -2323,7 +2332,7 @@ func testsDots(host Host) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 163, "<span class=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 164, "<span class=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -2336,26 +2345,26 @@ func testsDots(host Host) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 164, "\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 165, "\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var121 string
 				templ_7745c5c3_Var121, templ_7745c5c3_Err = templ.JoinStringErrs(operationTestDotChar(host.OperationProgress.Tests, i))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4410, Col: 129}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4497, Col: 129}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var121))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 165, "</span>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 166, "</span>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 166, "<span class=\"tests-dash\">—</span>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 167, "<span class=\"tests-dash\">—</span>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -2391,7 +2400,7 @@ func AgentVersionCell(host Host) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 167, "<span class=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 168, "<span class=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -2404,35 +2413,116 @@ func AgentVersionCell(host Host) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 168, "\" title=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 169, "\" title=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var125 string
 		templ_7745c5c3_Var125, templ_7745c5c3_Err = templ.JoinStringErrs(agentContextDescription(host))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4419, Col: 82}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4506, Col: 82}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var125))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 169, "\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 170, "\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var126 string
 		templ_7745c5c3_Var126, templ_7745c5c3_Err = templ.JoinStringErrs(valueOrDash(host.AgentVersion))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4420, Col: 34}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4507, Col: 34}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var126))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 170, "</span>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 171, "</span>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
+		}
+		return nil
+	})
+}
+
+// P4500: GenerationCell renders the configuration generation (git commit hash)
+func GenerationCell(host Host) templ.Component {
+	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
+			return templ_7745c5c3_CtxErr
+		}
+		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+		if !templ_7745c5c3_IsBuffer {
+			defer func() {
+				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err == nil {
+					templ_7745c5c3_Err = templ_7745c5c3_BufErr
+				}
+			}()
+		}
+		ctx = templ.InitializeContext(ctx)
+		templ_7745c5c3_Var127 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var127 == nil {
+			templ_7745c5c3_Var127 = templ.NopComponent
+		}
+		ctx = templ.ClearChildren(ctx)
+		if host.Generation != "" {
+			var templ_7745c5c3_Var128 = []any{generationCellClass(host)}
+			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var128...)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 172, "<span class=\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var129 string
+			templ_7745c5c3_Var129, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var128).String())
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1, Col: 0}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var129))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 173, "\" title=\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var130 string
+			templ_7745c5c3_Var130, templ_7745c5c3_Err = templ.JoinStringErrs(generationTooltip(host))
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4516, Col: 34}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var130))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 174, "\">")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var131 string
+			templ_7745c5c3_Var131, templ_7745c5c3_Err = templ.JoinStringErrs(shortGeneration(host.Generation))
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4518, Col: 37}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var131))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 175, "</span>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		} else {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 176, "<span class=\"gen-unknown\">—</span>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
 		}
 		return nil
 	})
@@ -2457,524 +2547,633 @@ func UpdateStatusCell(host Host) templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var127 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var127 == nil {
-			templ_7745c5c3_Var127 = templ.NopComponent
+		templ_7745c5c3_Var132 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var132 == nil {
+			templ_7745c5c3_Var132 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 171, "<div class=\"update-status\" data-host-id=\"")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var128 string
-		templ_7745c5c3_Var128, templ_7745c5c3_Err = templ.JoinStringErrs(host.ID)
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4430, Col: 24}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var128))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 172, "\" data-git=\"")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var129 string
-		templ_7745c5c3_Var129, templ_7745c5c3_Err = templ.JoinStringErrs(updateStatusJSON(host.UpdateStatus, "git"))
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4431, Col: 55}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var129))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 173, "\" data-lock=\"")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var130 string
-		templ_7745c5c3_Var130, templ_7745c5c3_Err = templ.JoinStringErrs(updateStatusJSON(host.UpdateStatus, "lock"))
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4432, Col: 57}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var130))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 174, "\" data-system=\"")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var131 string
-		templ_7745c5c3_Var131, templ_7745c5c3_Err = templ.JoinStringErrs(updateStatusJSON(host.UpdateStatus, "system"))
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4433, Col: 61}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var131))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 175, "\" data-repo-url=\"")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var132 string
-		templ_7745c5c3_Var132, templ_7745c5c3_Err = templ.JoinStringErrs(host.RepoURL)
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4434, Col: 30}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var132))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 176, "\" data-repo-dir=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 177, "<div class=\"update-status\" data-host-id=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var133 string
-		templ_7745c5c3_Var133, templ_7745c5c3_Err = templ.JoinStringErrs(host.RepoDir)
+		templ_7745c5c3_Var133, templ_7745c5c3_Err = templ.JoinStringErrs(host.ID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4435, Col: 30}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4531, Col: 24}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var133))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 177, "\"><!-- Agent compartment -->")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 178, "\" data-git=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var134 = []any{agentCompartmentButtonClass(host)}
-		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var134...)
+		var templ_7745c5c3_Var134 string
+		templ_7745c5c3_Var134, templ_7745c5c3_Err = templ.JoinStringErrs(updateStatusJSON(host.UpdateStatus, "git"))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4532, Col: 55}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var134))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 178, "<button type=\"button\" class=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 179, "\" data-lock=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var135 string
-		templ_7745c5c3_Var135, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var134).String())
+		templ_7745c5c3_Var135, templ_7745c5c3_Err = templ.JoinStringErrs(updateStatusJSON(host.UpdateStatus, "lock"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1, Col: 0}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4533, Col: 57}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var135))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 179, "\" data-host-id=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 180, "\" data-system=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var136 string
-		templ_7745c5c3_Var136, templ_7745c5c3_Err = templ.JoinStringErrs(host.ID)
+		templ_7745c5c3_Var136, templ_7745c5c3_Err = templ.JoinStringErrs(updateStatusJSON(host.UpdateStatus, "system"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4441, Col: 25}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4534, Col: 61}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var136))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 180, "\" data-hostname=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 181, "\" data-repo-url=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var137 string
-		templ_7745c5c3_Var137, templ_7745c5c3_Err = templ.JoinStringErrs(host.Hostname)
+		templ_7745c5c3_Var137, templ_7745c5c3_Err = templ.JoinStringErrs(host.RepoURL)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4442, Col: 32}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4535, Col: 30}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var137))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 181, "\" data-compartment=\"agent\" data-status=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 182, "\" data-repo-dir=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var138 string
-		templ_7745c5c3_Var138, templ_7745c5c3_Err = templ.JoinStringErrs(getAgentStatus(host))
+		templ_7745c5c3_Var138, templ_7745c5c3_Err = templ.JoinStringErrs(host.RepoDir)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4444, Col: 37}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4536, Col: 30}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var138))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 182, "\" data-action=\"info\" data-description=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 183, "\"><!-- Agent compartment -->")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var139 string
-		templ_7745c5c3_Var139, templ_7745c5c3_Err = templ.JoinStringErrs(agentContextDescription(host))
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4446, Col: 51}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var139))
+		var templ_7745c5c3_Var139 = []any{agentCompartmentButtonClass(host)}
+		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var139...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 183, "\" onmouseenter=\"handleCompartmentHover(this)\" onmouseleave=\"handleCompartmentLeave()\" onclick=\"handleCompartmentClick(this)\"><svg class=\"update-icon\"><use href=\"#icon-robot\"></use></svg> ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 184, "<button type=\"button\" class=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var140 = []any{agentIndicatorClass(host)}
-		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var140...)
+		var templ_7745c5c3_Var140 string
+		templ_7745c5c3_Var140, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var139).String())
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1, Col: 0}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var140))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 184, "<span class=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 185, "\" data-host-id=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var141 string
-		templ_7745c5c3_Var141, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var140).String())
+		templ_7745c5c3_Var141, templ_7745c5c3_Err = templ.JoinStringErrs(host.ID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1, Col: 0}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4542, Col: 25}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var141))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 185, "\"></span></button><!-- Git compartment -->")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 186, "\" data-hostname=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var142 = []any{compartmentButtonClass(host.UpdateStatus, "git")}
-		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var142...)
+		var templ_7745c5c3_Var142 string
+		templ_7745c5c3_Var142, templ_7745c5c3_Err = templ.JoinStringErrs(host.Hostname)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4543, Col: 32}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var142))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 186, "<button type=\"button\" class=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 187, "\" data-compartment=\"agent\" data-status=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var143 string
-		templ_7745c5c3_Var143, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var142).String())
+		templ_7745c5c3_Var143, templ_7745c5c3_Err = templ.JoinStringErrs(getAgentStatus(host))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1, Col: 0}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4545, Col: 37}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var143))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 187, "\" data-host-id=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 188, "\" data-action=\"info\" data-description=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var144 string
-		templ_7745c5c3_Var144, templ_7745c5c3_Err = templ.JoinStringErrs(host.ID)
+		templ_7745c5c3_Var144, templ_7745c5c3_Err = templ.JoinStringErrs(agentContextDescription(host))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4458, Col: 25}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4547, Col: 51}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var144))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 188, "\" data-hostname=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 189, "\" onmouseenter=\"handleCompartmentHover(this)\" onmouseleave=\"handleCompartmentLeave()\" onclick=\"handleCompartmentClick(this)\"><svg class=\"update-icon\"><use href=\"#icon-robot\"></use></svg> ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var145 string
-		templ_7745c5c3_Var145, templ_7745c5c3_Err = templ.JoinStringErrs(host.Hostname)
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4459, Col: 32}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var145))
+		var templ_7745c5c3_Var145 = []any{agentIndicatorClass(host)}
+		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var145...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 189, "\" data-compartment=\"git\" data-status=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 190, "<span class=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var146 string
-		templ_7745c5c3_Var146, templ_7745c5c3_Err = templ.JoinStringErrs(getCompartmentStatus(host.UpdateStatus, "git"))
+		templ_7745c5c3_Var146, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var145).String())
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4461, Col: 63}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1, Col: 0}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var146))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 190, "\" data-action=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 191, "\"></span></button><!-- Git compartment -->")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var147 string
-		templ_7745c5c3_Var147, templ_7745c5c3_Err = templ.JoinStringErrs(getCompartmentActionType(host.UpdateStatus, "git"))
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4462, Col: 67}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var147))
+		var templ_7745c5c3_Var147 = []any{compartmentButtonClass(host.UpdateStatus, "git")}
+		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var147...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 191, "\" data-description=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 192, "<button type=\"button\" class=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var148 string
-		templ_7745c5c3_Var148, templ_7745c5c3_Err = templ.JoinStringErrs(gitContextDescription(host))
+		templ_7745c5c3_Var148, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var147).String())
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4463, Col: 49}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1, Col: 0}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var148))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 192, "\" onmouseenter=\"handleCompartmentHover(this)\" onmouseleave=\"handleCompartmentLeave()\" onclick=\"handleCompartmentClick(this)\"><svg class=\"update-icon\"><use href=\"#icon-git-branch\"></use></svg> ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 193, "\" data-host-id=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var149 = []any{compartmentIndicatorClass(host.UpdateStatus, "git")}
-		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var149...)
+		var templ_7745c5c3_Var149 string
+		templ_7745c5c3_Var149, templ_7745c5c3_Err = templ.JoinStringErrs(host.ID)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4559, Col: 25}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var149))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 193, "<span class=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 194, "\" data-hostname=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var150 string
-		templ_7745c5c3_Var150, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var149).String())
+		templ_7745c5c3_Var150, templ_7745c5c3_Err = templ.JoinStringErrs(host.Hostname)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1, Col: 0}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4560, Col: 32}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var150))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 194, "\"></span></button><!-- Lock compartment -->")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 195, "\" data-compartment=\"git\" data-status=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var151 = []any{lockCompartmentButtonClass(host)}
-		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var151...)
+		var templ_7745c5c3_Var151 string
+		templ_7745c5c3_Var151, templ_7745c5c3_Err = templ.JoinStringErrs(getCompartmentStatus(host.UpdateStatus, "git"))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4562, Col: 63}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var151))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 195, "<button type=\"button\" class=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 196, "\" data-action=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var152 string
-		templ_7745c5c3_Var152, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var151).String())
+		templ_7745c5c3_Var152, templ_7745c5c3_Err = templ.JoinStringErrs(getCompartmentActionType(host.UpdateStatus, "git"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1, Col: 0}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4563, Col: 67}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var152))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 196, "\" data-host-id=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 197, "\" data-description=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var153 string
-		templ_7745c5c3_Var153, templ_7745c5c3_Err = templ.JoinStringErrs(host.ID)
+		templ_7745c5c3_Var153, templ_7745c5c3_Err = templ.JoinStringErrs(gitContextDescription(host))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4475, Col: 25}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4564, Col: 49}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var153))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 197, "\" data-hostname=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 198, "\" onmouseenter=\"handleCompartmentHover(this)\" onmouseleave=\"handleCompartmentLeave()\" onclick=\"handleCompartmentClick(this)\"><svg class=\"update-icon\"><use href=\"#icon-git-branch\"></use></svg> ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var154 string
-		templ_7745c5c3_Var154, templ_7745c5c3_Err = templ.JoinStringErrs(host.Hostname)
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4476, Col: 32}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var154))
+		var templ_7745c5c3_Var154 = []any{compartmentIndicatorClass(host.UpdateStatus, "git")}
+		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var154...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 198, "\" data-compartment=\"lock\" data-status=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 199, "<span class=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var155 string
-		templ_7745c5c3_Var155, templ_7745c5c3_Err = templ.JoinStringErrs(getLockStatus(host))
+		templ_7745c5c3_Var155, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var154).String())
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4478, Col: 36}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1, Col: 0}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var155))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 199, "\" data-action=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 200, "\"></span></button><!-- Lock compartment -->")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var156 string
-		templ_7745c5c3_Var156, templ_7745c5c3_Err = templ.JoinStringErrs(getLockActionType(host))
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4479, Col: 40}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var156))
+		var templ_7745c5c3_Var156 = []any{lockCompartmentButtonClass(host)}
+		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var156...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 200, "\" data-description=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 201, "<button type=\"button\" class=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var157 string
-		templ_7745c5c3_Var157, templ_7745c5c3_Err = templ.JoinStringErrs(lockContextDescription(host))
+		templ_7745c5c3_Var157, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var156).String())
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4480, Col: 50}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1, Col: 0}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var157))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 201, "\" onmouseenter=\"handleCompartmentHover(this)\" onmouseleave=\"handleCompartmentLeave()\" onclick=\"handleCompartmentClick(this)\"><svg class=\"update-icon\"><use href=\"#icon-lock\"></use></svg> ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 202, "\" data-host-id=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var158 = []any{lockIndicatorClass(host)}
-		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var158...)
+		var templ_7745c5c3_Var158 string
+		templ_7745c5c3_Var158, templ_7745c5c3_Err = templ.JoinStringErrs(host.ID)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4576, Col: 25}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var158))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 202, "<span class=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 203, "\" data-hostname=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var159 string
-		templ_7745c5c3_Var159, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var158).String())
+		templ_7745c5c3_Var159, templ_7745c5c3_Err = templ.JoinStringErrs(host.Hostname)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1, Col: 0}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4577, Col: 32}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var159))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 203, "\"></span></button><!-- System compartment -->")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 204, "\" data-compartment=\"lock\" data-status=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var160 = []any{compartmentButtonClass(host.UpdateStatus, "system")}
-		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var160...)
+		var templ_7745c5c3_Var160 string
+		templ_7745c5c3_Var160, templ_7745c5c3_Err = templ.JoinStringErrs(getLockStatus(host))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4579, Col: 36}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var160))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 204, "<button type=\"button\" class=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 205, "\" data-action=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var161 string
-		templ_7745c5c3_Var161, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var160).String())
+		templ_7745c5c3_Var161, templ_7745c5c3_Err = templ.JoinStringErrs(getLockActionType(host))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1, Col: 0}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4580, Col: 40}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var161))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 205, "\" data-host-id=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 206, "\" data-description=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var162 string
-		templ_7745c5c3_Var162, templ_7745c5c3_Err = templ.JoinStringErrs(host.ID)
+		templ_7745c5c3_Var162, templ_7745c5c3_Err = templ.JoinStringErrs(lockContextDescription(host))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4492, Col: 25}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4581, Col: 50}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var162))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 206, "\" data-hostname=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 207, "\" onmouseenter=\"handleCompartmentHover(this)\" onmouseleave=\"handleCompartmentLeave()\" onclick=\"handleCompartmentClick(this)\"><svg class=\"update-icon\"><use href=\"#icon-lock\"></use></svg> ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var163 string
-		templ_7745c5c3_Var163, templ_7745c5c3_Err = templ.JoinStringErrs(host.Hostname)
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4493, Col: 32}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var163))
+		var templ_7745c5c3_Var163 = []any{lockIndicatorClass(host)}
+		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var163...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 207, "\" data-compartment=\"system\" data-status=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 208, "<span class=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var164 string
-		templ_7745c5c3_Var164, templ_7745c5c3_Err = templ.JoinStringErrs(getCompartmentStatus(host.UpdateStatus, "system"))
+		templ_7745c5c3_Var164, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var163).String())
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4495, Col: 66}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1, Col: 0}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var164))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 208, "\" data-action=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 209, "\"></span></button><!-- System compartment -->")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var165 string
-		templ_7745c5c3_Var165, templ_7745c5c3_Err = templ.JoinStringErrs(getCompartmentActionType(host.UpdateStatus, "system"))
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4496, Col: 70}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var165))
+		var templ_7745c5c3_Var165 = []any{compartmentButtonClass(host.UpdateStatus, "system")}
+		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var165...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 209, "\" data-description=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 210, "<button type=\"button\" class=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var166 string
-		templ_7745c5c3_Var166, templ_7745c5c3_Err = templ.JoinStringErrs(systemContextDescription(host))
+		templ_7745c5c3_Var166, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var165).String())
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4497, Col: 52}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1, Col: 0}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var166))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 210, "\" onmouseenter=\"handleCompartmentHover(this)\" onmouseleave=\"handleCompartmentLeave()\" onclick=\"handleCompartmentClick(this)\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 211, "\" data-host-id=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		if host.HostType == "macos" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 211, "<svg class=\"update-icon\"><use href=\"#icon-home\"></use></svg> ")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 212, "<svg class=\"update-icon\"><use href=\"#icon-nixos\"></use></svg> ")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
+		var templ_7745c5c3_Var167 string
+		templ_7745c5c3_Var167, templ_7745c5c3_Err = templ.JoinStringErrs(host.ID)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4593, Col: 25}
 		}
-		var templ_7745c5c3_Var167 = []any{compartmentIndicatorClass(host.UpdateStatus, "system")}
-		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var167...)
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var167))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 213, "<span class=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 212, "\" data-hostname=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var168 string
-		templ_7745c5c3_Var168, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var167).String())
+		templ_7745c5c3_Var168, templ_7745c5c3_Err = templ.JoinStringErrs(host.Hostname)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1, Col: 0}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4594, Col: 32}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var168))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 214, "\"></span></button></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 213, "\" data-compartment=\"system\" data-status=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var169 string
+		templ_7745c5c3_Var169, templ_7745c5c3_Err = templ.JoinStringErrs(getCompartmentStatus(host.UpdateStatus, "system"))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4596, Col: 66}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var169))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 214, "\" data-action=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var170 string
+		templ_7745c5c3_Var170, templ_7745c5c3_Err = templ.JoinStringErrs(getCompartmentActionType(host.UpdateStatus, "system"))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4597, Col: 70}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var170))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 215, "\" data-description=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var171 string
+		templ_7745c5c3_Var171, templ_7745c5c3_Err = templ.JoinStringErrs(systemContextDescription(host))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4598, Col: 52}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var171))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 216, "\" onmouseenter=\"handleCompartmentHover(this)\" onmouseleave=\"handleCompartmentLeave()\" onclick=\"handleCompartmentClick(this)\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		if host.HostType == "macos" {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 217, "<svg class=\"update-icon\"><use href=\"#icon-home\"></use></svg> ")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		} else {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 218, "<svg class=\"update-icon\"><use href=\"#icon-nixos\"></use></svg> ")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		var templ_7745c5c3_Var172 = []any{compartmentIndicatorClass(host.UpdateStatus, "system")}
+		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var172...)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 219, "<span class=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var173 string
+		templ_7745c5c3_Var173, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var172).String())
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1, Col: 0}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var173))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 220, "\"></span></button><!-- P3900: Tests compartment (5th) -->")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var174 = []any{testsCompartmentButtonClass(host)}
+		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var174...)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 221, "<button type=\"button\" class=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var175 string
+		templ_7745c5c3_Var175, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var174).String())
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1, Col: 0}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var175))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 222, "\" data-host-id=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var176 string
+		templ_7745c5c3_Var176, templ_7745c5c3_Err = templ.JoinStringErrs(host.ID)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4614, Col: 25}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var176))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 223, "\" data-hostname=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var177 string
+		templ_7745c5c3_Var177, templ_7745c5c3_Err = templ.JoinStringErrs(host.Hostname)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4615, Col: 32}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var177))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 224, "\" data-compartment=\"tests\" data-status=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var178 string
+		templ_7745c5c3_Var178, templ_7745c5c3_Err = templ.JoinStringErrs(getTestsStatus(host))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4617, Col: 37}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var178))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 225, "\" data-action=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var179 string
+		templ_7745c5c3_Var179, templ_7745c5c3_Err = templ.JoinStringErrs(getTestsActionType(host))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4618, Col: 41}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var179))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 226, "\" data-description=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var180 string
+		templ_7745c5c3_Var180, templ_7745c5c3_Err = templ.JoinStringErrs(testsContextDescription(host))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4619, Col: 51}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var180))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 227, "\" onmouseenter=\"handleCompartmentHover(this)\" onmouseleave=\"handleCompartmentLeave()\" onclick=\"handleCompartmentClick(this)\"><svg class=\"update-icon\"><use href=\"#icon-flask\"></use></svg> ")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var181 = []any{testsIndicatorClass(host)}
+		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var181...)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 228, "<span class=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var182 string
+		templ_7745c5c3_Var182, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var181).String())
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 1, Col: 0}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var182))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 229, "\"></span></button></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -3001,12 +3200,12 @@ func ActionDropdown(host Host) templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var169 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var169 == nil {
-			templ_7745c5c3_Var169 = templ.NopComponent
+		templ_7745c5c3_Var183 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var183 == nil {
+			templ_7745c5c3_Var183 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 215, "<div class=\"dropdown\" x-data=\"{\n\t\topen: false,\n\t\tfocusedIndex: -1,\n\t\tget items() { return [...this.$refs.menu.querySelectorAll('.dropdown-item:not([disabled])')]; },\n\t\tfocusItem(idx) {\n\t\t\tconst items = this.items;\n\t\t\tif (items.length === 0) return;\n\t\t\tthis.focusedIndex = ((idx % items.length) + items.length) % items.length;\n\t\t\titems[this.focusedIndex].focus();\n\t\t},\n\t\ttoggle() {\n\t\t\tthis.open = !this.open;\n\t\t\tif (this.open) {\n\t\t\t\tthis.$nextTick(() => this.focusItem(0));\n\t\t\t} else {\n\t\t\t\tthis.focusedIndex = -1;\n\t\t\t}\n\t\t}\n\t}\"><button type=\"button\" class=\"dropdown-toggle\" @click=\"toggle()\" @click.outside=\"open = false; focusedIndex = -1\" @keydown.arrow-down.prevent=\"if (!open) { toggle() } else { focusItem(focusedIndex + 1) }\" @keydown.escape.prevent=\"open = false; focusedIndex = -1\" title=\"More actions\"><svg class=\"icon\"><use href=\"#icon-more-vertical\"></use></svg></button><div class=\"dropdown-menu\" x-ref=\"menu\" x-show=\"open\" x-cloak @keydown.arrow-down.prevent=\"focusItem(focusedIndex + 1)\" @keydown.arrow-up.prevent=\"focusItem(focusedIndex - 1)\" @keydown.escape.prevent=\"open = false; focusedIndex = -1; $el.previousElementSibling.focus()\" @keydown.tab=\"open = false; focusedIndex = -1\" @click=\"open = false; focusedIndex = -1\"><!-- P2500: Deployment Group --><!-- P5100: Server-driven UI - buttons disabled based on availableOps -->")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 230, "<div class=\"dropdown\" x-data=\"{\n\t\topen: false,\n\t\tfocusedIndex: -1,\n\t\tget items() { return [...this.$refs.menu.querySelectorAll('.dropdown-item:not([disabled])')]; },\n\t\tfocusItem(idx) {\n\t\t\tconst items = this.items;\n\t\t\tif (items.length === 0) return;\n\t\t\tthis.focusedIndex = ((idx % items.length) + items.length) % items.length;\n\t\t\titems[this.focusedIndex].focus();\n\t\t},\n\t\ttoggle() {\n\t\t\tthis.open = !this.open;\n\t\t\tif (this.open) {\n\t\t\t\tthis.$nextTick(() => this.focusItem(0));\n\t\t\t} else {\n\t\t\t\tthis.focusedIndex = -1;\n\t\t\t}\n\t\t}\n\t}\"><button type=\"button\" class=\"dropdown-toggle\" @click=\"toggle()\" @click.outside=\"open = false; focusedIndex = -1\" @keydown.arrow-down.prevent=\"if (!open) { toggle() } else { focusItem(focusedIndex + 1) }\" @keydown.escape.prevent=\"open = false; focusedIndex = -1\" title=\"More actions\"><svg class=\"icon\"><use href=\"#icon-more-vertical\"></use></svg></button><div class=\"dropdown-menu\" x-ref=\"menu\" x-show=\"open\" x-cloak @keydown.arrow-down.prevent=\"focusItem(focusedIndex + 1)\" @keydown.arrow-up.prevent=\"focusItem(focusedIndex - 1)\" @keydown.escape.prevent=\"open = false; focusedIndex = -1; $el.previousElementSibling.focus()\" @keydown.tab=\"open = false; focusedIndex = -1\" @click=\"open = false; focusedIndex = -1\"><!-- P2500: Deployment Group --><!-- P5100: Server-driven UI - buttons disabled based on availableOps -->")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -3014,26 +3213,26 @@ func ActionDropdown(host Host) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 216, "<button type=\"button\" class=\"dropdown-item\" onclick=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 231, "<button type=\"button\" class=\"dropdown-item\" onclick=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var170 templ.ComponentScript = sendCommandScript(host.ID, "pull")
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var170.Call)
+		var templ_7745c5c3_Var184 templ.ComponentScript = sendCommandScript(host.ID, "pull")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var184.Call)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 217, "\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 232, "\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if !isOpAvailable(host, "pull") {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 218, " disabled")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 233, " disabled")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 219, "><svg class=\"icon\"><use href=\"#icon-download\"></use></svg> <span>Pull</span></button> ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 234, "><svg class=\"icon\"><use href=\"#icon-download\"></use></svg> <span>Pull</span></button> ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -3041,26 +3240,26 @@ func ActionDropdown(host Host) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 220, "<button type=\"button\" class=\"dropdown-item\" onclick=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 235, "<button type=\"button\" class=\"dropdown-item\" onclick=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var171 templ.ComponentScript = sendCommandScript(host.ID, "switch")
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var171.Call)
+		var templ_7745c5c3_Var185 templ.ComponentScript = sendCommandScript(host.ID, "switch")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var185.Call)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 221, "\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 236, "\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if !isOpAvailable(host, "switch") {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 222, " disabled")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 237, " disabled")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 223, "><svg class=\"icon\"><use href=\"#icon-refresh\"></use></svg> <span>Switch</span></button> ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 238, "><svg class=\"icon\"><use href=\"#icon-refresh\"></use></svg> <span>Switch</span></button> ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -3068,26 +3267,26 @@ func ActionDropdown(host Host) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 224, "<button type=\"button\" class=\"dropdown-item\" onclick=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 239, "<button type=\"button\" class=\"dropdown-item\" onclick=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var172 templ.ComponentScript = sendCommandScript(host.ID, "test")
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var172.Call)
+		var templ_7745c5c3_Var186 templ.ComponentScript = sendCommandScript(host.ID, "test")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var186.Call)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 225, "\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 240, "\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if !isOpAvailable(host, "test") {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 226, " disabled")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 241, " disabled")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 227, "><svg class=\"icon\"><use href=\"#icon-flask\"></use></svg> <span>Test</span></button> ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 242, "><svg class=\"icon\"><use href=\"#icon-flask\"></use></svg> <span>Test</span></button> ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -3096,21 +3295,21 @@ func ActionDropdown(host Host) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 228, "<button type=\"button\" class=\"dropdown-item\" onclick=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 243, "<button type=\"button\" class=\"dropdown-item\" onclick=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var173 templ.ComponentScript = sendCommandScript(host.ID, "stop")
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var173.Call)
+			var templ_7745c5c3_Var187 templ.ComponentScript = sendCommandScript(host.ID, "stop")
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var187.Call)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 229, "\"><svg class=\"icon\"><use href=\"#icon-stop\"></use></svg> <span>Stop</span></button>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 244, "\"><svg class=\"icon\"><use href=\"#icon-stop\"></use></svg> <span>Stop</span></button>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 230, "<hr class=\"dropdown-divider\"><!-- P2500: Management Group --><!-- P5100: Server-driven UI - buttons disabled based on availableOps -->")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 245, "<hr class=\"dropdown-divider\"><!-- P2500: Management Group --><!-- P5100: Server-driven UI - buttons disabled based on availableOps -->")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -3118,26 +3317,53 @@ func ActionDropdown(host Host) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 231, "<button type=\"button\" class=\"dropdown-item\" onclick=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 246, "<button type=\"button\" class=\"dropdown-item\" onclick=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var174 templ.ComponentScript = sendCommandScript(host.ID, "restart")
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var174.Call)
+		var templ_7745c5c3_Var188 templ.ComponentScript = sendCommandScript(host.ID, "restart")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var188.Call)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 232, "\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 247, "\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if !host.Online {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 233, " disabled")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 248, " disabled")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 234, "><svg class=\"icon\"><use href=\"#icon-refresh-cw\"></use></svg> <span>Restart Agent</span></button><!-- P6900: Reboot Host (requires TOTP) -->")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 249, "><svg class=\"icon\"><use href=\"#icon-refresh-cw\"></use></svg> <span>Restart Agent</span></button><!-- P4600: Rollback System (to previous generation) -->")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templ.RenderScriptItems(ctx, templ_7745c5c3_Buffer, showRollbackModalScript(host.ID, host.Hostname))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 250, "<button type=\"button\" class=\"dropdown-item warning\" onclick=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var189 templ.ComponentScript = showRollbackModalScript(host.ID, host.Hostname)
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var189.Call)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 251, "\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		if !host.Online {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 252, " disabled")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 253, "><svg class=\"icon\"><use href=\"#icon-refresh\"></use></svg> <span>Rollback System</span></button><!-- P6900: Reboot Host (requires TOTP) -->")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -3145,26 +3371,26 @@ func ActionDropdown(host Host) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 235, "<button type=\"button\" class=\"dropdown-item danger\" onclick=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 254, "<button type=\"button\" class=\"dropdown-item danger\" onclick=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var175 templ.ComponentScript = showRebootModalScript(host.ID, host.Hostname)
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var175.Call)
+		var templ_7745c5c3_Var190 templ.ComponentScript = showRebootModalScript(host.ID, host.Hostname)
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var190.Call)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 236, "\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 255, "\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if !isOpAvailable(host, "reboot") {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 237, " disabled")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 256, " disabled")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 238, "><svg class=\"icon\"><use href=\"#icon-power\"></use></svg> <span>Reboot Host</span></button><!-- P7200: Force Update Agent (when agent is outdated) -->")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 257, "><svg class=\"icon\"><use href=\"#icon-power\"></use></svg> <span>Reboot Host</span></button><!-- P7200: Force Update Agent (when agent is outdated) -->")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -3173,31 +3399,31 @@ func ActionDropdown(host Host) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 239, "<button type=\"button\" class=\"dropdown-item warning\" onclick=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 258, "<button type=\"button\" class=\"dropdown-item warning\" onclick=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var176 templ.ComponentScript = sendCommandScript(host.ID, "force-update")
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var176.Call)
+			var templ_7745c5c3_Var191 templ.ComponentScript = sendCommandScript(host.ID, "force-update")
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var191.Call)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 240, "\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 259, "\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			if !host.Online {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 241, " disabled")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 260, " disabled")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 242, "><svg class=\"icon\"><use href=\"#icon-alert-triangle\"></use></svg> <span>Force Update Agent</span></button>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 261, "><svg class=\"icon\"><use href=\"#icon-alert-triangle\"></use></svg> <span>Force Update Agent</span></button>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 243, "<hr class=\"dropdown-divider\"><!-- P2950: Color picker -->")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 262, "<hr class=\"dropdown-divider\"><!-- P2950: Color picker -->")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -3205,16 +3431,16 @@ func ActionDropdown(host Host) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 244, "<button type=\"button\" class=\"dropdown-item\" onclick=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 263, "<button type=\"button\" class=\"dropdown-item\" onclick=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var177 templ.ComponentScript = openColorPickerScript(host.ID, host.Hostname, host.ThemeColor)
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var177.Call)
+		var templ_7745c5c3_Var192 templ.ComponentScript = openColorPickerScript(host.ID, host.Hostname, host.ThemeColor)
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var192.Call)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 245, "\"><svg class=\"icon\"><use href=\"#icon-palette\"></use></svg> <span>Change Color</span></button><hr class=\"dropdown-divider\"><!-- P2500: Diagnostics Group -->")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 264, "\"><svg class=\"icon\"><use href=\"#icon-palette\"></use></svg> <span>Change Color</span></button><hr class=\"dropdown-divider\"><!-- P2500: Diagnostics Group -->")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -3222,16 +3448,16 @@ func ActionDropdown(host Host) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 246, "<button type=\"button\" class=\"dropdown-item\" onclick=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 265, "<button type=\"button\" class=\"dropdown-item\" onclick=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var178 templ.ComponentScript = showLogsScript(host.ID)
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var178.Call)
+		var templ_7745c5c3_Var193 templ.ComponentScript = showLogsScript(host.ID)
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var193.Call)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 247, "\"><svg class=\"icon\"><use href=\"#icon-terminal\"></use></svg> <span>View Output</span></button> ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 266, "\"><svg class=\"icon\"><use href=\"#icon-terminal\"></use></svg> <span>View Output</span></button> ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -3239,16 +3465,16 @@ func ActionDropdown(host Host) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 248, "<button type=\"button\" class=\"dropdown-item\" onclick=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 267, "<button type=\"button\" class=\"dropdown-item\" onclick=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var179 templ.ComponentScript = downloadLogsScript(host.ID)
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var179.Call)
+		var templ_7745c5c3_Var194 templ.ComponentScript = downloadLogsScript(host.ID)
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var194.Call)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 249, "\"><svg class=\"icon\"><use href=\"#icon-file\"></use></svg> <span>Download Logs</span></button><hr class=\"dropdown-divider\"><!-- P2500: Danger Zone -->")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 268, "\"><svg class=\"icon\"><use href=\"#icon-file\"></use></svg> <span>Download Logs</span></button><hr class=\"dropdown-divider\"><!-- P2500: Danger Zone -->")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -3256,16 +3482,16 @@ func ActionDropdown(host Host) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 250, "<button type=\"button\" class=\"dropdown-item danger\" onclick=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 269, "<button type=\"button\" class=\"dropdown-item danger\" onclick=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var180 templ.ComponentScript = removeHostScript(host.ID, host.Hostname)
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var180.Call)
+		var templ_7745c5c3_Var195 templ.ComponentScript = removeHostScript(host.ID, host.Hostname)
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var195.Call)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 251, "\"><svg class=\"icon\"><use href=\"#icon-trash\"></use></svg> <span>Remove Host</span></button></div></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 270, "\"><svg class=\"icon\"><use href=\"#icon-trash\"></use></svg> <span>Remove Host</span></button></div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -3335,6 +3561,11 @@ func showRebootModalScript(hostID, hostname string) templ.ComponentScript {
 	return templ.ComponentScript{Call: fmt.Sprintf("showRebootModal('%s', '%s')", hostID, hostname)}
 }
 
+// P4600: Open rollback confirmation modal
+func showRollbackModalScript(hostID, hostname string) templ.ComponentScript {
+	return templ.ComponentScript{Call: fmt.Sprintf("showRollbackModal('%s', '%s')", hostID, hostname)}
+}
+
 // DeleteButton renders a delete button for offline hosts
 func DeleteButton(hostID string, enabled bool) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
@@ -3352,31 +3583,31 @@ func DeleteButton(hostID string, enabled bool) templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var181 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var181 == nil {
-			templ_7745c5c3_Var181 = templ.NopComponent
+		templ_7745c5c3_Var196 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var196 == nil {
+			templ_7745c5c3_Var196 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
 		if enabled {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 252, "<button class=\"btn btn-danger\" data-host-id=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 271, "<button class=\"btn btn-danger\" data-host-id=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var182 string
-			templ_7745c5c3_Var182, templ_7745c5c3_Err = templ.JoinStringErrs(hostID)
+			var templ_7745c5c3_Var197 string
+			templ_7745c5c3_Var197, templ_7745c5c3_Err = templ.JoinStringErrs(hostID)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4734, Col: 24}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/dashboard.templ`, Line: 4867, Col: 24}
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var182))
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var197))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 253, "\" onclick=\"deleteHost(this.dataset.hostId)\" title=\"Delete offline host\"><svg class=\"icon\"><use href=\"#icon-trash\"></use></svg></button>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 272, "\" onclick=\"deleteHost(this.dataset.hostId)\" title=\"Delete offline host\"><svg class=\"icon\"><use href=\"#icon-trash\"></use></svg></button>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 254, "<button class=\"btn btn-danger\" disabled title=\"Cannot delete online host\"><svg class=\"icon\"><use href=\"#icon-trash\"></use></svg></button>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 273, "<button class=\"btn btn-danger\" disabled title=\"Cannot delete online host\"><svg class=\"icon\"><use href=\"#icon-trash\"></use></svg></button>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -3797,31 +4028,35 @@ func gitContextDescription(host Host) string {
 }
 
 // lockContextDescription returns a short description for context bar (flake.lock status)
+// P3700: lockContextDescription now uses version-based status
 func lockContextDescription(host Host) string {
 	status := host.UpdateStatus
 	if status == nil {
-		return "Checking dependencies..."
+		return "Checking flake.lock..."
 	}
 	check := status.Lock
 	switch check.Status {
 	case "ok":
-		return fmt.Sprintf("Dependencies up to date (flake.lock synced)")
+		// Version-based: exact match with latest
+		return "flake.lock is current"
 	case "outdated":
+		// Version-based: hash mismatch with latest
 		if check.Message != "" {
 			return check.Message
 		}
-		return "flake.lock outdated — merge PR to update dependencies"
+		return "flake.lock outdated — run Pull to update"
 	case "error":
 		if check.Message != "" {
 			return check.Message
 		}
 		return "Lock check failed"
 	default:
-		return "Checking dependencies..."
+		return "Checking flake.lock..."
 	}
 }
 
 // systemContextDescription returns a short description for context bar
+// P3800: systemContextDescription now uses inference-based messages
 func systemContextDescription(host Host) string {
 	status := host.UpdateStatus
 	isMac := host.HostType == "macos"
@@ -3835,30 +4070,33 @@ func systemContextDescription(host Host) string {
 	switch check.Status {
 	case "ok":
 		if host.Generation != "" {
-			return fmt.Sprintf("Configuration applied (gen %s)", host.Generation)
+			return fmt.Sprintf("System current (gen %s)", host.Generation)
 		}
 		if isMac {
-			return "Home Manager up to date"
+			return "Home Manager is current"
 		}
-		return "System up to date"
+		return "System is current"
 	case "outdated":
 		if check.Message != "" {
 			return check.Message
 		}
 		if isMac {
-			return "Home Manager changed — click to switch"
+			return "Home Manager outdated — run Switch"
 		}
-		return "Config changed — click to switch"
+		return "System outdated — run Switch"
 	case "error":
 		if check.Message != "" {
 			return check.Message
 		}
-		return "System check failed"
+		if isMac {
+			return "Home Manager switch failed"
+		}
+		return "Switch failed"
 	default:
 		if isMac {
-			return "Checking Home Manager..."
+			return "Home Manager status unknown"
 		}
-		return "Checking system..."
+		return "System status unknown"
 	}
 }
 
@@ -3874,6 +4112,125 @@ func formatStatus(status string) string {
 	default:
 		return "? Unknown"
 	}
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// P3900: Tests Compartment Helper Functions
+// ═══════════════════════════════════════════════════════════════════════════
+
+// testsCompartmentButtonClass returns CSS classes for Tests compartment button
+func testsCompartmentButtonClass(host Host) string {
+	base := "compartment-btn"
+	if host.UpdateStatus == nil {
+		return base + " unknown"
+	}
+	if host.UpdateStatus.Tests.Status == "" || host.UpdateStatus.Tests.Status == "unknown" {
+		return base + " unknown"
+	}
+	return base
+}
+
+// getTestsStatus returns status string for Tests compartment
+func getTestsStatus(host Host) string {
+	if host.UpdateStatus == nil {
+		return "unknown"
+	}
+	if host.UpdateStatus.Tests.Status == "" {
+		return "unknown"
+	}
+	return host.UpdateStatus.Tests.Status
+}
+
+// getTestsActionType returns action type for Tests compartment
+func getTestsActionType(host Host) string {
+	if host.UpdateStatus == nil || host.UpdateStatus.Tests.Status == "" {
+		return "test"
+	}
+	switch host.UpdateStatus.Tests.Status {
+	case "ok":
+		return "info" // Tests passed, just show info
+	case "outdated":
+		return "test" // Tests not run yet, offer to run
+	case "error":
+		return "test" // Tests failed, offer to re-run
+	case "working":
+		return "info" // Tests running, just show info
+	default:
+		return "test"
+	}
+}
+
+// testsIndicatorClass returns CSS class for Tests indicator dot
+func testsIndicatorClass(host Host) string {
+	base := "compartment-indicator"
+	if host.UpdateStatus == nil {
+		return base + " compartment-indicator--gray"
+	}
+	switch host.UpdateStatus.Tests.Status {
+	case "ok":
+		return base + " compartment-indicator--ok"
+	case "outdated":
+		return base + " compartment-indicator--warning"
+	case "error":
+		return base + " compartment-indicator--error"
+	case "working":
+		return base + " compartment-indicator--working"
+	default:
+		return base + " compartment-indicator--gray"
+	}
+}
+
+// testsContextDescription returns a short description for context bar
+func testsContextDescription(host Host) string {
+	if host.UpdateStatus == nil {
+		return "Tests not configured"
+	}
+	check := host.UpdateStatus.Tests
+	switch check.Status {
+	case "ok":
+		if check.Message != "" {
+			return check.Message
+		}
+		return "All tests passed"
+	case "outdated":
+		return "Tests not run — run Test to verify system"
+	case "error":
+		if check.Message != "" {
+			return check.Message
+		}
+		return "Tests failed"
+	case "working":
+		return "Tests running..."
+	default:
+		return "Tests not configured"
+	}
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// P4500: Generation Tracking Helper Functions
+// ═══════════════════════════════════════════════════════════════════════════
+
+// shortGeneration returns first 7 chars of generation hash
+func shortGeneration(gen string) string {
+	if len(gen) >= 7 {
+		return gen[:7]
+	}
+	return gen
+}
+
+// generationCellClass returns CSS classes for generation cell
+func generationCellClass(host Host) string {
+	base := "gen-hash"
+	// Future: Add gen-drift class if generation differs from fleet majority
+	return base
+}
+
+// generationTooltip returns full tooltip for generation
+func generationTooltip(host Host) string {
+	if host.Generation == "" {
+		return "Generation unknown"
+	}
+	return "Configuration: " + host.Generation
 }
 
 // formatTimestamp formats an ISO timestamp for display
@@ -3898,6 +4255,8 @@ func updateStatusJSON(status *UpdateStatus, compartment string) string {
 		check = status.Lock
 	case "system":
 		check = status.System
+	case "tests":
+		check = status.Tests
 	}
 	data, err := json.Marshal(check)
 	if err != nil {

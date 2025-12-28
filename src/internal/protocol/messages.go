@@ -84,6 +84,9 @@ type HeartbeatPayload struct {
 	SourceCommit string `json:"source_commit,omitempty"` // Git commit agent was built from (ldflags)
 	StorePath    string `json:"store_path,omitempty"`    // Nix store path of running binary
 	BinaryHash   string `json:"binary_hash,omitempty"`   // SHA256 of agent binary
+
+	// P3700: Lock compartment version tracking
+	LockHash string `json:"lock_hash,omitempty"` // SHA256 of flake.lock content
 }
 
 // Metrics contains system metrics from StaSysMo.
@@ -170,11 +173,12 @@ type TestsProgress struct {
 	Status  string   `json:"status"`  // "pending", "in_progress", "complete"
 }
 
-// UpdateStatus contains the three-compartment update status.
+// UpdateStatus contains the five-compartment update status.
 type UpdateStatus struct {
 	Git    StatusCheck `json:"git"`
 	Lock   StatusCheck `json:"lock"`
 	System StatusCheck `json:"system"`
+	Tests  StatusCheck `json:"tests"` // P3900: 5th compartment for test results
 }
 
 // StatusCheck represents a single status check result.

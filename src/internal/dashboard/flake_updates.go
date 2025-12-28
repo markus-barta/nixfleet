@@ -171,6 +171,29 @@ func (s *FlakeUpdateService) GetCurrentJob() *DeployJob {
 	return s.deployJob
 }
 
+// P4700: MergePR merges a PR without auto-deploying
+// Returns the merge result for confirmation
+func (s *FlakeUpdateService) MergePR(ctx context.Context, prNumber int) (*github.MergeResult, error) {
+	owner, repo := s.cfg.GitHubOwnerRepo()
+
+	result, err := s.client.MergePR(ctx, owner, repo, prNumber, "merge")
+	if err != nil {
+		return nil, fmt.Errorf("failed to merge PR #%d: %w", prNumber, err)
+	}
+
+	s.log.Info().
+		Int("pr", prNumber).
+		Str("sha", result.SHA).
+		Msg("PR merged successfully (manual deployment)")
+
+	// Clear pending PR after successful merge
+	s.mu.Lock()
+	s.pendingPR = nil
+	s.mu.Unlock()
+
+	return result, nil
+}
+
 // MergeAndDeploy starts a merge-and-deploy operation.
 // Returns the job ID for tracking progress.
 func (s *FlakeUpdateService) MergeAndDeploy(ctx context.Context, prNumber int, hostIDs []string) (string, error) {

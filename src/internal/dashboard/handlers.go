@@ -1132,6 +1132,56 @@ func (s *Server) handleMergeAndDeploy(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// P4700: handleMergePR merges a PR without auto-deploying
+// Deployment is manual (user pulls and switches hosts individually or via batch)
+func (s *Server) handleMergePR(w http.ResponseWriter, r *http.Request) {
+	if s.flakeUpdates == nil {
+		http.Error(w, "GitHub integration not configured", http.StatusNotImplemented)
+		return
+	}
+
+	var req struct {
+		PRNumber int `json:"pr_number"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if req.PRNumber == 0 {
+		http.Error(w, "pr_number is required", http.StatusBadRequest)
+		return
+	}
+
+	// Just merge the PR - no deploy
+	mergeResult, err := s.flakeUpdates.MergePR(r.Context(), req.PRNumber)
+	if err != nil {
+		s.log.Error().Err(err).Int("pr", req.PRNumber).Msg("merge PR failed")
+		http.Error(w, "failed to merge PR: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	s.log.Info().
+		Int("pr", req.PRNumber).
+		Str("sha", mergeResult.SHA).
+		Msg("PR merged successfully (manual deployment)")
+
+	// Broadcast to all browsers via State Sync
+	s.hub.BroadcastTypedMessage("pr_merged", map[string]any{
+		"pr_number": req.PRNumber,
+		"sha":       mergeResult.SHA,
+		"message":   "PR merged - Pull + Switch to deploy",
+	})
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"status":  "merged",
+		"sha":     mergeResult.SHA,
+		"message": "PR merged successfully. Pull + Switch hosts to deploy.",
+	})
+}
+
 // broadcastColorLog sends a log message to the host's log panel via WebSocket.
 // P2950: Verbose logging for color picker operations.
 func (s *Server) broadcastColorLog(hostID, level, message string) {

@@ -1468,6 +1468,35 @@ templ Base(title string, csrfToken string) {
 			color: var(--fg-dark);
 		}
 
+		/* P4500: Generation Column */
+		.gen-cell {
+			font-size: 0.8rem;
+			font-family: var(--font-mono);
+			text-align: center;
+			white-space: nowrap;
+		}
+
+		.gen-hash {
+			padding: 0.15rem 0.4rem;
+			border-radius: 4px;
+			color: var(--fg-muted);
+			cursor: default;
+		}
+
+		.gen-hash:hover {
+			color: var(--fg);
+			background: rgba(255, 255, 255, 0.05);
+		}
+
+		.gen-unknown {
+			color: var(--fg-dark);
+		}
+
+		.gen-drift {
+			color: var(--yellow);
+			background: rgba(224, 175, 104, 0.15);
+		}
+
 		/* Update Status Compartments (P5000 / P7300) */
 		.update-status {
 			display: inline-flex;

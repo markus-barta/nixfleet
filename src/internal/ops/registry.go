@@ -80,6 +80,7 @@ func DefaultRegistry() *Registry {
 	r.Register(opPull())
 	r.Register(opSwitch())
 	r.Register(opTest())
+	r.Register(opRollback()) // P4600: Rollback to previous generation
 	r.Register(opRestart())
 	r.Register(opStop())
 	r.Register(opReboot())
@@ -184,6 +185,35 @@ func opTest() *Op {
 		Timeout:        5 * time.Minute,
 		WarningTimeout: 2 * time.Minute,
 		Retryable:      true,
+		Executor:       ExecutorAgent,
+	}
+}
+
+// P4600: Rollback to previous NixOS/Home Manager generation
+func opRollback() *Op {
+	return &Op{
+		ID:          "rollback",
+		Description: "Rollback to previous generation",
+		Validate: func(host Host) *ValidationError {
+			if !host.IsOnline() {
+				return &ValidationError{"offline", "Host is offline"}
+			}
+			if host.HasPendingCommand() {
+				return &ValidationError{"busy", fmt.Sprintf("Command %q already running", host.GetPendingCommand())}
+			}
+			// Rollback is always allowed (NixOS keeps previous generations)
+			return nil
+		},
+		PostCheck: func(host Host) *ValidationError {
+			// After rollback, system should be ok
+			if host.GetSystemStatus() != "ok" {
+				return &ValidationError{"system_not_ok", "System status not ok after rollback"}
+			}
+			return nil
+		},
+		Timeout:        5 * time.Minute,
+		WarningTimeout: 2 * time.Minute,
+		Retryable:      false, // Don't auto-retry rollbacks
 		Executor:       ExecutorAgent,
 	}
 }
