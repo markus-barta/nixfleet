@@ -144,6 +144,88 @@ func (ls *LogStore) ListLogs(hostID string) ([]string, error) {
 	return logs, nil
 }
 
+// GetLatestLogContent returns the content of the most recent log file for a host.
+// P3300: Used to restore output when user opens a tab.
+func (ls *LogStore) GetLatestLogContent(hostID string, maxLines int) (string, error) {
+	logs, err := ls.ListLogs(hostID)
+	if err != nil {
+		return "", err
+	}
+	if len(logs) == 0 {
+		return "", nil // No logs yet
+	}
+
+	// Get the most recent log file (they're timestamped, so last in sorted list)
+	latestLog := logs[len(logs)-1]
+	logPath := filepath.Join(ls.basePath, hostID, latestLog)
+
+	content, err := os.ReadFile(logPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to read log file: %w", err)
+	}
+
+	// If maxLines is specified, return only the last N lines
+	if maxLines > 0 {
+		lines := splitLines(string(content))
+		if len(lines) > maxLines {
+			lines = lines[len(lines)-maxLines:]
+		}
+		return joinLines(lines), nil
+	}
+
+	return string(content), nil
+}
+
+// GetCurrentCommandOutput returns the output of the currently executing command.
+// P3300: Used to restore output when page is refreshed mid-command.
+func (ls *LogStore) GetCurrentCommandOutput(hostID, command string) (string, error) {
+	ls.mu.RLock()
+	key := hostID + ":" + command
+	f, ok := ls.files[key]
+	ls.mu.RUnlock()
+
+	if !ok {
+		// No active command, try to get latest log
+		return ls.GetLatestLogContent(hostID, 0)
+	}
+
+	// Read the current file
+	logPath := f.Name()
+	content, err := os.ReadFile(logPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to read current log: %w", err)
+	}
+
+	return string(content), nil
+}
+
+// Helper functions for line manipulation
+func splitLines(s string) []string {
+	if s == "" {
+		return nil
+	}
+	lines := []string{}
+	start := 0
+	for i := 0; i < len(s); i++ {
+		if s[i] == '\n' {
+			lines = append(lines, s[start:i+1])
+			start = i + 1
+		}
+	}
+	if start < len(s) {
+		lines = append(lines, s[start:])
+	}
+	return lines
+}
+
+func joinLines(lines []string) string {
+	result := ""
+	for _, line := range lines {
+		result += line
+	}
+	return result
+}
+
 // Close closes all open log files
 func (ls *LogStore) Close() error {
 	ls.mu.Lock()

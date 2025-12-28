@@ -243,6 +243,7 @@ func (s *Server) setupRouter() {
 			r.Post("/hosts/{hostID}/reboot", s.handleReboot)             // P6900: Reboot with TOTP
 			r.Delete("/hosts/{hostID}", s.handleDeleteHost)
 			r.Get("/hosts/{hostID}/logs", s.handleGetLogs)
+			r.Get("/hosts/{hostID}/output", s.handleGetOutput)           // P3300: Get command output
 
 			// P2800: Command state machine endpoints
 			r.Post("/hosts/{hostID}/kill", s.handleKillCommand)               // Kill running command

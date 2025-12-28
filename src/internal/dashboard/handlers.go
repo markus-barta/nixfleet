@@ -987,6 +987,37 @@ func (s *Server) handleGetLogs(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(map[string]any{"logs": logs})
 }
 
+// handleGetOutput returns the command output (log file content) for a host.
+// P3300: GET /api/hosts/{hostID}/output?lines=500
+func (s *Server) handleGetOutput(w http.ResponseWriter, r *http.Request) {
+	hostID := chi.URLParam(r, "hostID")
+
+	// Parse optional lines parameter
+	maxLines := 0
+	if linesStr := r.URL.Query().Get("lines"); linesStr != "" {
+		if lines, err := strconv.Atoi(linesStr); err == nil && lines > 0 {
+			maxLines = lines
+		}
+	}
+
+	// Get the output from LogStore
+	if s.logStore == nil {
+		http.Error(w, "Log store not configured", http.StatusInternalServerError)
+		return
+	}
+
+	content, err := s.logStore.GetLatestLogContent(hostID, maxLines)
+	if err != nil {
+		s.log.Error().Err(err).Str("host", hostID).Msg("failed to get log content")
+		http.Error(w, "Failed to retrieve logs", http.StatusInternalServerError)
+		return
+	}
+
+	// Return as plain text
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	_, _ = w.Write([]byte(content))
+}
+
 // formatTimeAgo returns a human-readable "X ago" string
 func formatTimeAgo(t time.Time) string {
 	d := time.Since(t)

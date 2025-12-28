@@ -2282,27 +2282,56 @@ templ Dashboard(data DashboardData) {
 						}
 					},
 
-					switchTab(tabId) {
-						this.activeTab = tabId;
+				switchTab(tabId) {
+					this.activeTab = tabId;
 
-						// Clear unread for host tabs
-						if (tabId !== 'system') {
-							const tab = this.tabs.find(t => t.hostId === tabId);
-							if (tab) {
-								tab.hasUnread = false;
-								// Reset indicator if was 'unread'
-								if (tab.indicator === 'unread') {
-									tab.indicator = 'success';
-								}
+					// Clear unread for host tabs
+					if (tabId !== 'system') {
+						const tab = this.tabs.find(t => t.hostId === tabId);
+						if (tab) {
+							tab.hasUnread = false;
+							// Reset indicator if was 'unread'
+							if (tab.indicator === 'unread') {
+								tab.indicator = 'success';
+							}
+							
+							// P3300: Restore output if tab is empty (first open after page load)
+							if (tab.lines.length === 0 && !tab.outputRestored) {
+								tab.outputRestored = true;
+								this.restoreHostOutput(tabId);
 							}
 						}
+					}
 
-						// Scroll to bottom
-						this.$nextTick(() => {
-							const el = this.$refs.outputContent;
-							if (el) el.scrollTop = el.scrollHeight;
+					// Scroll to bottom
+					this.$nextTick(() => {
+						const el = this.$refs.outputContent;
+						if (el) el.scrollTop = el.scrollHeight;
+					});
+				},
+				
+				// P3300: Restore output from server when tab is opened
+				async restoreHostOutput(hostId) {
+					try {
+						const resp = await fetch(`/api/hosts/${hostId}/output?lines=500`);
+						if (!resp.ok) return;
+						
+						const content = await resp.text();
+						if (!content) return;
+						
+						// Parse the output and add lines to the tab
+						const lines = content.split('\n');
+						lines.forEach(line => {
+							if (line.trim()) {
+								this.addLine(hostId, line, false);
+							}
 						});
-					},
+						
+						console.log(`[P3300] Restored ${lines.length} lines for ${hostId}`);
+					} catch (err) {
+						console.error(`[P3300] Failed to restore output for ${hostId}:`, err);
+					}
+				},
 
 					closeTab(tabId) {
 						if (tabId === 'system') {
@@ -3695,11 +3724,52 @@ templ Dashboard(data DashboardData) {
 				}));
 			}
 
-			// ═══════════════════════════════════════════════════════════════════════════
-			// INIT - P7000
-			// ═══════════════════════════════════════════════════════════════════════════
-			hostStore.hydrate();
-			connectWebSocket();
+		// ═══════════════════════════════════════════════════════════════════════════
+		// P3300: RESTORE LOGS ON PAGE LOAD
+		// ═══════════════════════════════════════════════════════════════════════════
+		
+		// Restore event log from server
+		async function restoreEventLog() {
+			try {
+				const resp = await fetch('/api/events?limit=50');
+				if (!resp.ok) return;
+				
+				const data = await resp.json();
+				const events = data.events || [];
+				
+				// Add events to system log (in reverse order so newest are on top)
+				events.reverse().forEach(event => {
+					const icon = getCategoryIcon(event.category, event.level);
+					addSystemLogEntry(event.category, event.message, icon);
+				});
+				
+				console.log(`[P3300] Restored ${events.length} events`);
+			} catch (err) {
+				console.error('[P3300] Failed to restore event log:', err);
+			}
+		}
+		
+		// Helper to get icon for event category/level
+		function getCategoryIcon(category, level) {
+			if (level === 'error') return '❌';
+			if (level === 'warning') return '⚠️';
+			switch (category) {
+				case 'command': return '⚙️';
+				case 'system': return '🖥️';
+				case 'auth': return '🔐';
+				case 'git': return '📦';
+				default: return 'ℹ';
+			}
+		}
+
+		// ═══════════════════════════════════════════════════════════════════════════
+		// INIT - P7000
+		// ═══════════════════════════════════════════════════════════════════════════
+		hostStore.hydrate();
+		connectWebSocket();
+		
+		// P3300: Restore event log on page load
+		restoreEventLog();
 
 			// Update last-seen every second
 			setInterval(() => {
