@@ -30,6 +30,7 @@ type Host struct {
 	RepoDir              string             // local repo path
 	AgentOutdated        bool               // true if agent version doesn't match dashboard version
 	OperationProgress    *OperationProgress // P2700: detailed progress for STATUS column
+	AvailableOps         []string           // P5100: Server-calculated available operations (thin frontend)
 }
 
 // UpdateStatus contains the three-compartment update status.
@@ -806,28 +807,29 @@ templ Dashboard(data DashboardData) {
 						// Cache element references for O(1) access
 						const card = document.querySelector(`.host-card[data-host-id="${id}"]`);
 
-						this._hosts.set(id, {
-							// Identity
-							id: id,
-							hostname: row.dataset.hostname || id,
-							hostType: row.dataset.hostType || 'nixos',
-							themeColor: row.dataset.themeColor || '#7aa2f7',
+				this._hosts.set(id, {
+					// Identity
+					id: id,
+					hostname: row.dataset.hostname || id,
+					hostType: row.dataset.hostType || 'nixos',
+					themeColor: row.dataset.themeColor || '#7aa2f7',
 
-							// State
-							online: !row.classList.contains('host-offline'),
-							lastSeen: row.querySelector('[data-cell="last-seen"]')?.dataset.timestamp || null,
-							pendingCommand: row.dataset.pendingCommand || null,
+					// State
+					online: !row.classList.contains('host-offline'),
+					lastSeen: row.querySelector('[data-cell="last-seen"]')?.dataset.timestamp || null,
+					pendingCommand: row.dataset.pendingCommand || null,
 
-							// Data
-							metrics: this._parseMetrics(row),
-							updateStatus: this._parseUpdateStatus(row),
-							generation: row.dataset.generation || null,
-							agentVersion: row.dataset.agentVersion || null,
-							agentOutdated: row.dataset.agentOutdated === 'true',
+					// Data
+					metrics: this._parseMetrics(row),
+					updateStatus: this._parseUpdateStatus(row),
+					generation: row.dataset.generation || null,
+					agentVersion: row.dataset.agentVersion || null,
+					agentOutdated: row.dataset.agentOutdated === 'true',
+					availableOps: this._parseAvailableOps(row), // P5100: Server-driven available operations
 
-							// Cached DOM references
-							_elements: { row, card }
-						});
+					// Cached DOM references
+					_elements: { row, card }
+				});
 					});
 					console.log(`hostStore: hydrated ${this._hosts.size} hosts`);
 				},
@@ -846,22 +848,34 @@ templ Dashboard(data DashboardData) {
 					};
 				},
 
-				_parseUpdateStatus(row) {
-					const container = row.querySelector('.update-status');
-					if (!container) return null;
-					try {
-						return {
-							git: JSON.parse(container.dataset.git || 'null'),
-							lock: JSON.parse(container.dataset.lock || 'null'),
-							system: JSON.parse(container.dataset.system || 'null'),
-							repoUrl: container.dataset.repoUrl || '',
-							repoDir: container.dataset.repoDir || ''
-						};
-					} catch (e) {
-						console.warn('Failed to parse updateStatus:', e);
-						return null;
-					}
-				},
+			_parseUpdateStatus(row) {
+				const container = row.querySelector('.update-status');
+				if (!container) return null;
+				try {
+					return {
+						git: JSON.parse(container.dataset.git || 'null'),
+						lock: JSON.parse(container.dataset.lock || 'null'),
+						system: JSON.parse(container.dataset.system || 'null'),
+						repoUrl: container.dataset.repoUrl || '',
+						repoDir: container.dataset.repoDir || ''
+					};
+				} catch (e) {
+					console.warn('Failed to parse updateStatus:', e);
+					return null;
+				}
+			},
+
+			// P5100: Parse available operations from data attribute
+			_parseAvailableOps(row) {
+				const opsStr = row.dataset.availableOps;
+				if (!opsStr) return [];
+				try {
+					return JSON.parse(opsStr);
+				} catch (e) {
+					console.error('Failed to parse availableOps:', e);
+					return [];
+				}
+			},
 
 				get(id) {
 					return this._hosts.get(id);
@@ -2739,16 +2753,11 @@ templ Dashboard(data DashboardData) {
 			let pendingRebootHostId = null;
 			let pendingRebootHostname = null;
 
-			function showRebootModal(hostId, hostname) {
-				// Check host is online before showing modal
-				const host = hostStore.get(hostId);
-				if (!host || !host.online) {
-					showToast('Host is offline', 'error');
-					return;
-				}
-
-				pendingRebootHostId = hostId;
-				pendingRebootHostname = hostname;
+		function showRebootModal(hostId, hostname) {
+			// P5100: Server decides if reboot is available (via availableOps)
+			// If button was enabled, host is ready for reboot
+			pendingRebootHostId = hostId;
+			pendingRebootHostname = hostname;
 				document.getElementById('rebootHostName').textContent = hostname;
 				document.getElementById('rebootTotp').value = '';
 				document.getElementById('rebootConfirmBtn').disabled = true;
@@ -4008,6 +4017,7 @@ templ HostRow(host Host, csrfToken string) {
 		data-agent-version={ host.AgentVersion }
 		data-agent-outdated={ strconv.FormatBool(host.AgentOutdated) }
 		data-pending-command={ host.PendingCommand }
+		data-available-ops={ marshalJSON(host.AvailableOps) }
 		class={ templ.KV("host-offline", !host.Online) }
 		style={ hostRowStyle(host) }
 		x-data
@@ -4433,34 +4443,35 @@ templ ActionDropdown(host Host) {
 			@keydown.escape.prevent="open = false; focusedIndex = -1; $el.previousElementSibling.focus()"
 			@keydown.tab="open = false; focusedIndex = -1"
 			@click="open = false; focusedIndex = -1">
-			<!-- P2500: Deployment Group -->
-			<button
-				type="button"
-				class="dropdown-item"
-				onclick={ sendCommandScript(host.ID, "pull") }
-				disabled?={ !host.Online }
-			>
-				<svg class="icon"><use href="#icon-download"></use></svg>
-				<span>Pull</span>
-			</button>
-			<button
-				type="button"
-				class="dropdown-item"
-				onclick={ sendCommandScript(host.ID, "switch") }
-				disabled?={ !host.Online }
-			>
-				<svg class="icon"><use href="#icon-refresh"></use></svg>
-				<span>Switch</span>
-			</button>
-			<button
-				type="button"
-				class="dropdown-item"
-				onclick={ sendCommandScript(host.ID, "test") }
-				disabled?={ !host.Online }
-			>
-				<svg class="icon"><use href="#icon-flask"></use></svg>
-				<span>Test</span>
-			</button>
+		<!-- P2500: Deployment Group -->
+		<!-- P5100: Server-driven UI - buttons disabled based on availableOps -->
+		<button
+			type="button"
+			class="dropdown-item"
+			onclick={ sendCommandScript(host.ID, "pull") }
+			disabled?={ !isOpAvailable(host, "pull") }
+		>
+			<svg class="icon"><use href="#icon-download"></use></svg>
+			<span>Pull</span>
+		</button>
+		<button
+			type="button"
+			class="dropdown-item"
+			onclick={ sendCommandScript(host.ID, "switch") }
+			disabled?={ !isOpAvailable(host, "switch") }
+		>
+			<svg class="icon"><use href="#icon-refresh"></use></svg>
+			<span>Switch</span>
+		</button>
+		<button
+			type="button"
+			class="dropdown-item"
+			onclick={ sendCommandScript(host.ID, "test") }
+			disabled?={ !isOpAvailable(host, "test") }
+		>
+			<svg class="icon"><use href="#icon-flask"></use></svg>
+			<span>Test</span>
+		</button>
 			if host.PendingCommand != "" {
 				<button
 					type="button"
@@ -4472,38 +4483,39 @@ templ ActionDropdown(host Host) {
 				</button>
 			}
 			<hr class="dropdown-divider"/>
-			<!-- P2500: Management Group -->
+		<!-- P2500: Management Group -->
+		<!-- P5100: Server-driven UI - buttons disabled based on availableOps -->
+		<button
+			type="button"
+			class="dropdown-item"
+			onclick={ sendCommandScript(host.ID, "restart") }
+			disabled?={ !host.Online }
+		>
+			<svg class="icon"><use href="#icon-refresh-cw"></use></svg>
+			<span>Restart Agent</span>
+		</button>
+		<!-- P6900: Reboot Host (requires TOTP) -->
+		<button
+			type="button"
+			class="dropdown-item danger"
+			onclick={ showRebootModalScript(host.ID, host.Hostname) }
+			disabled?={ !isOpAvailable(host, "reboot") }
+		>
+			<svg class="icon"><use href="#icon-power"></use></svg>
+			<span>Reboot Host</span>
+		</button>
+		<!-- P7200: Force Update Agent (when agent is outdated) -->
+		if host.AgentOutdated {
 			<button
 				type="button"
-				class="dropdown-item"
-				onclick={ sendCommandScript(host.ID, "restart") }
+				class="dropdown-item warning"
+				onclick={ sendCommandScript(host.ID, "force-update") }
 				disabled?={ !host.Online }
 			>
-				<svg class="icon"><use href="#icon-refresh-cw"></use></svg>
-				<span>Restart Agent</span>
+				<svg class="icon"><use href="#icon-alert-triangle"></use></svg>
+				<span>Force Update Agent</span>
 			</button>
-			<!-- P6900: Reboot Host (requires TOTP) -->
-			<button
-				type="button"
-				class="dropdown-item danger"
-				onclick={ showRebootModalScript(host.ID, host.Hostname) }
-				disabled?={ !host.Online }
-			>
-				<svg class="icon"><use href="#icon-power"></use></svg>
-				<span>Reboot Host</span>
-			</button>
-			<!-- P7200: Force Update Agent (when agent is outdated) -->
-			if host.AgentOutdated {
-				<button
-					type="button"
-					class="dropdown-item warning"
-					onclick={ sendCommandScript(host.ID, "force-update") }
-					disabled?={ !host.Online }
-				>
-					<svg class="icon"><use href="#icon-alert-triangle"></use></svg>
-					<span>Force Update Agent</span>
-				</button>
-			}
+		}
 			<hr class="dropdown-divider"/>
 			<!-- P2950: Color picker -->
 			<button
@@ -4549,6 +4561,25 @@ templ ActionDropdown(host Host) {
 // P1060: Script helpers for ActionDropdown
 func sendCommandScript(hostID, command string) templ.ComponentScript {
 	return templ.ComponentScript{Call: fmt.Sprintf("sendCommand('%s', '%s')", hostID, command)}
+}
+
+// P5100: Check if an operation is available for a host (server-side logic)
+func isOpAvailable(host Host, op string) bool {
+	for _, availableOp := range host.AvailableOps {
+		if availableOp == op {
+			return true
+		}
+	}
+	return false
+}
+
+// P5100: Marshal to JSON for data attributes
+func marshalJSON(v any) string {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return "[]"
+	}
+	return string(b)
 }
 
 func copyHostnameScript(hostname string) templ.ComponentScript {

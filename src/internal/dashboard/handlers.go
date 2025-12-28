@@ -372,9 +372,36 @@ func (s *Server) getHosts() ([]templates.Host, error) {
 			host.AgentOutdated = true
 		}
 
+		// P5100: Calculate available operations (server-side business logic)
+		host.AvailableOps = s.calculateAvailableOps(&host)
+
 		hosts = append(hosts, host)
 	}
 	return hosts, nil
+}
+
+// P5100: calculateAvailableOps determines which operations are available for a host.
+// This is server-side business logic - frontend just renders what we say.
+func (s *Server) calculateAvailableOps(host *templates.Host) []string {
+	available := make([]string, 0)
+
+	// Host must be online
+	if !host.Online {
+		return available
+	}
+
+	// Host must not have a pending command
+	if host.PendingCommand != "" {
+		return available
+	}
+
+	// Standard ops available for all online, idle hosts
+	available = append(available, "pull", "switch", "test")
+
+	// Reboot requires TOTP (always show if online + idle)
+	available = append(available, "reboot")
+
+	return available
 }
 
 // getUpdateStatus returns the update status for a host based on its generation.
@@ -654,6 +681,9 @@ func (s *Server) getHostByID(hostID string) (*templates.Host, error) {
 	if host.AgentVersion != "" && host.AgentVersion != Version {
 		host.AgentOutdated = true
 	}
+
+	// P5100: Calculate available operations
+	host.AvailableOps = s.calculateAvailableOps(host)
 
 	return host, nil
 }

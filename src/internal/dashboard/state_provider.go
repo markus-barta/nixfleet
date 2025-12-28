@@ -71,6 +71,10 @@ func (p *DashboardStateProvider) getHosts() []any {
 			&h.ThemeColor, &h.Location, &h.DeviceType); err != nil {
 			continue
 		}
+
+		// Calculate available ops based on host state
+		availableOps := p.calculateAvailableOps(&h)
+
 		hosts = append(hosts, map[string]any{
 			"id":              h.ID,
 			"hostname":        h.Hostname,
@@ -83,9 +87,39 @@ func (p *DashboardStateProvider) getHosts() []any {
 			"theme_color":     nullStr(h.ThemeColor),
 			"location":        nullStr(h.Location),
 			"device_type":     nullStr(h.DeviceType),
+			"available_ops":   availableOps,
 		})
 	}
 	return hosts
+}
+
+// calculateAvailableOps determines which operations are available for a host.
+// This is server-side business logic - frontend just renders what we say.
+func (p *DashboardStateProvider) calculateAvailableOps(h *struct {
+	ID, Hostname, HostType, Status                      string
+	AgentVersion, LastSeen, Generation, PendingCommand  sql.NullString
+	ThemeColor, Location, DeviceType                    sql.NullString
+}) []string {
+	available := make([]string, 0)
+
+	// Host must be online (status = "online")
+	isOnline := h.Status == "online"
+
+	// Host must not have a pending command
+	hasPendingCommand := h.PendingCommand.Valid && h.PendingCommand.String != ""
+
+	// If offline or busy, no ops available
+	if !isOnline || hasPendingCommand {
+		return available
+	}
+
+	// Standard ops available for all online, idle hosts
+	available = append(available, "pull", "switch", "test")
+
+	// Reboot requires TOTP (always show if online + idle)
+	available = append(available, "reboot")
+
+	return available
 }
 
 func (p *DashboardStateProvider) getRecentCommands(limit int) []any {
