@@ -1150,9 +1150,9 @@ templ Base(title string, csrfToken string) {
 			padding-right: 0.5rem;
 		}
 
-		/* P8800: Use the right side of the row — align compartments next to Actions. */
+		/* Status cell: left-align compartments (natural flow) */
 		.host-table td.status-cell {
-			text-align: right;
+			text-align: left;
 		}
 
 	td.status-cell-with-badge .status-wrapper {
@@ -1934,10 +1934,11 @@ templ Base(title string, csrfToken string) {
 
 		/* P1060: Dropdown toggle button */
 		.col-menu {
-			width: 48px;
-			min-width: 48px;
+			width: 70px;
+			min-width: 70px;
 			text-align: center;
-			padding: 0 !important;
+			vertical-align: middle;
+			padding: 0.5rem !important;
 		}
 
 		.dropdown-toggle {
