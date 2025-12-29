@@ -177,6 +177,26 @@ func (s *StatusChecker) SetTestsWorking() {
 	}
 }
 
+// P1100: SetSystemWorking sets the system status to "working" during switch operations.
+func (s *StatusChecker) SetSystemWorking() {
+	s.systemStatus = protocol.StatusCheck{
+		Status:    "working",
+		Message:   "Switch in progress...",
+		CheckedAt: time.Now().UTC().Format(time.RFC3339),
+	}
+	s.lastSystemCheck = time.Now()
+}
+
+// P1100: SetLockWorking sets the lock status to "working" during refresh-lock operations.
+func (s *StatusChecker) SetLockWorking() {
+	s.lockStatus = protocol.StatusCheck{
+		Status:    "working",
+		Message:   "Refreshing lock...",
+		CheckedAt: time.Now().UTC().Format(time.RFC3339),
+	}
+	s.lastLockCheck = time.Now()
+}
+
 // GetTestsStatus returns the current tests status.
 func (s *StatusChecker) GetTestsStatus() protocol.StatusCheck {
 	return s.testsStatus

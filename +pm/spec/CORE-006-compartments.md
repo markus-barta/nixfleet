@@ -488,6 +488,191 @@ After Tests:
 
 ---
 
+## Command Lifecycle State Machine
+
+This diagram shows the **complete command lifecycle** from user click to completion.
+This is the canonical reference for all state transitions.
+
+### State Definitions
+
+| Status               | Description                                  | Terminal? |
+| -------------------- | -------------------------------------------- | --------- |
+| `PENDING`            | Command queued, not yet validated            | No        |
+| `VALIDATING`         | Checking preconditions                       | No        |
+| `BLOCKED`            | Validation failed, cannot proceed            | Yes       |
+| `EXECUTING`          | Command running on agent                     | No        |
+| `RUNNING_WARNING`    | Exceeded warning timeout, still running      | No        |
+| `TIMEOUT_PENDING`    | Exceeded hard timeout, user action required  | No        |
+| `AWAITING_RECONNECT` | Switch completed, waiting for agent restart  | No        |
+| `KILLING`            | SIGTERM sent, waiting for process to die     | No        |
+| `KILLED`             | Command terminated by user                   | Yes       |
+| `SUCCESS`            | Command completed successfully               | Yes       |
+| `ERROR`              | Command failed (non-zero exit or validation) | Yes       |
+| `TIMEOUT`            | Agent never reconnected after switch         | Yes       |
+| `PARTIAL`            | Exit 0 but post-check failed                 | Yes       |
+| `STALE_BINARY`       | Agent reconnected with old binary            | Yes       |
+| `SUSPICIOUS`         | Source commit changed but binary hash didn't | Yes       |
+| `SKIPPED`            | Command cancelled by user                    | Yes       |
+
+### Full State Transition Diagram
+
+```
+                              ┌──────────────────────────────────────────────────────────────┐
+                              │                    COMMAND LIFECYCLE                          │
+                              └──────────────────────────────────────────────────────────────┘
+
+        ┌─────────┐                                                               ┌─────────┐
+        │  IDLE   │───────────── User clicks compartment ─────────────────────────▶│ PENDING │
+        └─────────┘                                                               └────┬────┘
+             ▲                                                                         │
+             │                                                                    Validate
+             │                                                                         │
+             │         ┌──────────────────────────────────────────────────────────────┐│
+             │         │                EDGE CASE: Validation fails                    ││
+             │         │  - Host offline                                               ││
+             │         │  - Another command already running                            ││
+             │         │  - Precondition not met                                       ││
+             │         └──────────────────────────────────────────────────────────────┘│
+             │                           │                                             ▼
+             │                           ▼                                       ┌──────────┐
+             │◀──── (clearActive) ─────│ BLOCKED  │                              │VALIDATING│
+             │                         └──────────┘                              └────┬─────┘
+             │                                                                        │
+             │                                                                   Send to agent
+             │                                                                        │
+             │         ┌──────────────────────────────────────────────────────────────┐│
+             │         │                EDGE CASE: Agent offline                       ││
+             │         │  - WebSocket disconnected                                     ││
+             │         │  - Send buffer full                                           ││
+             │         └──────────────────────────────────────────────────────────────┘│
+             │                           │                                             ▼
+             │                           ▼                                       ┌──────────┐
+             │◀──── (clearActive) ──┬──│  ERROR   │◀─────── send_failed ─────────│EXECUTING │
+             │                      │  └──────────┘                              └────┬─────┘
+             │                      │        ▲                                        │
+             │                      │        │                                  Agent runs cmd
+             │                      │        │                                        │
+             │                      │  ┌─────┴────────────────────────────────────────┤
+             │                      │  │           TIMEOUT PATH:                      │
+             │                      │  │                                              │
+             │                      │  │  warning_timeout exceeded                    │
+             │                      │  │           │                                  │
+             │                      │  │           ▼                                  │
+             │                      │  │  ┌─────────────────┐                         │
+             │                      │  │  │ RUNNING_WARNING │ (still executing)       │
+             │                      │  │  └────────┬────────┘                         │
+             │                      │  │           │                                  │
+             │                      │  │  hard_timeout exceeded                       │
+             │                      │  │           │                                  │
+             │                      │  │           ▼                                  │
+             │                      │  │  ┌─────────────────┐                         │
+             │                      │  │  │ TIMEOUT_PENDING │ → User must act         │
+             │                      │  │  └────────┬────────┘                         │
+             │                      │  │           │                                  │
+             │                      │  │     ┌─────┴─────┐                            │
+             │                      │  │     │           │                            │
+             │                      │  │   Extend     Kill                            │
+             │                      │  │     │           │                            │
+             │                      │  │     ▼           ▼                            │
+             │                      │  │  (restart   ┌─────────┐                      │
+             │                      │  │   watcher)  │ KILLING │                      │
+             │                      │  │             └────┬────┘                      │
+             │                      │  │                  │                           │
+             │                      │  │            SIGKILL fallback                  │
+             │                      │  │                  │                           │
+             │                      │  │                  ▼                           │
+             │                      │  │             ┌────────┐                       │
+             │                      │  └─────────────│ KILLED │                       │
+             │                      │                └────────┘                       │
+             │                      │                     │                           │
+             │◀─────────────────────┴─────────────────────┘                           │
+             │                                                                        │
+             │         ┌──────────────────────────────────────────────────────────────┤
+             │         │           STOP PATH (user clicks STOP):                      │
+             │         │  1. SIGTERM sent to process group                            │
+             │         │  2. 3s grace period                                          │
+             │         │  3. SIGKILL if still running                                 │
+             │         │  4. → KILLED                                                 │
+             │         └──────────────────────────────────────────────────────────────┤
+             │                                                                        │
+             │         ┌──────────────────────────────────────────────────────────────┤
+             │         │           CRASH PATH:                                        │
+             │         │  - Agent crashes mid-command                                 │
+             │         │  - Agent disconnects (network failure)                       │
+             │         │  - Host reboots unexpectedly                                 │
+             │         │                                                              │
+             │         │  Recovery: staleCommandCleanupLoop runs every 1m             │
+             │         │  - Checks: pending_command != NULL AND last_seen stale       │
+             │         │  - Clears pending_command, sets status = 'offline'           │
+             │         └──────────────────────────────────────────────────────────────┤
+             │                                                                        │
+             │                                                                   Exit code
+             │                                                                    received
+             │                                                                        │
+             │         ┌──────────────────────────────────────────────────────────────┤
+             │         │  BRANCH: exit != 0 → immediate ERROR                         │
+             │         │  BRANCH: switch && exit == 0 → AWAITING_RECONNECT            │
+             │         │  BRANCH: other && exit == 0 → post-check (deferred)          │
+             │         └──────────────────────────────────────────────────────────────┤
+             │                           │                         │                   │
+             │                      Switch path               Other path               │
+             │                           │                         │                   │
+             │                           ▼                         ▼                   │
+             │                    ┌─────────────┐          ┌─────────────┐             │
+             │                    │ AWAITING_   │          │ Post-check  │             │
+             │                    │ RECONNECT   │          │ (deferred)  │             │
+             │                    └──────┬──────┘          └──────┬──────┘             │
+             │                           │                        │                    │
+             │         ┌─────────────────┴────────────────────────┤                    │
+             │         │  SWITCH VERIFICATION:                    │                    │
+             │         │                                          │                    │
+             │         │  On agent reconnect:                     │                    │
+             │         │  1. Compare PreFreshness vs new          │                    │
+             │         │  2. Check: SourceCommit changed?         │                    │
+             │         │  3. Check: StorePath changed?            │                    │
+             │         │  4. Check: BinaryHash changed?           │                    │
+             │         │                                          │                    │
+             │         │  Verdicts:                                │                    │
+             │         │  - All changed → SUCCESS                  │                    │
+             │         │  - Commit changed, hash same → SUSPICIOUS │                    │
+             │         │  - Nothing changed → STALE_BINARY         │                    │
+             │         │  - Timeout → TIMEOUT                      │                    │
+             │         └─────────────────┬────────────────────────┘                    │
+             │                           │                                             │
+             │           ┌───────────────┼───────────────────────────────────┐         │
+             │           │               │                                   │         │
+             │           ▼               ▼                                   ▼         ▼
+             │     ┌─────────┐    ┌─────────────┐                     ┌─────────┐┌─────────┐
+             │◀────│ SUCCESS │    │STALE_BINARY │                     │ PARTIAL ││  ERROR  │
+             │     └─────────┘    │ SUSPICIOUS  │                     └─────────┘└─────────┘
+             │                    │   TIMEOUT   │                          │          │
+             │                    └─────────────┘                          │          │
+             │                           │                                 │          │
+             │◀──────── clearActive() ───┴─────────────────────────────────┴──────────┘
+
+```
+
+### Edge Cases and Recovery
+
+| Scenario                                | Detection                    | Recovery                                          |
+| --------------------------------------- | ---------------------------- | ------------------------------------------------- |
+| Agent crashes mid-command               | `last_seen` becomes stale    | `staleCommandCleanupLoop` clears after 10m        |
+| Switch succeeds, agent never reconnects | `ReconnectDeadline` exceeded | `watchReconnectTimeout` → TIMEOUT                 |
+| Switch completes but binary unchanged   | Freshness comparison         | → STALE_BINARY, user must investigate             |
+| User closes browser during command      | N/A                          | Command continues; UI syncs on reconnect          |
+| Dashboard restarts during command       | `active` map lost            | Agent reconnect clears pending_command            |
+| Network partition                       | WebSocket disconnects        | Agent reconnects; registration clears stale state |
+
+### Invariants (MUST always hold)
+
+1. **Single source of truth**: LifecycleManager's `active` map is authoritative; `hosts.pending_command` is a cache
+2. **No orphaned commands**: Every command in `active` must eventually reach a terminal state
+3. **No stuck UI**: Every non-terminal state has a timeout or cleanup mechanism
+4. **Idempotent reconnect**: Agent re-registration always clears stale `pending_command`
+5. **Heartbeats continue**: Agent sends heartbeats even during command execution
+
+---
+
 ## Implementation Notes
 
 ### Performance

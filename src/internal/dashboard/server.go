@@ -103,6 +103,8 @@ func New(cfg *Config, db *sql.DB, log zerolog.Logger) *Server {
 	lifecycleManager := ops.NewLifecycleManager(log, opRegistry, cmdSender, stateStore, stateStore)
 	lifecycleManager.SetHostProvider(&hostProviderAdapter{db: db})
 	lifecycleManager.SetBroadcastSender(&broadcastSenderAdapter{hub: hub})
+	// P1100: Wire pending command store - LifecycleManager is now the SINGLE SOURCE OF TRUTH
+	lifecycleManager.SetPendingCommandStore(hub)
 	hub.SetLifecycleManager(&lifecycleManagerWrapper{lm: lifecycleManager})
 
 	// Create pipeline executor (uses lifecycle manager for op execution)

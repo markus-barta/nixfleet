@@ -111,6 +111,8 @@ func (a *Agent) executeCommand(command string) {
 	case "switch":
 		// P2800: Signal system phase starting
 		a.sendOperationProgress("system", "in_progress", 0, 3)
+		// P1100: Set working state so compartment shows blue pulse
+		a.statusChecker.SetSystemWorking()
 		cmd, err = a.buildSwitchCommand()
 	case "pull-switch":
 		// P2800: Signal pull phase starting
@@ -133,6 +135,8 @@ func (a *Agent) executeCommand(command string) {
 		// P2800: Pull complete, system starting
 		a.sendOperationProgress("pull", "complete", 4, 4)
 		a.sendOperationProgress("system", "in_progress", 0, 3)
+		// P1100: Set working state so compartment shows blue pulse
+		a.statusChecker.SetSystemWorking()
 		// Force refresh status after pull so switch sees updated state
 		a.statusChecker.ForceRefresh(a.ctx)
 		// Then switch
@@ -140,6 +144,8 @@ func (a *Agent) executeCommand(command string) {
 	case "test":
 		// P2800: Signal tests phase starting
 		a.sendOperationProgress("tests", "in_progress", 0, 8)
+		// P1100: Set working state so compartment shows blue pulse
+		a.statusChecker.SetTestsWorking()
 		cmd, err = a.buildTestCommand()
 	case "rollback":
 		// P4600: Rollback to previous generation
@@ -155,6 +161,8 @@ func (a *Agent) executeCommand(command string) {
 		a.sendStatus("ok", command, 0, "git status check is dashboard-side")
 		return
 	case "refresh-lock":
+		// P1100: Set working state so compartment shows blue pulse
+		a.statusChecker.SetLockWorking()
 		a.sendOutput("Refreshing lock file status...", "stdout")
 		a.statusChecker.RefreshLock(a.ctx)
 		lockStatus := a.statusChecker.GetLockStatus()
@@ -329,13 +337,20 @@ func (a *Agent) executeCommand(command string) {
 	a.sendHeartbeat()
 
 	// Auto-restart after successful switch to pick up new binary
-	// Only on NixOS - macOS is handled by home-manager's launchctl bootout/bootstrap
-	if exitCode == 0 && (command == "switch" || command == "pull-switch") && runtime.GOOS != "darwin" {
+	// P1100: BOTH NixOS and macOS now restart to trigger proper reconnect verification.
+	// On macOS, home-manager switch does launchctl bootout which SHOULD kill the agent,
+	// but if we're still running (e.g., running agent manually, or bootout failed),
+	// we need to restart to trigger the reconnect flow that verifies binary freshness.
+	if exitCode == 0 && (command == "switch" || command == "pull-switch") {
 		a.log.Info().Msg("switch completed successfully, restarting to pick up new binary")
 		// Give time for the status message to be sent
 		time.Sleep(500 * time.Millisecond)
 		a.Shutdown()
-		os.Exit(101) // Triggers RestartForceExitStatus in systemd
+		if runtime.GOOS == "darwin" {
+			os.Exit(0) // launchd will restart via KeepAlive
+		} else {
+			os.Exit(101) // Triggers RestartForceExitStatus in systemd
+		}
 	}
 }
 

@@ -191,6 +191,12 @@ func (w *lifecycleManagerWrapper) HandleAgentReconnect(hostID string, freshness 
 	w.lm.HandleAgentReconnect(hostID, opsFreshness)
 }
 
+// HasActiveCommand implements lifecycleManagerInterface.
+// P1100: Used by stale cleanup to avoid clearing pending_command for tracked commands.
+func (w *lifecycleManagerWrapper) HasActiveCommand(hostID string) bool {
+	return w.lm.HasActiveCommand(hostID)
+}
+
 // Ensure adapters implement interfaces at compile time.
 var _ ops.HostProvider = (*hostProviderAdapter)(nil)
 var _ ops.BroadcastSender = (*broadcastSenderAdapter)(nil)

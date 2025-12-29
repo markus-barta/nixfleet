@@ -83,8 +83,19 @@ type BroadcastSender interface {
 	BroadcastToast(hostID, level, message string)
 }
 
+// PendingCommandStore manages the pending_command column in hosts table.
+// This is the SINGLE SOURCE OF TRUTH for command state in the database.
+// Hub should NOT update pending_command directly - only LifecycleManager does.
+type PendingCommandStore interface {
+	// SetPendingCommand sets the pending_command for a host (nil to clear)
+	SetPendingCommand(hostID string, command *string) error
+	// ClearPendingCommand clears the pending_command for a host
+	ClearPendingCommand(hostID string) error
+}
+
 // LifecycleManager handles the complete command lifecycle.
 // Replaces CommandStateMachine.
+// IMPORTANT: This is the SINGLE SOURCE OF TRUTH for pending_command state.
 type LifecycleManager struct {
 	log       zerolog.Logger
 	registry  *Registry
@@ -93,6 +104,7 @@ type LifecycleManager struct {
 	events    EventLogger
 	hosts     HostProvider
 	broadcast BroadcastSender
+	pending   PendingCommandStore // P1100: Single source of truth for pending_command
 
 	// Active commands per host
 	active   map[string]*ActiveCommand
@@ -129,6 +141,12 @@ func (lm *LifecycleManager) SetHostProvider(hp HostProvider) {
 // SetBroadcastSender sets the broadcast sender (called after hub init).
 func (lm *LifecycleManager) SetBroadcastSender(bs BroadcastSender) {
 	lm.broadcast = bs
+}
+
+// SetPendingCommandStore sets the pending command store (called after hub init).
+// P1100: This makes LifecycleManager the single source of truth for pending_command.
+func (lm *LifecycleManager) SetPendingCommandStore(pcs PendingCommandStore) {
+	lm.pending = pcs
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -214,12 +232,24 @@ func (lm *LifecycleManager) ExecuteOp(opID string, host Host, force bool) (*Acti
 
 	// Send to agent
 	if op.Executor == ExecutorAgent {
+		// P1100: Set pending_command in DB BEFORE sending to agent
+		// This is the single source of truth - Hub should not update this from heartbeats
+		if lm.pending != nil {
+			if err := lm.pending.SetPendingCommand(hostID, &opID); err != nil {
+				lm.log.Error().Err(err).Str("host", hostID).Msg("failed to set pending_command in DB")
+			}
+		}
+
 		if !lm.sender.SendCommand(hostID, opID) {
 			cmd.Status = StatusError
 			cmd.Error = "Failed to send command to agent"
 			cmd.FinishedAt = time.Now()
 			exitCode := 1
 			cmd.ExitCode = &exitCode
+			// Clear pending_command since we failed to send
+			if lm.pending != nil {
+				_ = lm.pending.ClearPendingCommand(hostID)
+			}
 			lm.updateAndBroadcast(cmd)
 			lm.logEvent("error", hostID, opID, cmd.Error)
 			return cmd, &ValidationError{Code: "send_failed", Message: cmd.Error}
@@ -632,6 +662,15 @@ func (lm *LifecycleManager) GetActiveCommand(hostID string) *ActiveCommand {
 	return lm.active[hostID]
 }
 
+// HasActiveCommand returns true if the host has an active (non-terminal) command.
+// P1100: Used by stale cleanup to avoid clearing pending_command for tracked commands.
+func (lm *LifecycleManager) HasActiveCommand(hostID string) bool {
+	lm.activeMu.RLock()
+	defer lm.activeMu.RUnlock()
+	cmd := lm.active[hostID]
+	return cmd != nil && !cmd.Status.IsTerminal()
+}
+
 // GetAllActiveCommands returns all active commands.
 func (lm *LifecycleManager) GetAllActiveCommands() map[string]*ActiveCommand {
 	lm.activeMu.RLock()
@@ -647,6 +686,13 @@ func (lm *LifecycleManager) clearActive(hostID string) {
 	lm.activeMu.Lock()
 	delete(lm.active, hostID)
 	lm.activeMu.Unlock()
+
+	// P1100: Clear pending_command in DB - single source of truth
+	if lm.pending != nil {
+		if err := lm.pending.ClearPendingCommand(hostID); err != nil {
+			lm.log.Error().Err(err).Str("host", hostID).Msg("failed to clear pending_command in DB")
+		}
+	}
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

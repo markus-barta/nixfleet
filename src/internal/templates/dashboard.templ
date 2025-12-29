@@ -1719,8 +1719,11 @@ templ Dashboard(data DashboardData) {
 				sendCommand(hostId, command, true);
 			}
 
-			// System refresh confirmation dialog
+			// DEPRECATED (P1100): System refresh dialog is no longer used
+			// System compartment is now inference-only per CORE-006
+			// Keeping for reference but this should never be called
 			function showSystemRefreshDialog(hostId, hostname, description, status) {
+				console.warn('showSystemRefreshDialog is deprecated - System is inference-only');
 				const dialog = document.getElementById('systemRefreshDialog');
 				if (!dialog) return;
 
@@ -3273,16 +3276,22 @@ templ Dashboard(data DashboardData) {
 				window.dispatchEvent(new CustomEvent('action-clear'));
 			}
 
-			// P7300: Compartment click = INFO ONLY
-			// - Safe lightweight checks allowed (git status refresh)
-			// - NO host modification (no pull, switch)
-			// - NO heavy ops (no nix build --dry-run)
-			// For actions, use the ellipsis menu
+			// P1100: Compartment click behavior per CORE-006 state machine
+			// | State    | Color  | Click Action                         |
+			// |----------|--------|--------------------------------------|
+			// | unknown  | gray   | Show "checking..." or trigger check  |
+			// | ok       | green  | Show detailed status (NO action)     |
+			// | outdated | yellow | Trigger appropriate operation        |
+			// | working  | blue   | Show progress, offer STOP            |
+			// | error    | red    | Show error details, offer retry      |
+			//
+			// CRITICAL: System compartment is INFERENCE-ONLY - never triggers action
 			function handleCompartmentClick(btn) {
 				const hostId = btn.dataset.hostId;
 				const hostname = btn.dataset.hostname;
 				const compartment = btn.dataset.compartment;
 				const description = btn.dataset.description || '';
+				const status = btn.dataset.status || 'unknown';
 
 				// Rate limiting (prevent spam clicks)
 				const cooldownKey = `${hostId}-${compartment}`;
@@ -3295,82 +3304,149 @@ templ Dashboard(data DashboardData) {
 					btn.classList.remove('rate-limited');
 				}, COOLDOWN_MS);
 
-				// P7230: All compartment clicks show toast + log
-				// Toast = short TL;DR, Log = detailed info
-				const status = btn.dataset.status || 'unknown';
-				const toastType = status === 'ok' ? 'success' : 
-								  status === 'error' ? 'error' : 
-								  status === 'outdated' ? 'warning' : 'info';
+				// Always show log panel for all compartment clicks
+				showLogPanel(hostId);
 
+				// P1100: Handle WORKING state first - offer STOP for all compartments
+				if (status === 'working') {
+					appendLogLine(hostId, `🔵 ${compartment}: ${description || 'Operation in progress...'}`);
+					showToast(`${compartment}: running - click STOP to cancel`, 'info');
+					// Show STOP button in context bar
+					window.dispatchEvent(new CustomEvent('show-stop-action', {
+						detail: { hostId, hostname, compartment }
+					}));
+					return;
+				}
+
+				// P1100: Handle GREEN (ok) state - INFO ONLY, no action
+				if (status === 'ok') {
+					appendLogLine(hostId, `🟢 ${compartment}: ${description || 'OK'}`);
+					showToast(`${compartment}: ${description || 'OK'}`, 'success');
+					return;
+				}
+
+				// P1100: System compartment is INFERENCE-ONLY per CORE-006
+				// Status inferred from: Lock status + last command result
+				// Click only shows info - NEVER triggers action
+				if (compartment === 'system') {
+					const statusEmoji = status === 'error' ? '🔴' : 
+									   status === 'outdated' ? '🟡' : '⚪';
+					appendLogLine(hostId, `${statusEmoji} System: ${description || status}`);
+					appendLogLine(hostId, `ℹ️ System status is inferred from Lock status and last command.`);
+					if (status === 'outdated') {
+						appendLogLine(hostId, `💡 To update: use Deploy menu or run Switch`);
+					} else if (status === 'error') {
+						appendLogLine(hostId, `💡 Last switch failed. Check logs, fix config, then retry.`);
+					}
+					showToast(`System: ${description || status}`, 
+							  status === 'error' ? 'error' : 
+							  status === 'outdated' ? 'warning' : 'info');
+					return;
+				}
+
+				// P1100: Handle other states based on compartment type
 				switch (compartment) {
 					case 'agent':
-						// P7230: Agent: run check-version command to compare running vs installed
-						showLogPanel(hostId);
-						appendLogLine(hostId, `🔍 Checking agent version...`);
-						showToast(`Agent: checking version...`, 'info');
-						sendCommand(hostId, 'check-version');
+						if (status === 'error') {
+							// Agent outdated - show info, suggest action
+							appendLogLine(hostId, `🔴 Agent: ${description || 'Outdated'}`);
+							appendLogLine(hostId, `💡 To update: Deploy → Pull+Switch`);
+							showToast(`Agent outdated - needs Pull+Switch`, 'error');
+						} else {
+							// Unknown or checking - run check-version
+							appendLogLine(hostId, `🔍 Checking agent version...`);
+							showToast(`Agent: checking version...`, 'info');
+							sendCommand(hostId, 'check-version');
+						}
 						break;
 
 					case 'git':
-						// Git: lightweight refresh (dashboard-side GitHub API call)
-						showLogPanel(hostId);
-						appendLogLine(hostId, `🔄 Refreshing git status...`);
-						showToast(`Git: refreshing...`, 'info');
-						window.dispatchEvent(new CustomEvent('output-start', {
-							detail: { hostId, command: 'refresh-git' }
-						}));
-
-						fetch(`/api/hosts/${hostId}/refresh-git`, {
-							method: 'POST',
-							headers: { 'X-CSRF-Token': CSRF_TOKEN }
-						}).then(resp => {
-							if (!resp.ok) throw new Error('Failed to refresh git status');
-							return resp.json();
-						}).then(data => {
-							const msg = `Git: ${data.status} - ${data.message}`;
-							appendLogLine(hostId, `✓ ${msg}`);
-							showToast(msg, data.status === 'ok' ? 'success' : 'warning');
-							refreshHost(hostId);
-							window.dispatchEvent(new CustomEvent('log-complete', {
-								detail: { host_id: hostId, command: 'refresh-git', exit_code: 0 }
-							}));
-						}).catch(err => {
-							appendLogLine(hostId, `✗ ${err.message}`, 'error');
-							showToast(`Git: ${err.message}`, 'error');
-							window.dispatchEvent(new CustomEvent('log-complete', {
-								detail: { host_id: hostId, command: 'refresh-git', exit_code: 1, error: err.message }
-							}));
-						});
+						if (status === 'outdated') {
+							// Git outdated - trigger refresh (lightweight dashboard-side)
+							appendLogLine(hostId, `🟡 Git: ${description || 'Behind remote'}`);
+							appendLogLine(hostId, `🔄 Refreshing git status...`);
+							showToast(`Git: refreshing...`, 'info');
+							triggerGitRefresh(hostId);
+						} else if (status === 'error') {
+							appendLogLine(hostId, `🔴 Git: ${description || 'Error'}`);
+							appendLogLine(hostId, `🔄 Retrying refresh...`);
+							showToast(`Git: retrying...`, 'warning');
+							triggerGitRefresh(hostId);
+						} else {
+							// Unknown - trigger refresh to check
+							appendLogLine(hostId, `⚪ Git: ${description || 'Checking...'}`);
+							triggerGitRefresh(hostId);
+						}
 						break;
 
 					case 'lock':
-						// Lock: lightweight refresh (agent reads flake.lock - fast)
-						showLogPanel(hostId);
-						appendLogLine(hostId, `🔄 Refreshing lock status...`);
-						showToast(`Lock: ${description || 'checking...'}`, toastType);
-						sendCommand(hostId, 'refresh-lock');
-						break;
-
-					case 'system':
-						// System: show confirmation dialog (refresh is expensive)
-						showSystemRefreshDialog(hostId, hostname, description, status);
+						if (status === 'outdated') {
+							// Lock outdated - refresh status (lightweight agent check)
+							appendLogLine(hostId, `🟡 Lock: ${description || 'Outdated'}`);
+							appendLogLine(hostId, `🔄 Refreshing lock status...`);
+							showToast(`Lock: ${description}`, 'warning');
+							sendCommand(hostId, 'refresh-lock');
+						} else if (status === 'error') {
+							appendLogLine(hostId, `🔴 Lock: ${description || 'Error'}`);
+							appendLogLine(hostId, `🔄 Retrying refresh...`);
+							showToast(`Lock: retrying...`, 'warning');
+							sendCommand(hostId, 'refresh-lock');
+						} else {
+							// Unknown - trigger refresh to check
+							appendLogLine(hostId, `⚪ Lock: ${description || 'Checking...'}`);
+							sendCommand(hostId, 'refresh-lock');
+						}
 						break;
 
 					case 'tests':
-						// P3900: Tests compartment - run tests or show last results
-						showLogPanel(hostId);
-						if (status === 'working') {
-							showToast('Tests already running...', 'info');
-						} else {
-							appendLogLine(hostId, `🧪 Running tests...`);
-							showToast('Tests: running...', 'info');
+						if (status === 'outdated' || status === 'error') {
+							// Tests not run yet OR failed - run/retry them
+							const statusEmoji = status === 'error' ? '🔴' : '🟡';
+							const action = status === 'error' ? 'Retrying' : 'Running';
+							appendLogLine(hostId, `${statusEmoji} Tests: ${description || status}`);
+							appendLogLine(hostId, `🧪 ${action} tests...`);
+							showToast(`Tests: ${action.toLowerCase()}...`, 'info');
 							sendCommand(hostId, 'test');
+						} else {
+							// Unknown - show info, don't run automatically
+							appendLogLine(hostId, `⚪ Tests: ${description || 'Not configured'}`);
+							appendLogLine(hostId, `ℹ️ Configure tests in hosts/<hostname>/tests/ to enable`);
+							showToast(`Tests: ${description || 'not configured'}`, 'info');
 						}
 						break;
 
 					default:
 						showToast(`Unknown compartment: ${compartment}`, 'error');
 				}
+			}
+
+			// P1100: Git refresh helper (dashboard-side API call)
+			function triggerGitRefresh(hostId) {
+				window.dispatchEvent(new CustomEvent('output-start', {
+					detail: { hostId, command: 'refresh-git' }
+				}));
+
+				fetch(`/api/hosts/${hostId}/refresh-git`, {
+					method: 'POST',
+					headers: { 'X-CSRF-Token': CSRF_TOKEN }
+				}).then(resp => {
+					if (!resp.ok) throw new Error('Failed to refresh git status');
+					return resp.json();
+				}).then(data => {
+					const msg = `Git: ${data.status} - ${data.message}`;
+					appendLogLine(hostId, `✓ ${msg}`);
+					showToast(msg, data.status === 'ok' ? 'success' : 'warning');
+					refreshHost(hostId);
+					window.dispatchEvent(new CustomEvent('log-complete', {
+						detail: { host_id: hostId, command: 'refresh-git', exit_code: 0 }
+					}));
+				}).catch(err => {
+					appendLogLine(hostId, `✗ ${err.message}`, 'error');
+					showToast(`Git: ${err.message}`, 'error');
+					window.dispatchEvent(new CustomEvent('log-complete', {
+						detail: { host_id: hostId, command: 'refresh-git', exit_code: 1, error: err.message }
+					}));
+				});
 			}
 
 			function showToast(message, type = 'info') {

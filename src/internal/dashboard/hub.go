@@ -49,6 +49,8 @@ type lifecycleManagerInterface interface {
 	HandleCommandComplete(hostID, opID string, exitCode int, message string) (interface{}, error)
 	HandleHeartbeat(hostID string, freshness interface{})
 	HandleAgentReconnect(hostID string, freshness interface{})
+	// P1100: Check if host has an active command in lifecycle manager
+	HasActiveCommand(hostID string) bool
 }
 
 // Client represents a WebSocket connection (agent or browser).
@@ -395,6 +397,7 @@ func (h *Hub) staleCommandCleanupLoop(ctx context.Context) {
 // - Offline hosts that went down during a command
 // - "Running" hosts where the agent died mid-command without sending status
 // Any host with a pending_command and stale last_seen is cleaned up.
+// P1100: Now also checks LifecycleManager to avoid clearing tracked commands.
 func (h *Hub) cleanupStaleCommands() {
 	timeout := h.cfg.StaleCommandTimeout()
 	thresholdMinutes := int(timeout.Minutes())
@@ -427,6 +430,15 @@ func (h *Hub) cleanupStaleCommands() {
 		}
 		// Skip if agent is currently connected (heartbeats will handle it)
 		if connectedAgents[hostname] {
+			continue
+		}
+		// P1100: Skip if LifecycleManager is tracking an active command
+		// This can happen for AWAITING_RECONNECT state where we're waiting for agent restart
+		if h.lifecycleManager != nil && h.lifecycleManager.HasActiveCommand(hostname) {
+			h.log.Debug().
+				Str("host", hostname).
+				Str("command", pendingCommand).
+				Msg("skipping stale cleanup - LifecycleManager has active command")
 			continue
 		}
 		hostsToUpdate = append(hostsToUpdate, hostname)
@@ -855,30 +867,35 @@ func (h *Hub) handleHeartbeat(hostID string, payload protocol.HeartbeatPayload) 
 		lockHashPtr = &payload.LockHash
 	}
 
-	// P1000-FIX: Ensure pending_command is properly cleared
-	// The agent sends nil pointer when no command is running.
-	// We need to explicitly handle this to ensure NULL is stored in SQLite.
-	var pendingCommandDB interface{}
+	// P1100: DO NOT update pending_command from heartbeat!
+	// LifecycleManager is the SINGLE SOURCE OF TRUTH for pending_command.
+	// Heartbeat reports what the agent *thinks* it's running, but the dashboard
+	// tracks command lifecycle independently to handle edge cases like:
+	// - Agent crash mid-command
+	// - Switch command awaiting reconnect
+	// - Dashboard restart during command
+	//
+	// The agent's PendingCommand is still logged for debugging but not persisted.
 	if payload.PendingCommand != nil && *payload.PendingCommand != "" {
-		pendingCommandDB = *payload.PendingCommand
-	} else {
-		pendingCommandDB = nil // Explicitly set to nil for SQL NULL
+		h.log.Debug().
+			Str("host", hostID).
+			Str("agent_pending", *payload.PendingCommand).
+			Msg("agent reports pending command (informational only)")
 	}
 
-	// Update host last_seen and status in database
+	// Update host last_seen and status in database (WITHOUT pending_command)
 	_, err := h.db.Exec(`
 		UPDATE hosts SET 
 			last_seen = datetime('now'),
 			status = 'online',
 			generation = ?,
 			nixpkgs_version = ?,
-			pending_command = ?,
 			metrics_json = ?,
 			lock_status_json = ?,
 			system_status_json = ?,
 			lock_hash = ?
 		WHERE hostname = ?
-	`, payload.Generation, payload.NixpkgsVersion, pendingCommandDB, metricsJSON, lockStatusJSON, systemStatusJSON, lockHashPtr, hostID)
+	`, payload.Generation, payload.NixpkgsVersion, metricsJSON, lockStatusJSON, systemStatusJSON, lockHashPtr, hostID)
 
 	if err != nil {
 		h.log.Error().Err(err).Str("host", hostID).Msg("failed to update heartbeat")
@@ -954,18 +971,13 @@ func (h *Hub) handleStatus(hostID string, payload protocol.StatusPayload) {
 		Int("exit_code", payload.ExitCode).
 		Msg("command status")
 
-	// P2800: For switch commands with exit 0, don't clear pending_command yet
-	// The agent will exit 101 and we need to verify reconnection
-	isSwitch := payload.Command == "switch" || payload.Command == "pull-switch"
-	isSwitchSuccess := isSwitch && payload.ExitCode == 0
-
-	if !isSwitchSuccess {
-		// Clear pending_command in database - command is complete
-		_, err := h.db.Exec(`UPDATE hosts SET pending_command = NULL WHERE hostname = ?`, hostID)
-		if err != nil {
-			h.log.Error().Err(err).Str("host", hostID).Msg("failed to clear pending_command")
-		}
-	}
+	// P1100: DO NOT clear pending_command here!
+	// LifecycleManager is the SINGLE SOURCE OF TRUTH for pending_command.
+	// It will call ClearPendingCommand() when the command reaches a terminal state.
+	// This includes handling switch commands that need to await reconnect.
+	//
+	// The old code cleared pending_command directly here, but that created
+	// race conditions with LifecycleManager's state tracking.
 
 	// Complete the log file
 	if h.logStore != nil {
@@ -1199,6 +1211,36 @@ func (h *Hub) BroadcastTypedMessage(msgType string, payload interface{}) {
 		"type":    msgType,
 		"payload": payload,
 	})
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// P1100: PendingCommandStore implementation
+// Hub implements ops.PendingCommandStore to be the single source of truth
+// for pending_command state. LifecycleManager calls these methods.
+// ═══════════════════════════════════════════════════════════════════════════
+
+// SetPendingCommand sets the pending_command for a host.
+// Called by LifecycleManager when a command starts.
+func (h *Hub) SetPendingCommand(hostID string, command *string) error {
+	var cmd interface{}
+	if command != nil {
+		cmd = *command
+	}
+	_, err := h.db.Exec(`UPDATE hosts SET pending_command = ? WHERE hostname = ? OR id = ?`, cmd, hostID, hostID)
+	if err != nil {
+		h.log.Error().Err(err).Str("host", hostID).Msg("failed to set pending_command")
+	}
+	return err
+}
+
+// ClearPendingCommand clears the pending_command for a host.
+// Called by LifecycleManager when a command completes (any terminal state).
+func (h *Hub) ClearPendingCommand(hostID string) error {
+	_, err := h.db.Exec(`UPDATE hosts SET pending_command = NULL WHERE hostname = ? OR id = ?`, hostID, hostID)
+	if err != nil {
+		h.log.Error().Err(err).Str("host", hostID).Msg("failed to clear pending_command")
+	}
+	return err
 }
 
 // readPump reads messages from the WebSocket connection.
