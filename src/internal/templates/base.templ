@@ -608,8 +608,8 @@ templ Base(title string, csrfToken string) {
 		color: var(--green);
 		/* IMPORTANT: allow glow to render outside the box (overflow:hidden clips box-shadow) */
 		overflow: visible;
-		/* Keep it from affecting layout/scrollbars */
-		contain: layout paint;
+		/* Keep it from affecting layout/scrollbars (NOTE: paint containment would CLIP glow) */
+		contain: layout;
 		flex-shrink: 0;
 	}
 
@@ -1129,10 +1129,22 @@ templ Base(title string, csrfToken string) {
 	/* For table cells: use flexbox for consistent status + badge alignment */
 	td.status-cell-with-badge {
 		vertical-align: middle;
-		overflow: hidden; /* P1000-FIX: Prevent ripple animation from causing scrollbar wiggle */
-		contain: layout paint; /* P8800: Prevent internal animation/layout from affecting table/page */
+		/* Allow heartbeat glow to overdraw; rely on fixed table layout to prevent wiggle */
+		overflow: visible;
+		/* NOTE: paint containment would clip the glow; use layout containment only */
+		contain: layout;
 		white-space: nowrap; /* P8800: Prevent status + badge wrapping (wraps can change row height) */
 	}
+
+		/* P8800/P8900: Give STATUS column enough width so it can't overlap the menu (ellipsis) column. */
+		.host-table th.col-status,
+		.host-table td.status-cell {
+			width: 220px;
+			min-width: 220px;
+			max-width: 220px;
+			white-space: nowrap;
+			overflow: hidden; /* Prevent status content from painting into the menu column */
+		}
 
 	td.status-cell-with-badge .status-wrapper {
 		display: inline-flex;
