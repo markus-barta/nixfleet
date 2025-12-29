@@ -21,24 +21,13 @@ jobs:
         run: go install github.com/a-h/templ/cmd/templ@v0.3.865
 
       - name: Generate templ
-        run: cd v2 && templ generate
+        run: cd src && templ generate
 
       - name: Build
-        run: cd v2 && go build ./...
+        run: cd src && go build ./...
 
       - name: Test
-        run: cd v2 && go test ./...
-
-  shellcheck:
-    name: Shellcheck Agent
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Run shellcheck
-        uses: ludeeus/action-shellcheck@master
-        with:
-          scandir: "./agent"
+        run: cd src && go test ./...
 
   nixfmt:
     name: Nix Formatting
