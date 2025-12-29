@@ -1149,6 +1149,11 @@ templ Base(title string, csrfToken string) {
 			padding-right: 0.5rem;
 		}
 
+		/* P8800: Use the right side of the row — align compartments next to Actions. */
+		.host-table td.status-cell {
+			text-align: right;
+		}
+
 	td.status-cell-with-badge .status-wrapper {
 		display: inline-flex;
 		align-items: center;
@@ -1931,9 +1936,7 @@ templ Base(title string, csrfToken string) {
 			width: 48px;
 			min-width: 48px;
 			text-align: center;
-			/* Visually separate menu from Status column */
-			padding: 0 0 0 8px !important;
-			border-left: 1px solid rgba(59, 66, 97, 0.7);
+			padding: 0 !important;
 		}
 
 		.dropdown-toggle {

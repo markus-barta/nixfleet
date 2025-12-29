@@ -312,7 +312,7 @@ func Dashboard(data DashboardData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, " Hosts</th><th class=\"col-center col-type\" title=\"Location / OS\">Type</th><th>Metrics</th><th class=\"col-right col-last-seen\">Last Seen</th><th class=\"col-agent\" title=\"Agent Version\">Agent</th><th class=\"col-gen\" title=\"Configuration Generation (Git Commit)\">Gen</th><th class=\"col-status\" title=\"Agent/Git/Lock/System/Tests Status\">Status</th><th class=\"col-menu\"></th></tr></thead> <tbody>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, " Hosts</th><th class=\"col-center col-type\" title=\"Location / OS\">Type</th><th>Metrics</th><th class=\"col-right col-last-seen\">Last Seen</th><th class=\"col-agent\" title=\"Agent Version\">Agent</th><th class=\"col-gen\" title=\"Configuration Generation (Git Commit)\">Gen</th><th class=\"col-status\" title=\"Agent/Git/Lock/System/Tests Status\">Status</th><th class=\"col-menu\">Actions</th></tr></thead> <tbody>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
