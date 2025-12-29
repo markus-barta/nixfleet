@@ -1189,10 +1189,13 @@ templ Dashboard(data DashboardData) {
 						indicator.className = 'compartment-indicator';
 						if (!host.agentVersion) {
 							indicator.classList.add('compartment-indicator--gray');
+							indicator.dataset.status = '--';
 						} else if (host.agentOutdated) {
 							indicator.classList.add('compartment-indicator--error');
+							indicator.dataset.status = 'ER';
 						} else {
 							indicator.classList.add('compartment-indicator--ok');
+							indicator.dataset.status = 'OK';
 						}
 					}
 				}
@@ -1223,28 +1226,38 @@ templ Dashboard(data DashboardData) {
 						indicator.className = 'compartment-indicator';
 						
 						if (check && check.status) {
-							// Map status to CSS class
+							// Map status to CSS class and text
 							switch (check.status) {
 								case 'ok':
 									indicator.classList.add('compartment-indicator--ok');
+									indicator.dataset.status = 'OK';
 									break;
 								case 'outdated':
 									indicator.classList.add('compartment-indicator--warning');
+									indicator.dataset.status = 'OU';
 									break;
 								case 'error':
 									indicator.classList.add('compartment-indicator--error');
+									indicator.dataset.status = 'ER';
+									break;
+								case 'working':
+									indicator.classList.add('compartment-indicator--working');
+									indicator.dataset.status = 'WK';
 									break;
 								default:
 									indicator.classList.add('compartment-indicator--gray');
+									indicator.dataset.status = '--';
 							}
 						} else {
 							indicator.classList.add('compartment-indicator--gray');
+							indicator.dataset.status = '--';
 						}
 					}
 
 					// Lock-specific: agent outdated overrides indicator to error (red)
 					if (type === 'lock' && indicator && host.agentOutdated) {
 						indicator.className = 'compartment-indicator compartment-indicator--error';
+						indicator.dataset.status = 'ER';
 					}
 				});
 			}
@@ -4583,7 +4596,7 @@ templ UpdateStatusCell(host Host) {
 			onclick="handleCompartmentClick(this)"
 		>
 			<svg class="update-icon"><use href="#icon-robot"></use></svg>
-			<span class={ agentIndicatorClass(host) }></span>
+			<span class={ agentIndicatorClass(host) } data-status={ agentStatusText(host) }></span>
 		</button>
 		<!-- Git compartment -->
 		<button
@@ -4600,7 +4613,7 @@ templ UpdateStatusCell(host Host) {
 			onclick="handleCompartmentClick(this)"
 		>
 			<svg class="update-icon"><use href="#icon-git-branch"></use></svg>
-			<span class={ compartmentIndicatorClass(host.UpdateStatus, "git") }></span>
+			<span class={ compartmentIndicatorClass(host.UpdateStatus, "git") } data-status={ statusText(host.UpdateStatus, "git") }></span>
 		</button>
 		<!-- Lock compartment -->
 		<button
@@ -4617,7 +4630,7 @@ templ UpdateStatusCell(host Host) {
 			onclick="handleCompartmentClick(this)"
 		>
 			<svg class="update-icon"><use href="#icon-lock"></use></svg>
-			<span class={ lockIndicatorClass(host) }></span>
+			<span class={ lockIndicatorClass(host) } data-status={ lockStatusText(host) }></span>
 		</button>
 		<!-- System compartment -->
 		<button
@@ -4638,7 +4651,7 @@ templ UpdateStatusCell(host Host) {
 			} else {
 				<svg class="update-icon"><use href="#icon-nixos"></use></svg>
 			}
-			<span class={ compartmentIndicatorClass(host.UpdateStatus, "system") }></span>
+			<span class={ compartmentIndicatorClass(host.UpdateStatus, "system") } data-status={ statusText(host.UpdateStatus, "system") }></span>
 		</button>
 		<!-- P3900: Tests compartment (5th) -->
 		<button
@@ -4655,7 +4668,7 @@ templ UpdateStatusCell(host Host) {
 			onclick="handleCompartmentClick(this)"
 		>
 			<svg class="update-icon"><use href="#icon-flask"></use></svg>
-			<span class={ testsIndicatorClass(host) }></span>
+			<span class={ testsIndicatorClass(host) } data-status={ testsStatusText(host) }></span>
 		</button>
 	</div>
 }
@@ -5156,6 +5169,70 @@ func agentIndicatorClass(host Host) string {
 		return base + " compartment-indicator--error"
 	}
 	return base + " compartment-indicator--ok"
+}
+
+// P1100: Status text helpers for accessibility (short 2-char codes)
+// Displayed left of indicator dot at 30% opacity
+
+// agentStatusText returns short status text for Agent indicator
+func agentStatusText(host Host) string {
+	if host.AgentVersion == "" {
+		return "--"
+	}
+	if host.AgentOutdated {
+		return "ER"
+	}
+	return "OK"
+}
+
+// statusText returns short status text for Git/System compartments
+func statusText(status *UpdateStatus, compartment string) string {
+	if status == nil {
+		return "--"
+	}
+	var check StatusCheck
+	switch compartment {
+	case "git":
+		check = status.Git
+	case "system":
+		check = status.System
+	}
+	return statusToText(check.Status)
+}
+
+// lockStatusText returns short status text for Lock indicator
+func lockStatusText(host Host) string {
+	if host.AgentOutdated {
+		return "ER"
+	}
+	if host.UpdateStatus == nil {
+		return "--"
+	}
+	return statusToText(host.UpdateStatus.Lock.Status)
+}
+
+// testsStatusText returns short status text for Tests indicator
+func testsStatusText(host Host) string {
+	if host.UpdateStatus == nil {
+		return "--"
+	}
+	return statusToText(host.UpdateStatus.Tests.Status)
+}
+
+// statusToText converts status string to short status text
+func statusToText(status string) string {
+	switch status {
+	case "ok":
+		return "OK"
+	case "outdated":
+		return "OLD"
+	case "working":
+		return "..."
+	case "error":
+		return "ERR"
+	default:
+		return "-"
+	}
 }
 
 // agentContextDescription returns context bar description for Agent compartment

@@ -1664,6 +1664,22 @@ templ Base(title string, csrfToken string) {
 			pointer-events: none;
 		}
 
+		/* P1100: Status text label for accessibility (left of dot) */
+		.compartment-indicator::before {
+			content: attr(data-status);
+			position: absolute;
+			right: 8px; /* left of the 5px dot + 3px gap */
+			top: 50%;
+			transform: translateY(-50%);
+			font-size: 6px;
+			font-weight: 600;
+			letter-spacing: 0.5px;
+			text-transform: uppercase;
+			opacity: 0.35;
+			white-space: nowrap;
+			color: currentColor;
+		}
+
 		/* Gray: Not checked / no data / offline */
 		.compartment-indicator--gray,
 		.compartment-indicator--unknown {

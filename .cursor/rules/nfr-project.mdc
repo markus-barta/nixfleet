@@ -1,6 +1,6 @@
 ---
 description: Non-functional requirements for NixFleet UI development
-globs: ["v2/internal/templates/**", "v2/static/**"]
+globs: ["src/internal/templates/**", "src/static/**", "assets/**"]
 alwaysApply: false
 ---
 
@@ -63,8 +63,39 @@ Breakpoint          | Devices         | Key Points
 
 ---
 
+## NFR-5: Zero Reload — Live Updates
+
+**The user must NEVER have to reload the page.**
+
+All dynamic state must auto-update via WebSocket/SSE:
+
+| Category | Examples | Update Trigger |
+|----------|----------|----------------|
+| Compartment status | Git/Lock/System/Tests indicators | Heartbeat, command complete |
+| Host status | Online/offline, metrics, generation | Heartbeat (5s), connect/disconnect |
+| Operations | Command output, progress, completion | Real-time streaming |
+| Global state | Target version (header), build info (footer) | GitHub Pages poll, version refresh |
+| Selection state | Multi-select count, action buttons | Client-side (already works) |
+
+**Principles:**
+
+- If it can change server-side, it MUST push to browsers
+- WebSocket is the primary channel (already established)
+- Polling acceptable only for external sources (GitHub Pages)
+- State changes must be reflected within 5 seconds max
+- No "refresh to see changes" — ever
+
+**Implementation:**
+
+- `host_heartbeat` → compartment indicators, metrics, generation
+- `host_offline` → gray out host row
+- `command_complete` → final status + result
+- `operation_progress` → working (blue) state
+- `version_update` → header/footer version info (when source changes)
+
+---
+
 ## Quick Reference
-format
 
 | Requirement     | What to Follow                                     |
 |-----------------|----------------------------------------------------|
@@ -72,3 +103,4 @@ format
 | Responsive      | Start mobile, ensure works up to 5K, test extremes |
 | Loading         | Always show progress, UI never locks/freeze        |
 | Accessibility   | Tab focusable, clear focus ring/outline            |
+| **Zero Reload** | **All state auto-updates; user never reloads**     |

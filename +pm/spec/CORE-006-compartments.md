@@ -29,7 +29,7 @@ The Compartment Status System is a **five-stage pipeline** that provides at-a-gl
 │ Agent   │   Git   │  Lock   │ System  │ Tests   │
 └─────────┴─────────┴─────────┴─────────┴─────────┘
     ↓         ↓         ↓         ↓         ↓
- Tooling   Config   Deps    Deploy   Verify
+ Tooling   Config     Deps     Deploy     Verify
 ```
 
 | #   | Name       | Question                   | Data Source        | Check Type                        |
@@ -324,6 +324,121 @@ Tests:  🔴 (X11 won't start)
 
 Clear signal: deployment worked, but system is broken
 ```
+
+---
+
+## Click Behavior
+
+Each compartment responds to clicks based on its current state:
+
+### State → Action Matrix
+
+```
+┌──────────┬────────┬──────────────────────────────────────┐
+│  State   │ Color  │ Click Action                         │
+├──────────┼────────┼──────────────────────────────────────┤
+│ unknown  │ ⚪ gray │ Show "checking..." or trigger check  │
+│ ok       │ 🟢 green│ Show detailed status (NO action)     │
+│ outdated │ 🟡 yellow│ Trigger appropriate operation       │
+│ working  │ 🔵 blue │ Show progress, offer STOP            │
+│ error    │ 🔴 red  │ Show error details, offer retry      │
+└──────────┴────────┴──────────────────────────────────────┘
+```
+
+### Per-Compartment Click Logic
+
+#### Agent Compartment
+
+| State | Click Response                                         |
+| ----- | ------------------------------------------------------ |
+| Gray  | "Agent version unknown"                                |
+| Green | "Agent v3.1.4 - current" (info only)                   |
+| Red   | "Agent outdated (v3.1.2 → v3.1.4)" → offer Pull+Switch |
+
+#### Git Compartment
+
+| State  | Click Response                               |
+| ------ | -------------------------------------------- |
+| Gray   | "Checking GitHub..."                         |
+| Green  | "Git current (abc123)" → show commit details |
+| Yellow | "2 commits behind" → trigger Pull            |
+| Blue   | "Pulling..." → show progress, offer Stop     |
+| Red    | "Pull failed" → show error, offer retry      |
+
+#### Lock Compartment
+
+| State  | Click Response                            |
+| ------ | ----------------------------------------- |
+| Gray   | "Checking flake.lock..."                  |
+| Green  | "Lock current (hash matches)" → show hash |
+| Yellow | "Lock outdated" → trigger Pull            |
+| Blue   | "Refreshing..." → show progress           |
+| Red    | "Lock check failed" → show error          |
+
+#### System Compartment (INFERENCE ONLY)
+
+> **⚠️ CRITICAL**: System compartment does NOT trigger actions.
+> Status is inferred from command results and lock state.
+> Click shows information only — no refresh, no switch trigger.
+
+| State  | Click Response                                              |
+| ------ | ----------------------------------------------------------- |
+| Gray   | "System status unknown" (info)                              |
+| Green  | "System current (gen abc123)" (info)                        |
+| Yellow | "System outdated — needs switch" + WHY it's outdated (info) |
+| Blue   | "Switching..." → show progress, offer Stop                  |
+| Red    | "Switch failed" → show error (info)                         |
+
+**Why no action?** Running `nix build --dry-run` to check system status takes 30-60+ seconds and consumes significant resources. Instead, we infer status from:
+
+- Lock outdated → System MUST be outdated
+- Last command was `pull` (exit 0) → System outdated
+- Last command was `switch` (exit 0) → System current
+
+#### Tests Compartment
+
+| State  | Click Response                                 |
+| ------ | ---------------------------------------------- |
+| Gray   | "Tests not configured" (info)                  |
+| Green  | "All tests passed" → show test results         |
+| Yellow | "Tests not run yet" → trigger Test             |
+| Blue   | "Tests running..." → show progress, offer Stop |
+| Red    | "Tests failed" → show failures, offer retry    |
+
+### Working State Lifecycle
+
+```
+User clicks compartment (yellow/outdated state)
+         │
+         ▼
+    ┌─────────────┐
+    │ Set WORKING │ ← Immediately show blue pulse
+    │   (blue)    │
+    └──────┬──────┘
+           │
+           ▼
+    ┌─────────────┐
+    │  Operation  │ ← Command executes on agent
+    │   Running   │
+    └──────┬──────┘
+           │
+     ┌─────┴─────┐
+     ▼           ▼
+┌─────────┐ ┌─────────┐
+│   OK    │ │  ERROR  │
+│ (green) │ │  (red)  │
+└─────────┘ └─────────┘
+```
+
+### STOP Functionality
+
+When a compartment is in **working** (blue) state:
+
+1. Click shows current progress
+2. Offers **STOP** button
+3. STOP sends `SIGTERM` to running process
+4. If process doesn't exit in 3s, sends `SIGKILL`
+5. Compartment transitions to **error** (red) with "Stopped by user"
 
 ---
 
