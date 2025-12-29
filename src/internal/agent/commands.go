@@ -979,9 +979,16 @@ func (a *Agent) buildTestCommand() (*exec.Cmd, error) {
 	testDir := a.cfg.RepoDir + "/hosts/" + a.cfg.Hostname + "/tests"
 
 	// Find and run test scripts
-	cmd := exec.CommandContext(a.ctx, "sh", "-c",
-		"for f in "+testDir+"/*.sh; do [ -x \"$f\" ] && \"$f\"; done",
-	)
+	// P5999: Source Nix environment on macOS so tests have PATH configured
+	var shellCmd string
+	if runtime.GOOS == "darwin" {
+		shellCmd = ". \"$HOME/.nix-profile/etc/profile.d/nix.sh\" 2>/dev/null || true && " +
+			"for f in " + testDir + "/*.sh; do [ -x \"$f\" ] && \"$f\"; done"
+	} else {
+		shellCmd = "for f in " + testDir + "/*.sh; do [ -x \"$f\" ] && \"$f\"; done"
+	}
+
+	cmd := exec.CommandContext(a.ctx, "sh", "-c", shellCmd)
 	cmd.Dir = a.cfg.RepoDir
 	return cmd, nil
 }

@@ -425,7 +425,8 @@ templ Base(title string, csrfToken string) {
 			/* Allow dropdown menus to extend beyond table */
 			position: relative;
 			z-index: 1;
-			table-layout: fixed; /* P8800: Prevent dynamic column resizing / reflow on live updates */
+			/* NOTE: table-layout: fixed was removed - it broke auto-sizing and caused 
+			   rows to not fill table width. Content-based sizing is needed for hostnames. */
 		}
 
 		.host-table th,
