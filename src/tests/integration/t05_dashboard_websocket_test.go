@@ -287,6 +287,9 @@ func TestDashboardWebSocket_MessageRouting(t *testing.T) {
 		}
 	}()
 
+	// Expect init(full_state) shortly after connect
+	time.Sleep(200 * time.Millisecond)
+
 	// Agent sends heartbeat
 	hbMsg, _ := protocol.NewMessage(protocol.TypeHeartbeat, protocol.HeartbeatPayload{
 		Generation:     "gen-2",
@@ -306,25 +309,36 @@ func TestDashboardWebSocket_MessageRouting(t *testing.T) {
 	// Wait for message propagation
 	time.Sleep(500 * time.Millisecond)
 
-	// Check browser received host_heartbeat
+	// Check browser received CORE-004 delta host_updated
 	mu.Lock()
 	defer mu.Unlock()
 
-	var foundHostUpdate bool
+	var foundInit bool
+	var foundHostDelta bool
 	for _, msg := range browserMessages {
-		if msg["type"] == "host_heartbeat" {
-			foundHostUpdate = true
-			payload := msg["payload"].(map[string]any)
-			if payload["host_id"] != "routing-test-host" {
-				t.Errorf("expected host_id 'routing-test-host', got %v", payload["host_id"])
+		switch msg["type"] {
+		case "init":
+			foundInit = true
+		case "delta":
+			payload, ok := msg["payload"].(map[string]any)
+			if !ok {
+				continue
 			}
-			t.Logf("browser received host_heartbeat: %v", payload)
-			break
+			if payload["type"] != "host_updated" {
+				continue
+			}
+			if payload["id"] != "routing-test-host" {
+				continue
+			}
+			foundHostDelta = true
 		}
 	}
 
-	if !foundHostUpdate {
-		t.Error("browser did not receive host_heartbeat")
+	if !foundInit {
+		t.Error("browser did not receive init")
+	}
+	if !foundHostDelta {
+		t.Error("browser did not receive host_updated delta")
 		t.Logf("received messages: %v", browserMessages)
 	}
 }
@@ -385,20 +399,33 @@ func TestDashboardWebSocket_MultipleBrowsers(t *testing.T) {
 	time.Sleep(500 * time.Millisecond)
 	close(msgChan)
 
-	// Count host_heartbeats per browser
-	receivedByBrowser := make(map[int]bool)
+	// Count init and host_updated deltas per browser
+	receivedInit := make(map[int]bool)
+	receivedDelta := make(map[int]bool)
 	for bm := range msgChan {
-		if bm.msg["type"] == "host_heartbeat" {
-			receivedByBrowser[bm.browserIdx] = true
+		switch bm.msg["type"] {
+		case "init":
+			receivedInit[bm.browserIdx] = true
+		case "delta":
+			payload, ok := bm.msg["payload"].(map[string]any)
+			if !ok {
+				continue
+			}
+			if payload["type"] == "host_updated" && payload["id"] == "multi-browser-host" {
+				receivedDelta[bm.browserIdx] = true
+			}
 		}
 	}
 
 	for i := 0; i < numBrowsers; i++ {
-		if !receivedByBrowser[i] {
-			t.Errorf("browser %d did not receive host_heartbeat", i)
+		if !receivedInit[i] {
+			t.Errorf("browser %d did not receive init", i)
+		}
+		if !receivedDelta[i] {
+			t.Errorf("browser %d did not receive host_updated delta", i)
 		}
 	}
 
-	t.Logf("all %d browsers received host_heartbeat", numBrowsers)
+	t.Logf("all %d browsers received init + host_updated delta", numBrowsers)
 }
 

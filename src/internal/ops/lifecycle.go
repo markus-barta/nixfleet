@@ -320,6 +320,40 @@ func (lm *LifecycleManager) HandleCommandComplete(hostID, opID string, exitCode 
 	return lm.completeWithPostCheck(cmd, host, exitCode)
 }
 
+// HandleCommandRejected reconciles an agent-side rejection (e.g. agent thinks it's busy).
+// This prevents stuck pending_command / UI showing "working" when nothing is running.
+func (lm *LifecycleManager) HandleCommandRejected(hostID, reason, currentCommand string, currentPID int) {
+	lm.activeMu.RLock()
+	cmd := lm.active[hostID]
+	lm.activeMu.RUnlock()
+
+	if cmd == nil || cmd.Status.IsTerminal() {
+		return
+	}
+
+	// Stop timeout watcher if running
+	select {
+	case <-cmd.cancelTimeout:
+		// already closed
+	default:
+		close(cmd.cancelTimeout)
+	}
+
+	exitCode := 1
+	cmd.ExitCode = &exitCode
+	cmd.FinishedAt = time.Now()
+	cmd.Status = StatusError
+	if currentCommand != "" {
+		cmd.Error = "Agent rejected command: " + reason + " (agent running: " + currentCommand + ")"
+	} else {
+		cmd.Error = "Agent rejected command: " + reason
+	}
+
+	lm.updateAndBroadcast(cmd)
+	lm.logEvent("error", hostID, cmd.OpID, cmd.Error)
+	lm.clearActive(hostID)
+}
+
 // HandleHeartbeat processes heartbeat with fresh host data.
 // This is where deferred post-checks run.
 func (lm *LifecycleManager) HandleHeartbeat(hostID string, freshness *AgentFreshness) {

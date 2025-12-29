@@ -2,12 +2,30 @@
 
 **Priority**: P1100 (Critical - Core Functionality Broken)  
 **Type**: Bug + Refactor  
-**Status**: ✅ COMPLETE  
+**Status**: 🟡 SUPERSEDED (partial; see below)  
 **Created**: 2025-12-28  
 **Supersedes**: P1000 (scope expanded)  
 **Last Audit**: 2025-12-29  
 **State Machine Refactor**: 2025-12-29  
-**Click Behavior Fixed**: 2025-12-29
+**Click Behavior Fixed**: 2025-12-29  
+**Superseded By**: `+pm/backlog/P1110-compartment-status-correctness.md` (2025-12-29)
+
+---
+
+## Superseded / Correction Note (2025-12-29)
+
+This document contains useful implementation notes and an initial audit, but it was **incorrectly marked “✅ COMPLETE”**. Subsequent analysis found fundamental gaps between spec and implementation (and between UI behavior and intended semantics).
+
+Use this file as **historical context**, not as the active tracking item.
+
+**Key gaps that remained (moved to P1110):**
+
+- **System compartment correctness**: System can remain gray / be overwritten; System must be **remote-gated** per `CORE-006` (🟢 only when current vs remote desired).
+- **Remote fetch failures**: should be **🔴 for Git/Lock** and must block **🟢 for System/Tests** (System/Tests become 🟡 “verification degraded”, not gray).
+- **Stale command correctness**: agent-side `command_rejected` must be handled to avoid stuck “busy/pulling” state.
+- **State hydration/persistence**: initial/full-state and DB persistence must not drop or wipe compartment data.
+
+Canonical compartment semantics: `+pm/spec/CORE-006-compartments.md`.
 
 ---
 
@@ -17,19 +35,19 @@ The compartment system - the **core UI of NixFleet** - has several state machine
 
 ---
 
-## Audit Results (2025-12-29) — ALL RESOLVED ✅
+## Audit Results (2025-12-29) — Later Found Incomplete
 
-| Issue                     | Status       | Notes                                   |
-| ------------------------- | ------------ | --------------------------------------- |
-| 1. Generation "—"         | ✅ **FIXED** | All hosts show commit hash              |
-| 2. No blue working pulse  | ✅ **FIXED** | SetXxxWorking() wired for all ops       |
-| 3. System clickable       | ✅ **FIXED** | Now info-only per CORE-006              |
-| 4. Click behavior         | ✅ **FIXED** | Full state-based click behavior         |
-| 5. Context bar            | ✅ **OK**    | Hover → context bar works               |
-| 6. Compartments gray      | ✅ **OK**    | Was visual analysis error - colors work |
-| 7. lockHash missing       | ✅ **OK**    | URL configured correctly via env var    |
-| 8. "Switch running"       | ✅ **FIXED** | State machine refactored (see below)    |
-| 9. Tests "not configured" | ✅ **OK**    | Tests status displays correctly         |
+| Issue                     | Status       | Notes                                                    |
+| ------------------------- | ------------ | -------------------------------------------------------- |
+| 1. Generation "—"         | ✅ **FIXED** | All hosts show commit hash                               |
+| 2. No blue working pulse  | ✅ **FIXED** | SetXxxWorking() wired for all ops                        |
+| 3. System clickable       | ✅ **FIXED** | Now info-only per CORE-006                               |
+| 4. Click behavior         | ✅ **FIXED** | Full state-based click behavior                          |
+| 5. Context bar            | ✅ **OK**    | Hover → context bar works                                |
+| 6. Compartments gray      | ⚠️ **GAPS**  | Later analysis found System correctness gaps (see P1110) |
+| 7. lockHash missing       | ✅ **OK**    | URL configured correctly via env var                     |
+| 8. "Switch running"       | ✅ **FIXED** | State machine refactored (see below)                     |
+| 9. Tests "not configured" | ⚠️ **GAPS**  | Tests semantics refined in CORE-006; see P1110           |
 
 ---
 
@@ -209,32 +227,21 @@ Issues 5-9 were verified as working correctly during the 2025-12-29 audit:
 
 ---
 
-## Acceptance Criteria
+## Acceptance Criteria (Historical; see P1110 for current)
 
 - [x] ~~Generation column shows commit hash for all online hosts~~ ✅ DONE
-- [x] ~~Compartments show actual status~~ ✅ DONE (was visual analysis error)
+- [x] ~~Compartments show actual status~~ ⚠️ PARTIAL (see P1110)
 - [x] ~~All compartments show blue pulse during operations~~ ✅ DONE (Issue 2 - SetXxxWorking wired)
 - [x] ~~State machine has single source of truth~~ ✅ DONE (LifecycleManager controls pending_command)
-- [x] ~~No stale commands after disconnect~~ ✅ DONE (staleCommandCleanup checks LifecycleManager)
-- [x] ~~Clicking blue (working) compartment offers STOP~~ ✅ DONE (dispatches show-stop-action event)
+- [x] ~~No stale commands after disconnect~~ ⚠️ PARTIAL (rejections / other edge cases; see P1110)
+- [x] ~~Clicking blue (working) compartment offers STOP~~ ✅ DONE
 - [x] ~~Clicking green (ok) compartment shows details, NOT re-triggers action~~ ✅ DONE
 - [x] ~~System compartment click shows inference reason, NO action trigger~~ ✅ DONE
 - [x] ~~Click on any compartment opens log panel with detailed info~~ ✅ DONE
 
 ---
 
-## Validation
-
-Implementation is validated against **[CORE-006-compartments.md](../spec/CORE-006-compartments.md)**:
-
-- Click behavior matches spec tables
-- State transitions match diagrams
-- System compartment is inference-only (no action trigger)
-- Working state shows blue pulse
-- STOP functionality works for all operations
-
 ## Related
 
 - **CORE-006** - Compartment specification (canonical source of truth)
-- P3800 - System Inference (spec says read-only, not implemented)
-- P3900 - Tests Compartment (working state not wired)
+- **P1110** - Current correctness work item (superseding this)

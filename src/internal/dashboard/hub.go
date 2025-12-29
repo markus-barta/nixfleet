@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"runtime/debug"
 	"sync"
@@ -14,6 +15,7 @@ import (
 	"github.com/markus-barta/nixfleet/internal/ops"
 	"github.com/markus-barta/nixfleet/internal/protocol"
 	"github.com/markus-barta/nixfleet/internal/templates"
+	syncproto "github.com/markus-barta/nixfleet/internal/sync"
 	"github.com/rs/zerolog"
 )
 
@@ -47,6 +49,7 @@ type flakeUpdateGetter interface {
 // Defined as interface to avoid import cycle.
 type lifecycleManagerInterface interface {
 	HandleCommandComplete(hostID, opID string, exitCode int, message string) (interface{}, error)
+	HandleCommandRejected(hostID, reason, currentCommand string, currentPID int)
 	HandleHeartbeat(hostID string, freshness interface{})
 	HandleAgentReconnect(hostID string, freshness interface{})
 	// P1100: Check if host has an active command in lifecycle manager
@@ -65,6 +68,15 @@ type Client struct {
 	// Safe close handling - prevents send-on-closed-channel panics
 	closeOnce sync.Once
 	closed    atomic.Bool
+}
+
+// Send implements sync.ClientSender (CORE-004).
+// Uses SafeSend to avoid panics on closed channels.
+func (c *Client) Send(data []byte) error {
+	if ok := c.SafeSend(data); !ok {
+		return errors.New("send failed (client closed or buffer full)")
+	}
+	return nil
 }
 
 // SafeSend sends data to the client without panicking on closed channel.
@@ -107,6 +119,7 @@ type Hub struct {
 	cfg            *Config          // Dashboard config for stale command cleanup
 	versionFetcher *VersionFetcher  // For Git status in heartbeat broadcasts
 	flakeUpdates   flakeUpdateGetter // For PR status on browser connect (P5300)
+	stateManager   *syncproto.StateManager // CORE-004: browser state sync (optional)
 
 	// Registered clients
 	clients map[*Client]bool
@@ -187,6 +200,11 @@ func (h *Hub) SetLifecycleManager(lm lifecycleManagerInterface) {
 	h.lifecycleManager = lm
 }
 
+// SetStateManager wires the CORE-004 StateManager for browser state sync.
+func (h *Hub) SetStateManager(sm *syncproto.StateManager) {
+	h.stateManager = sm
+}
+
 // GetAgentFreshness returns the last known freshness data for an agent (P2810).
 func (h *Hub) GetAgentFreshness(hostID string) *ops.AgentFreshness {
 	h.mu.RLock()
@@ -258,6 +276,11 @@ func (h *Hub) handleRegister(client *Client) {
 		Str("id", client.clientID).
 		Msg("client registered")
 
+	// CORE-004: send init/full_state on connect for browsers
+	if client.clientType == "browser" && h.stateManager != nil {
+		h.stateManager.RegisterClient(client)
+	}
+
 	// P7000: PR status is now fetched on-demand via per-host refresh button
 	// No longer pushed on browser connect
 }
@@ -289,6 +312,10 @@ func (h *Hub) handleUnregister(client *Client) {
 
 	// Phase 2: External operations OUTSIDE lock (prevents deadlock)
 	if wasKnown {
+		// CORE-004: unregister browser client from state sync
+		if client.clientType == "browser" && h.stateManager != nil {
+			h.stateManager.UnregisterClient(client)
+		}
 		// Close channel safely (uses sync.Once)
 		client.Close()
 	}
@@ -299,16 +326,19 @@ func (h *Hub) handleUnregister(client *Client) {
 		if err != nil {
 			h.log.Error().Err(err).Str("host", hostID).Msg("failed to mark host offline")
 		}
+
+		// CORE-004: Emit host_updated delta (offline)
+		if h.stateManager != nil {
+			h.stateManager.ApplyChange(syncproto.Change{
+				Type:   syncproto.ChangeHostUpdated,
+				ID:     hostID,
+				Fields: map[string]any{"status": "offline"},
+			})
+		}
 	}
 
 	if shouldNotify {
-		// Broadcast outside lock (queued, non-blocking) - P7000: simplified message
-		h.queueBroadcast(map[string]any{
-			"type": "host_offline",
-			"payload": map[string]any{
-				"host_id": hostID,
-			},
-		})
+		// Legacy host_offline broadcast removed (CORE-004 delta is the source of truth).
 	}
 
 	h.log.Debug().
@@ -473,15 +503,7 @@ func (h *Hub) cleanupStaleCommands() {
 		Dur("threshold", timeout).
 		Msg("cleared stale commands for unresponsive hosts")
 
-	// Broadcast updates to browsers so UI refreshes - P7000: use host_offline
-	for _, hostname := range hostsToUpdate {
-		h.queueBroadcast(map[string]any{
-			"type": "host_offline",
-			"payload": map[string]any{
-				"host_id": hostname,
-			},
-		})
-	}
+	// Legacy host_offline broadcast removed (CORE-004 delta is the source of truth).
 }
 
 // queueBroadcast queues a message for async broadcast to all browsers.
@@ -517,6 +539,8 @@ func (h *Hub) BroadcastHostStatus(hostID string) {
 		AgentVersion     *string
 		LockStatusJSON   *string
 		SystemStatusJSON *string
+		TestsStatusJSON  *string
+		TestsGeneration  *string
 		RepoURL          *string
 		RepoDir          *string
 		Status           string
@@ -524,11 +548,13 @@ func (h *Hub) BroadcastHostStatus(hostID string) {
 
 	err := h.db.QueryRow(`
 		SELECT hostname, generation, agent_version, lock_status_json,
-		       system_status_json, repo_url, repo_dir, status
+		       system_status_json, tests_status_json, tests_generation,
+		       repo_url, repo_dir, status
 		FROM hosts WHERE id = ? OR hostname = ?
 	`, hostID, hostID).Scan(
 		&host.Hostname, &host.Generation, &host.AgentVersion,
 		&host.LockStatusJSON, &host.SystemStatusJSON,
+		&host.TestsStatusJSON, &host.TestsGeneration,
 		&host.RepoURL, &host.RepoDir, &host.Status,
 	)
 	if err != nil {
@@ -537,12 +563,15 @@ func (h *Hub) BroadcastHostStatus(hostID string) {
 	}
 
 	// Build update status
-	var lockStatus, systemStatus map[string]any
+	var lockStatus, systemStatus, testsStatus map[string]any
 	if host.LockStatusJSON != nil {
 		_ = json.Unmarshal([]byte(*host.LockStatusJSON), &lockStatus)
 	}
 	if host.SystemStatusJSON != nil {
 		_ = json.Unmarshal([]byte(*host.SystemStatusJSON), &systemStatus)
+	}
+	if host.TestsStatusJSON != nil {
+		_ = json.Unmarshal([]byte(*host.TestsStatusJSON), &testsStatus)
 	}
 
 	// Get git status if version fetcher is available
@@ -561,6 +590,13 @@ func (h *Hub) BroadcastHostStatus(hostID string) {
 			Str("git_status", status).
 			Msg("BroadcastHostStatus: git status computed")
 	}
+	if h.versionFetcher == nil {
+		gitStatus = map[string]any{
+			"status":     "error",
+			"message":    "Version tracking not configured (remote desired state unavailable)",
+			"checked_at": "",
+		}
+	}
 
 	// Get repo URL/dir
 	repoURL := ""
@@ -572,21 +608,76 @@ func (h *Hub) BroadcastHostStatus(hostID string) {
 		repoDir = *host.RepoDir
 	}
 
-	// Broadcast to browsers
-	h.BroadcastToBrowsers(map[string]any{
-		"type": "host_status_update",
-		"payload": map[string]any{
-			"host_id":    hostID,
-			"generation": generation,
-			"update_status": map[string]any{
-				"git":      gitStatus,
-				"lock":     lockStatus,
-				"system":   systemStatus,
-				"repo_url": repoURL,
-				"repo_dir": repoDir,
+	updateStatus := map[string]any{
+		"git":      gitStatus,
+		"lock":     lockStatus,
+		"system":   systemStatus,
+		"tests":    testsStatus,
+		"repo_url": repoURL,
+		"repo_dir": repoDir,
+	}
+
+	// CORE-006: Tests are generation-scoped (old-generation pass => 🟡 on new deployment)
+	testsGen := ""
+	if host.TestsGeneration != nil {
+		testsGen = *host.TestsGeneration
+	}
+	if testsGen != "" && generation != "" && testsGen != generation {
+		if ts, ok := updateStatus["tests"].(map[string]any); ok && ts != nil {
+			updateStatus["tests"] = map[string]any{
+				"status":     "outdated",
+				"message":    "Tests outdated for current deployed state",
+				"checked_at": "",
+			}
+		}
+	}
+
+	// CORE-006: Remote-gate System (avoid gray when Git/Lock clearly show not-current)
+	gs, _ := gitStatus["status"].(string)
+	ls := ""
+	if lockStatus != nil {
+		ls, _ = lockStatus["status"].(string)
+	}
+	gitOutdated := gs == "outdated"
+	gitError := gs == "error"
+	lockOutdated := ls == "outdated"
+	lockError := ls == "error"
+	gitOK := gs == "ok"
+	lockOK := ls == "ok"
+	gitUnknown := gs == "" || gs == "unknown"
+	lockUnknown := ls == "" || ls == "unknown"
+
+	if ss, ok := updateStatus["system"].(map[string]any); ok && ss != nil {
+		if ssv, _ := ss["status"].(string); ssv == "ok" && (!gitOK || !lockOK) {
+			switch {
+			case gitOutdated || lockOutdated:
+				updateStatus["system"] = map[string]any{"status": "outdated", "message": "System not current vs remote (Git/Lock behind)", "checked_at": ""}
+			case gitError || lockError:
+				updateStatus["system"] = map[string]any{"status": "outdated", "message": "Remote verification degraded (Git/Lock error)", "checked_at": ""}
+			case gitUnknown || lockUnknown:
+				updateStatus["system"] = map[string]any{"status": "unknown", "message": "Cannot verify System vs remote (insufficient signal)", "checked_at": ""}
+			}
+		}
+	} else {
+		switch {
+		case gitOutdated || lockOutdated:
+			updateStatus["system"] = map[string]any{"status": "outdated", "message": "System not current vs remote (Git/Lock behind)", "checked_at": ""}
+		case gitError || lockError:
+			updateStatus["system"] = map[string]any{"status": "outdated", "message": "Remote verification degraded (Git/Lock error)", "checked_at": ""}
+		}
+	}
+
+	// CORE-004: Emit host_updated delta for update_status refresh
+	if h.stateManager != nil {
+		h.stateManager.ApplyChange(syncproto.Change{
+			Type: syncproto.ChangeHostUpdated,
+			ID:   hostID,
+			Fields: map[string]any{
+				"generation":    generation,
+				"update_status": updateStatus,
 			},
-		},
-	})
+		})
+	}
 
 	h.log.Debug().Str("host", hostID).Msg("broadcast host status update")
 }
@@ -633,6 +724,43 @@ func (h *Hub) handleAgentMessage(msg *agentMessage) {
 			return
 		}
 		h.handleStatus(msg.client.clientID, payload)
+
+	case protocol.TypeRejected:
+		var payload protocol.CommandRejectedPayload
+		if err := msg.message.ParsePayload(&payload); err != nil {
+			return
+		}
+
+		h.log.Warn().
+			Str("host", msg.client.clientID).
+			Str("reason", payload.Reason).
+			Str("agent_current", payload.CurrentCommand).
+			Int("agent_pid", payload.CurrentPID).
+			Msg("agent rejected command")
+
+		// Reconcile lifecycle state so we don't get stuck "busy/pulling"
+		if h.lifecycleManager != nil {
+			h.lifecycleManager.HandleCommandRejected(msg.client.clientID, payload.Reason, payload.CurrentCommand, payload.CurrentPID)
+		}
+
+		// NOTE: We intentionally don't send legacy toast here.
+		// UI consumes events via CORE-004 full_state/delta(event).
+		if h.stateManager != nil {
+			h.stateManager.ApplyChange(syncproto.Change{
+				Type: syncproto.ChangeEvent,
+				Payload: map[string]any{
+					"timestamp": time.Now().UTC().Format(time.RFC3339),
+					"category":  "command",
+					"level":     "error",
+					"host_id":   msg.client.clientID,
+					"message":   "Agent rejected command: " + payload.Reason,
+					"details": map[string]any{
+						"current_command": payload.CurrentCommand,
+						"current_pid":     payload.CurrentPID,
+					},
+				},
+			})
+		}
 
 	case protocol.TypeTestProgress:
 		var payload protocol.TestProgressPayload
@@ -792,17 +920,31 @@ func (h *Hub) updateHost(payload protocol.RegisterPayload) {
 		Str("theme_color", themeColor).
 		Msg("updated host record")
 
-	// Broadcast to browsers that host is now online - P7000: use host_heartbeat
-	// This ensures immediate UI update after agent reconnects (e.g., after switch)
-	h.BroadcastToBrowsers(map[string]any{
-		"type": "host_heartbeat",
-		"payload": map[string]any{
-			"host_id":   payload.Hostname,
-			"online":    true,
-			"last_seen": time.Now().Format(time.RFC3339),
-			"metrics":   nil, // Will be populated on next heartbeat
-		},
-	})
+	// Legacy host_heartbeat broadcast removed (CORE-004 delta is the source of truth).
+
+	// CORE-004: Emit host_updated delta (registration refreshes many fields)
+	if h.stateManager != nil {
+		h.stateManager.ApplyChange(syncproto.Change{
+			Type: syncproto.ChangeHostUpdated,
+			ID:   payload.Hostname,
+			Fields: map[string]any{
+				"hostname":        payload.Hostname,
+				"host_type":       payload.HostType,
+				"agent_version":   payload.AgentVersion,
+				"os_version":      payload.OSVersion,
+				"nixpkgs_version": payload.NixpkgsVersion,
+				"generation":      payload.Generation,
+				"theme_color":     themeColor,
+				"location":        location,
+				"device_type":     deviceType,
+				"repo_url":        payload.RepoURL,
+				"repo_dir":        payload.RepoDir,
+				"status":          "online",
+				"pending_command": nil,
+				"last_seen":       time.Now().UTC().Format(time.RFC3339),
+			},
+		})
+	}
 }
 
 func (h *Hub) handleHeartbeat(hostID string, payload protocol.HeartbeatPayload) {
@@ -818,7 +960,7 @@ func (h *Hub) handleHeartbeat(hostID string, payload protocol.HeartbeatPayload) 
 
 	// P3700: Compute Lock status from hash comparison (version-based, not time-based)
 	var lockStatus protocol.StatusCheck
-	if h.versionFetcher != nil && payload.LockHash != "" {
+	if h.versionFetcher != nil {
 		status, msg, checked := h.versionFetcher.GetLockStatus(payload.LockHash)
 		lockStatus = protocol.StatusCheck{
 			Status:    status,
@@ -847,7 +989,7 @@ func (h *Hub) handleHeartbeat(hostID string, payload protocol.HeartbeatPayload) 
 	}
 
 	// Serialize update status to JSON
-	var lockStatusJSON, systemStatusJSON *string
+	var lockStatusJSON, systemStatusJSON, testsStatusJSON *string
 	if lockStatus.Status != "" {
 		if data, err := json.Marshal(lockStatus); err == nil {
 			s := string(data)
@@ -858,6 +1000,17 @@ func (h *Hub) handleHeartbeat(hostID string, payload protocol.HeartbeatPayload) 
 		if data, err := json.Marshal(systemStatus); err == nil {
 			s := string(data)
 			systemStatusJSON = &s
+		}
+	}
+	// P1110: Persist tests compartment status (generation-scoped)
+	var testsGenerationPtr *string
+	if payload.UpdateStatus != nil && payload.UpdateStatus.Tests.Status != "" {
+		if data, err := json.Marshal(payload.UpdateStatus.Tests); err == nil {
+			s := string(data)
+			testsStatusJSON = &s
+		}
+		if payload.Generation != "" {
+			testsGenerationPtr = &payload.Generation
 		}
 	}
 
@@ -891,11 +1044,13 @@ func (h *Hub) handleHeartbeat(hostID string, payload protocol.HeartbeatPayload) 
 			generation = ?,
 			nixpkgs_version = ?,
 			metrics_json = ?,
-			lock_status_json = ?,
-			system_status_json = ?,
+			lock_status_json = COALESCE(?, lock_status_json),
+			system_status_json = COALESCE(?, system_status_json),
+			tests_status_json = COALESCE(?, tests_status_json),
+			tests_generation = COALESCE(?, tests_generation),
 			lock_hash = ?
 		WHERE hostname = ?
-	`, payload.Generation, payload.NixpkgsVersion, metricsJSON, lockStatusJSON, systemStatusJSON, lockHashPtr, hostID)
+	`, payload.Generation, payload.NixpkgsVersion, metricsJSON, lockStatusJSON, systemStatusJSON, testsStatusJSON, testsGenerationPtr, lockHashPtr, hostID)
 
 	if err != nil {
 		h.log.Error().Err(err).Str("host", hostID).Msg("failed to update heartbeat")
@@ -923,6 +1078,12 @@ func (h *Hub) handleHeartbeat(hostID string, payload protocol.HeartbeatPayload) 
 	if h.versionFetcher != nil {
 		status, msg, checked := h.versionFetcher.GetGitStatus(payload.Generation)
 		gitStatus = map[string]any{"status": status, "message": msg, "checked_at": checked}
+	} else {
+		gitStatus = map[string]any{
+			"status":     "error",
+			"message":    "Version tracking not configured (remote desired state unavailable)",
+			"checked_at": time.Now().UTC().Format(time.RFC3339),
+		}
 	}
 
 	updateStatus := map[string]any{
@@ -941,6 +1102,102 @@ func (h *Hub) handleHeartbeat(hostID string, payload protocol.HeartbeatPayload) 
 		updateStatus["tests"] = payload.UpdateStatus.Tests
 	}
 
+	// CORE-006: Remote-gate System/Tests
+	// - System/Tests MUST NOT be green unless Git+Lock are green.
+	gs, _ := gitStatus["status"].(string)
+	ls := ""
+	if lock, ok := updateStatus["lock"].(protocol.StatusCheck); ok {
+		ls = lock.Status
+	}
+
+	gitOK := gs == "ok"
+	gitOutdated := gs == "outdated"
+	gitError := gs == "error"
+	gitUnknown := gs == "" || gs == "unknown"
+
+	lockOK := ls == "ok"
+	lockOutdated := ls == "outdated"
+	lockError := ls == "error"
+	lockUnknown := ls == "" || ls == "unknown"
+
+	// Gate System
+	if ss, ok := updateStatus["system"].(protocol.StatusCheck); ok {
+		if ss.Status == "ok" && (!gitOK || !lockOK) {
+			switch {
+			case gitOutdated || lockOutdated:
+				updateStatus["system"] = protocol.StatusCheck{
+					Status:    "outdated",
+					Message:   "System not current vs remote (Git/Lock behind)",
+					CheckedAt: ss.CheckedAt,
+				}
+			case gitError || lockError:
+				updateStatus["system"] = protocol.StatusCheck{
+					Status:    "outdated",
+					Message:   "Remote verification degraded (Git/Lock error)",
+					CheckedAt: ss.CheckedAt,
+				}
+			case gitUnknown || lockUnknown:
+				updateStatus["system"] = protocol.StatusCheck{
+					Status:    "unknown",
+					Message:   "Cannot verify System vs remote (insufficient signal)",
+					CheckedAt: ss.CheckedAt,
+				}
+			}
+		}
+	} else {
+		// If we have no System signal but Git/Lock clearly indicate not-current, avoid gray.
+		switch {
+		case gitOutdated || lockOutdated:
+			updateStatus["system"] = protocol.StatusCheck{
+				Status:    "outdated",
+				Message:   "System not current vs remote (Git/Lock behind)",
+				CheckedAt: time.Now().UTC().Format(time.RFC3339),
+			}
+		case gitError || lockError:
+			updateStatus["system"] = protocol.StatusCheck{
+				Status:    "outdated",
+				Message:   "Remote verification degraded (Git/Lock error)",
+				CheckedAt: time.Now().UTC().Format(time.RFC3339),
+			}
+		}
+	}
+
+	// Gate Tests (green only when System+Git+Lock are green)
+	if ts, ok := updateStatus["tests"].(protocol.StatusCheck); ok && ts.Status == "ok" {
+		systemOK := false
+		if ss, ok := updateStatus["system"].(protocol.StatusCheck); ok && ss.Status == "ok" {
+			systemOK = true
+		}
+		if !systemOK || !gitOK || !lockOK {
+			switch {
+			case gitOutdated || lockOutdated:
+				updateStatus["tests"] = protocol.StatusCheck{
+					Status:    "outdated",
+					Message:   "Tests outdated for current remote state",
+					CheckedAt: ts.CheckedAt,
+				}
+			case gitError || lockError:
+				updateStatus["tests"] = protocol.StatusCheck{
+					Status:    "outdated",
+					Message:   "Remote verification degraded (Git/Lock error)",
+					CheckedAt: ts.CheckedAt,
+				}
+			case gitUnknown || lockUnknown:
+				updateStatus["tests"] = protocol.StatusCheck{
+					Status:    "unknown",
+					Message:   "Cannot verify Tests vs remote (insufficient signal)",
+					CheckedAt: ts.CheckedAt,
+				}
+			default:
+				updateStatus["tests"] = protocol.StatusCheck{
+					Status:    "outdated",
+					Message:   "Tests outdated for current deployed state",
+					CheckedAt: ts.CheckedAt,
+				}
+			}
+		}
+	}
+
 	// v3: Notify lifecycle manager of heartbeat for deferred post-checks
 	if h.lifecycleManager != nil {
 		h.mu.RLock()
@@ -949,18 +1206,22 @@ func (h *Hub) handleHeartbeat(hostID string, payload protocol.HeartbeatPayload) 
 		h.lifecycleManager.HandleHeartbeat(hostID, &freshness)
 	}
 
-	// Broadcast heartbeat with full status to browsers
-	h.BroadcastToBrowsers(map[string]any{
-		"type": "host_heartbeat",
-		"payload": map[string]any{
-			"host_id":       hostID,
-			"online":        true,
-			"last_seen":     time.Now().Format(time.RFC3339),
-			"metrics":       payload.Metrics,
-			"generation":    payload.Generation,
-			"update_status": updateStatus,
-		},
-	})
+	// Legacy host_heartbeat broadcast removed (CORE-004 delta is the source of truth).
+
+	// CORE-004: Emit host_updated delta with the same status data (authoritative state)
+	if h.stateManager != nil {
+		h.stateManager.ApplyChange(syncproto.Change{
+			Type: syncproto.ChangeHostUpdated,
+			ID:   hostID,
+			Fields: map[string]any{
+				"status":        "online",
+				"last_seen":     time.Now().UTC().Format(time.RFC3339),
+				"generation":    payload.Generation,
+				"metrics":       payload.Metrics,
+				"update_status": updateStatus,
+			},
+		})
+	}
 }
 
 func (h *Hub) handleStatus(hostID string, payload protocol.StatusPayload) {
@@ -996,6 +1257,64 @@ func (h *Hub) handleStatus(hostID string, payload protocol.StatusPayload) {
 		}
 	}
 
+	// P1110: Persist System/Tests compartment status from command outcome (dashboard-side inference)
+	// This is cheap and survives agent restarts.
+	now := time.Now().UTC()
+	switch payload.Command {
+	case "switch", "rollback":
+		var sys protocol.StatusCheck
+		if payload.ExitCode == 0 {
+			sys = protocol.StatusCheck{Status: "ok", Message: "Last " + payload.Command + " succeeded", CheckedAt: now.Format(time.RFC3339)}
+		} else {
+			msg := payload.Message
+			if msg == "" {
+				msg = "Last " + payload.Command + " failed"
+			}
+			sys = protocol.StatusCheck{Status: "error", Message: msg, CheckedAt: now.Format(time.RFC3339)}
+		}
+		if data, err := json.Marshal(sys); err == nil {
+			s := string(data)
+			_, _ = h.db.Exec(`UPDATE hosts SET system_status_json = ? WHERE hostname = ?`, s, hostID)
+		}
+		// After a successful deployment, tests become outdated for the new deployed state.
+		if payload.ExitCode == 0 && payload.Generation != "" {
+			tests := protocol.StatusCheck{Status: "outdated", Message: "Tests need re-run after deploy", CheckedAt: now.Format(time.RFC3339)}
+			if data, err := json.Marshal(tests); err == nil {
+				s := string(data)
+				_, _ = h.db.Exec(`UPDATE hosts SET tests_status_json = ?, tests_generation = ? WHERE hostname = ?`, s, payload.Generation, hostID)
+			}
+		}
+
+	case "test":
+		var tests protocol.StatusCheck
+		if payload.ExitCode == 0 {
+			tests = protocol.StatusCheck{Status: "ok", Message: "Tests passed", CheckedAt: now.Format(time.RFC3339)}
+		} else {
+			msg := payload.Message
+			if msg == "" {
+				msg = "Tests failed"
+			}
+			tests = protocol.StatusCheck{Status: "error", Message: msg, CheckedAt: now.Format(time.RFC3339)}
+		}
+		if data, err := json.Marshal(tests); err == nil {
+			s := string(data)
+			gen := payload.Generation
+			if gen == "" {
+				// Fallback: read current generation from DB
+				var g sql.NullString
+				_ = h.db.QueryRow(`SELECT generation FROM hosts WHERE hostname = ?`, hostID).Scan(&g)
+				if g.Valid {
+					gen = g.String
+				}
+			}
+			if gen != "" {
+				_, _ = h.db.Exec(`UPDATE hosts SET tests_status_json = ?, tests_generation = ? WHERE hostname = ?`, s, gen, hostID)
+			} else {
+				_, _ = h.db.Exec(`UPDATE hosts SET tests_status_json = ? WHERE hostname = ?`, s, hostID)
+			}
+		}
+	}
+
 	// Force refresh version fetcher for pull commands BEFORE post-validation
 	isPull := payload.Command == "pull" || payload.Command == "pull-switch"
 	if h.versionFetcher != nil && isPull {
@@ -1022,17 +1341,9 @@ func (h *Hub) handleStatus(hostID string, payload protocol.StatusPayload) {
 		}
 	}
 
-	// Broadcast command completion to browsers
-	h.BroadcastToBrowsers(map[string]any{
-		"type": "command_complete",
-		"payload": map[string]any{
-			"host_id":   hostID,
-			"command":   payload.Command,
-			"status":    payload.Status,
-			"message":   payload.Message,
-			"exit_code": payload.ExitCode,
-		},
-	})
+	// Legacy command_complete broadcast removed:
+	// - Command lifecycle is tracked via CORE-004 command deltas
+	// - Host busy state is tracked via pending_command deltas
 
 	// Broadcast updated host status to browsers
 	h.BroadcastHostStatus(hostID)
@@ -1230,6 +1541,21 @@ func (h *Hub) SetPendingCommand(hostID string, command *string) error {
 	if err != nil {
 		h.log.Error().Err(err).Str("host", hostID).Msg("failed to set pending_command")
 	}
+
+	// CORE-004: Emit host_updated delta for pending_command
+	if h.stateManager != nil {
+		var cmd any
+		if command != nil {
+			cmd = *command
+		} else {
+			cmd = nil
+		}
+		h.stateManager.ApplyChange(syncproto.Change{
+			Type:   syncproto.ChangeHostUpdated,
+			ID:     hostID,
+			Fields: map[string]any{"pending_command": cmd},
+		})
+	}
 	return err
 }
 
@@ -1239,6 +1565,15 @@ func (h *Hub) ClearPendingCommand(hostID string) error {
 	_, err := h.db.Exec(`UPDATE hosts SET pending_command = NULL WHERE hostname = ? OR id = ?`, hostID, hostID)
 	if err != nil {
 		h.log.Error().Err(err).Str("host", hostID).Msg("failed to clear pending_command")
+	}
+
+	// CORE-004: Emit host_updated delta for pending_command clear
+	if h.stateManager != nil {
+		h.stateManager.ApplyChange(syncproto.Change{
+			Type:   syncproto.ChangeHostUpdated,
+			ID:     hostID,
+			Fields: map[string]any{"pending_command": nil},
+		})
 	}
 	return err
 }
@@ -1331,6 +1666,11 @@ func (c *Client) handleBrowserMessage(data []byte) {
 	}
 
 	switch msg.Type {
+	case string(syncproto.TypeGetState):
+		// CORE-004: explicit full_state request
+		if c.server != nil && c.server.stateManager != nil {
+			c.server.stateManager.HandleMessage(c, syncproto.TypeGetState)
+		}
 	case "subscribe":
 		// Browser subscribing to host updates
 		c.hub.log.Debug().Str("browser", c.clientID).Msg("browser subscribed")

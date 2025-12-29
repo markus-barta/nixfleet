@@ -126,6 +126,9 @@ func ValidatePull(host Host) *ValidationError {
 	}
 
 	gitStatus := host.GetGitStatus()
+	if gitStatus == "error" {
+		return &ValidationError{Code: "remote_unavailable", Message: "Cannot verify remote desired state (Git status error)"}
+	}
 	if gitStatus == "ok" {
 		return &ValidationError{Code: "already_current", Message: "Git already up to date"}
 	}
@@ -140,6 +143,9 @@ func ValidateSwitch(host Host) *ValidationError {
 
 	// Check if git is current (prerequisite for meaningful switch)
 	gitStatus := host.GetGitStatus()
+	if gitStatus == "error" {
+		return &ValidationError{Code: "remote_unavailable", Message: "Cannot verify remote desired state (Git status error)"}
+	}
 	if gitStatus == "outdated" {
 		return &ValidationError{Code: "git_outdated", Message: "Pull required before switch (git outdated)"}
 	}
@@ -165,6 +171,10 @@ func ValidatePullSwitch(host Host) *ValidationError {
 	// At least one of git or system should need update
 	gitStatus := host.GetGitStatus()
 	systemStatus := host.GetSystemStatus()
+
+	if gitStatus == "error" {
+		return &ValidationError{Code: "remote_unavailable", Message: "Cannot verify remote desired state (Git status error)"}
+	}
 
 	if gitStatus == "ok" && systemStatus == "ok" && !host.IsAgentOutdated() {
 		return &ValidationError{Code: "already_current", Message: "Both git and system already up to date"}

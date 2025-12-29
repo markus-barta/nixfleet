@@ -2,9 +2,12 @@ package dashboard
 
 import (
 	"database/sql"
+	"encoding/json"
+	"time"
 
 	"github.com/markus-barta/nixfleet/internal/ops"
 	"github.com/markus-barta/nixfleet/internal/templates"
+	syncproto "github.com/markus-barta/nixfleet/internal/sync"
 )
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -14,6 +17,7 @@ import (
 // hostProviderAdapter implements ops.HostProvider using the dashboard's database.
 type hostProviderAdapter struct {
 	db *sql.DB
+	vf *VersionFetcher
 }
 
 // GetHostByID implements ops.HostProvider.
@@ -21,6 +25,14 @@ func (h *hostProviderAdapter) GetHostByID(hostID string) (ops.Host, error) {
 	host, err := getHostByIDFromDB(h.db, hostID)
 	if err != nil {
 		return nil, err
+	}
+	// Fill git status (dashboard-side) for ops validation / post-checks
+	if h.vf != nil {
+		status, msg, checked := h.vf.GetGitStatus(host.Generation)
+		if host.UpdateStatus == nil {
+			host.UpdateStatus = &templates.UpdateStatus{}
+		}
+		host.UpdateStatus.Git = templates.StatusCheck{Status: status, Message: msg, CheckedAt: checked}
 	}
 	return ops.NewHostAdapter(host), nil
 }
@@ -90,22 +102,33 @@ func getHostByIDFromDB(db *sql.DB, hostID string) (*templates.Host, error) {
 	}
 
 	// Parse update status from JSON
-	if h.SystemStatusJSON != nil {
-		host.UpdateStatus = parseUpdateStatusJSON(*h.SystemStatusJSON, h.LockStatusJSON)
-	}
+	host.UpdateStatus = parseUpdateStatusJSON(h.SystemStatusJSON, h.LockStatusJSON)
 
 	return host, nil
 }
 
 // parseUpdateStatusJSON parses the system and lock status JSON.
-func parseUpdateStatusJSON(systemJSON string, lockJSON *string) *templates.UpdateStatus {
-	// Simplified parsing - in production would use json.Unmarshal
+func parseUpdateStatusJSON(systemJSON *string, lockJSON *string) *templates.UpdateStatus {
 	us := &templates.UpdateStatus{
 		System: templates.StatusCheck{Status: "unknown"},
 		Lock:   templates.StatusCheck{Status: "unknown"},
 		Git:    templates.StatusCheck{Status: "unknown"},
 	}
-	// Actual parsing would go here
+
+	if lockJSON != nil && *lockJSON != "" {
+		var ls templates.StatusCheck
+		if err := json.Unmarshal([]byte(*lockJSON), &ls); err == nil && ls.Status != "" {
+			us.Lock = ls
+		}
+	}
+
+	if systemJSON != nil && *systemJSON != "" {
+		var ss templates.StatusCheck
+		if err := json.Unmarshal([]byte(*systemJSON), &ss); err == nil && ss.Status != "" {
+			us.System = ss
+		}
+	}
+
 	return us
 }
 
@@ -127,18 +150,51 @@ func (b *broadcastSenderAdapter) BroadcastCommandState(hostID string, cmd *ops.A
 			"command": cmd,
 		},
 	})
+
+	// CORE-004: Emit command deltas for drift-safe UI (even if current UI doesn't consume yet).
+	if b.hub.stateManager != nil && cmd != nil {
+		// NOTE: state-sync.js expects:
+		// - command_started: change.payload = full command
+		// - command_progress/finished: change.fields = partial or full command fields
+		if cmd.Status.IsTerminal() {
+			b.hub.stateManager.ApplyChange(syncproto.Change{
+				Type:   syncproto.ChangeCommandFinished,
+				ID:     cmd.ID,
+				Fields: cmd,
+			})
+			return
+		}
+		if !cmd.StartedAt.IsZero() {
+			b.hub.stateManager.ApplyChange(syncproto.Change{
+				Type:    syncproto.ChangeCommandStarted,
+				ID:      cmd.ID,
+				Payload: cmd,
+			})
+			return
+		}
+		b.hub.stateManager.ApplyChange(syncproto.Change{
+			Type:   syncproto.ChangeCommandProgress,
+			ID:     cmd.ID,
+			Fields: cmd,
+		})
+	}
 }
 
 // BroadcastToast implements ops.BroadcastSender.
 func (b *broadcastSenderAdapter) BroadcastToast(hostID, level, message string) {
-	b.hub.BroadcastToBrowsers(map[string]any{
-		"type": "toast",
-		"payload": map[string]any{
-			"host_id": hostID,
-			"level":   level,
-			"message": message,
-		},
-	})
+	// CORE-004: Also record as an event delta (optional consumer)
+	if b.hub.stateManager != nil {
+		b.hub.stateManager.ApplyChange(syncproto.Change{
+			Type: syncproto.ChangeEvent,
+			Payload: map[string]any{
+				"timestamp": time.Now().UTC().Format(time.RFC3339),
+				"category":  "ops",
+				"level":     level,
+				"host_id":   hostID,
+				"message":   message,
+			},
+		})
+	}
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -153,6 +209,10 @@ type lifecycleManagerWrapper struct {
 // HandleCommandComplete implements lifecycleManagerInterface.
 func (w *lifecycleManagerWrapper) HandleCommandComplete(hostID, opID string, exitCode int, message string) (interface{}, error) {
 	return w.lm.HandleCommandComplete(hostID, opID, exitCode, message)
+}
+
+func (w *lifecycleManagerWrapper) HandleCommandRejected(hostID, reason, currentCommand string, currentPID int) {
+	w.lm.HandleCommandRejected(hostID, reason, currentCommand, currentPID)
 }
 
 // HandleHeartbeat implements lifecycleManagerInterface.

@@ -14,6 +14,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/markus-barta/nixfleet/internal/colors"
 	"github.com/markus-barta/nixfleet/internal/ops"
+	syncproto "github.com/markus-barta/nixfleet/internal/sync"
 	"github.com/markus-barta/nixfleet/internal/templates"
 )
 
@@ -421,8 +422,8 @@ func (s *Server) getUpdateStatus(generation, repoURL, repoDir string, lockStatus
 		}
 	} else {
 		status.Git = templates.StatusCheck{
-			Status:    "unknown",
-			Message:   "Version tracking not configured",
+			Status:    "error",
+			Message:   "Version tracking not configured (remote desired state unavailable)",
 			CheckedAt: "",
 		}
 	}
@@ -763,6 +764,24 @@ func (s *Server) handleAddHost(w http.ResponseWriter, r *http.Request) {
 
 	s.log.Info().Str("host_id", hostID).Msg("host added manually")
 
+	// CORE-004: Emit host_added delta (UI may reload while we don't do DOM insertion yet)
+	if s.stateManager != nil {
+		s.stateManager.ApplyChange(syncproto.Change{
+			Type: syncproto.ChangeHostAdded,
+			ID:   hostID,
+			Payload: map[string]any{
+				"id":              hostID,
+				"hostname":        req.Hostname,
+				"host_type":       req.HostType,
+				"status":          "offline",
+				"location":        req.Location,
+				"device_type":     req.DeviceType,
+				"theme_color":     req.ThemeColor,
+				"pending_command": nil,
+			},
+		})
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]any{"status": "created", "host_id": hostID})
 }
@@ -797,13 +816,15 @@ func (s *Server) handleDeleteHost(w http.ResponseWriter, r *http.Request) {
 
 	s.log.Info().Str("host_id", hostID).Msg("host deleted")
 
-	// Broadcast to browsers
-	s.hub.BroadcastToBrowsers(map[string]any{
-		"type": "host_deleted",
-		"payload": map[string]any{
-			"host_id": hostID,
-		},
-	})
+	// CORE-004: Emit host_removed delta
+	if s.stateManager != nil {
+		s.stateManager.ApplyChange(syncproto.Change{
+			Type: syncproto.ChangeHostRemoved,
+			ID:   hostID,
+		})
+	}
+
+	// Legacy host_deleted broadcast removed (CORE-004 host_removed delta is the source of truth).
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]any{"status": "deleted", "host_id": hostID})
@@ -822,6 +843,8 @@ func (s *Server) handleRefreshHost(w http.ResponseWriter, r *http.Request) {
 		AgentVersion     *string
 		LockStatusJSON   *string
 		SystemStatusJSON *string
+		TestsStatusJSON  *string
+		TestsGeneration  *string
 		RepoURL          *string
 		RepoDir          *string
 		Status           string
@@ -830,11 +853,12 @@ func (s *Server) handleRefreshHost(w http.ResponseWriter, r *http.Request) {
 
 	err := s.db.QueryRow(`
 		SELECT hostname, generation, agent_version, lock_status_json,
-		       system_status_json, repo_url, repo_dir, status, pending_command
+		       system_status_json, tests_status_json, tests_generation,
+		       repo_url, repo_dir, status, pending_command
 		FROM hosts WHERE id = ?
 	`, hostID).Scan(
 		&h.Hostname, &h.Generation, &h.AgentVersion,
-		&h.LockStatusJSON, &h.SystemStatusJSON,
+		&h.LockStatusJSON, &h.SystemStatusJSON, &h.TestsStatusJSON, &h.TestsGeneration,
 		&h.RepoURL, &h.RepoDir, &h.Status, &h.PendingCommand,
 	)
 
@@ -867,16 +891,19 @@ func (s *Server) handleRefreshHost(w http.ResponseWriter, r *http.Request) {
 	if s.versionFetcher != nil {
 		gitStatus, gitMsg, gitChecked = s.versionFetcher.GetGitStatus(generation)
 	} else {
-		gitStatus, gitMsg, gitChecked = "unknown", "Version tracking not configured", ""
+		gitStatus, gitMsg, gitChecked = "error", "Version tracking not configured (remote desired state unavailable)", ""
 	}
 
 	// Parse Lock and System from DB
-	var lockStatus, systemStatus map[string]any
+	var lockStatus, systemStatus, testsStatus map[string]any
 	if h.LockStatusJSON != nil {
 		_ = json.Unmarshal([]byte(*h.LockStatusJSON), &lockStatus)
 	}
 	if h.SystemStatusJSON != nil {
 		_ = json.Unmarshal([]byte(*h.SystemStatusJSON), &systemStatus)
+	}
+	if h.TestsStatusJSON != nil {
+		_ = json.Unmarshal([]byte(*h.TestsStatusJSON), &testsStatus)
 	}
 
 	// Check agent version
@@ -912,6 +939,7 @@ func (s *Server) handleRefreshHost(w http.ResponseWriter, r *http.Request) {
 			"git":      map[string]any{"status": gitStatus, "message": gitMsg, "checked_at": gitChecked},
 			"lock":     lockStatus,
 			"system":   systemStatus,
+			"tests":    testsStatus,
 			"repo_url": repoURL,
 			"repo_dir": repoDir,
 		},
@@ -1255,6 +1283,15 @@ func (s *Server) handleSetThemeColor(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.broadcastColorLog(hostID, "info", "✓ Database updated")
+
+	// CORE-004: Emit host_updated delta so the UI can repaint without relying on legacy messages.
+	if s.stateManager != nil {
+		s.stateManager.ApplyChange(syncproto.Change{
+			Type:   syncproto.ChangeHostUpdated,
+			ID:     hostID,
+			Fields: map[string]any{"theme_color": req.Color},
+		})
+	}
 
 	// Determine palette name: use preset or create custom-{hostname}
 	paletteName := ""

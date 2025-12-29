@@ -11,6 +11,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -24,6 +25,11 @@ type StateStore struct {
 	log     zerolog.Logger
 	db      *sql.DB
 	version atomic.Uint64 // State version for sync protocol (CORE-004)
+
+	// Optional hook to mirror event_log inserts into realtime sync deltas.
+	// Set by dashboard/server to avoid store depending on sync package.
+	eventHookMu sync.RWMutex
+	eventHook   func(Event)
 }
 
 // New creates a new StateStore with the given database.
@@ -32,6 +38,13 @@ func New(log zerolog.Logger, db *sql.DB) *StateStore {
 		log: log.With().Str("component", "store").Logger(),
 		db:  db,
 	}
+}
+
+// SetEventHook sets an optional hook called after a successful LogEvent insert.
+func (s *StateStore) SetEventHook(hook func(Event)) {
+	s.eventHookMu.Lock()
+	defer s.eventHookMu.Unlock()
+	s.eventHook = hook
 }
 
 // Open opens a SQLite database and runs migrations.
@@ -224,7 +237,6 @@ func (s *StateStore) CreateCommand(cmd *ops.Command) error {
 	if err != nil {
 		return fmt.Errorf("create command: %w", err)
 	}
-	s.IncrementVersion()
 	return nil
 }
 
@@ -243,7 +255,6 @@ func (s *StateStore) UpdateCommandStatus(cmdID string, status ops.OpStatus, exit
 	if err != nil {
 		return fmt.Errorf("update command status: %w", err)
 	}
-	s.IncrementVersion()
 	return nil
 }
 
@@ -373,7 +384,6 @@ func (s *StateStore) CreatePipeline(p *ops.PipelineRecord) error {
 	if err != nil {
 		return fmt.Errorf("create pipeline: %w", err)
 	}
-	s.IncrementVersion()
 	return nil
 }
 
@@ -383,7 +393,6 @@ func (s *StateStore) UpdatePipelineStage(pipelineID string, stage int) error {
 	if err != nil {
 		return fmt.Errorf("update pipeline stage: %w", err)
 	}
-	s.IncrementVersion()
 	return nil
 }
 
@@ -395,7 +404,6 @@ func (s *StateStore) FinishPipeline(pipelineID string, status ops.PipelineStatus
 	if err != nil {
 		return fmt.Errorf("finish pipeline: %w", err)
 	}
-	s.IncrementVersion()
 	return nil
 }
 
@@ -436,14 +444,48 @@ func (s *StateStore) LogEvent(category, level, actor, hostID, action, message st
 		}
 	}
 
-	_, err := s.db.Exec(`
+	now := time.Now().UTC()
+	res, err := s.db.Exec(`
 		INSERT INTO event_log (timestamp, category, level, actor, host_id, action, message, details)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-	`, time.Now(), category, level, nullString(actor), nullString(hostID), nullString(action), message, detailsJSON)
+	`, now, category, level, nullString(actor), nullString(hostID), nullString(action), message, detailsJSON)
 	if err != nil {
 		s.log.Error().Err(err).Str("category", category).Str("action", action).Msg("failed to log event")
+		return
 	}
-	s.IncrementVersion()
+
+	// Mirror into realtime (if configured)
+	var id int64
+	if res != nil {
+		if lastID, err := res.LastInsertId(); err == nil {
+			id = lastID
+		}
+	}
+
+	ev := Event{
+		ID:        id,
+		Timestamp: now,
+		Category:  category,
+		Level:     level,
+		Message:   message,
+		Details:   details,
+	}
+	if actor != "" {
+		ev.Actor = actor
+	}
+	if hostID != "" {
+		ev.HostID = hostID
+	}
+	if action != "" {
+		ev.Action = action
+	}
+
+	s.eventHookMu.RLock()
+	hook := s.eventHook
+	s.eventHookMu.RUnlock()
+	if hook != nil {
+		hook(ev)
+	}
 }
 
 // Event represents an event log entry.

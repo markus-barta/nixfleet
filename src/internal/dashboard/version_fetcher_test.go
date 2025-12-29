@@ -62,11 +62,11 @@ func TestGetLockStatus_NoCache(t *testing.T) {
 
 	status, message, _ := vf.GetLockStatus("somehash")
 
-	if status != "unknown" {
-		t.Errorf("Expected status 'unknown', got '%s'", status)
+	if status != "error" {
+		t.Errorf("Expected status 'error', got '%s'", status)
 	}
-	if message != "Version tracking not available" {
-		t.Errorf("Expected 'Version tracking not available', got '%s'", message)
+	if message != "Remote version not available" {
+		t.Errorf("Expected 'Remote version not available', got '%s'", message)
 	}
 }
 
@@ -81,11 +81,11 @@ func TestGetLockStatus_NoLockHashInCache(t *testing.T) {
 
 	status, message, _ := vf.GetLockStatus("somehash")
 
-	if status != "unknown" {
-		t.Errorf("Expected status 'unknown', got '%s'", status)
+	if status != "error" {
+		t.Errorf("Expected status 'error', got '%s'", status)
 	}
-	if message != "No lockHash in version.json" {
-		t.Errorf("Expected 'No lockHash in version.json', got '%s'", message)
+	if message != "Remote version missing lockHash (version.json)" {
+		t.Errorf("Expected 'Remote version missing lockHash (version.json)', got '%s'", message)
 	}
 }
 

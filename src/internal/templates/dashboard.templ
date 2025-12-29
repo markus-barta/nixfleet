@@ -935,6 +935,8 @@ templ Dashboard(data DashboardData) {
 					return;
 				}
 
+				const prevPending = current.pendingCommand;
+
 				// Start with shallow merge
 				const next = { ...current, ...patch };
 
@@ -947,7 +949,8 @@ templ Dashboard(data DashboardData) {
 				}
 
 				// P5100: Recalculate availableOps when online/pendingCommand changes
-				if ('online' in patch || 'pendingCommand' in patch) {
+				// If server provides availableOps (CORE-004/full_state/delta), prefer server truth.
+				if (('online' in patch || 'pendingCommand' in patch) && !('availableOps' in patch)) {
 					next.availableOps = this._calculateAvailableOps(next);
 				}
 
@@ -956,6 +959,17 @@ templ Dashboard(data DashboardData) {
 
 				this._hosts.set(id, next);
 				renderHost(id);
+
+				// CORE-004: Drive output panel from pending_command changes (no legacy command_queued needed)
+				if (Object.prototype.hasOwnProperty.call(patch, 'pendingCommand') && prevPending !== next.pendingCommand) {
+					if (next.pendingCommand) {
+						const panel = document.getElementById('output-panel');
+						if (panel) panel.classList.remove('hidden');
+						window.dispatchEvent(new CustomEvent('output-start', {
+							detail: { hostId: id, command: next.pendingCommand }
+						}));
+					}
+				}
 			},
 
 				setOffline(id) {
@@ -1425,43 +1439,6 @@ templ Dashboard(data DashboardData) {
 				}
 			}
 
-			// ═══════════════════════════════════════════════════════════════════════════
-			// WEBSOCKET - P7000 Simplified Messages
-			// ═══════════════════════════════════════════════════════════════════════════
-			let ws = null;
-			let reconnectAttempts = 0;
-			const maxReconnectDelay = 30000;
-
-			function connectWebSocket() {
-				const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-				ws = new WebSocket(`${protocol}//${window.location.host}/ws`);
-
-				ws.onopen = () => {
-					console.log('WebSocket connected');
-					reconnectAttempts = 0;
-					updateConnectionStatus(true);
-				};
-
-				ws.onclose = () => {
-					console.log('WebSocket disconnected');
-					updateConnectionStatus(false);
-					scheduleReconnect();
-				};
-
-				ws.onerror = (err) => {
-					console.error('WebSocket error:', err);
-				};
-
-				ws.onmessage = (event) => {
-					try {
-						const msg = JSON.parse(event.data);
-						handleMessage(msg);
-					} catch (e) {
-						console.error('Failed to parse message:', e);
-					}
-				};
-			}
-
 			function updateConnectionStatus(connected) {
 				globalState.wsConnected = connected;
 				const el = document.getElementById('ws-status');
@@ -1472,13 +1449,6 @@ templ Dashboard(data DashboardData) {
 					el.className = 'connection-indicator disconnected';
 					el.innerHTML = '<span class="status-dot status-offline"></span> Disconnected';
 				}
-			}
-
-			function scheduleReconnect() {
-				reconnectAttempts++;
-				const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), maxReconnectDelay);
-				console.log(`Reconnecting in ${delay}ms...`);
-				setTimeout(connectWebSocket, delay);
 			}
 
 			// P7000: Simplified message handler
@@ -1492,53 +1462,7 @@ templ Dashboard(data DashboardData) {
 				const hostId = payload.host_id;
 
 				switch (msg.type) {
-					case 'host_heartbeat':
-						if (!hostId) return;
-						const heartbeatUpdate = {
-							online: true,
-							lastSeen: payload.last_seen,
-							metrics: payload.metrics
-						};
-						// Include update_status if present (compartment data)
-						if (payload.update_status) {
-							heartbeatUpdate.updateStatus = payload.update_status;
-						}
-						if (payload.generation) {
-							heartbeatUpdate.generation = payload.generation;
-						}
-						hostStore.update(hostId, heartbeatUpdate);
-						break;
-
-					case 'host_status_update':
-						// Full status update (after command completes or compartment refresh)
-						if (!hostId) return;
-						const statusUpdate = {};
-						if (payload.update_status) {
-							statusUpdate.updateStatus = payload.update_status;
-						}
-						if (payload.generation) {
-							statusUpdate.generation = payload.generation;
-						}
-						hostStore.update(hostId, statusUpdate);
-						break;
-
-					case 'host_offline':
-						if (!hostId) return;
-						hostStore.setOffline(hostId);
-						break;
-
-					case 'command_queued':
-						if (!hostId) return;
-						hostStore.update(hostId, {
-							pendingCommand: payload.command
-						});
-						// Show panel and trigger command start (not just show existing output)
-						const panel = document.getElementById('output-panel');
-						panel.classList.remove('hidden');
-						window.dispatchEvent(new CustomEvent('output-start', { 
-							detail: { hostId, command: payload.command } 
-						}));
-						break;
+					// Legacy host + command lifecycle messages removed (CORE-004 deltas are the source of truth).
 
 					case 'command_output':
 						console.log('command_output received:', payload);
@@ -1549,24 +1473,6 @@ templ Dashboard(data DashboardData) {
 							debugTA.scrollTop = debugTA.scrollHeight;
 						}
 						appendLog(payload);
-						break;
-
-					case 'command_complete':
-						if (!hostId) return;
-						const host = hostStore.get(hostId);
-						hostStore.update(hostId, {
-							pendingCommand: null
-						});
-						window.dispatchEvent(new CustomEvent('log-complete', { detail: payload }));
-						// P1010: Notify Action Bar of command completion
-						window.dispatchEvent(new CustomEvent('command-complete', {
-							detail: {
-								hostId,
-								hostname: host?.hostname || hostId,
-								command: payload.command,
-								exit_code: payload.exit_code || 0
-							}
-						}));
 						break;
 
 					case 'flake_update_job':
@@ -1595,6 +1501,114 @@ templ Dashboard(data DashboardData) {
 
 				default:
 					console.debug('Unknown WS message type:', msg.type);
+			}
+
+			// ═══════════════════════════════════════════════════════════════════════════
+			// CORE-004: STATE SYNC (init/full_state/delta/sync) → hostStore
+			// ═══════════════════════════════════════════════════════════════════════════
+			function patchFromSyncHost(h, { partial = false } = {}) {
+				if (!h) return null;
+
+				const patch = {};
+				const has = (k) => Object.prototype.hasOwnProperty.call(h, k);
+
+				// Identity / metadata (only patch what we actually received for partial deltas)
+				if (!partial || has('hostname')) patch.hostname = h.hostname;
+				if (!partial || has('host_type') || has('hostType')) patch.hostType = h.host_type || h.hostType;
+				if (!partial || has('theme_color') || has('themeColor')) patch.themeColor = h.theme_color || h.themeColor;
+				if (!partial || has('location')) patch.location = h.location;
+				if (!partial || has('device_type') || has('deviceType')) patch.deviceType = h.device_type || h.deviceType;
+
+				// Online/offline: IMPORTANT for deltas — do not derive "offline" from missing fields.
+				if (has('status')) {
+					const status = h.status;
+					patch.online = status === 'online' || status === 'running';
+				} else if (has('online')) {
+					patch.online = h.online === true;
+				} else if (!partial) {
+					const status = h.status || (h.online ? 'online' : 'offline');
+					patch.online = status === 'online' || status === 'running' || h.online === true;
+				}
+
+				if (!partial || has('last_seen') || has('lastSeen')) patch.lastSeen = h.last_seen || h.lastSeen || null;
+				if (!partial || has('pending_command') || has('pendingCommand')) patch.pendingCommand = (h.pending_command ?? h.pendingCommand ?? null);
+
+				if (!partial || has('generation')) patch.generation = h.generation || null;
+				if (!partial || has('agent_version') || has('agentVersion')) patch.agentVersion = h.agent_version || h.agentVersion || null;
+				if (!partial || has('agent_outdated') || has('agentOutdated')) patch.agentOutdated = h.agent_outdated === true || h.agentOutdated === true;
+
+				if (!partial || has('metrics')) patch.metrics = h.metrics || null;
+				if (!partial || has('update_status') || has('updateStatus')) patch.updateStatus = h.update_status || h.updateStatus || null;
+				if (!partial || has('available_ops') || has('availableOps')) patch.availableOps = h.available_ops || h.availableOps || undefined;
+
+				return patch;
+			}
+
+			function applyFullState(state) {
+				if (!state) return;
+				if (!Array.isArray(state.hosts)) return;
+				state.hosts.forEach((h) => {
+					const id = h.id || h.host_id || h.hostname;
+					if (!id) return;
+					const patch = patchFromSyncHost(h, { partial: false });
+					if (!patch) return;
+					hostStore.update(id, patch);
+				});
+
+				// CORE-004: hydrate system log from state.events
+				if (Array.isArray(state.events)) {
+					// Events arrive newest-first; render oldest-first
+					const events = [...state.events].reverse();
+					events.forEach((event) => addEventToSystemLog(event));
+				}
+			}
+
+			function applyDelta(change) {
+				if (!change || !change.type) return;
+				if (change.type === 'host_updated') {
+					const id = change.id;
+					const patch = patchFromSyncHost(change.fields || {}, { partial: true });
+					if (id && patch) hostStore.update(id, patch);
+				} else if (change.type === 'event') {
+					const event = change.payload;
+					addEventToSystemLog(event);
+				} else if (change.type === 'command_finished') {
+					const cmd = change.fields || {};
+					const hostId = cmd.host_id;
+					const command = cmd.op || cmd.command; // prefer op ("pull"/"switch"/"test")
+					const exitCode = (cmd.exit_code ?? 0);
+					if (!hostId || !command) return;
+					const host = hostStore.get(hostId);
+					window.dispatchEvent(new CustomEvent('log-complete', {
+						detail: { host_id: hostId, command: command, exit_code: exitCode, error: cmd.error || '' }
+					}));
+					window.dispatchEvent(new CustomEvent('command-complete', {
+						detail: {
+							hostId,
+							hostname: host?.hostname || hostId,
+							command,
+							exit_code: exitCode
+						}
+					}));
+				} else if (change.type === 'command_started') {
+					// Optional: keep output panel visible when a command starts
+					const cmd = change.payload || {};
+					const hostId = cmd.host_id;
+					const command = cmd.op || cmd.command;
+					if (!hostId || !command) return;
+					const panel = document.getElementById('output-panel');
+					if (panel) panel.classList.remove('hidden');
+					window.dispatchEvent(new CustomEvent('output-start', {
+						detail: { hostId, command }
+					}));
+				} else if (change.type === 'host_added') {
+					// Host add/remove requires DOM changes; fallback to full reload for now.
+					console.warn('[StateSync] host_added received; reloading for now');
+					window.location.reload();
+				} else if (change.type === 'host_removed') {
+					console.warn('[StateSync] host_removed received; reloading for now');
+					window.location.reload();
+				}
 			}
 			}
 
@@ -1893,6 +1907,7 @@ templ Dashboard(data DashboardData) {
 			// ═══════════════════════════════════════════════════════════════════════════
 			const MAX_LINES_PER_TAB = 1000;
 			const MAX_SYSTEM_LOG_ENTRIES = 1000;
+			const systemLogSeen = new Set(); // dedupe across init/full_state resyncs
 
 			// Locale: browser preference with de-AT fallback, always 24h
 			const USER_LOCALE = navigator.language || 'de-AT';
@@ -1935,6 +1950,15 @@ templ Dashboard(data DashboardData) {
 				window.dispatchEvent(new CustomEvent('system-log-entry', {
 					detail: { category, message, icon }
 				}));
+			}
+
+			function addEventToSystemLog(event) {
+				if (!event) return;
+				const key = event.id != null ? `id:${event.id}` : `k:${event.timestamp || ''}:${event.category || ''}:${event.level || ''}:${event.message || ''}`;
+				if (systemLogSeen.has(key)) return;
+				systemLogSeen.add(key);
+				const icon = getCategoryIcon(event.category, event.level);
+				addSystemLogEntry(event.category, event.message, icon);
 			}
 
 			document.addEventListener('alpine:init', () => {
@@ -3011,7 +3035,11 @@ templ Dashboard(data DashboardData) {
 
 				try {
 					// Send rollback command via Op Engine
-					stateSync.dispatchOp(pendingRollbackHostId, 'rollback');
+					if (window.stateSync) {
+						await window.stateSync.dispatchOp('rollback', [pendingRollbackHostId]);
+					} else {
+						throw new Error('StateSync not initialized');
+					}
 					closeRollbackModal();
 					showToast(`Rollback command sent to ${pendingRollbackHostname}`, 'info');
 				} catch (err) {
@@ -3931,25 +3959,9 @@ templ Dashboard(data DashboardData) {
 		// P3300: RESTORE LOGS ON PAGE LOAD
 		// ═══════════════════════════════════════════════════════════════════════════
 		
-		// Restore event log from server
-		async function restoreEventLog() {
-			try {
-				const resp = await fetch('/api/events?limit=50');
-				if (!resp.ok) return;
-				
-				const data = await resp.json();
-				const events = data.events || [];
-				
-				// Add events to system log (in reverse order so newest are on top)
-				events.reverse().forEach(event => {
-					const icon = getCategoryIcon(event.category, event.level);
-					addSystemLogEntry(event.category, event.message, icon);
-				});
-				
-				console.log(`[P3300] Restored ${events.length} events`);
-			} catch (err) {
-				console.error('[P3300] Failed to restore event log:', err);
-			}
+		// CORE-004: system log is hydrated from init(full_state).events and maintained via delta(event)
+		function restoreEventLog() {
+			// no-op (kept for backwards compatibility; will be removed)
 		}
 		
 		// Helper to get icon for event category/level
@@ -3969,10 +3981,38 @@ templ Dashboard(data DashboardData) {
 		// INIT - P7000
 		// ═══════════════════════════════════════════════════════════════════════════
 		hostStore.hydrate();
-		connectWebSocket();
+		// CORE-004: Use StateSync for a single WS connection + drift-safe state.
+		const stateSync = new StateSync({
+			onStateChange: (state, mode, change) => {
+				if (mode === 'full') applyFullState(state);
+				if (mode === 'delta') applyDelta(change);
+			},
+			onConnectionChange: (connected) => {
+				updateConnectionStatus(connected);
+			},
+			onError: (err) => console.error('[StateSync] error', err),
+		});
+		// Expose for existing UI helpers that call dispatchOp
+		window.stateSync = stateSync;
+
+		// Route only non-host legacy messages through existing handler.
+		// Host state + command lifecycle + system events are now driven by CORE-004 deltas.
+		window.addEventListener('nixfleet-legacy', (e) => {
+			const msg = e?.detail;
+			if (!msg?.type) return;
+			if (msg.type === 'host_heartbeat' || msg.type === 'host_offline' || msg.type === 'host_status_update') {
+				return;
+			}
+			// Legacy toast is replaced by CORE-004 delta(event)
+			if (msg.type === 'toast') {
+				return;
+			}
+			handleMessage(msg);
+		});
+
+		stateSync.connect();
 		
-		// P3300: Restore event log on page load
-		restoreEventLog();
+		// System log is now hydrated via CORE-004 init/full_state (no REST fetch)
 
 			// Update last-seen every second
 			setInterval(() => {

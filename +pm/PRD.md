@@ -241,6 +241,16 @@ NixFleet uses **fully automated releases** via GitHub Actions.
 - **Dashboard deploys instantly** — `just deploy` pulls latest image
 - **Agents update via Pull + Switch** — standard fleet operation
 
+### Compartment Status Dots (CORE-006)
+
+NixFleet’s primary UX is the **row of compartments** (Agent/Git/Lock/System/Tests). The core requirement:
+
+- **🟢 Green** means **current vs remote desired state** (not just “local looks fine”).
+- **🟡 Yellow** means **action needed** (or verification degraded; e.g., System/Tests must not be green if remote desired state cannot be fetched).
+- **🔴 Red** means a **real problem** (including inability to fetch remote desired state for Git/Lock).
+
+Canonical spec: `+pm/spec/CORE-006-compartments.md`.
+
 ### Documentation
 
 - [Release Guide](../docs/RELEASE.md) — Simple step-by-step guide

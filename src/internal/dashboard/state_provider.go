@@ -2,6 +2,7 @@ package dashboard
 
 import (
 	"database/sql"
+	"encoding/json"
 
 	"github.com/markus-barta/nixfleet/internal/ops"
 	"github.com/markus-barta/nixfleet/internal/sync"
@@ -10,15 +11,16 @@ import (
 // DashboardStateProvider implements sync.StateProvider for the dashboard.
 // It aggregates state from hosts, commands, pipelines, and events.
 type DashboardStateProvider struct {
-	db    *sql.DB
+	db *sql.DB
+	vf *VersionFetcher // Optional: compute Git status for init/full_state hosts
 	store interface {
 		GetRecentEvents(limit int) ([]any, error)
 	}
 }
 
 // NewDashboardStateProvider creates a new state provider.
-func NewDashboardStateProvider(db *sql.DB) *DashboardStateProvider {
-	return &DashboardStateProvider{db: db}
+func NewDashboardStateProvider(db *sql.DB, vf *VersionFetcher) *DashboardStateProvider {
+	return &DashboardStateProvider{db: db, vf: vf}
 }
 
 // GetFullState returns the complete state for sync protocol init/full_state.
@@ -48,9 +50,11 @@ func (p *DashboardStateProvider) GetFullState() sync.FullState {
 
 func (p *DashboardStateProvider) getHosts() []any {
 	rows, err := p.db.Query(`
-		SELECT id, hostname, host_type, agent_version, status, 
+		SELECT id, hostname, host_type, agent_version, status,
 		       last_seen, generation, pending_command, theme_color,
-		       location, device_type
+		       location, device_type, metrics_json,
+		       lock_status_json, system_status_json, tests_status_json, tests_generation,
+		       repo_url, repo_dir
 		FROM hosts
 		ORDER BY hostname
 	`)
@@ -62,24 +66,63 @@ func (p *DashboardStateProvider) getHosts() []any {
 	var hosts []any
 	for rows.Next() {
 		var h struct {
-			ID, Hostname, HostType, Status                      string
-			AgentVersion, LastSeen, Generation, PendingCommand  sql.NullString
-			ThemeColor, Location, DeviceType                    sql.NullString
+			ID, Hostname, HostType, Status                                 string
+			AgentVersion, LastSeen, Generation, PendingCommand             sql.NullString
+			ThemeColor, Location, DeviceType                               sql.NullString
+			MetricsJSON, LockStatusJSON, SystemStatusJSON, TestsStatusJSON  sql.NullString
+			TestsGeneration, RepoURL, RepoDir                               sql.NullString
 		}
-		if err := rows.Scan(&h.ID, &h.Hostname, &h.HostType, &h.AgentVersion,
+		if err := rows.Scan(
+			&h.ID, &h.Hostname, &h.HostType, &h.AgentVersion,
 			&h.Status, &h.LastSeen, &h.Generation, &h.PendingCommand,
-			&h.ThemeColor, &h.Location, &h.DeviceType); err != nil {
+			&h.ThemeColor, &h.Location, &h.DeviceType, &h.MetricsJSON,
+			&h.LockStatusJSON, &h.SystemStatusJSON, &h.TestsStatusJSON, &h.TestsGeneration,
+			&h.RepoURL, &h.RepoDir,
+		); err != nil {
 			continue
 		}
 
 		// Calculate available ops based on host state
-		availableOps := p.calculateAvailableOps(&h)
+		availableOps := p.calculateAvailableOps(&struct {
+			ID, Hostname, HostType, Status                      string
+			AgentVersion, LastSeen, Generation, PendingCommand  sql.NullString
+			ThemeColor, Location, DeviceType                    sql.NullString
+		}{
+			ID:             h.ID,
+			Hostname:       h.Hostname,
+			HostType:       h.HostType,
+			Status:         h.Status,
+			AgentVersion:   h.AgentVersion,
+			LastSeen:       h.LastSeen,
+			Generation:     h.Generation,
+			PendingCommand: h.PendingCommand,
+			ThemeColor:     h.ThemeColor,
+			Location:       h.Location,
+			DeviceType:     h.DeviceType,
+		})
+
+		// Compute agent_outdated (dashboard-side)
+		agentVersion := nullStr(h.AgentVersion)
+		agentOutdated := agentVersion != "" && agentVersion != Version
+
+		// Parse metrics JSON
+		var metrics any
+		if h.MetricsJSON.Valid && h.MetricsJSON.String != "" {
+			var m any
+			if err := json.Unmarshal([]byte(h.MetricsJSON.String), &m); err == nil {
+				metrics = m
+			}
+		}
+
+		// Build update_status (git from VersionFetcher, lock/system from DB)
+		updateStatus := p.buildUpdateStatus(nullStr(h.Generation), h.LockStatusJSON, h.SystemStatusJSON, h.TestsStatusJSON, h.TestsGeneration, h.RepoURL, h.RepoDir)
 
 		hosts = append(hosts, map[string]any{
 			"id":              h.ID,
 			"hostname":        h.Hostname,
 			"host_type":       h.HostType,
-			"agent_version":   nullStr(h.AgentVersion),
+			"agent_version":   agentVersion,
+			"agent_outdated":  agentOutdated,
 			"status":          h.Status,
 			"last_seen":       nullStr(h.LastSeen),
 			"generation":      nullStr(h.Generation),
@@ -88,9 +131,114 @@ func (p *DashboardStateProvider) getHosts() []any {
 			"location":        nullStr(h.Location),
 			"device_type":     nullStr(h.DeviceType),
 			"available_ops":   availableOps,
+			"metrics":         metrics,
+			"update_status":   updateStatus,
 		})
 	}
 	return hosts
+}
+
+func (p *DashboardStateProvider) buildUpdateStatus(generation string, lockJSON, systemJSON, testsJSON, testsGen, repoURL, repoDir sql.NullString) map[string]any {
+	var gitStatus map[string]any
+	if p.vf != nil {
+		status, msg, checked := p.vf.GetGitStatus(generation)
+		gitStatus = map[string]any{"status": status, "message": msg, "checked_at": checked}
+	} else {
+		gitStatus = map[string]any{
+			"status":     "error",
+			"message":    "Version tracking not configured (remote desired state unavailable)",
+			"checked_at": "",
+		}
+	}
+
+	var lockStatus any
+	if lockJSON.Valid && lockJSON.String != "" {
+		var v any
+		if err := json.Unmarshal([]byte(lockJSON.String), &v); err == nil {
+			lockStatus = v
+		}
+	}
+	var systemStatus any
+	if systemJSON.Valid && systemJSON.String != "" {
+		var v any
+		if err := json.Unmarshal([]byte(systemJSON.String), &v); err == nil {
+			systemStatus = v
+		}
+	}
+	var testsStatus any
+	if testsJSON.Valid && testsJSON.String != "" {
+		var v any
+		if err := json.Unmarshal([]byte(testsJSON.String), &v); err == nil {
+			testsStatus = v
+		}
+	}
+
+	us := map[string]any{
+		"git":      gitStatus,
+		"lock":     lockStatus,
+		"system":   systemStatus,
+		"tests":    testsStatus,
+		"repo_url": nullStr(repoURL),
+		"repo_dir": nullStr(repoDir),
+	}
+
+	// CORE-006: Remote-gate System (and keep semantics consistent on init/full_state)
+	getStatus := func(v any) string {
+		m, ok := v.(map[string]any)
+		if !ok || m == nil {
+			return ""
+		}
+		s, _ := m["status"].(string)
+		return s
+	}
+	gs := getStatus(gitStatus)
+	ls := getStatus(lockStatus)
+	ss := getStatus(systemStatus)
+
+	gitOK := gs == "ok"
+	lockOK := ls == "ok"
+	gitOutdated := gs == "outdated"
+	lockOutdated := ls == "outdated"
+	gitError := gs == "error"
+	lockError := ls == "error"
+	gitUnknown := gs == "" || gs == "unknown"
+	lockUnknown := ls == "" || ls == "unknown"
+
+	// If System is missing but Git/Lock clearly indicate not-current, avoid gray.
+	if ss == "" {
+		switch {
+		case gitOutdated || lockOutdated:
+			us["system"] = map[string]any{"status": "outdated", "message": "System not current vs remote (Git/Lock behind)", "checked_at": ""}
+		case gitError || lockError:
+			us["system"] = map[string]any{"status": "outdated", "message": "Remote verification degraded (Git/Lock error)", "checked_at": ""}
+		}
+	}
+	// If System claims ok but prerequisites aren't ok, degrade (unknown vs outdated).
+	if ss == "ok" && (!gitOK || !lockOK) {
+		switch {
+		case gitOutdated || lockOutdated:
+			us["system"] = map[string]any{"status": "outdated", "message": "System not current vs remote (Git/Lock behind)", "checked_at": ""}
+		case gitError || lockError:
+			us["system"] = map[string]any{"status": "outdated", "message": "Remote verification degraded (Git/Lock error)", "checked_at": ""}
+		case gitUnknown || lockUnknown:
+			us["system"] = map[string]any{"status": "unknown", "message": "Cannot verify System vs remote (insufficient signal)", "checked_at": ""}
+		}
+	}
+
+	// CORE-006: Tests are generation-scoped (old-generation pass => 🟡 on new deployment)
+	tgs := ""
+	if testsGen.Valid {
+		tgs = testsGen.String
+	}
+	if testsStatus != nil && tgs != "" && generation != "" && tgs != generation {
+		us["tests"] = map[string]any{
+			"status":     "outdated",
+			"message":    "Tests outdated for current deployed state",
+			"checked_at": "",
+		}
+	}
+
+	return us
 }
 
 // calculateAvailableOps determines which operations are available for a host.

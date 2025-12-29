@@ -3,6 +3,7 @@ package dashboard
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"sync"
 	"time"
@@ -72,6 +73,9 @@ func (vf *VersionFetcher) fetch() {
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
+		vf.mu.Lock()
+		vf.lastError = fmt.Errorf("remote returned %s", resp.Status)
+		vf.mu.Unlock()
 		return
 	}
 
@@ -105,13 +109,18 @@ func (vf *VersionFetcher) GetGitStatus(agentGeneration string) (status, message,
 
 	checkedAt = time.Now().UTC().Format(time.RFC3339)
 
+	// Spec: remote desired fetch failure is a real problem (🔴), not "unknown".
+	if vf.lastError != nil {
+		return "error", "Remote version fetch failing: " + vf.lastError.Error(), checkedAt
+	}
+
 	if vf.cached == nil {
-		return "unknown", "Version tracking not available", checkedAt
+		return "error", "Remote version not available", checkedAt
 	}
 
 	latestCommit := vf.cached.GitCommit
 	if latestCommit == "" {
-		return "unknown", "No commit in version.json", checkedAt
+		return "error", "Remote version missing gitCommit (version.json)", checkedAt
 	}
 
 	if agentGeneration == "" {
@@ -162,13 +171,18 @@ func (vf *VersionFetcher) GetLockStatus(agentLockHash string) (status, message, 
 
 	checkedAt = time.Now().UTC().Format(time.RFC3339)
 
+	// Spec: remote desired fetch failure is a real problem (🔴), not "unknown".
+	if vf.lastError != nil {
+		return "error", "Remote version fetch failing: " + vf.lastError.Error(), checkedAt
+	}
+
 	if vf.cached == nil {
-		return "unknown", "Version tracking not available", checkedAt
+		return "error", "Remote version not available", checkedAt
 	}
 
 	latestHash := vf.cached.LockHash
 	if latestHash == "" {
-		return "unknown", "No lockHash in version.json", checkedAt
+		return "error", "Remote version missing lockHash (version.json)", checkedAt
 	}
 
 	if agentLockHash == "" {

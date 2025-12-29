@@ -101,7 +101,7 @@ func New(cfg *Config, db *sql.DB, log zerolog.Logger) *Server {
 
 	// Create lifecycle manager (replaces CommandStateMachine + Executor)
 	lifecycleManager := ops.NewLifecycleManager(log, opRegistry, cmdSender, stateStore, stateStore)
-	lifecycleManager.SetHostProvider(&hostProviderAdapter{db: db})
+	lifecycleManager.SetHostProvider(&hostProviderAdapter{db: db, vf: versionFetcher})
 	lifecycleManager.SetBroadcastSender(&broadcastSenderAdapter{hub: hub})
 	// P1100: Wire pending command store - LifecycleManager is now the SINGLE SOURCE OF TRUTH
 	lifecycleManager.SetPendingCommandStore(hub)
@@ -111,10 +111,30 @@ func New(cfg *Config, db *sql.DB, log zerolog.Logger) *Server {
 	pipelineExecutor := ops.NewPipelineExecutor(log, nil, pipelineRegistry, stateStore, stateStore) // TODO: Update to use lifecycle manager
 
 	// Create state provider for sync protocol
-	stateProvider := NewDashboardStateProvider(db)
+	stateProvider := NewDashboardStateProvider(db, versionFetcher)
 
 	// Create state manager for sync protocol
 	stateManager := sync.NewStateManager(log, stateStore, stateProvider)
+	// Wire CORE-004 state sync into hub (browser clients receive init/full_state)
+	hub.SetStateManager(stateManager)
+
+	// CORE-004: Mirror persisted events into realtime deltas so the UI can render the system log without legacy WS/REST polling.
+	stateStore.SetEventHook(func(e store.Event) {
+		stateManager.ApplyChange(sync.Change{
+			Type: sync.ChangeEvent,
+			Payload: map[string]any{
+				"id":        e.ID,
+				"timestamp": e.Timestamp.UTC().Format(time.RFC3339),
+				"category":  e.Category,
+				"level":     e.Level,
+				"actor":     e.Actor,
+				"host_id":   e.HostID,
+				"action":    e.Action,
+				"message":   e.Message,
+				"details":   e.Details,
+			},
+		})
+	})
 
 	log.Info().Msg("v3 Op Engine initialized")
 

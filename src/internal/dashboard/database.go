@@ -107,6 +107,62 @@ func createTables(db *sql.DB) error {
 
 	CREATE INDEX IF NOT EXISTS idx_audit_log_action_time ON audit_log(action, timestamp);
 	CREATE INDEX IF NOT EXISTS idx_audit_log_host_time ON audit_log(host_id, timestamp);
+
+	-- v3: CORE-003 / CORE-004 tables (created if missing)
+
+	-- Commands table (CORE-003)
+	CREATE TABLE IF NOT EXISTS commands (
+		id          TEXT PRIMARY KEY,
+		host_id     TEXT NOT NULL,
+		op          TEXT NOT NULL,
+		pipeline_id TEXT,
+		status      TEXT NOT NULL,
+		created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
+		started_at  DATETIME,
+		finished_at DATETIME,
+		exit_code   INTEGER,
+		error       TEXT,
+		output_file TEXT,
+		FOREIGN KEY (host_id) REFERENCES hosts(id)
+	);
+	CREATE INDEX IF NOT EXISTS idx_commands_host ON commands(host_id, created_at DESC);
+	CREATE INDEX IF NOT EXISTS idx_commands_status ON commands(status);
+	CREATE INDEX IF NOT EXISTS idx_commands_pipeline ON commands(pipeline_id);
+
+	-- Pipelines table (CORE-003)
+	CREATE TABLE IF NOT EXISTS pipelines (
+		id            TEXT PRIMARY KEY,
+		name          TEXT NOT NULL,
+		hosts         TEXT NOT NULL,
+		current_stage INTEGER DEFAULT 0,
+		status        TEXT NOT NULL,
+		created_at    DATETIME DEFAULT CURRENT_TIMESTAMP,
+		finished_at   DATETIME
+	);
+	CREATE INDEX IF NOT EXISTS idx_pipelines_status ON pipelines(status);
+
+	-- Event log table (CORE-003)
+	CREATE TABLE IF NOT EXISTS event_log (
+		id          INTEGER PRIMARY KEY AUTOINCREMENT,
+		timestamp   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		category    TEXT NOT NULL,
+		level       TEXT NOT NULL,
+		actor       TEXT,
+		host_id     TEXT,
+		action      TEXT,
+		message     TEXT NOT NULL,
+		details     TEXT
+	);
+	CREATE INDEX IF NOT EXISTS idx_event_log_timestamp ON event_log(timestamp DESC);
+	CREATE INDEX IF NOT EXISTS idx_event_log_host ON event_log(host_id, timestamp DESC);
+	CREATE INDEX IF NOT EXISTS idx_event_log_category ON event_log(category, timestamp DESC);
+
+	-- State version table (CORE-004)
+	CREATE TABLE IF NOT EXISTS state_version (
+		id      INTEGER PRIMARY KEY CHECK (id = 1),
+		version INTEGER NOT NULL DEFAULT 0
+	);
+	INSERT OR IGNORE INTO state_version (id, version) VALUES (1, 0);
 	`
 
 	_, err := db.Exec(schema)
@@ -124,6 +180,9 @@ func createTables(db *sql.DB) error {
 		`ALTER TABLE hosts ADD COLUMN device_type TEXT DEFAULT 'desktop'`,
 		// Add test_progress column for test results (v2.2.0 - P4370)
 		`ALTER TABLE hosts ADD COLUMN test_progress TEXT`,
+		// P1110: Persist tests compartment status (v3 - CORE-006)
+		`ALTER TABLE hosts ADD COLUMN tests_status_json TEXT`,
+		`ALTER TABLE hosts ADD COLUMN tests_generation TEXT`,
 	}
 
 	for _, m := range migrations {

@@ -46,13 +46,18 @@ The Compartment Status System is a **five-stage pipeline** that provides at-a-gl
 
 Each compartment uses a **5-color system**:
 
-| Color         | Meaning               | When to Use       | Action Required      |
-| ------------- | --------------------- | ----------------- | -------------------- |
-| 🟢 **Green**  | Current / Passed      | Everything OK     | None                 |
-| 🟡 **Yellow** | Outdated / Pending    | Update needed     | Pull / Switch / Test |
-| 🔴 **Red**    | Failed / Error        | Something broke   | Fix / Rollback       |
-| 🔵 **Blue**   | Working / In progress | Operation running | Wait                 |
-| ⚪ **Gray**   | Unknown / Disabled    | No data yet       | Configure / Wait     |
+| Color         | Meaning               | When to Use                                                        | Action Required      |
+| ------------- | --------------------- | ------------------------------------------------------------------ | -------------------- |
+| 🟢 **Green**  | Current / Passed      | Everything OK                                                      | None                 |
+| 🟡 **Yellow** | Outdated / Pending    | Update needed                                                      | Pull / Switch / Test |
+| 🔴 **Red**    | Failed / Error        | Something broke                                                    | Fix / Rollback       |
+| 🔵 **Blue**   | Working / In progress | Operation running                                                  | Wait                 |
+| ⚪ **Gray**   | Unknown / Warm-up     | No host signal yet (never connected / never ran / not enough data) | Wait                 |
+
+**Important semantics:**
+
+- **Gray is _not_ used for remote fetch failures.** If the dashboard cannot fetch the remote desired state, that is a **real problem** → **Red** on the compartment that depends on it.
+- **Yellow can also mean “verification degraded”.** If remote desired state is unavailable, **System/Tests must not show green** (because “current vs remote” can’t be proven). In that case they show **Yellow** with an explicit message (not Gray).
 
 ---
 
@@ -109,8 +114,11 @@ Checks if local repo is up to date with GitHub.
 
 ```go
 func computeGitStatus(hostGeneration string, latestCommit string) string {
+    if hostGeneration == "" {
+        return "unknown"  // Gray: host has not reported a generation yet
+    }
     if latestCommit == "" {
-        return "unknown"  // Gray: can't fetch from GitHub
+        return "error"  // Red: remote desired commit unavailable (fetch/config problem)
     }
     if hostGeneration == latestCommit {
         return "ok"  // Green: up to date
@@ -119,11 +127,12 @@ func computeGitStatus(hostGeneration string, latestCommit string) string {
 }
 ```
 
-| State      | Color | Meaning                         | Action                  |
-| ---------- | ----- | ------------------------------- | ----------------------- |
-| `ok`       | 🟢    | Local repo matches origin/main  | None                    |
-| `outdated` | 🟡    | Local repo behind               | Pull                    |
-| `unknown`  | ⚪    | Cannot fetch latest from GitHub | Check GitHub API config |
+| State      | Color | Meaning                           | Action                       |
+| ---------- | ----- | --------------------------------- | ---------------------------- |
+| `ok`       | 🟢    | Host repo matches remote desired  | None                         |
+| `outdated` | 🟡    | Host repo behind remote desired   | Pull                         |
+| `error`    | 🔴    | Remote desired state unavailable  | Fix dashboard/network/config |
+| `unknown`  | ⚪    | Host generation unknown (warm-up) | Wait for first heartbeat     |
 
 ### Data Flow
 
@@ -138,7 +147,7 @@ Agent reports in heartbeat:
 Dashboard compares:
 host.Generation == latestCommit
          ↓
-Git compartment: 🟢/🟡/⚪
+Git compartment: 🟢/🟡/🔴/⚪
 ```
 
 ---
@@ -153,8 +162,11 @@ Checks if flake.lock is current (dependencies up to date).
 
 ```go
 func computeLockStatus(hostLockHash string, latestLockHash string) string {
+    if hostLockHash == "" {
+        return "unknown"  // Gray: host has not reported lock hash yet
+    }
     if latestLockHash == "" {
-        return "unknown"  // Gray: can't fetch latest
+        return "error"  // Red: remote desired lock hash unavailable (fetch/config problem)
     }
     if hostLockHash == latestLockHash {
         return "ok"  // Green: current
@@ -163,11 +175,12 @@ func computeLockStatus(hostLockHash string, latestLockHash string) string {
 }
 ```
 
-| State      | Color | Meaning                      | Action                          |
-| ---------- | ----- | ---------------------------- | ------------------------------- |
-| `ok`       | 🟢    | flake.lock matches latest    | None                            |
-| `outdated` | 🟡    | flake.lock outdated          | Pull (if PR merged) or Merge PR |
-| `unknown`  | ⚪    | Cannot determine lock status | Check configuration             |
+| State      | Color | Meaning                          | Action                       |
+| ---------- | ----- | -------------------------------- | ---------------------------- |
+| `ok`       | 🟢    | Host lock matches remote desired | None                         |
+| `outdated` | 🟡    | Host lock behind remote desired  | Pull (after PR merged)       |
+| `error`    | 🔴    | Remote desired lock unavailable  | Fix dashboard/network/config |
+| `unknown`  | ⚪    | Host lock hash unknown (warm-up) | Wait for first heartbeat     |
 
 ### Data Flow
 
@@ -184,7 +197,7 @@ latestLockHash = SHA256(latest flake.lock)
 Dashboard compares:
 host.LockHash == latestLockHash
          ↓
-Lock compartment: 🟢/🟡/⚪
+Lock compartment: 🟢/🟡/🔴/⚪
 ```
 
 ### Why Content Hash, Not Time?
@@ -219,35 +232,57 @@ Checks if running system matches current config.
 
 ### States
 
+**Inputs required (cheap):**
+
+- `Git.Status` and `Lock.Status` computed from compartments 2–3 (remote desired vs host-reported).
+- `LastCommand` / `LastExitCode` from command history (Op Engine / State Store).
+- `PullChangedDesired` (boolean): true **only if** the last successful `pull` changed the host’s desired inputs (e.g., `generation` and/or `lock_hash` changed vs the previously known values). This prevents “no-op pull” from incorrectly turning System yellow.
+
 ```go
 func inferSystemStatus(host Host) string {
-    // If Lock outdated, System MUST be outdated
+    // System is defined as: "deployed and current vs *remote desired*"
+    //
+    // Therefore System MUST NOT be green unless Git and Lock are green.
+
+    // Remote verification degraded: Git/Lock checks failed upstream
+    if host.Git.Status == "error" || host.Lock.Status == "error" {
+        return "outdated" // Yellow: cannot verify current vs remote right now
+    }
+
+    // If Git outdated → cannot be current vs remote
+    if host.Git.Status == "outdated" {
+        return "outdated"
+    }
+
+    // If Lock outdated → System MUST be outdated
     if host.Lock.Status == "outdated" {
         return "outdated"
     }
 
-    // Infer from last command
+    // Deployment inference (cheap):
+    // - Switch exit != 0 => error
+    // - Switch exit == 0 => ok
+    // - Pull that changed desired inputs => outdated until switch
     switch {
-    case host.LastCommand == "pull" && host.LastExitCode == 0:
-        return "outdated"  // Pulled new config, need switch
-    case host.LastCommand == "switch" && host.LastExitCode == 0:
-        return "ok"  // Successfully applied
     case host.LastCommand == "switch" && host.LastExitCode != 0:
-        return "error"  // Switch failed
-    case host.Lock.Status == "ok":
-        return "ok"  // Assume current
+        return "error"
+    case host.LastCommand == "switch" && host.LastExitCode == 0:
+        return "ok"
+    case host.LastCommand == "pull" && host.LastExitCode == 0 && host.PullChangedDesired == true:
+        return "outdated"
     default:
-        return "unknown"  // First heartbeat
+        // Gray only when we genuinely have insufficient host history
+        return "unknown"
     }
 }
 ```
 
-| State      | Color | Meaning                           | Action                 |
-| ---------- | ----- | --------------------------------- | ---------------------- |
-| `ok`       | 🟢    | System matches config             | None                   |
-| `outdated` | 🟡    | System needs rebuild              | Switch                 |
-| `error`    | 🔴    | Switch failed                     | Check logs, fix config |
-| `unknown`  | ⚪    | Status unknown (first connection) | Wait for first command |
+| State      | Color | Meaning                                            | Action                 |
+| ---------- | ----- | -------------------------------------------------- | ---------------------- |
+| `ok`       | 🟢    | Deployed and current vs remote desired             | None                   |
+| `outdated` | 🟡    | Not current vs remote (or cannot verify vs remote) | Pull / Switch          |
+| `error`    | 🔴    | Switch failed (deployment problem)                 | Check logs, fix config |
+| `unknown`  | ⚪    | Insufficient host history (warm-up)                | Wait for first command |
 
 ### Why Inference, Not Expensive Checks?
 
@@ -271,6 +306,9 @@ User runs Switch (exit 0)
 No expensive checks needed!
 ```
 
+**Note:** If remote desired state cannot be fetched (Git/Lock = 🔴), System must not be 🟢.
+In that scenario System becomes 🟡 with a message like “Cannot verify vs remote (remote check failing)”.
+
 ---
 
 ## Compartment 5: Tests
@@ -281,13 +319,13 @@ Verifies system is actually working after deployment.
 
 ### States
 
-| State      | Color | Meaning           | Action                  |
-| ---------- | ----- | ----------------- | ----------------------- |
-| `ok`       | 🟢    | All tests passed  | None                    |
-| `outdated` | 🟡    | Tests not run yet | Run tests               |
-| `error`    | 🔴    | Tests failed      | Rollback or fix         |
-| `working`  | 🔵    | Tests running     | Wait                    |
-| `unknown`  | ⚪    | Tests disabled    | Enable tests (optional) |
+| State      | Color | Meaning                                                                              | Action         |
+| ---------- | ----- | ------------------------------------------------------------------------------------ | -------------- |
+| `ok`       | 🟢    | Tests passed **for the currently deployed (remote) state**                           | None           |
+| `outdated` | 🟡    | Tests missing/outdated for the currently deployed state (or cannot verify vs remote) | Run tests      |
+| `error`    | 🔴    | Tests failed (on current deployed state)                                             | Fix / Rollback |
+| `working`  | 🔵    | Tests running                                                                        | Wait           |
+| `unknown`  | ⚪    | Tests never ran yet (warm-up)                                                        | Run tests      |
 
 ### Data Flow
 
@@ -295,10 +333,9 @@ Verifies system is actually working after deployment.
 User runs Switch (exit 0)
          ↓
 System compartment: 🟢
-Tests compartment: 🟡 (not run yet)
+Tests compartment: 🟡 (tests now outdated for new deployed state)
          ↓
-[If auto-run enabled]
-Test command dispatched
+User runs Test
          ↓
 Tests compartment: 🔵 (running)
          ↓
@@ -357,23 +394,23 @@ Each compartment responds to clicks based on its current state:
 
 #### Git Compartment
 
-| State  | Click Response                               |
-| ------ | -------------------------------------------- |
-| Gray   | "Checking GitHub..."                         |
-| Green  | "Git current (abc123)" → show commit details |
-| Yellow | "2 commits behind" → trigger Pull            |
-| Blue   | "Pulling..." → show progress, offer Stop     |
-| Red    | "Pull failed" → show error, offer retry      |
+| State  | Click Response                                                          |
+| ------ | ----------------------------------------------------------------------- |
+| Gray   | "Git status unknown (host not reporting yet)"                           |
+| Green  | "Git current vs remote (abc123)" → show details                         |
+| Yellow | "Git behind remote" → trigger Pull                                      |
+| Blue   | "Pulling..." → show progress, offer Stop                                |
+| Red    | "Remote git check failed (cannot fetch desired state)" → show fix hints |
 
 #### Lock Compartment
 
-| State  | Click Response                            |
-| ------ | ----------------------------------------- |
-| Gray   | "Checking flake.lock..."                  |
-| Green  | "Lock current (hash matches)" → show hash |
-| Yellow | "Lock outdated" → trigger Pull            |
-| Blue   | "Refreshing..." → show progress           |
-| Red    | "Lock check failed" → show error          |
+| State  | Click Response                                                          |
+| ------ | ----------------------------------------------------------------------- |
+| Gray   | "Lock status unknown (host not reporting yet)"                          |
+| Green  | "Lock current vs remote (hash matches)" → show hash                     |
+| Yellow | "Lock behind remote" → trigger Pull                                     |
+| Blue   | "Refreshing..." → show progress                                         |
+| Red    | "Remote lock check failed (cannot fetch desired lock)" → show fix hints |
 
 #### System Compartment (INFERENCE ONLY)
 
@@ -381,13 +418,13 @@ Each compartment responds to clicks based on its current state:
 > Status is inferred from command results and lock state.
 > Click shows information only — no refresh, no switch trigger.
 
-| State  | Click Response                                              |
-| ------ | ----------------------------------------------------------- |
-| Gray   | "System status unknown" (info)                              |
-| Green  | "System current (gen abc123)" (info)                        |
-| Yellow | "System outdated — needs switch" + WHY it's outdated (info) |
-| Blue   | "Switching..." → show progress, offer Stop                  |
-| Red    | "Switch failed" → show error (info)                         |
+| State  | Click Response                                                           |
+| ------ | ------------------------------------------------------------------------ |
+| Gray   | "System status unknown (insufficient host history)" (info)               |
+| Green  | "System current vs remote (abc123)" (info)                               |
+| Yellow | "System not current vs remote (or cannot verify vs remote)" + WHY (info) |
+| Blue   | "Switching..." → show progress, offer Stop                               |
+| Red    | "Switch failed" → show error (info)                                      |
 
 **Why no action?** Running `nix build --dry-run` to check system status takes 30-60+ seconds and consumes significant resources. Instead, we infer status from:
 
@@ -397,13 +434,13 @@ Each compartment responds to clicks based on its current state:
 
 #### Tests Compartment
 
-| State  | Click Response                                 |
-| ------ | ---------------------------------------------- |
-| Gray   | "Tests not configured" (info)                  |
-| Green  | "All tests passed" → show test results         |
-| Yellow | "Tests not run yet" → trigger Test             |
-| Blue   | "Tests running..." → show progress, offer Stop |
-| Red    | "Tests failed" → show failures, offer retry    |
+| State  | Click Response                                                                          |
+| ------ | --------------------------------------------------------------------------------------- |
+| Gray   | "Tests never ran yet" (info)                                                            |
+| Green  | "Tests passed (current deployed state)" → show results                                  |
+| Yellow | "Tests outdated for current deployed state (or cannot verify vs remote)" → trigger Test |
+| Blue   | "Tests running..." → show progress, offer Stop                                          |
+| Red    | "Tests failed" → show failures, offer retry                                             |
 
 ### Working State Lifecycle
 
@@ -460,6 +497,16 @@ After Switch:
 
 After Tests Pass:
           [ 🟢  🟢  🟢  🟢  🟢 ]  All current
+```
+
+### Remote Verification Degraded (Dashboard can’t fetch desired state)
+
+```
+Remote fetch fails:
+          [ 🟢  🔴  🔴  🟡  🟡 ]
+
+Git/Lock: 🔴 (cannot verify remote desired state)
+System/Tests: 🟡 (must not be 🟢 because “current vs remote” cannot be proven)
 ```
 
 ### Failed Update Flow
@@ -707,6 +754,13 @@ ALTER TABLE hosts ADD COLUMN last_command TEXT;
 ALTER TABLE hosts ADD COLUMN last_exit_code INTEGER;
 ALTER TABLE hosts ADD COLUMN test_status_json TEXT;
 ```
+
+**Note:** These can also be derived from the command journal (`commands` table) instead of denormalizing onto `hosts`:
+
+- `last_command`, `last_exit_code`
+- `pull_changed_desired`
+- `last_successful_switch_at` / `last_successful_switch_generation`
+- `last_tests_result_at` / `last_tests_generation`
 
 ---
 
