@@ -149,6 +149,11 @@ type Hub struct {
 	// P2810: Last known agent freshness (updated on register/heartbeat)
 	agentFreshness map[string]ops.AgentFreshness
 
+	// v3/CORE-004: Cache mapping hostname -> hosts.id (DB primary key).
+	// Needed because agent identity uses hostname, while UI/state may key off hosts.id.
+	hostIDByHostname map[string]string
+	hostIDMu         sync.RWMutex
+
 	// Command completion subscribers (P5300 - proper deploy tracking)
 	completionSubs   map[string][]chan CommandCompletion
 	completionSubsMu sync.Mutex
@@ -185,7 +190,39 @@ func NewHub(log zerolog.Logger, db *sql.DB, cfg *Config, vf *VersionFetcher) *Hu
 		broadcasts:     make(chan []byte, broadcastQueueSize),
 		completionSubs: make(map[string][]chan CommandCompletion),
 		agentFreshness: make(map[string]ops.AgentFreshness), // P2810
+		hostIDByHostname: make(map[string]string),
 	}
+}
+
+// hostKey returns the canonical host identifier used in CORE-004 deltas.
+// If the dashboard DB uses a separate primary key (hosts.id) from hostname, we must emit deltas keyed by hosts.id.
+// Falls back to the provided value if lookup fails.
+func (h *Hub) hostKey(hostnameOrID string) string {
+	if hostnameOrID == "" {
+		return ""
+	}
+
+	// If caller already passed an ID that exists as-is, prefer it.
+	var id string
+
+	h.hostIDMu.RLock()
+	if cached, ok := h.hostIDByHostname[hostnameOrID]; ok && cached != "" {
+		h.hostIDMu.RUnlock()
+		return cached
+	}
+	h.hostIDMu.RUnlock()
+
+	// Try mapping hostname -> id (and accept id -> id)
+	if err := h.db.QueryRow(`SELECT id FROM hosts WHERE hostname = ? OR id = ?`, hostnameOrID, hostnameOrID).Scan(&id); err != nil || id == "" {
+		return hostnameOrID
+	}
+
+	h.hostIDMu.Lock()
+	// Cache by hostname (if hostnameOrID was actually an id, caching doesn't hurt but is less useful)
+	h.hostIDByHostname[hostnameOrID] = id
+	h.hostIDMu.Unlock()
+
+	return id
 }
 
 // SetFlakeUpdates sets the flake update service reference.
@@ -321,6 +358,7 @@ func (h *Hub) handleUnregister(client *Client) {
 	}
 
 	if hostID != "" {
+		key := h.hostKey(hostID)
 		// Database update outside lock
 		_, err := h.db.Exec(`UPDATE hosts SET status = 'offline' WHERE hostname = ?`, hostID)
 		if err != nil {
@@ -331,7 +369,7 @@ func (h *Hub) handleUnregister(client *Client) {
 		if h.stateManager != nil {
 			h.stateManager.ApplyChange(syncproto.Change{
 				Type:   syncproto.ChangeHostUpdated,
-				ID:     hostID,
+				ID:     key,
 				Fields: map[string]any{"status": "offline"},
 			})
 		}
@@ -495,6 +533,19 @@ func (h *Hub) cleanupStaleCommands() {
 		if err != nil {
 			h.log.Error().Err(err).Str("host", hostname).Msg("failed to cleanup stale command")
 			continue
+		}
+
+		// CORE-004: Emit host_updated delta (offline + pending_command cleared)
+		if h.stateManager != nil {
+			key := h.hostKey(hostname)
+			h.stateManager.ApplyChange(syncproto.Change{
+				Type: syncproto.ChangeHostUpdated,
+				ID:   key,
+				Fields: map[string]any{
+					"status":          "offline",
+					"pending_command": nil,
+				},
+			})
 		}
 	}
 
@@ -924,9 +975,10 @@ func (h *Hub) updateHost(payload protocol.RegisterPayload) {
 
 	// CORE-004: Emit host_updated delta (registration refreshes many fields)
 	if h.stateManager != nil {
+		key := h.hostKey(payload.Hostname)
 		h.stateManager.ApplyChange(syncproto.Change{
 			Type: syncproto.ChangeHostUpdated,
-			ID:   payload.Hostname,
+			ID:   key,
 			Fields: map[string]any{
 				"hostname":        payload.Hostname,
 				"host_type":       payload.HostType,
@@ -1210,9 +1262,10 @@ func (h *Hub) handleHeartbeat(hostID string, payload protocol.HeartbeatPayload) 
 
 	// CORE-004: Emit host_updated delta with the same status data (authoritative state)
 	if h.stateManager != nil {
+		key := h.hostKey(hostID)
 		h.stateManager.ApplyChange(syncproto.Change{
 			Type: syncproto.ChangeHostUpdated,
-			ID:   hostID,
+			ID:   key,
 			Fields: map[string]any{
 				"status":        "online",
 				"last_seen":     time.Now().UTC().Format(time.RFC3339),
@@ -1544,6 +1597,7 @@ func (h *Hub) SetPendingCommand(hostID string, command *string) error {
 
 	// CORE-004: Emit host_updated delta for pending_command
 	if h.stateManager != nil {
+		key := h.hostKey(hostID)
 		var cmd any
 		if command != nil {
 			cmd = *command
@@ -1552,7 +1606,7 @@ func (h *Hub) SetPendingCommand(hostID string, command *string) error {
 		}
 		h.stateManager.ApplyChange(syncproto.Change{
 			Type:   syncproto.ChangeHostUpdated,
-			ID:     hostID,
+			ID:     key,
 			Fields: map[string]any{"pending_command": cmd},
 		})
 	}
@@ -1569,9 +1623,10 @@ func (h *Hub) ClearPendingCommand(hostID string) error {
 
 	// CORE-004: Emit host_updated delta for pending_command clear
 	if h.stateManager != nil {
+		key := h.hostKey(hostID)
 		h.stateManager.ApplyChange(syncproto.Change{
 			Type:   syncproto.ChangeHostUpdated,
-			ID:     hostID,
+			ID:     key,
 			Fields: map[string]any{"pending_command": nil},
 		})
 	}
