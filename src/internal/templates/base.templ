@@ -1139,11 +1139,14 @@ templ Base(title string, csrfToken string) {
 		/* P8800/P8900: Give STATUS column enough width so it can't overlap the menu (ellipsis) column. */
 		.host-table th.col-status,
 		.host-table td.status-cell {
-			width: 220px;
-			min-width: 220px;
-			max-width: 220px;
+			/* 5 compartments × 38px + gaps, plus cell padding. */
+			width: 280px;
+			min-width: 280px;
+			max-width: 280px;
 			white-space: nowrap;
 			overflow: hidden; /* Prevent status content from painting into the menu column */
+			padding-left: 0.5rem;
+			padding-right: 0.5rem;
 		}
 
 	td.status-cell-with-badge .status-wrapper {
@@ -1928,7 +1931,9 @@ templ Base(title string, csrfToken string) {
 			width: 48px;
 			min-width: 48px;
 			text-align: center;
-			padding: 0 !important;
+			/* Visually separate menu from Status column */
+			padding: 0 0 0 8px !important;
+			border-left: 1px solid rgba(59, 66, 97, 0.7);
 		}
 
 		.dropdown-toggle {
