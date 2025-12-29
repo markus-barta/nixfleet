@@ -1074,9 +1074,7 @@ templ Dashboard(data DashboardData) {
 					const lastSeenCell = el.querySelector('[data-cell="last-seen"]');
 					if (lastSeenCell && host.lastSeen) {
 						lastSeenCell.dataset.timestamp = host.lastSeen;
-						const result = formatLastSeen(host.lastSeen);
-						lastSeenCell.textContent = result.text;
-						lastSeenCell.className = result.className;
+						applyLastSeenCell(lastSeenCell, host.lastSeen);
 					}
 				});
 			}
@@ -1248,23 +1246,23 @@ templ Dashboard(data DashboardData) {
 									break;
 								case 'outdated':
 									indicator.classList.add('compartment-indicator--warning');
-									indicator.dataset.status = 'OU';
+									indicator.dataset.status = 'OLD';
 									break;
 								case 'error':
 									indicator.classList.add('compartment-indicator--error');
-									indicator.dataset.status = 'ER';
+									indicator.dataset.status = 'ERR';
 									break;
 								case 'working':
 									indicator.classList.add('compartment-indicator--working');
-									indicator.dataset.status = 'WK';
+									indicator.dataset.status = '...';
 									break;
 								default:
 									indicator.classList.add('compartment-indicator--gray');
-									indicator.dataset.status = '--';
+									indicator.dataset.status = '-';
 							}
 						} else {
 							indicator.classList.add('compartment-indicator--gray');
-							indicator.dataset.status = '--';
+							indicator.dataset.status = '-';
 						}
 					}
 
@@ -2636,6 +2634,17 @@ templ Dashboard(data DashboardData) {
 				}
 
 				return { text, className };
+			}
+
+			// P8800: Preserve layout classes on the table cell (e.g. `col-last-seen`).
+			// Previously this code used `cell.className = ...`, which removed those classes
+			// and made CSS-based column width stabilization ineffective.
+			function applyLastSeenCell(cell, isoString) {
+				if (!cell) return;
+				const result = formatLastSeen(isoString);
+				cell.textContent = result.text;
+				cell.classList.remove('last-seen-ok', 'last-seen-warn', 'last-seen-stale');
+				if (result.className) cell.classList.add(result.className);
 			}
 
 			function triggerHeartbeat(rippleEl) {
@@ -4022,9 +4031,7 @@ templ Dashboard(data DashboardData) {
 						[row, card].filter(Boolean).forEach(el => {
 							const cell = el.querySelector('[data-cell="last-seen"]');
 							if (cell) {
-								const result = formatLastSeen(host.lastSeen);
-								cell.textContent = result.text;
-								cell.className = result.className;
+								applyLastSeenCell(cell, host.lastSeen);
 							}
 						});
 					}

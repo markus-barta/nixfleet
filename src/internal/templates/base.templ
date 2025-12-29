@@ -425,6 +425,7 @@ templ Base(title string, csrfToken string) {
 			/* Allow dropdown menus to extend beyond table */
 			position: relative;
 			z-index: 1;
+			table-layout: fixed; /* P8800: Prevent dynamic column resizing / reflow on live updates */
 		}
 
 		.host-table th,
@@ -597,14 +598,16 @@ templ Base(title string, csrfToken string) {
 
 	/* Heartbeat indicator for online hosts */
 	.status-ripple {
-		width: 12px;
-		height: 12px;
+		width: 16px;  /* P8800: Larger container so waves can fade without clipping */
+		height: 16px;
 		position: relative;
 		display: flex;
 		align-items: center;
 		justify-content: center;
 		color: var(--green);
 		overflow: hidden; /* P1000-FIX: Prevent ripple animation from causing scrollbar wiggle */
+		contain: strict;  /* P8800: Isolate ripple paint/layout from the rest of the page */
+		flex-shrink: 0;
 	}
 
 		.status-ripple .hb-core {
@@ -653,7 +656,7 @@ templ Base(title string, csrfToken string) {
 			}
 
 			100% {
-				transform: scale(2.5);
+				transform: scale(2.0); /* P8800: Fits within 16px container (8px * 2.0) */
 				opacity: 0;
 			}
 		}
@@ -1116,6 +1119,8 @@ templ Base(title string, csrfToken string) {
 	td.status-cell-with-badge {
 		vertical-align: middle;
 		overflow: hidden; /* P1000-FIX: Prevent ripple animation from causing scrollbar wiggle */
+		contain: layout paint; /* P8800: Prevent internal animation/layout from affecting table/page */
+		white-space: nowrap; /* P8800: Prevent status + badge wrapping (wraps can change row height) */
 	}
 
 	td.status-cell-with-badge .status-wrapper {
@@ -1441,6 +1446,18 @@ templ Base(title string, csrfToken string) {
 
 		.last-seen-stale {
 			color: var(--red);
+		}
+
+		/* P8800: Last Seen column must not resize when text changes ("9s" -> "10s" -> "1m"). */
+		.host-table th.col-last-seen,
+		.host-table td.col-last-seen {
+			width: 120px;
+			min-width: 120px;
+			max-width: 120px;
+			white-space: nowrap;
+			overflow: hidden;
+			text-overflow: ellipsis;
+			font-variant-numeric: tabular-nums;
 		}
 
 		/* Agent Version Column (P7300) */
