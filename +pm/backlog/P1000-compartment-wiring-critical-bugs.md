@@ -2,8 +2,10 @@
 
 **Priority**: P1000 (Critical - blocking deployment)  
 **Type**: Bug  
-**Status**: Open  
+**Status**: Superseded by P1100  
 **Epic**: P5000 Compartment System
+
+> ⚠️ **SUPERSEDED**: This item has been expanded into [P1100 - Compartment State Machine Overhaul](./P1100-compartment-state-machine-overhaul.md) which includes a complete state machine specification and all identified issues.
 
 ## Summary
 
