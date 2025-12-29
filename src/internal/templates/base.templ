@@ -598,26 +598,30 @@ templ Base(title string, csrfToken string) {
 
 	/* Heartbeat indicator for online hosts */
 	.status-ripple {
-		width: 16px;  /* P8800: Larger container so waves can fade without clipping */
-		height: 16px;
+		/* Container is larger than the dot so the heartbeat glow can bloom outside */
+		width: 18px;
+		height: 18px;
 		position: relative;
 		display: flex;
 		align-items: center;
 		justify-content: center;
 		color: var(--green);
-		overflow: hidden; /* P1000-FIX: Prevent ripple animation from causing scrollbar wiggle */
-		contain: strict;  /* P8800: Isolate ripple paint/layout from the rest of the page */
+		/* IMPORTANT: allow glow to render outside the box (overflow:hidden clips box-shadow) */
+		overflow: visible;
+		/* Keep it from affecting layout/scrollbars */
+		contain: layout paint;
 		flex-shrink: 0;
 	}
 
+		/* Base state: small dot, minimal glow (same visual weight as offline dot) */
 		.status-ripple .hb-core {
-			width: 8px;
-			height: 8px;
+			width: 6px;
+			height: 6px;
 			background: currentColor;
 			border-radius: 50%;
 			position: relative;
 			z-index: 2;
-			box-shadow: 0 0 6px currentColor;
+			box-shadow: 0 0 1px rgba(158, 206, 106, 0.25);
 		}
 
 		/* Waves hidden by default - only show on heartbeat */
@@ -625,9 +629,9 @@ templ Base(title string, csrfToken string) {
 			position: absolute;
 			top: 50%;
 			left: 50%;
-			width: 8px;
-			height: 8px;
-			margin: -4px 0 0 -4px;
+			width: 6px;
+			height: 6px;
+			margin: -3px 0 0 -3px;
 			background: currentColor;
 			border-radius: 50%;
 			opacity: 0;
@@ -639,6 +643,13 @@ templ Base(title string, csrfToken string) {
 		/* Animate only when .heartbeat class is present */
 		.status-ripple.heartbeat .hb-wave {
 			animation: ripple-wave 1.5s ease-out forwards;
+		}
+
+		/* P8800: Only shine on heartbeat (avoid constant glow) */
+		.status-ripple.heartbeat .hb-core {
+			box-shadow:
+				0 0 6px rgba(158, 206, 106, 0.65),
+				0 0 14px rgba(158, 206, 106, 0.35);
 		}
 
 		.status-ripple.heartbeat .hb-wave:nth-child(2) {
