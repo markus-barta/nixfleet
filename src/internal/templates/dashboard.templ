@@ -1502,10 +1502,11 @@ templ Dashboard(data DashboardData) {
 				default:
 					console.debug('Unknown WS message type:', msg.type);
 			}
+		}
 
-			// ═══════════════════════════════════════════════════════════════════════════
-			// CORE-004: STATE SYNC (init/full_state/delta/sync) → hostStore
-			// ═══════════════════════════════════════════════════════════════════════════
+		// ═══════════════════════════════════════════════════════════════════════════
+		// CORE-004: STATE SYNC (init/full_state/delta/sync) → hostStore
+		// ═══════════════════════════════════════════════════════════════════════════
 			function patchFromSyncHost(h, { partial = false } = {}) {
 				if (!h) return null;
 
@@ -1609,7 +1610,6 @@ templ Dashboard(data DashboardData) {
 					console.warn('[StateSync] host_removed received; reloading for now');
 					window.location.reload();
 				}
-			}
 			}
 
 			// ═══════════════════════════════════════════════════════════════════════════
