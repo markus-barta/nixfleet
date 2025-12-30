@@ -865,7 +865,8 @@ func (s *Server) handleRefreshHost(w http.ResponseWriter, r *http.Request) {
 	// P1000-FIX: Clear stale pending_command if agent is online but no active command in lifecycle
 	if h.PendingCommand != nil && *h.PendingCommand != "" {
 		isAgentConnected := s.hub.GetAgent(h.Hostname) != nil
-		hasActiveCommand := s.lifecycleManager != nil && s.lifecycleManager.GetActiveCommand(h.Hostname) != nil
+		// Lifecycle keys commands by host ID (hosts.id), not hostname.
+		hasActiveCommand := s.lifecycleManager != nil && s.lifecycleManager.GetActiveCommand(hostID) != nil
 
 		if isAgentConnected && !hasActiveCommand {
 			s.log.Info().

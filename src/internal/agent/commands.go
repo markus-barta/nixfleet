@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"sync"
 	"strings"
 	"syscall"
 	"time"
@@ -383,9 +384,11 @@ func (a *Agent) runWithStreaming(cmd *exec.Cmd) int {
 	a.log.Debug().Int("pid", pid).Msg("command started")
 
 	// Stream output
-	done := make(chan struct{})
+	var wg sync.WaitGroup
+	wg.Add(2)
 
 	go func() {
+		defer wg.Done()
 		scanner := bufio.NewScanner(stdout)
 		for scanner.Scan() {
 			a.sendOutput(scanner.Text(), "stdout")
@@ -393,18 +396,16 @@ func (a *Agent) runWithStreaming(cmd *exec.Cmd) int {
 	}()
 
 	go func() {
+		defer wg.Done()
 		scanner := bufio.NewScanner(stderr)
 		for scanner.Scan() {
 			a.sendOutput(scanner.Text(), "stderr")
 		}
-		close(done)
 	}()
 
-	// Wait for output to finish
-	<-done
-
-	// Wait for command to complete
+	// Wait for command to complete, then drain remaining output.
 	err = cmd.Wait()
+	wg.Wait()
 
 	if err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok {
@@ -982,7 +983,9 @@ func (a *Agent) buildTestCommand() (*exec.Cmd, error) {
 	// P5999: Source Nix environment on macOS so tests have PATH configured
 	var shellCmd string
 	if runtime.GOOS == "darwin" {
-		shellCmd = ". \"$HOME/.nix-profile/etc/profile.d/nix.sh\" 2>/dev/null || true && " +
+		// IMPORTANT: `/bin/sh` on macOS can exit immediately when `.` fails to open the file,
+		// even when wrapped in `|| true`. So guard the source with a file check.
+		shellCmd = "if [ -f \"$HOME/.nix-profile/etc/profile.d/nix.sh\" ]; then . \"$HOME/.nix-profile/etc/profile.d/nix.sh\"; fi; " +
 			"for f in " + testDir + "/*.sh; do [ -x \"$f\" ] && \"$f\"; done"
 	} else {
 		shellCmd = "for f in " + testDir + "/*.sh; do [ -x \"$f\" ] && \"$f\"; done"

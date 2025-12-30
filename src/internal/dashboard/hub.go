@@ -502,7 +502,7 @@ func (h *Hub) cleanupStaleCommands() {
 		}
 		// P1100: Skip if LifecycleManager is tracking an active command
 		// This can happen for AWAITING_RECONNECT state where we're waiting for agent restart
-		if h.lifecycleManager != nil && h.lifecycleManager.HasActiveCommand(hostname) {
+		if h.lifecycleManager != nil && h.lifecycleManager.HasActiveCommand(h.hostKey(hostname)) {
 			h.log.Debug().
 				Str("host", hostname).
 				Str("command", pendingCommand).
@@ -791,7 +791,8 @@ func (h *Hub) handleAgentMessage(msg *agentMessage) {
 
 		// Reconcile lifecycle state so we don't get stuck "busy/pulling"
 		if h.lifecycleManager != nil {
-			h.lifecycleManager.HandleCommandRejected(msg.client.clientID, payload.Reason, payload.CurrentCommand, payload.CurrentPID)
+			key := h.hostKey(msg.client.clientID)
+			h.lifecycleManager.HandleCommandRejected(key, payload.Reason, payload.CurrentCommand, payload.CurrentPID)
 		}
 
 		// NOTE: We intentionally don't send legacy toast here.
@@ -911,7 +912,8 @@ func (h *Hub) handleAgentRegister(msg *agentMessage) {
 
 	// v3: Notify lifecycle manager of agent reconnection
 	if h.lifecycleManager != nil {
-		h.lifecycleManager.HandleAgentReconnect(payload.Hostname, freshness)
+		key := h.hostKey(payload.Hostname)
+		h.lifecycleManager.HandleAgentReconnect(key, freshness)
 	}
 }
 
@@ -1255,7 +1257,8 @@ func (h *Hub) handleHeartbeat(hostID string, payload protocol.HeartbeatPayload) 
 		h.mu.RLock()
 		freshness := h.agentFreshness[hostID]
 		h.mu.RUnlock()
-		h.lifecycleManager.HandleHeartbeat(hostID, &freshness)
+		key := h.hostKey(hostID)
+		h.lifecycleManager.HandleHeartbeat(key, &freshness)
 	}
 
 	// Legacy host_heartbeat broadcast removed (CORE-004 delta is the source of truth).
@@ -1387,7 +1390,8 @@ func (h *Hub) handleStatus(hostID string, payload protocol.StatusPayload) {
 
 	// v3: Notify lifecycle manager of command completion
 	if h.lifecycleManager != nil {
-		_, err := h.lifecycleManager.HandleCommandComplete(hostID, payload.Command, payload.ExitCode, payload.Message)
+		key := h.hostKey(hostID)
+		_, err := h.lifecycleManager.HandleCommandComplete(key, payload.Command, payload.ExitCode, payload.Message)
 		if err != nil {
 			h.log.Debug().Err(err).Str("host", hostID).Str("command", payload.Command).
 				Msg("lifecycle manager did not track this command")

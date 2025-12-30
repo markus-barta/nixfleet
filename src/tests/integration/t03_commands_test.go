@@ -31,16 +31,16 @@ func TestAgentCommand_OutputStreaming(t *testing.T) {
 	// Create a test script that outputs multiple lines with delays
 	testScript := filepath.Join(testDir, "T01-output.sh")
 	scriptContent := `#!/bin/bash
-echo "line 1"
-sleep 0.1
-echo "line 2"
-sleep 0.1
-echo "line 3"
-sleep 0.1
-echo "line 4"
-sleep 0.1
-echo "line 5"
-`
+	echo "line 1"
+	sleep 0.1
+	echo "line 2"
+	sleep 0.1
+	echo "line 3"
+	sleep 0.1
+	echo "line 4"
+	sleep 0.1
+	echo "line 5"
+	`
 	if err := os.WriteFile(testScript, []byte(scriptContent), 0755); err != nil {
 		t.Fatal(err)
 	}
@@ -104,6 +104,7 @@ echo "line 5"
 		t.Logf("output %d: %s (%s)", i, payload.Line, payload.Stream)
 	}
 }
+
 
 // TestAgentCommand_Stop tests Scenario 5: Stop Running Command
 // Given: command is executing
