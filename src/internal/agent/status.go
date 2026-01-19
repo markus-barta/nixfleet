@@ -122,6 +122,7 @@ func (s *StatusChecker) SetSystemOk(message string) {
 		CheckedAt: time.Now().UTC().Format(time.RFC3339),
 	}
 	s.lastSystemCheck = time.Now()
+	s.lastStatusUpdate = time.Time{} // P8900: Reset stale tracking on terminal state
 }
 
 // SetSystemOutdated sets the system status to "outdated" without running the expensive check.
@@ -133,6 +134,7 @@ func (s *StatusChecker) SetSystemOutdated(message string) {
 		CheckedAt: time.Now().UTC().Format(time.RFC3339),
 	}
 	s.lastSystemCheck = time.Now()
+	s.lastStatusUpdate = time.Time{} // P8900: Reset stale tracking on terminal state
 }
 
 // P3800: SetSystemError sets the system status to "error" without running the expensive check.
@@ -144,6 +146,7 @@ func (s *StatusChecker) SetSystemError(message string) {
 		CheckedAt: time.Now().UTC().Format(time.RFC3339),
 	}
 	s.lastSystemCheck = time.Now()
+	s.lastStatusUpdate = time.Time{} // P8900: Reset stale tracking on terminal state
 }
 
 // P3900: Tests compartment status methods

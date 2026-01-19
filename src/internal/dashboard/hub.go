@@ -1487,59 +1487,62 @@ func (h *Hub) GetOnlineHosts() []string {
 // P1110: detectStaleStatus detects and logs stale status states.
 // This handles the case where the agent reports a "working" status for too long
 // without progress (e.g., switch command stuck after agent restart).
+// P8900: Fixed race condition by holding lock during entire check and mutation.
 func (h *Hub) detectStaleStatus(hostID string, updateStatus map[string]any) {
 	const staleThreshold = 5 * time.Minute
 
 	// Check system status for staleness
-	if ss, ok := updateStatus["system"].(protocol.StatusCheck); ok {
-		if ss.Status == "working" {
-			h.lastStatusMu.Lock()
-			if h.lastStatusUpdates[hostID] == nil {
-				h.lastStatusUpdates[hostID] = make(map[string]time.Time)
-			}
-			
-			lastUpdate, exists := h.lastStatusUpdates[hostID]["system"]
-			now := time.Now()
-			
-			if !exists {
-				// First time seeing "working" status
-				h.lastStatusUpdates[hostID]["system"] = now
-			} else {
-				elapsed := now.Sub(lastUpdate)
-				if elapsed > staleThreshold {
-					// Stale status detected - log it and resolve to "unknown"
-					h.log.Warn().
-						Str("host", hostID).
-						Str("old_status", ss.Status).
-						Str("old_message", ss.Message).
-						Dur("elapsed", elapsed).
-						Dur("threshold", staleThreshold).
-						Msg("P1110: detected stale system status - resolving to unknown")
+	ss, ok := updateStatus["system"].(protocol.StatusCheck)
+	if !ok {
+		return
+	}
 
-					// Log to command output if available
-					if h.logStore != nil {
-						_ = h.logStore.LogStaleState(hostID, "switch", ss.Status, "unknown", int(elapsed.Seconds()))
-					}
+	h.lastStatusMu.Lock()
+	defer h.lastStatusMu.Unlock()
 
-					// Resolve stale status to "unknown"
-					updateStatus["system"] = protocol.StatusCheck{
-						Status:    "unknown",
-						Message:   "Status stale (agent may have restarted during command)",
-						CheckedAt: now.UTC().Format(time.RFC3339),
-					}
-					
-					// Reset the tracking
-					h.lastStatusUpdates[hostID]["system"] = now
-				}
-			}
-			h.lastStatusMu.Unlock()
+	if ss.Status == "working" {
+		if h.lastStatusUpdates[hostID] == nil {
+			h.lastStatusUpdates[hostID] = make(map[string]time.Time)
+		}
+		
+		lastUpdate, exists := h.lastStatusUpdates[hostID]["system"]
+		now := time.Now()
+		
+		if !exists {
+			// First time seeing "working" status
+			h.lastStatusUpdates[hostID]["system"] = now
 		} else {
-			// Status is not "working", reset the tracking
-			h.lastStatusMu.Lock()
-			if h.lastStatusUpdates[hostID] != nil {
-				delete(h.lastStatusUpdates[hostID], "system")
+			elapsed := now.Sub(lastUpdate)
+			if elapsed > staleThreshold {
+				// Stale status detected - log it and resolve to "unknown"
+				h.log.Warn().
+					Str("host", hostID).
+					Str("old_status", ss.Status).
+					Str("old_message", ss.Message).
+					Dur("elapsed", elapsed).
+					Dur("threshold", staleThreshold).
+					Msg("P1110: detected stale system status - resolving to unknown")
+
+				// Log to command output if available
+				if h.logStore != nil {
+					_ = h.logStore.LogStaleState(hostID, "switch", ss.Status, "unknown", int(elapsed.Seconds()))
+				}
+
+				// Resolve stale status to "unknown"
+				updateStatus["system"] = protocol.StatusCheck{
+					Status:    "unknown",
+					Message:   "Status stale (agent may have restarted during command)",
+					CheckedAt: now.UTC().Format(time.RFC3339),
+				}
+				
+				// Reset the tracking
+				h.lastStatusUpdates[hostID]["system"] = now
 			}
-			h.lastStatusMu.Unlock()
+		}
+	} else {
+		// Status is not "working", reset the tracking
+		if h.lastStatusUpdates[hostID] != nil {
+			delete(h.lastStatusUpdates[hostID], "system")
 		}
 	}
 }
