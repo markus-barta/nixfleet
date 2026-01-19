@@ -40,9 +40,9 @@ type ActiveCommand struct {
 	Command // Embedded base command
 
 	// Timeout tracking
-	WarningAt      *time.Time `json:"warning_at,omitempty"`       // When warning was triggered
-	HardTimeoutAt  *time.Time `json:"hard_timeout_at,omitempty"`  // When hard timeout was triggered
-	TimeoutConfig  TimeoutConfig `json:"-"`                       // Timeout thresholds
+	WarningAt       *time.Time    `json:"warning_at,omitempty"`       // When warning was triggered
+	HardTimeoutAt   *time.Time    `json:"hard_timeout_at,omitempty"`  // When hard timeout was triggered
+	TimeoutConfig   TimeoutConfig `json:"-"`                          // Timeout thresholds
 	TimeoutExtended time.Duration `json:"timeout_extended,omitempty"` // User-extended duration
 
 	// Kill tracking
@@ -365,13 +365,6 @@ func (lm *LifecycleManager) HandleHeartbeat(hostID string, freshness *AgentFresh
 		return
 	}
 
-	// Update freshness for switch verification
-	if freshness != nil {
-		lm.activeMu.Lock()
-		// Store latest freshness for reconnect verification
-		lm.activeMu.Unlock()
-	}
-
 	// Check for deferred post-check
 	if cmd.PostCheckDeferred {
 		host, err := lm.getHost(hostID)
@@ -411,9 +404,9 @@ func (lm *LifecycleManager) HandleAgentReconnect(hostID string, freshness AgentF
 		return
 	}
 
-	lm.logEvent("info", hostID, cmd.OpID, 
+	lm.logEvent("info", hostID, cmd.OpID,
 		"Binary check - Before: "+ShortHash(cmd.PreFreshness.SourceCommit)+
-		" After: "+ShortHash(freshness.SourceCommit))
+			" After: "+ShortHash(freshness.SourceCommit))
 
 	verdict, message := CompareFreshness(*cmd.PreFreshness, freshness)
 
@@ -634,6 +627,29 @@ func (lm *LifecycleManager) watchReconnectTimeout(cmd *ActiveCommand) {
 	}
 }
 
+// EnterAwaitingReconnectOnDisconnect handles agent disconnect during switch.
+// P1920: Called when agent dies mid-switch (e.g., macOS launchctl bootout).
+func (lm *LifecycleManager) EnterAwaitingReconnectOnDisconnect(hostID string) {
+	lm.activeMu.Lock()
+	cmd := lm.active[hostID]
+	lm.activeMu.Unlock()
+
+	if cmd == nil || cmd.Status != StatusExecuting {
+		return
+	}
+
+	// Stop timeout watcher
+	select {
+	case <-cmd.cancelTimeout:
+		// already closed
+	default:
+		close(cmd.cancelTimeout)
+	}
+
+	// Enter awaiting reconnect (same as HandleCommandComplete with exit 0)
+	_, _ = lm.enterAwaitingReconnect(cmd)
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // COMPLETION HELPERS
 // ═══════════════════════════════════════════════════════════════════════════
@@ -810,4 +826,3 @@ func randomHex(n int) string {
 func (lm *LifecycleManager) Shutdown() {
 	close(lm.done)
 }
-

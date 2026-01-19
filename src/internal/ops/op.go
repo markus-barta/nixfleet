@@ -104,23 +104,24 @@ type Op struct {
 // Command represents an op execution record.
 // Persisted in the State Store (CORE-003).
 type Command struct {
-	ID          string    `json:"id"`           // UUID
-	HostID      string    `json:"host_id"`      // FK to hosts
-	OpID        string    `json:"op"`           // Op ID: "pull", "switch"
-	PipelineID  string    `json:"pipeline_id"`  // FK to pipelines (empty if standalone)
-	Status      OpStatus  `json:"status"`       // Current status
-	CreatedAt   time.Time `json:"created_at"`   // When queued
-	StartedAt   time.Time `json:"started_at"`   // When execution began
-	FinishedAt  time.Time `json:"finished_at"`  // When completed
-	ExitCode    *int      `json:"exit_code"`    // Process exit code (nil if not finished)
-	Error       string    `json:"error"`        // Error message if failed
-	OutputFile  string    `json:"output_file"`  // Path to output log file
+	ID         string    `json:"id"`          // UUID
+	HostID     string    `json:"host_id"`     // FK to hosts
+	OpID       string    `json:"op"`          // Op ID: "pull", "switch"
+	PipelineID string    `json:"pipeline_id"` // FK to pipelines (empty if standalone)
+	Status     OpStatus  `json:"status"`      // Current status
+	CreatedAt  time.Time `json:"created_at"`  // When queued
+	StartedAt  time.Time `json:"started_at"`  // When execution began
+	FinishedAt time.Time `json:"finished_at"` // When completed
+	ExitCode   *int      `json:"exit_code"`   // Process exit code (nil if not finished)
+	Error      string    `json:"error"`       // Error message if failed
+	OutputFile string    `json:"output_file"` // Path to output log file
 }
 
 // IsTerminal returns true if the status represents a completed command.
 func (s OpStatus) IsTerminal() bool {
 	switch s {
-	case StatusSuccess, StatusError, StatusTimeout, StatusSkipped, StatusBlocked:
+	case StatusSuccess, StatusError, StatusTimeout, StatusSkipped, StatusBlocked,
+		StatusSuspicious, StatusStaleBinary, StatusKilled, StatusPartial:
 		return true
 	}
 	return false
@@ -134,4 +135,3 @@ type OpResult struct {
 	Error    error
 	Output   string // Last N lines of output (for quick display)
 }
-

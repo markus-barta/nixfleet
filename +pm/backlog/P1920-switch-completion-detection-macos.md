@@ -1,8 +1,9 @@
 # P1920: Switch Completion Not Detected on macOS
 
 **Priority**: P1 (Critical - Core Functionality Broken)
-**Status**: Backlog
+**Status**: Implemented (Ready for Testing)
 **Created**: 2026-01-19
+**Implemented**: 2026-01-19
 **Type**: Bug
 **Supersedes**: P1910 (UI stuck - symptom), P8820 (stale pending - symptom)
 **References**: P2800 (Command State Machine), CORE-004 (State Sync)
@@ -271,6 +272,51 @@ Already fixed in P1910 commit (4bed56a).
 - P8820: Superseded (stale pending - symptom of this issue)
 - P2800: Command State Machine
 - CORE-004: State Sync
+
+---
+
+## Implementation Summary (2026-01-19)
+
+### Changes Made
+
+**1. Added disconnect detection in `hub.go:handleUnregister()`**:
+
+- Detects when agent disconnects during switch execution
+- Calls `EnterAwaitingReconnectOnDisconnect()` to transition to AWAITING_RECONNECT
+- Works for both `switch` and `pull-switch` operations
+
+**2. New method in `lifecycle.go`**:
+
+- `EnterAwaitingReconnectOnDisconnect(hostID)` - handles agent kill during switch
+- Stops timeout watcher, enters AWAITING_RECONNECT state
+- Reuses existing `enterAwaitingReconnect()` logic
+
+**3. Fixed `IsTerminal()` in `op.go`**:
+
+- Added missing terminal states: `StatusSuspicious`, `StatusStaleBinary`, `StatusKilled`, `StatusPartial`
+- Ensures `command_finished` events are emitted for all terminal states
+
+**4. Interface updates**:
+
+- Added `GetActiveCommand()` and `EnterAwaitingReconnectOnDisconnect()` to `lifecycleManagerInterface`
+- Added wrapper methods in `lifecycle_adapter.go`
+
+### Files Modified
+
+- `src/internal/dashboard/hub.go` - disconnect detection
+- `src/internal/ops/lifecycle.go` - reconnect on disconnect
+- `src/internal/ops/op.go` - terminal states fix
+- `src/internal/dashboard/lifecycle_adapter.go` - interface wrappers
+
+### Testing Required
+
+Manual test on macOS (mba-imac-work):
+
+1. Open dashboard
+2. Click "Switch" on macOS host
+3. Verify system compartment turns green (not stuck blinking)
+4. Verify log shows completion
+5. Verify can run tests (not blocked)
 
 ---
 

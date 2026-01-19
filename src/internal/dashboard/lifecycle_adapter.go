@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/markus-barta/nixfleet/internal/ops"
-	"github.com/markus-barta/nixfleet/internal/templates"
 	syncproto "github.com/markus-barta/nixfleet/internal/sync"
+	"github.com/markus-barta/nixfleet/internal/templates"
 )
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -257,7 +257,18 @@ func (w *lifecycleManagerWrapper) HasActiveCommand(hostID string) bool {
 	return w.lm.HasActiveCommand(hostID)
 }
 
+// GetActiveCommand implements lifecycleManagerInterface.
+// P1920: Used to detect agent disconnect during switch.
+func (w *lifecycleManagerWrapper) GetActiveCommand(hostID string) *ops.ActiveCommand {
+	return w.lm.GetActiveCommand(hostID)
+}
+
+// EnterAwaitingReconnectOnDisconnect implements lifecycleManagerInterface.
+// P1920: Called when agent disconnects during switch execution.
+func (w *lifecycleManagerWrapper) EnterAwaitingReconnectOnDisconnect(hostID string) {
+	w.lm.EnterAwaitingReconnectOnDisconnect(hostID)
+}
+
 // Ensure adapters implement interfaces at compile time.
 var _ ops.HostProvider = (*hostProviderAdapter)(nil)
 var _ ops.BroadcastSender = (*broadcastSenderAdapter)(nil)
-

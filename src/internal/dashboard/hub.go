@@ -54,6 +54,9 @@ type lifecycleManagerInterface interface {
 	HandleAgentReconnect(hostID string, freshness interface{})
 	// P1100: Check if host has an active command in lifecycle manager
 	HasActiveCommand(hostID string) bool
+	// P1920: Get active command and handle disconnect during switch
+	GetActiveCommand(hostID string) *ops.ActiveCommand
+	EnterAwaitingReconnectOnDisconnect(hostID string)
 }
 
 // Client represents a WebSocket connection (agent or browser).
@@ -365,6 +368,25 @@ func (h *Hub) handleUnregister(client *Client) {
 
 	if hostID != "" {
 		key := h.hostKey(hostID)
+
+		// P1920: Detect disconnect during switch execution (macOS kill race)
+		if h.lifecycleManager != nil {
+			cmd := h.lifecycleManager.GetActiveCommand(key)
+
+			// If agent was executing switch and disconnected, assume completion
+			if cmd != nil &&
+				(cmd.OpID == "switch" || cmd.OpID == "pull-switch") &&
+				cmd.Status == ops.StatusExecuting {
+				h.log.Info().
+					Str("host", hostID).
+					Str("op", cmd.OpID).
+					Msg("P1920: agent disconnected during switch - entering AWAITING_RECONNECT")
+
+				// Infer exit 0 (will be verified on reconnect via freshness check)
+				h.lifecycleManager.EnterAwaitingReconnectOnDisconnect(key)
+			}
+		}
+
 		// Database update outside lock
 		_, err := h.db.Exec(`UPDATE hosts SET status = 'offline' WHERE hostname = ?`, hostID)
 		if err != nil {
