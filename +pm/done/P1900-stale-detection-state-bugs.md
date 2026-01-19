@@ -1,10 +1,12 @@
 # P1900: Stale Detection State Machine Bugs
 
 **Priority**: P1 (Critical - Correctness)
-**Status**: Backlog
+**Status**: ✅ COMPLETE
 **Created**: 2026-01-19
+**Completed**: 2026-01-19
 **Type**: Bug
 **References**: P1110 (Stale Status Detection)
+**Commits**: fab5b7c, fc537fc, fd0f7a1
 
 ---
 
