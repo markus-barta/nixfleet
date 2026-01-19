@@ -14,8 +14,8 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/markus-barta/nixfleet/internal/ops"
 	"github.com/markus-barta/nixfleet/internal/protocol"
-	"github.com/markus-barta/nixfleet/internal/templates"
 	syncproto "github.com/markus-barta/nixfleet/internal/sync"
+	"github.com/markus-barta/nixfleet/internal/templates"
 	"github.com/rs/zerolog"
 )
 
@@ -116,9 +116,9 @@ func (c *Client) Close() {
 type Hub struct {
 	log            zerolog.Logger
 	db             *sql.DB
-	cfg            *Config          // Dashboard config for stale command cleanup
-	versionFetcher *VersionFetcher  // For Git status in heartbeat broadcasts
-	flakeUpdates   flakeUpdateGetter // For PR status on browser connect (P5300)
+	cfg            *Config                 // Dashboard config for stale command cleanup
+	versionFetcher *VersionFetcher         // For Git status in heartbeat broadcasts
+	flakeUpdates   flakeUpdateGetter       // For PR status on browser connect (P5300)
 	stateManager   *syncproto.StateManager // CORE-004: browser state sync (optional)
 
 	// Registered clients
@@ -1504,10 +1504,10 @@ func (h *Hub) detectStaleStatus(hostID string, updateStatus map[string]any) {
 		if h.lastStatusUpdates[hostID] == nil {
 			h.lastStatusUpdates[hostID] = make(map[string]time.Time)
 		}
-		
+
 		lastUpdate, exists := h.lastStatusUpdates[hostID]["system"]
 		now := time.Now()
-		
+
 		if !exists {
 			// First time seeing "working" status
 			h.lastStatusUpdates[hostID]["system"] = now
@@ -1534,7 +1534,7 @@ func (h *Hub) detectStaleStatus(hostID string, updateStatus map[string]any) {
 					Message:   "Status stale (agent may have restarted during command)",
 					CheckedAt: now.UTC().Format(time.RFC3339),
 				}
-				
+
 				// Reset the tracking
 				h.lastStatusUpdates[hostID]["system"] = now
 			}

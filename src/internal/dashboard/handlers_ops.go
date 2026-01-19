@@ -142,9 +142,9 @@ func (s *Server) handleDispatchOp(w http.ResponseWriter, r *http.Request) {
 // POST /api/dispatch/pipeline
 func (s *Server) handleDispatchPipeline(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Pipeline string   `json:"pipeline"`        // Pipeline ID: "do-all", "merge-deploy"
-		Hosts    []string `json:"hosts"`           // Host IDs to execute on
-		TOTP     string   `json:"totp,omitempty"`  // For pipelines with TOTP ops
+		Pipeline string   `json:"pipeline"`       // Pipeline ID: "do-all", "merge-deploy"
+		Hosts    []string `json:"hosts"`          // Host IDs to execute on
+		TOTP     string   `json:"totp,omitempty"` // For pipelines with TOTP ops
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -325,4 +325,3 @@ func parseIntLimit(s string, min, max int) (int, error) {
 	}
 	return v, nil
 }
-
