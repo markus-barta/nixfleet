@@ -8,7 +8,6 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/markus-barta/nixfleet/internal/ops"
-	"github.com/markus-barta/nixfleet/internal/sync"
 )
 
 // ═══════════════════════════════════════════════════════════════════════════
