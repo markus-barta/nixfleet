@@ -114,8 +114,8 @@ func (s *Server) handleDispatchOp(w http.ResponseWriter, r *http.Request) {
 			successCount++
 		}
 
-		// P8900: Don't broadcast here - LifecycleManager already broadcasts via BroadcastCommandState()
-		// Duplicate emission was causing "pull started" to appear twice in logs
+	// P1900: Don't broadcast here - LifecycleManager already broadcasts via BroadcastCommandState()
+	// Duplicate emission was causing "pull started" to appear twice in logs
 	}
 
 	// Determine overall status

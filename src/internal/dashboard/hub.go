@@ -1487,7 +1487,7 @@ func (h *Hub) GetOnlineHosts() []string {
 // P1110: detectStaleStatus detects and logs stale status states.
 // This handles the case where the agent reports a "working" status for too long
 // without progress (e.g., switch command stuck after agent restart).
-// P8900: Fixed race condition by holding lock during entire check and mutation.
+// P1900: Fixed race condition by holding lock during entire check and mutation.
 func (h *Hub) detectStaleStatus(hostID string, updateStatus map[string]any) {
 	const staleThreshold = 5 * time.Minute
 

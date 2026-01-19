@@ -1,6 +1,6 @@
-# P8910: Switch Completion UI Stuck in "Building" State
+# P1910: Switch Completion UI Stuck in "Building" State
 
-**Priority**: P0 (Critical - UX Broken)
+**Priority**: P1 (Critical - UX Broken)
 **Status**: Backlog
 **Created**: 2026-01-19
 **Type**: Bug
@@ -318,7 +318,7 @@ test("operation progress clears on completion", () => {
 ## Related Issues
 
 - P2800: Command State Machine
-- P8900: Stale Detection Bugs (similar symptom - stuck "working")
+- P1900: Stale Detection Bugs (similar symptom - stuck "working")
 - CORE-004: State Sync (delta emission)
 
 ---

@@ -1,6 +1,6 @@
-# P8900: Stale Detection State Machine Bugs
+# P1900: Stale Detection State Machine Bugs
 
-**Priority**: P0 (Critical - Correctness)
+**Priority**: P1 (Critical - Correctness)
 **Status**: Backlog
 **Created**: 2026-01-19
 **Type**: Bug

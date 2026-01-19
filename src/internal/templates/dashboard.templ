@@ -1579,7 +1579,7 @@ templ Dashboard(data DashboardData) {
 				if (!hostId || !command) return;
 				const host = hostStore.get(hostId);
 				
-				// P8910: Clear operation progress to stop blinking animations
+				// P1910: Clear operation progress to stop blinking animations
 				hostStore.update(hostId, {
 					operationProgress: null
 				});
