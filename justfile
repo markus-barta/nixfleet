@@ -51,9 +51,9 @@ deploy:
     @sleep 3
     gh run watch $(gh run list -w docker.yml -L 1 --json databaseId -q '.[0].databaseId') --exit-status
     @echo "🚀 Deploying to csb1..."
-    ssh mba@cs1.barta.cm -p 2222 "cd ~/docker/nixfleet && docker compose -f docker/docker-compose.csb1.yml --env-file ~/secrets/nixfleet.env pull nixfleet && docker compose -f docker/docker-compose.csb1.yml --env-file ~/secrets/nixfleet.env up -d --force-recreate nixfleet"
+    ssh mba@cs1.barta.cm -p 2222 "cd ~/docker && docker compose pull nixfleet && docker compose up -d nixfleet"
     @echo "✅ Deployed!"
 
 # Quick deploy: skip waiting (use when you know build is done)
 deploy-now:
-    ssh mba@cs1.barta.cm -p 2222 "cd ~/docker/nixfleet && docker compose -f docker/docker-compose.csb1.yml --env-file ~/secrets/nixfleet.env pull nixfleet && docker compose -f docker/docker-compose.csb1.yml --env-file ~/secrets/nixfleet.env up -d --force-recreate nixfleet"
+    ssh mba@cs1.barta.cm -p 2222 "cd ~/docker && docker compose pull nixfleet && docker compose up -d nixfleet"

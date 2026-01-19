@@ -1,10 +1,16 @@
-# NixFleet v2 - csb1 Deployment (with Traefik)
+# NixFleet v2 - Example Deployment (with Traefik)
 #
-# This is the deployment-specific configuration for csb1.
-# Requires Traefik reverse proxy with csb1_traefik network.
+# ⚠️  EXAMPLE ONLY - NOT USED IN PRODUCTION
 #
-# Deploy: docker compose -f docker/docker-compose.csb1.yml --env-file ~/secrets/nixfleet.env pull && \
-#         docker compose -f docker/docker-compose.csb1.yml --env-file ~/secrets/nixfleet.env up -d
+# This is a reference deployment configuration showing how to run NixFleet
+# behind Traefik reverse proxy. Production csb1 uses ~/docker/docker-compose.yml
+# (main compose file with all services).
+#
+# Use this as a template for NEW deployments, not for csb1.
+#
+# Example deploy:
+#   docker compose -f docker-compose.example.yml --env-file ~/secrets/nixfleet.env pull
+#   docker compose -f docker-compose.example.yml --env-file ~/secrets/nixfleet.env up -d
 #
 # Images built by GitHub Actions: ghcr.io/markus-barta/nixfleet
 # Tags: master (latest from main), <sha> (specific commit), <version> (releases)
