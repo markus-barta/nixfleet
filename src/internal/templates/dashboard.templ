@@ -1571,25 +1571,31 @@ templ Dashboard(data DashboardData) {
 				} else if (change.type === 'event') {
 					const event = change.payload;
 					addEventToSystemLog(event);
-				} else if (change.type === 'command_finished') {
-					const cmd = change.fields || {};
-					const hostId = cmd.host_id;
-					const command = cmd.op || cmd.command; // prefer op ("pull"/"switch"/"test")
-					const exitCode = (cmd.exit_code ?? 0);
-					if (!hostId || !command) return;
-					const host = hostStore.get(hostId);
-					window.dispatchEvent(new CustomEvent('log-complete', {
-						detail: { host_id: hostId, command: command, exit_code: exitCode, error: cmd.error || '' }
-					}));
-					window.dispatchEvent(new CustomEvent('command-complete', {
-						detail: {
-							hostId,
-							hostname: host?.hostname || hostId,
-							command,
-							exit_code: exitCode
-						}
-					}));
-				} else if (change.type === 'command_started') {
+			} else if (change.type === 'command_finished') {
+				const cmd = change.fields || {};
+				const hostId = cmd.host_id;
+				const command = cmd.op || cmd.command; // prefer op ("pull"/"switch"/"test")
+				const exitCode = (cmd.exit_code ?? 0);
+				if (!hostId || !command) return;
+				const host = hostStore.get(hostId);
+				
+				// P8910: Clear operation progress to stop blinking animations
+				hostStore.update(hostId, {
+					operationProgress: null
+				});
+				
+				window.dispatchEvent(new CustomEvent('log-complete', {
+					detail: { host_id: hostId, command: command, exit_code: exitCode, error: cmd.error || '' }
+				}));
+				window.dispatchEvent(new CustomEvent('command-complete', {
+					detail: {
+						hostId,
+						hostname: host?.hostname || hostId,
+						command,
+						exit_code: exitCode
+					}
+				}));
+			} else if (change.type === 'command_started') {
 					// Optional: keep output panel visible when a command starts
 					const cmd = change.payload || {};
 					const hostId = cmd.host_id;
