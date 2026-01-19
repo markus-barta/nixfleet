@@ -115,11 +115,8 @@ func (s *Server) handleDispatchOp(w http.ResponseWriter, r *http.Request) {
 			successCount++
 		}
 
-		// Broadcast state change
-		s.stateManager.ApplyChange(sync.Change{
-			Type:    sync.ChangeCommandStarted,
-			Payload: cmd,
-		})
+		// P8900: Don't broadcast here - LifecycleManager already broadcasts via BroadcastCommandState()
+		// Duplicate emission was causing "pull started" to appear twice in logs
 	}
 
 	// Determine overall status

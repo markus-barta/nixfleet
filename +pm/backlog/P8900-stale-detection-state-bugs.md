@@ -90,29 +90,30 @@ func (h *Hub) detectStaleStatus(hostID string, updateStatus map[string]any) {
 
 ---
 
-### 3. Duplicate Operation Messages (Observed)
+### 3. Duplicate Operation Messages (Observed) ✅ FIXED
 
 **Symptom**: Multiple "pull started" messages in logs for single action.
 
-**Investigation Status**: Code review shows clean flow:
+**Root Cause**: Duplicate `ChangeCommandStarted` emission in `handlers_ops.go`
 
-- Agent: `sendOperationProgress()` called once per phase transition ✅
-- Dashboard: `handleAgentMessage()` → `BroadcastToBrowsers()` once ✅
-- No obvious duplication in code
+**Location**: `src/internal/dashboard/handlers_ops.go:119-122`
 
-**Possible Causes**:
+**Problem**: HTTP handler emitted `ChangeCommandStarted` AFTER calling `lifecycleManager.ExecuteOp()`, which already broadcasts via `BroadcastCommandState()` → `ApplyChange(ChangeCommandStarted)`.
 
-- Multiple browser tabs connected (each receives broadcast)
-- Command state machine emitting multiple events (command_started + operation_progress)
-- State sync delta + legacy broadcast overlap
-- Agent reconnect/retry sending same message
+**Flow (Broken)**:
 
-**Next Steps**:
+```
+1. User clicks "Pull" → POST /api/ops/execute
+2. handlers_ops.go:84 → lifecycleManager.ExecuteOp()
+3.   → lifecycle_adapter.go:169 → ApplyChange(ChangeCommandStarted) ✅
+4. handlers_ops.go:119 → ApplyChange(ChangeCommandStarted) ❌ DUPLICATE
+5. Web UI receives 2x command_started events
+6. Logs "pull started" twice
+```
 
-- Add request ID to operation_progress messages for deduplication
-- Check if multiple browser tabs are open
-- Review command state machine event emission
-- Add trace logging with timestamps to track message flow
+**Fix**: Remove duplicate emission from HTTP handler (lifecycle manager is authoritative).
+
+**Impact**: Clean logs, no duplicate "started" messages.
 
 ---
 
