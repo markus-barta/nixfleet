@@ -29,6 +29,10 @@ type StatusChecker struct {
 	// Check intervals
 	lockInterval   time.Duration // 5 minutes for lock
 	systemInterval time.Duration // 5 minutes for system
+
+	// Stale state detection (P1110)
+	lastStatusUpdate time.Time // When status was last updated
+	staleThreshold   time.Duration // How long before status is considered stale
 }
 
 // NewStatusChecker creates a new status checker.
@@ -37,6 +41,7 @@ func NewStatusChecker(a *Agent) *StatusChecker {
 		a:              a,
 		lockInterval:   5 * time.Minute,
 		systemInterval: 5 * time.Minute,
+		staleThreshold: 5 * time.Minute, // Status considered stale after 5 minutes
 	}
 }
 
@@ -57,6 +62,9 @@ func (s *StatusChecker) GetStatus(ctx context.Context) *protocol.UpdateStatus {
 			Str("message", s.lockStatus.Message).
 			Msg("lock status check completed")
 	}
+
+	// P1110: Detect stale system status (e.g., "working" stuck)
+	s.detectAndResolveStaleStatus(now)
 
 	// System status is NOT checked automatically - too expensive!
 	// nix build --dry-run does full flake evaluation, which:
@@ -185,6 +193,7 @@ func (s *StatusChecker) SetSystemWorking() {
 		CheckedAt: time.Now().UTC().Format(time.RFC3339),
 	}
 	s.lastSystemCheck = time.Now()
+	s.lastStatusUpdate = time.Now()
 }
 
 // P1100: SetLockWorking sets the lock status to "working" during refresh-lock operations.
@@ -452,3 +461,36 @@ func itoa(n int) string {
 	return string(buf[i:])
 }
 
+// P1110: detectAndResolveStaleStatus detects and resolves stale status states.
+// This handles the case where the agent crashes during a command (e.g., switch)
+// and the status remains "working" indefinitely.
+func (s *StatusChecker) detectAndResolveStaleStatus(now time.Time) {
+	// Only check for stale "working" states
+	if s.systemStatus.Status != "working" {
+		return
+	}
+
+	// Check if status has been "working" for too long
+	if s.lastStatusUpdate.IsZero() {
+		return
+	}
+
+	elapsed := now.Sub(s.lastStatusUpdate)
+	if elapsed > s.staleThreshold {
+		s.a.log.Warn().
+			Str("old_status", s.systemStatus.Status).
+			Str("old_message", s.systemStatus.Message).
+			Dur("elapsed", elapsed).
+			Dur("threshold", s.staleThreshold).
+			Msg("P1110: detected stale system status - resolving to unknown")
+
+		// Resolve stale status to "unknown" with explanation
+		s.systemStatus = protocol.StatusCheck{
+			Status:    "unknown",
+			Message:   "Status stale (agent may have restarted during command)",
+			CheckedAt: now.UTC().Format(time.RFC3339),
+		}
+		s.lastSystemCheck = now
+		s.lastStatusUpdate = now
+	}
+}

@@ -158,6 +158,11 @@ type Hub struct {
 	completionSubs   map[string][]chan CommandCompletion
 	completionSubsMu sync.Mutex
 
+	// P1110: Track last status update time for stale state detection
+	// Maps hostID -> map[status_field]lastUpdateTime
+	lastStatusUpdates map[string]map[string]time.Time
+	lastStatusMu      sync.RWMutex
+
 	mu sync.RWMutex
 }
 
@@ -177,20 +182,21 @@ type agentMessage struct {
 // NewHub creates a new Hub.
 func NewHub(log zerolog.Logger, db *sql.DB, cfg *Config, vf *VersionFetcher) *Hub {
 	return &Hub{
-		log:            log.With().Str("component", "hub").Logger(),
-		db:             db,
-		cfg:            cfg,
-		versionFetcher: vf,
-		clients:        make(map[*Client]bool),
-		agents:         make(map[string]*Client),
-		browsers:       make(map[*Client]bool),
-		register:       make(chan *Client),
-		unregister:     make(chan *Client),
-		agentMessages:  make(chan *agentMessage, 256),
-		broadcasts:     make(chan []byte, broadcastQueueSize),
-		completionSubs: make(map[string][]chan CommandCompletion),
-		agentFreshness: make(map[string]ops.AgentFreshness), // P2810
-		hostIDByHostname: make(map[string]string),
+		log:               log.With().Str("component", "hub").Logger(),
+		db:                db,
+		cfg:               cfg,
+		versionFetcher:    vf,
+		clients:           make(map[*Client]bool),
+		agents:            make(map[string]*Client),
+		browsers:          make(map[*Client]bool),
+		register:          make(chan *Client),
+		unregister:        make(chan *Client),
+		agentMessages:     make(chan *agentMessage, 256),
+		broadcasts:        make(chan []byte, broadcastQueueSize),
+		completionSubs:    make(map[string][]chan CommandCompletion),
+		agentFreshness:    make(map[string]ops.AgentFreshness), // P2810
+		hostIDByHostname:  make(map[string]string),
+		lastStatusUpdates: make(map[string]map[string]time.Time), // P1110
 	}
 }
 
@@ -1216,6 +1222,9 @@ func (h *Hub) handleHeartbeat(hostID string, payload protocol.HeartbeatPayload) 
 		}
 	}
 
+	// P1110: Detect stale status (e.g., "working" stuck for too long)
+	h.detectStaleStatus(hostID, updateStatus)
+
 	// Gate Tests (green only when System+Git+Lock are green)
 	if ts, ok := updateStatus["tests"].(protocol.StatusCheck); ok && ts.Status == "ok" {
 		systemOK := false
@@ -1473,6 +1482,66 @@ func (h *Hub) GetOnlineHosts() []string {
 		hosts = append(hosts, hostID)
 	}
 	return hosts
+}
+
+// P1110: detectStaleStatus detects and logs stale status states.
+// This handles the case where the agent reports a "working" status for too long
+// without progress (e.g., switch command stuck after agent restart).
+func (h *Hub) detectStaleStatus(hostID string, updateStatus map[string]any) {
+	const staleThreshold = 5 * time.Minute
+
+	// Check system status for staleness
+	if ss, ok := updateStatus["system"].(protocol.StatusCheck); ok {
+		if ss.Status == "working" {
+			h.lastStatusMu.Lock()
+			if h.lastStatusUpdates[hostID] == nil {
+				h.lastStatusUpdates[hostID] = make(map[string]time.Time)
+			}
+			
+			lastUpdate, exists := h.lastStatusUpdates[hostID]["system"]
+			now := time.Now()
+			
+			if !exists {
+				// First time seeing "working" status
+				h.lastStatusUpdates[hostID]["system"] = now
+			} else {
+				elapsed := now.Sub(lastUpdate)
+				if elapsed > staleThreshold {
+					// Stale status detected - log it and resolve to "unknown"
+					h.log.Warn().
+						Str("host", hostID).
+						Str("old_status", ss.Status).
+						Str("old_message", ss.Message).
+						Dur("elapsed", elapsed).
+						Dur("threshold", staleThreshold).
+						Msg("P1110: detected stale system status - resolving to unknown")
+
+					// Log to command output if available
+					if h.logStore != nil {
+						_ = h.logStore.LogStaleState(hostID, "switch", ss.Status, "unknown", int(elapsed.Seconds()))
+					}
+
+					// Resolve stale status to "unknown"
+					updateStatus["system"] = protocol.StatusCheck{
+						Status:    "unknown",
+						Message:   "Status stale (agent may have restarted during command)",
+						CheckedAt: now.UTC().Format(time.RFC3339),
+					}
+					
+					// Reset the tracking
+					h.lastStatusUpdates[hostID]["system"] = now
+				}
+			}
+			h.lastStatusMu.Unlock()
+		} else {
+			// Status is not "working", reset the tracking
+			h.lastStatusMu.Lock()
+			if h.lastStatusUpdates[hostID] != nil {
+				delete(h.lastStatusUpdates[hostID], "system")
+			}
+			h.lastStatusMu.Unlock()
+		}
+	}
 }
 
 // SendCommand sends a command to a specific agent by host ID.

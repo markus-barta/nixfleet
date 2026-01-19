@@ -119,6 +119,30 @@ func (ls *LogStore) CompleteCommand(hostID, command string, exitCode int) error 
 	return nil
 }
 
+// LogStaleState writes a stale state detection event to the log
+// P1110: Used to record when stale state is detected and resolved
+func (ls *LogStore) LogStaleState(hostID, command, oldStatus, newStatus string, elapsedSeconds int) error {
+	ls.mu.Lock()
+	defer ls.mu.Unlock()
+
+	key := hostID + ":" + command
+	f, ok := ls.files[key]
+	if !ok {
+		// No active log file, create one for the stale state event
+		if err := ls.StartCommand(hostID, command); err != nil {
+			return err
+		}
+		f = ls.files[key]
+	}
+
+	// Write stale state warning
+	timestamp := time.Now().Format("15:04:05")
+	warning := fmt.Sprintf("[%s] [WARN] P1110: Stale state detected - command '%s' was '%s' for %ds, resolving to '%s'\n",
+		timestamp, command, oldStatus, elapsedSeconds, newStatus)
+	_, err := f.WriteString(warning)
+	return err
+}
+
 // GetLogPath returns the path to the logs directory for a host
 func (ls *LogStore) GetLogPath(hostID string) string {
 	return filepath.Join(ls.basePath, hostID)
